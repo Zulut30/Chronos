@@ -1,4 +1,4 @@
-"""Olympus v3 -> v3 + "board to chat" (studio feature only).
+"""Olympus v3 -> v3 + "board to chat" (studio feature) + Chronos branding (85-chronos.js, cosmetic only).
 --build    : staged server.asar = installed v3 archive with the 60-studio feature block replaced; every other file verified byte-identical.
 --apply    : T3 must be closed. Installs the staged archive (sha-checked, atomic); any failure restores v3.
 --rollback : T3 must be closed. Restores the v3 archive (olympus-v3/server.asar)."""
@@ -7,7 +7,7 @@ from pathlib import Path
 U=Path(__file__).parent;V3=U.parent
 LIVE=Path(r'C:\Users\zulut\AppData\Local\Programs\t3code\resources\server.asar')
 V3ARCH=V3/'server.asar';V3SHA='96ed9b4c8c439cdeab40fa2c2b97814a66a79137de1d6b6eb1279ca81c38bd57'
-OLD=V3/'before/studio-service-20261117/60-studio.js';NEW=V3/'src/60-studio.js'
+OLD=V3/'before/studio-service-20261117/60-studio.js';NEW=V3/'src/60-studio.js';BRAND=V3/'src/85-chronos.js'
 OUT=U/'server.asar';M=U/'manifest.json';MAIN='main-lxHaZZx7.js'
 def sha_bytes(b):return hashlib.sha256(b).hexdigest()
 def sha(p):
@@ -32,8 +32,8 @@ def build():
   old,base=header(f);tree=copy.deepcopy(old);entries=dict(walk(tree))
   paths=[p for p in entries if p.endswith('/'+MAIN)];assert len(paths)==1;mp=paths[0];n=entries[mp]
   f.seek(base+int(n['offset']));s=f.read(n['size']).decode('utf8')
-  o=OLD.read_text('utf8');w=NEW.read_text('utf8')
-  assert s.count(o)==1,('old studio block count',s.count(o));assert 'attachBoard' not in s
+  o=OLD.read_text('utf8');w=NEW.read_text('utf8')+'\n'+BRAND.read_text('utf8')
+  assert s.count(o)==1,('old studio block count',s.count(o));assert 'attachBoard' not in s and '__olyBrand' not in s
   ns=s.replace(o,w);assert ns.count(w)==1;newmain=ns.encode('utf8')
   physical=sorted(((p,x) for p,x in entries.items() if 'offset' in x and not x.get('unpacked')),key=lambda x:int(x[1]['offset']))
   total=0

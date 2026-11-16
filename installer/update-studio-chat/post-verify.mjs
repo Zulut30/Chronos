@@ -20,7 +20,7 @@ await safe('server_restarted', () => check('server_restarted', runtime.pid !== b
 await safe('served_main_bundle', async () => {
   const r = await fetch(runtime.origin + '/assets/main-lxHaZZx7.js', { cache: 'no-store' });
   const b = Buffer.from(await r.arrayBuffer());
-  check('served_main_bundle', r.status === 200 && sha(b) === m.mainSha256 && b.includes('attachBoard'), { status: r.status, same: sha(b) === m.mainSha256 });
+  check('served_main_bundle', r.status === 200 && sha(b) === m.mainSha256 && b.includes('attachBoard') && b.includes('__olyBrand'), { status: r.status, same: sha(b) === m.mainSha256 });
 });
 await safe('studio_service', async () => {
   const h = await (await fetch('http://127.0.0.1:4520/api/health')).json();
