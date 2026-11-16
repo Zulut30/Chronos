@@ -1,0 +1,13 @@
+/* oly speed (features/20-speed.js) — Olympus night */
+.oly-speed[data-live=true]{color:var(--h)}
+.oly-stats-reset{border-radius:2px;border-color:var(--gs);color:#E8F0FBb3}
+.oly-stats-reset:hover{background:#E3BF5C14;color:var(--h)}
+.oly-stats td{border-top-color:#E3BF5C26}
+.oly-stats th{color:#E8F0FB8c}
+.oly-stats tr.grp td{font-family:Didot,"Bodoni 72",Georgia,serif;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--h);padding-top:16px}
+.oly-stats tr.grp td b{color:var(--h)}
+.oly-stats .tag{border-radius:2px;border-color:var(--gs)}
+.oly-stats .tag[data-m=exact]{color:var(--h);background:#E3BF5C14}
+.oly-spark{color:var(--g)}
+.oly-pick-speed{color:#E3BF5Cb3}
+.oly-dl-speed dd{color:var(--h)}

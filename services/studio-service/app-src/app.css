@@ -1,0 +1,44 @@
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #fff; }
+html.dark body { background: #121212; }
+.excalidraw { --ui-font: Inter, "Segoe UI", system-ui, sans-serif; }
+
+.oly-top { display: flex; align-items: center; gap: 8px; }
+.oly-status { font-size: 12px; color: var(--color-gray-50, #888); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.oly-status.err { color: #d33; }
+.oly-send { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 2.25rem; padding: 0 12px; border-radius: var(--border-radius-lg, 8px); background: var(--color-primary, #6965db); color: #fff; font: 500 13px var(--ui-font); cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-island, none); }
+.oly-send:hover { background: var(--color-primary-darker, #5b57d1); }
+.oly-send:focus-visible { outline: 2px solid var(--color-primary-light, #e3e2fe); outline-offset: 2px; }
+html.oly.dark .oly-send { color: #081530; }
+@media (max-width: 560px) { .oly-status { display: none; } }
+.oly-welcome { margin-top: 12px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--color-gray-50, #888); font-family: var(--ui-font); }
+.oly-welcome code { font-size: 11px; opacity: .8; word-break: break-all; }
+.oly-error { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #666; font-size: 14px; padding: 24px; text-align: center; }
+.oly-error a { color: inherit; }
+
+.oly-boards { display: flex; flex-direction: column; gap: 2px; padding: 4px 8px 12px; overflow: auto; font-family: var(--ui-font); }
+.oly-boards button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary-color); }
+.oly-boards button:hover { background: var(--button-hover-bg, rgba(0,0,0,.06)); }
+.oly-board .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oly-board .t { font-size: 11px; color: var(--color-gray-50, #888); }
+.oly-board.active { background: var(--color-surface-primary-container, rgba(105,101,219,.12)); font-weight: 500; }
+.oly-new { color: var(--color-primary) !important; font-weight: 500; }
+.oly-all { margin-top: 8px; color: var(--color-gray-50, #888) !important; font-size: 12px !important; }
+
+/* Olympus adaptation (day: cream + royal blue, night: navy + gold) */
+html.oly .excalidraw {
+  --color-primary: #1952C5; --color-primary-darker: #1444A6; --color-primary-darkest: #0F3684; --color-primary-light: #DCE5F7; --color-primary-hover: #1444A6;
+  --color-surface-primary-container: #DCE5F7; --island-bg-color: #FFFDF8; --sidebar-bg-color: #FFFDF8; --border-radius-md: 2px; --border-radius-lg: 2px;
+  --sidebar-border-color: #0E111626; --text-primary-color: #0E1116;
+}
+html.oly .excalidraw .Island { box-shadow: 3px 3px 0 #0E11160d, 0 12px 32px -12px #0E111640; }
+html.oly .excalidraw .welcome-screen-center__heading, html.oly .excalidraw .Sidebar .sidebar__header { font-family: "Cormorant Garamond", Didot, Georgia, serif; }
+html.oly .excalidraw .welcome-screen-center__heading { font-size: 30px; font-weight: 500; color: #0E1116; }
+html.oly.dark .excalidraw.theme--dark {
+  --color-primary: #E3BF5C; --color-primary-darker: #E9C76A; --color-primary-darkest: #F0D58A; --color-primary-light: #3A3420; --color-primary-hover: #E9C76A;
+  --color-surface-primary-container: #2B2A22; --island-bg-color: #0E1E3E; --sidebar-bg-color: #0E1E3E; --text-primary-color: #E8F0FB;
+  --sidebar-border-color: #E3BF5C4d; --default-border-color: #E3BF5C4d;
+}
+html.oly.dark .excalidraw.theme--dark .Island { border: 1px solid #E3BF5C4d; box-shadow: 0 12px 32px -12px #0008; }
+html.oly.dark .excalidraw.theme--dark .welcome-screen-center__heading { font-family: Didot, "Cormorant Garamond", Georgia, serif; text-transform: uppercase; letter-spacing: .12em; font-size: 22px; color: #E9C76A; }
+html.oly.dark .excalidraw.theme--dark .Sidebar .sidebar__header { color: #E9C76A; letter-spacing: .08em; text-transform: uppercase; font-family: Didot, Georgia, serif; }

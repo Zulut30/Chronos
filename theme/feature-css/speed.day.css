@@ -1,0 +1,13 @@
+/* oly speed (features/20-speed.js) — Olympus day */
+.oly-speed[data-live=true]{color:#1952C5}
+.oly-stats-reset{border-radius:2px;border-color:#0E111624}
+.oly-stats-reset:hover{background:#1952C50f;color:#1952C5}
+.oly-stats td{border-top-color:#0E111614}
+.oly-stats tr.grp td{font:500 17px/1.2 "Cormorant Garamond",Didot,Georgia,serif;color:#1952C5;letter-spacing:.01em;padding-top:16px}
+.oly-stats tr.grp td b{color:#0E1116}
+.oly-stats .mdl{color:#0E1116}
+.oly-stats .tag{border-radius:2px;border-color:#0E111624}
+.oly-stats .tag[data-m=exact]{color:#1952C5;border-color:#1952C566;background:#1952C50d}
+.oly-spark{color:#1952C5}
+.oly-pick-speed{color:#0E11168c}
+.oly-dl-speed dd{color:#0E1116}

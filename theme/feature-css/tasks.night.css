@@ -1,0 +1,54 @@
+/* tasks board (30-tasks.js) · Olympus night: navy glass, gold hairlines, Didot capitals */
+.oly-tk-row svg{color:#E3BF5C}
+.oly-tk-overlay{background:#020613a6}
+.oly-tk-dialog{background:#0B1A38;color:#E8F0FB;border:1px solid #E3BF5C4d;border-radius:2px;box-shadow:inset 0 0 0 3px #09142C,inset 0 0 0 4px #E3BF5C33,0 18px 50px #0008}
+.oly-tk-nav{background:linear-gradient(#081530,#0C1D42);border-right-color:#E3BF5C33}
+.oly-tk-navtitle{font:600 15px/1.2 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.14em;text-transform:uppercase;color:#E9C76A;padding-bottom:16px}
+.oly-tk-navtitle svg{color:#E3BF5C}
+.oly-tk-sec{text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;color:#E3BF5Cb3}
+.oly-tk-item{border-radius:2px;color:#E8F0FBb3}
+.oly-tk-item:hover{background:#16305E99;color:#E8F0FB}
+.oly-tk-item[aria-current=true]{background:#1D3762cc;color:#E8F0FB;box-shadow:inset 3px 0 #E3BF5C,0 0 0 1px #E3BF5C33}
+.oly-tk-item .here{background:#E3BF5C}
+.oly-tk-head{border-bottom-color:#E3BF5C33;background:#0E1E3E}
+.oly-tk-crumb h2{font:600 15px/1.2 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.12em;text-transform:uppercase;color:#E9C76A}
+.oly-tk-crumb .m,.oly-tk-crumb .sub{color:#E8F0FB99}
+.oly-tk-board{background:radial-gradient(1px 1px at 23px 41px,#ffffff66 50%,#0000) 0 0/260px 220px,radial-gradient(1px 1px at 141px 97px,#cfe0ff55 50%,#0000) 0 0/260px 220px,linear-gradient(#081530,#0E1E3E)}
+.oly-tk-col{background:#0E1E3E99;border-color:#E3BF5C26;border-radius:2px;backdrop-filter:blur(12px)}
+.oly-tk-colhead{font:600 11px/1 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.14em;text-transform:uppercase;color:#E9C76A}
+.oly-tk-colhead small{font-family:Inter,system-ui,sans-serif;letter-spacing:0;color:#E8F0FB99}
+.oly-tk-card{background:#12244Acc;border-color:#E3BF5C33;border-radius:2px;color:#E8F0FB;box-shadow:0 6px 18px -12px #000c;backdrop-filter:blur(12px)}
+.oly-tk-card:hover{border-color:#E3BF5C80}
+.oly-tk-card[aria-selected=true]{border-color:#E3BF5Cb3;box-shadow:inset 3px 0 #E3BF5C,0 0 18px -6px #E3BF5C40}
+.oly-tk-card .d,.oly-tk-meta,.oly-tk-foot{color:#E8F0FB99}
+.oly-tk-dot{background:#8FA3C4}
+.oly-tk-dot[data-s=doing]{background:#6EA8FF}.oly-tk-dot[data-s=review]{background:#E3BF5C}.oly-tk-dot[data-s=done]{background:#4ADE80}
+.oly-tk-pr[data-p=low]{background:#E8F0FB14;color:#E8F0FBb3}
+.oly-tk-btn,.oly-tk-ico,.oly-tk-input,.oly-tk-dialog select,.oly-tk-dialog textarea,.oly-tk-addbtn,.oly-tk-add,.oly-tk-md,.oly-tk-n,.oly-tk-tabs button,.oly-tk-checks{border-radius:2px}
+.oly-tk-btn:not(.ghost):not(.primary){border-color:#E3BF5C4d}
+.oly-tk-input,.oly-tk-dialog select,.oly-tk-dialog textarea:not(.oly-tk-title){background:#081530;border-color:#E3BF5C40;color:#E8F0FB}
+.oly-tk-input:focus,.oly-tk-dialog select:focus,.oly-tk-dialog textarea:focus{border-color:#E3BF5Cb3;box-shadow:0 0 0 2px #E3BF5C26}
+.oly-tk-btn.primary{background:#E3BF5C;color:#081530;border-color:transparent}
+.oly-tk-btn.primary:hover{background:#EDCD75}
+.oly-tk-btn:not(.primary):hover,.oly-tk-ico:hover,.oly-tk-addbtn:hover{background:#16305E99}
+.oly-tk-add{border-color:#E3BF5C4d}
+.oly-tk-detail{background:#0B1A38;border-left-color:#E3BF5C4d;box-shadow:-16px 0 40px -20px #000c}
+.oly-tk-dhead,.oly-tk-dfoot{border-color:#E3BF5C33}
+.oly-tk-dialog .oly-tk-title{font:600 17px/1.35 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.04em;color:#E9C76A}
+.oly-tk-block h4,.oly-tk-fields label{text-transform:uppercase;letter-spacing:.1em;font-size:10.5px;color:#E3BF5Cb3}
+.oly-tk-md{border-color:#E3BF5C33}
+.oly-tk-n{background:#12244A99;border-left:2px solid #E3BF5C66}
+.oly-tk-n .w b{color:#E9C76A}
+.oly-tk-prog{background:#E8F0FB1a}.oly-tk-prog i{background:#E3BF5C}
+.oly-tk-ci input[type=checkbox]{accent-color:#E3BF5C}
+.oly-tk-mbox{background:#0B1A38;border:1px solid #E3BF5C4d;border-radius:2px;box-shadow:inset 0 0 0 3px #09142C,inset 0 0 0 4px #E3BF5C33,0 18px 50px #0008}
+.oly-tk-mbox h3{font:600 14px/1.3 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.12em;text-transform:uppercase;color:#E9C76A}
+.oly-tk-checks{border-color:#E3BF5C33}
+.oly-tk-pop{background:#0E1E3Ef2;color:#E8F0FB;border:1px solid #E3BF5C4d;border-radius:2px;box-shadow:0 18px 50px -12px #000c,0 0 0 1px #09142C;backdrop-filter:blur(12px)}
+.oly-tk-pophead{border-bottom-color:#E3BF5C33;color:#E8F0FB99}
+.oly-tk-pophead svg{color:#E3BF5C}
+.oly-tk-pophead kbd{border-color:#E3BF5C4d}
+.oly-tk-popg{text-transform:uppercase;letter-spacing:.12em;font-size:10px;color:#E3BF5Cb3}
+.oly-tk-opt{border-radius:2px}
+.oly-tk-opt[aria-selected=true]{background:#1D3762cc;color:#E8F0FB;box-shadow:inset 2px 0 #E3BF5C}
+.oly-tk-toast{background:#0E1E3E;color:#E8F0FB;border:1px solid #E3BF5C66;border-radius:2px}

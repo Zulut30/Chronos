@@ -1,0 +1,17 @@
+/* OpenRouter section in the composer @ menu — Olympus day */
+.oly-or{background:#FFFDF8;border:1px solid #0E111626;border-radius:2px;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640;color:#0E1116}
+.oly-or-head{border-bottom:1px solid #0E111614;padding-bottom:7px;margin-bottom:4px}
+.oly-or-title{font-family:"Cormorant Garamond",Didot,Georgia,serif;font-size:16px;font-weight:600;letter-spacing:.02em}
+.oly-or-title svg{color:#1952C5;width:15px;height:15px}
+.oly-or-count{font-family:Inter,system-ui,sans-serif;font-size:11.5px;color:#0E111699}
+.oly-or-chip{border-radius:2px;color:#0E1116a6}
+.oly-or-chip:hover{background:#1952C512;color:#0E1116}
+.oly-or-chip[aria-pressed="true"]{background:#1952C5;border-color:#1952C5;color:#FFFDF8}
+.oly-or-item{border-radius:2px}
+.oly-or-item:hover{background:#1952C50f}
+.oly-or-item[data-active="true"]{background:#1952C51a;box-shadow:inset 2px 0 0 #1952C5}
+.oly-or-item svg.k{color:#1952C5}
+.oly-or-id{color:#0E111680}
+.oly-or-badge{border-radius:2px;border-color:#1952C540;color:#1952C5;background:#1952C50a}
+.oly-or-hint,.oly-or-empty{color:#0E111680}
+.oly-or-hint kbd{border-radius:2px;border-color:#0E111626;background:#F3EFE6}

@@ -1,0 +1,5 @@
+/* Pending question / approval cards inside the composer: Olympus geometry */
+[data-slot=composer-shell] :is(.rounded-xl,.rounded-2xl,.rounded-3xl,.rounded-lg){border-radius:2px!important}
+[data-slot=composer-shell] .rounded-full.bg-message-action{border-radius:2px!important;background:var(--b)!important;color:#fff!important;letter-spacing:.01em}
+[data-slot=composer-shell] .rounded-full.bg-message-action:hover{background:#1446A8!important}
+[data-slot=composer-shell] :is(.rounded-xl,.rounded-2xl):has([data-pending-user-input-toggle]){background:#FFFDF8!important;border:1px solid #0E11161f!important;box-shadow:0 1px 0 #0E111608!important}

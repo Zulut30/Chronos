@@ -1,0 +1,16 @@
+/* 40-files — Olympus night: navy glass, gold hairlines and accents */
+.oly-ftoast{background:#0E1E3Ee0;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#E8F0FB;border:1px solid #E3BF5C4d;border-radius:2px;box-shadow:0 12px 32px -12px #000000b3,inset 0 1px 0 #E3BF5C1a}
+.oly-ftoast-ic{color:#E3BF5C}
+.oly-ftoast.is-err .oly-ftoast-ic{color:#F28B82}
+.oly-ftoast-t{font-family:Didot,"Cormorant Garamond",Georgia,serif;font-size:15px;font-weight:500;letter-spacing:.02em;color:#E9C76A}
+.oly-ftoast-d{color:#E8F0FBa6}
+.oly-ftoast-bar{background:#E3BF5C26;border-radius:0}
+.oly-ftoast-bar i{background:#E3BF5C}
+.oly-ftoast-btn{background:transparent;color:#E9C76A;border:1px solid #E3BF5C66;border-radius:2px;letter-spacing:.02em}
+.oly-ftoast-btn:hover{background:#E3BF5C;border-color:#E3BF5C;color:#081530}
+.oly-ftoast-x{border-radius:2px;color:#E8F0FB99}
+.oly-ftoast-x:hover{background:#E3BF5C1f;color:#E9C76A}
+.oly-dl-float{background:#0E1E3E;color:#E3BF5C;border:1px solid #E3BF5C66;border-radius:2px;box-shadow:0 2px 8px #0000004d}
+.oly-dl-float:hover{background:#E3BF5C;border-color:#E3BF5C;color:#081530}
+.oly-dl-head{border-radius:2px}
+.oly-dl-head:hover{background:#E3BF5C1f;color:#E3BF5C}

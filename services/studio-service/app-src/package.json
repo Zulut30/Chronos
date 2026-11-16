@@ -1,0 +1,11 @@
+{
+  "name": "t3-studio-board-editor",
+  "private": true,
+  "description": "Build-time only: the built output lives in ../public/excalidraw. See build.mjs.",
+  "dependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "esbuild": "0.25.5"
+  }
+}

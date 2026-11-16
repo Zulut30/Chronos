@@ -1,0 +1,12 @@
+/* Studio menu (sidebar «Студия») — Olympus day: cream card, ink text, royal blue accents, 2px radii */
+.oly-studio-pop{background:#FFFDF8;color:#0E1116;border:1px solid #0E111626;border-radius:2px;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640}
+.oly-studio-pop .h b{font-family:"Cormorant Garamond",Didot,Georgia,serif;font-size:21px;font-weight:500;letter-spacing:.005em}
+.oly-studio-pop .g{color:#0E111699;text-transform:uppercase;letter-spacing:.08em;font-size:10.5px}
+.oly-studio-pop .it{border-radius:2px}
+.oly-studio-pop .it:hover,.oly-studio-pop .it:focus-visible{background:#1952C512;color:#0E1116}
+.oly-studio-pop .it:hover svg{color:#1952C5}
+.oly-studio-pop .sep{background:#0E11161f}
+.oly-studio-pop input{border-radius:2px;background:#F3EFE6;border-color:#0E111626}
+.oly-studio-pop input:focus{border-color:#1952C5;box-shadow:0 0 0 1px #1952C5}
+.oly-studio-toast{border-radius:2px;background:#0E1116;color:#FFFDF8;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111660}
+[data-oly-studio-mi]:hover{background:#1952C512}

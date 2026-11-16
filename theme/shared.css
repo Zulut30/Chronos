@@ -1,0 +1,19 @@
+/* Image lives directly in the rule (not a custom property) so style recalcs never re-substitute 250 KB. */
+[data-workspace-area^=conv]::before{background-image:@@APOLLO@@!important;background-repeat:no-repeat!important}
+/* Empty draft view paints its own opaque layer over the scene; let the scene show through. */
+[data-workspace-area^=conv]>.bg-background{background:#0000!important}
+[data-workspace-area^=conv]{overflow:clip}
+[data-workspace-area^=conv]>.h-full.min-h-0{position:relative}
+/* Halo: square centred on Apollo's head (sizes follow the statue box: H = min(90%,860px)); compositor-only motion. */
+[data-workspace-area^=conv]>.h-full.min-h-0::before{content:"";position:absolute;right:1%;bottom:0;height:calc(min(90%,860px)*.75);aspect-ratio:1;z-index:-2;pointer-events:none;background:@@HALO@@ center/contain no-repeat;transform:translate(6.2%,-45.7%);animation:oly-spin 240s linear infinite,oly-breathe 7s ease-in-out infinite alternate;will-change:transform,opacity}
+/* Drifting motes / stars: tiles share a 360px period so the loop is seamless. */
+[data-workspace-area^=conv]>.h-full.min-h-0::after{content:"";position:absolute;left:0;right:0;top:0;height:calc(100% + 360px);z-index:-1;pointer-events:none;animation:oly-rise 46s linear infinite;will-change:transform}
+@keyframes oly-spin{from{transform:translate(6.2%,-45.7%) rotate(0)}to{transform:translate(6.2%,-45.7%) rotate(360deg)}}
+@keyframes oly-breathe{from{opacity:.72}to{opacity:1}}
+@keyframes oly-rise{from{transform:translateY(0)}to{transform:translateY(-360px)}}
+@keyframes oly-twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes oly-glint{0%{transform:translateY(-140px);opacity:0}8%{opacity:1}55%{transform:translateY(105vh);opacity:1}56%,100%{transform:translateY(105vh);opacity:0}}
+/* Light running down the meander pilaster of the sidebar. */
+[data-slot=sidebar-inner]{position:relative}
+[data-slot=sidebar-inner]::after{content:"";position:absolute;right:0;top:0;width:12px;height:140px;pointer-events:none;z-index:1;background:linear-gradient(#0000,var(--glint,#FFFFFFb3) 50%,#0000);mix-blend-mode:screen;animation:oly-glint 11s ease-in-out infinite;will-change:transform,opacity}
+@media (prefers-reduced-motion:reduce){[data-workspace-area^=conv]>.h-full.min-h-0::before,[data-workspace-area^=conv]>.h-full.min-h-0::after,[data-slot=sidebar-inner]::after{animation:none}}

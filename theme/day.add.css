@@ -1,0 +1,30 @@
+/* v2 · statue, sun halo, print grain, meander frieze */
+[data-workspace-area^=conv]::before{content:"";position:absolute;right:1%;bottom:0;height:min(90%,860px);aspect-ratio:.8;max-width:60%;z-index:-1;pointer-events:none;background-position:85% 100%;background-size:auto 80%;-webkit-mask:linear-gradient(#000 76%,#0000 97%)}
+[data-workspace-area^=conv]::after{padding-top:26px;background:@@GRAIN@@ 0 0/180px 180px,@@MEANDER@@ 0 5px/24px 14px repeat-x,var(--L) 32px 0/1px 100% no-repeat,var(--L) right 32px top 0/1px 100% no-repeat,var(--L) 66% 0/1px 100% no-repeat,var(--L) 0 44px/100% 1px no-repeat,var(--L) left 0 bottom 44px/100% 1px no-repeat,repeating-linear-gradient(90deg,var(--ln) 0 1px,#0000 1px 220px) left 32px bottom 45px/calc(100% - 64px) 7px no-repeat,var(--P) 27px 39px no-repeat,var(--P) right 27px top 39px no-repeat,var(--P) left 27px bottom 39px no-repeat,var(--P) right 27px bottom 39px no-repeat,var(--P) calc(66% - 5px) 39px no-repeat,var(--P) left calc(66% - 5px) bottom 39px no-repeat,radial-gradient(140% 110% at 72% 28%,#0000 50%,#0A2C8C59)}
+
+/* v2 · sidebar: parchment, laurel, blue meander pilaster */
+[data-slot=sidebar-inner]{background:@@GRAIN_DARK@@ 0 0/180px 180px,@@LAUREL_DAY@@ 50% calc(100% - 118px)/180px 180px no-repeat,@@MEANDER_V@@ right 0 top 0/12px 20px repeat-y,linear-gradient(90deg,#0000 calc(100% - 12px),var(--b) 0),linear-gradient(#F8F4EC,#EDE5D4)!important;padding-right:12px}
+[data-thread-item]:is([data-active=true],[aria-current]),[data-sidebar-row][aria-current]{background:#FFFDF8;box-shadow:inset 3px 0 var(--b),0 1px 0 #0E111612,0 6px 16px -10px #0A1E5059}
+[data-sidebar-row]:hover{background:#E9E1D0}
+:is([aria-label="Day / night"],[aria-label="День / ночь"]) svg{color:var(--b)}
+/* Empty draft hero lives in the composer overlay, above the scene. */
+[data-workspace-area=composer] h1{color:var(--cr)!important;font-family:"Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;font-weight:500;text-shadow:0 2px 18px #0A2C8C99}
+[data-workspace-area=composer] h1 *{color:inherit!important}
+[data-workspace-area=composer] [class*=draft-hero]~p,[data-workspace-area=composer] [class*=draft-hero]~p *{color:#F3EFE6d9!important}
+[data-slot=composer-context-strip]{background:#F3EFE6!important;border:1px solid #0E111633;border-top:0;border-radius:0 0 2px 2px}
+/* v3 · motion layers, solid dropdowns */
+[data-workspace-area^=conv]>.h-full.min-h-0::after{background:@@MOTES_DAY_A@@ 0 0/260px 360px,@@MOTES_DAY_B@@ 0 0/330px 360px;opacity:.85}
+.dropdown-glass:not([data-slot=tooltip-popup]){background-color:#FFFDF8!important}
+/* Light cards inside the blue scene (secret requests, forms) need the ink text context. */
+[data-workspace-area^=conv] .bg-card{--contrast-foreground:var(--ink);--contrast-muted-foreground:#5B5F68;--contrast-secondary-label:#5B5F68;--contrast-icon-muted:#5F626A;--contrast-border:#0E111629;--contrast-input:#0E111647;--contrast-placeholder:#6B6D72;--ring:var(--b);--sl:#1952C440;--sc:var(--ink);color:var(--ink);text-shadow:none}
+[data-workspace-area^=conv] form[data-v2-item-type=secret_request]{background:var(--cr)!important;border:1px solid #0E11161f!important;border-radius:2px!important;box-shadow:0 18px 44px #0A1E5044}
+/* v4 · audit fixes */
+[data-testid=sidebar-settled-shelf-toggle]{font-family:inherit!important;font-size:12px!important;letter-spacing:normal!important;text-transform:none!important}
+[data-workspace-area^=conv] [data-timeline-row-kind]{text-shadow:0 0 1px #0d3aa0,0 0 7px #1952C5}
+[data-workspace-area^=conv] .text-info:not(:is(.chat-markdown,.bg-card,[data-changed-files-state],[data-v2-item-type^=appr]) *){color:#C6DAFC}
+[data-timeline-row-kind=sent-message] .chat-markdown:not(.user-message-markdown){--contrast-foreground:var(--ink);--contrast-muted-foreground:#5B5F68;--contrast-secondary-label:#5B5F68;--contrast-icon-muted:#5F626A;--contrast-border:#0E111629;--contrast-input:#0E111647;--info-foreground:var(--b);--diff-addition-foreground:#00774B;--diff-deletion-foreground:#A8231F;--sl:#1952C440;--sc:var(--ink);color:var(--ink);text-shadow:none;background:var(--cr)!important;border:1px solid #0E11161f!important;border-radius:2px!important;box-shadow:0 18px 44px #0A1E5044;padding:18px 22px}
+/* Olympus look for added panels */
+.oly-stats{border-radius:2px!important;border-color:#0E111624!important;background:#FFFDF8!important}
+.oly-stats h3{font:500 24px/1.1 "Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif!important;margin-bottom:6px!important}
+.oly-stats .big{font-family:"Cormorant Garamond",Didot,Georgia,serif;font-size:34px!important}
+.oly-skills-dialog{border-radius:2px!important;border:1px solid #0E11162e!important;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640!important}

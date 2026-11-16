@@ -1,0 +1,662 @@
+{
+ "exact": {
+  "Diff": "Дифф",
+  "Loading checkpoint diff...": "Загрузка диффа чекпоинта…",
+  "Previous turn": "Предыдущий ход",
+  "Next turn": "Следующий ход",
+  "Workspace panel": "Рабочая панель",
+  "Toggle Sidebar": "Показать или скрыть боковую панель",
+  "Toggle right panel": "Показать или скрыть правую панель",
+  "Toggle thread details": "Показать или скрыть панель деталей треда",
+  "Toggle terminal drawer": "Показать или скрыть выдвижной терминал",
+  "Drag to resize sidebar": "Потяните, чтобы изменить размер боковой панели",
+  "Sidebar shown": "Боковая панель показана",
+  "Sidebar hidden": "Боковая панель скрыта",
+  "Submit message": "Отправить сообщение",
+  "Stop generation": "Остановить генерацию",
+  "Tool call failed": "Вызов инструмента завершился ошибкой",
+  "Select ref": "Выбрать ref",
+  "Context from": "Контекст из",
+  "Forked from conversation": "Ответвлено от беседы",
+  "Open source conversation": "Открыть исходную беседу",
+  "Messages loading": "Сообщения загружаются",
+  "Context handoff": "Передача контекста",
+  "Compact": "Сжать",
+  "Compact and send": "Сжать и отправить",
+  "Got orchestration capabilities": "Возможности оркестрации получены",
+  "Asked for a secret": "Запрошен секрет",
+  "Saved securely and kept private": "Сохранено надёжно и скрыто от чата",
+  "Sent to a T3 thread": "Отправлено в тред T3",
+  "Finished": "Завершено",
+  "Got preview browser status": "Получен статус браузера превью",
+  "Updated background waits": "Фоновые ожидания обновлены",
+  "File Explorer": "Проводник",
+  "Side chats": "Боковые чаты",
+  "This environment expects a trusted pairing credential before the app can connect.": "Этому окружению нужны доверенные данные сопряжения, прежде чем приложение сможет подключиться.",
+  "Desktop-managed pairing and one-time pairing tokens are both accepted for this environment.": "Для этого окружения подходят и сопряжение через десктопное приложение, и одноразовые токены сопряжения.",
+  "Retry now": "Повторить сейчас",
+  "background waits": "фоновые ожидания",
+  "tool call failed": "вызов инструмента завершился ошибкой",
+  "Clone from a remote URL": "Клонировать по удалённому URL",
+  "GitHub repository": "Репозиторий GitHub",
+  "Clone GitHub owner/repo": "Клонировать GitHub owner/repo",
+  "Share a thread with a guest who watches it live in a browser and sends messages you approve. Needs T3 Connect: sign in and link this machine in": "Поделитесь тредом с гостем, который смотрит его вживую в браузере и отправляет сообщения, которые вы одобряете. Нужен T3 Connect: войдите и привяжите эту машину в",
+  "Let agents here work on your other machines, and theirs here. Turn it on for each machine, then link them in": "Пусть агенты отсюда работают на ваших других машинах, а их агенты — здесь. Включите это на каждой машине, затем свяжите их в",
+  "Daily": "Ежедневная",
+  "Daily processed": "Ежедневно обработано",
+  "ToolSearch": "Поиск инструментов",
+  "TaskStop": "Остановка задачи",
+  "AskUserQuestion": "Вопрос пользователю",
+  "Single": "Одиночный",
+  "Side by side": "Рядом",
+  "Split Terminal Horizontally": "Разделить терминал по горизонтали",
+  "Split Terminal Vertically": "Разделить терминал по вертикали",
+  "New Terminal": "Новый терминал",
+  "Close Terminal": "Закрыть терминал",
+  "This stops the running process and clears its history.": "Запущенный процесс будет остановлен, а его история очищена.",
+  "Close Diff": "Закрыть дифф",
+  "Close Files": "Закрыть файлы",
+  "Close Browser": "Закрыть браузер",
+  "Close Device": "Закрыть устройство",
+  "Close Side chat": "Закрыть боковой чат",
+  "Collapse all files": "Свернуть все файлы",
+  "Disable diff line wrapping": "Отключить перенос строк в диффе",
+  "Enable diff line wrapping": "Включить перенос строк в диффе",
+  "Show whitespace changes": "Показать изменения пробелов",
+  "Show file tree": "Показать дерево файлов",
+  "Hide file tree": "Скрыть дерево файлов",
+  "Restore panel size": "Восстановить размер панели",
+  "Pop preview into separate window": "Вынести превью в отдельное окно",
+  "You have control": "Вы управляете",
+  "Refresh": "Обновить",
+  "No simulators or emulators were found on this environment.": "В этом окружении не найдено симуляторов или эмуляторов.",
+  "sessions": "сессий",
+  "· API estimate": "· оценка по API",
+  "Daily cost by provider": "Стоимость по дням и провайдерам",
+  "Day": "День",
+  "Premium": "Премиум",
+  "of cost": "стоимости",
+  "Refresh usage": "Обновить расход",
+  "Authored": "Мои",
+  "Others": "Остальные",
+  "Draft": "Черновик",
+  "Conflicts with main": "Конфликты с main",
+  "Pin project": "Закрепить проект",
+  "Word": "Слово",
+  "hours": "ч",
+  "at": "в",
+  "model": "модель",
+  "Reconnect": "Переподключить",
+  "to change its settings.": "чтобы изменить его настройки.",
+  "Allowed": "Разрешено",
+  "Revoke others": "Отозвать остальные",
+  "Click “Add environment” to pair another environment.": "Нажмите «Добавить окружение», чтобы подключить ещё одно окружение.",
+  "Remote access is already configured. Change network exposure where the server starts.": "Удалённый доступ уже настроен. Сетевую доступность меняют там, где запускается сервер.",
+  "Archived": "В архиве",
+  "· Created": "· Создан",
+  "Menu now: In 1 hour · In 3 hours · Tomorrow · Next week": "Сейчас в меню: через 1 час · через 3 часа · завтра · на следующей неделе",
+  "Folder where new worktrees are created, on any drive, such as D:\\worktrees or ~/worktrees. Existing worktrees stay where they are. Leave empty to use the T3 home folder.": "Папка, где создаются новые worktree, на любом диске, например D:\\worktrees или ~/worktrees. Существующие worktree остаются на месте. Оставьте пустым, чтобы использовать домашнюю папку T3.",
+  "Typeset LaTeX math, such as $x^2$ or \\[x^2\\], in messages and Markdown previews. The composer keeps TeX source editable.": "Отображать формулы LaTeX, например $x^2$ или \\[x^2\\], в сообщениях и превью Markdown. В поле ввода исходный TeX остаётся редактируемым.",
+  "Отображать формулы Typeset LaTeX math, such as $x^2$ or \\[x^2\\], in messages and Markdown previews. The composer keeps TeX source editable.": "Отображать формулы LaTeX, например $x^2$ или \\[x^2\\], в сообщениях и превью Markdown. В поле ввода исходный TeX остаётся редактируемым.",
+  "OpenTelemetry export": "Экспорт OpenTelemetry",
+  "Clean up transcripts": "Очищать транскрипты",
+  "Default model": "Модель по умолчанию",
+  "Default browser viewport": "Окно просмотра браузера по умолчанию",
+  "Default browser zoom": "Масштаб браузера по умолчанию",
+  "Default browser appearance": "Оформление браузера по умолчанию",
+  "Automatically pull": "Автоматически подтягивать (pull)",
+  "Cleanup model": "Модель очистки",
+  "Git fetch interval": "Интервал Git fetch",
+  "Source control": "Система контроля версий",
+  "Separate fonts": "Отдельные шрифты",
+  "Artifacts and logs": "Артефакты и логи",
+  "Time format": "Формат времени",
+  "Keep worktrees with local changes": "Сохранять worktree с локальными изменениями",
+  "Actions": "Действия",
+  "Project grouping": "Группировка проектов",
+  "Device sources": "Источники устройств",
+  "Microphone": "Микрофон",
+  "Dictation shortcut": "Сочетание клавиш диктовки",
+  "Transcription language": "Язык транскрипции",
+  "Dictionary": "Словарь",
+  "Project dictionary": "Словарь проекта",
+  "Correction cue": "Фраза-исправление",
+  "Silence filtering": "Фильтрация тишины",
+  "Remove filler words": "Удалять слова-паразиты",
+  "Test microphone": "Проверить микрофон",
+  "Unpin confirmation": "Подтверждение открепления",
+  "Archive confirmation": "Подтверждение архивации",
+  "Delete confirmation": "Подтверждение удаления",
+  "Custom CSS": "Свой CSS",
+  "Custom instructions": "Свои инструкции",
+  "Split": "Разделённый",
+  "Continue with ChatGPT": "Продолжить через ChatGPT",
+  "New task": "Новая задача",
+  "Create a new worktree": "Создать новый worktree",
+  "Add environment": "Добавить окружение",
+  "In-app notifications": "Уведомления в приложении",
+  "Default browser profile": "Профиль браузера по умолчанию",
+  "Project defaults and overrides": "Значения проектов по умолчанию и переопределения",
+  "Transcription hardware and model unloading": "Оборудование транскрипции и выгрузка модели",
+  "Test model": "Проверить модель",
+  "Source control writer model": "Модель-автор системы контроля версий",
+  "Review guide model": "Модель руководства по ревью",
+  "Transcription models": "Модели транскрипции",
+  "GitHub accounts and token": "Аккаунты и токен GitHub",
+  "GitCafe credentials": "Учётные данные GitCafe",
+  "Bitbucket credentials": "Учётные данные Bitbucket",
+  "Submodules": "Подмодули",
+  "Pull request sharing": "Обмен пул-реквестами",
+  "Code font": "Шрифт кода",
+  "Terminal font": "Шрифт терминала",
+  "Prompt font": "Шрифт промпта",
+  "Worktree cleanup": "Очистка worktree",
+  "Project overview": "Обзор проекта",
+  "Archived threads": "Архивные треды",
+  "Working section": "Раздел «В работе»",
+  "Environment icon": "Значок окружения",
+  "This machine": "Эта машина",
+  "Load balancing": "Балансировка нагрузки",
+  "Capture sound": "Захват звука",
+  "Local simulators": "Локальные симуляторы",
+  "Follow pull request templates": "Следовать шаблонам пул-реквестов",
+  "Two-line folder rows": "Двухстрочные строки папок",
+  "Show where this value comes from": "Показать, откуда это значение",
+  "Cloud via": "Облако через",
+  "Add an account or configure a provider on": "Добавьте аккаунт или настройте провайдера на",
+  "Sensitive values are stored separately and never returned to the app.": "Секретные значения хранятся отдельно и никогда не возвращаются в приложение.",
+  "2x speed, increased usage": "2x скорость, повышенный расход",
+  "New worktree": "Новый worktree",
+  "Update available": "Доступно обновление",
+  "Install the update now or review provider settings.": "Установите обновление сейчас или проверьте настройки провайдера.",
+  "Update now": "Обновить сейчас",
+  "or, update manually using": "или обновите вручную командой",
+  "Show more": "Показать больше",
+  "Show less": "Показать меньше",
+  "We do not recommend managing multiple": "Мы не рекомендуем вести несколько",
+  "accounts in T3 Code.": "аккаунтов в T3 Code.",
+  "Identity": "Аккаунт",
+  "Squash and merge": "Squash и merge",
+  "Rebase and merge": "Rebase и merge",
+  "Semantic prefix": "Семантический префикс",
+  "Hide successful": "Скрывать успешные",
+  "Hide all": "Скрывать все",
+  "Icon": "Значок",
+  "Performance": "Производительность",
+  "Use T3 Code in another app (MCP)": "Использовать T3 Code в другом приложении (MCP)",
+  "T3 Connect is not available in this build.": "T3 Connect недоступен в этой сборке.",
+  "App Store link": "Ссылка на App Store",
+  "Google Play link": "Ссылка на Google Play",
+  "Add Environment": "Добавить окружение",
+  "Pair another environment to this client.": "Подключите ещё одно окружение к этому клиенту.",
+  "A token saved here is used before": "Сохранённый здесь токен используется раньше",
+  "and the": "и",
+  "login, so": "логина, поэтому",
+  "works without the": "работает без",
+  ". Give it": ". Дайте ему",
+  "read and write access to pull requests and contents": "доступ на чтение и запись к пул-реквестам и содержимому",
+  "Create a token": "Создать токен",
+  "No token saved; the server uses GH_TOKEN or the gh login.": "Токен не сохранён; сервер использует GH_TOKEN или вход через gh.",
+  "Choose which": "Выберите, какой",
+  "login each": "логин использует каждый",
+  "host uses, or turn a host off.": "хост, или отключите хост.",
+  "Install the Origin CLI with `curl -fsSL https://downloads.cursor.com/origin/install.sh | sh`, then run `origin auth login`.": "Установите Origin CLI командой `curl -fsSL https://downloads.cursor.com/origin/install.sh | sh`, затем выполните `origin auth login`.",
+  "Install the GitLab command-line tool (`glab`) from https://gitlab.com/gitlab-org/cli or your package manager (for example `brew install glab`).": "Установите консольный инструмент GitLab (`glab`) с https://gitlab.com/gitlab-org/cli или через менеджер пакетов (например, `brew install glab`).",
+  "Install the GitCafe CLI with `bun install -g @gitcafe/cli`, then run `cafe auth login --host https://git.cafe/api`, save a token in Settings, or set CAFE_TOKEN on the server.": "Установите GitCafe CLI командой `bun install -g @gitcafe/cli`, затем выполните `cafe auth login --host https://git.cafe/api`, сохраните токен в настройках или задайте CAFE_TOKEN на сервере.",
+  "Install `fj` 0.6 or later from https://codeberg.org/forgejo-contrib/forgejo-cli and run `fj --host <server-url> auth add-token`, or install `tea` 0.16 or later from https://gitea.com/gitea/tea and run `tea login add` for each Forgejo or Gitea server.": "Установите `fj` версии 0.6 или новее с https://codeberg.org/forgejo-contrib/forgejo-cli и выполните `fj --host <server-url> auth add-token`, либо установите `tea` версии 0.16 или новее с https://gitea.com/gitea/tea и выполните `tea login add` для каждого сервера Forgejo или Gitea.",
+  "Install the Azure command-line tools (`az`), then enable Azure DevOps support with `az extension add --name azure-devops`.": "Установите консольные инструменты Azure (`az`), затем включите поддержку Azure DevOps командой `az extension add --name azure-devops`.",
+  "New thread each run": "Новый тред при каждом запуске",
+  "Each run starts a new thread with the workspace and model below.": "Каждый запуск создаёт новый тред с рабочей областью и моделью ниже.",
+  "Create task": "Создать задачу",
+  "Mo": "Пн",
+  "Tu": "Вт",
+  "We": "Ср",
+  "Th": "Чт",
+  "Fr": "Пт",
+  "Sa": "Сб",
+  "Su": "Вс",
+  "Mon": "Пн",
+  "Tue": "Вт",
+  "Wed": "Ср",
+  "Thu": "Чт",
+  "Fri": "Пт",
+  "Sat": "Сб",
+  "Sun": "Вс",
+  "Select a color below": "Выберите цвет ниже",
+  "Inspect": "Инспектор",
+  "Inspect app colors": "Исследовать цвета приложения",
+  "Minimize the theme editor": "Свернуть редактор тем",
+  "Tab indents. Shift+Tab unindents. Press Escape, then Tab to leave.": "Tab добавляет отступ, Shift+Tab убирает его. Чтобы выйти, нажмите Escape, затем Tab.",
+  "Drop T3 Code or VS Code .json files": "Перетащите сюда .json-файлы тем T3 Code или VS Code",
+  "Show Text usage": "Показать, где используется: текст",
+  "Choose Text color": "Выбрать цвет: текст",
+  "Show Action usage": "Показать, где используется: действие",
+  "Choose Action color": "Выбрать цвет: действие",
+  "Show Error usage": "Показать, где используется: ошибка",
+  "Choose Error color": "Выбрать цвет: ошибка",
+  "Show Background usage": "Показать, где используется: фон",
+  "Choose Background color": "Выбрать цвет: фон",
+  "Show Surface usage": "Показать, где используется: поверхность",
+  "Choose Surface color": "Выбрать цвет: поверхность",
+  "Show Border usage": "Показать, где используется: граница",
+  "Choose Border color": "Выбрать цвет: граница",
+  "Show Success usage": "Показать, где используется: успех",
+  "Choose Success color": "Выбрать цвет: успех",
+  "Show Warning usage": "Показать, где используется: предупреждение",
+  "Choose Warning color": "Выбрать цвет: предупреждение",
+  "Show Info usage": "Показать, где используется: информация",
+  "Choose Info color": "Выбрать цвет: информация",
+  "Show Accent usage": "Показать, где используется: акцент",
+  "Choose Accent color": "Выбрать цвет: акцент",
+  "Show Muted usage": "Показать, где используется: приглушённый",
+  "Choose Muted color": "Выбрать цвет: приглушённый",
+  "tokens": "токенов",
+  "orchestration capabilities": "возможности оркестрации"
+ },
+ "patterns": [
+  [
+   "^(.+) \\(((?:Ctrl|Alt|Shift|Cmd|Control|Meta)\\+[^)]+)\\)$",
+   "$1 ($2)"
+  ],
+  [
+   "^(.+) \\(max (\\d+) per group\\)$",
+   "$1 (макс. $2 в группе)"
+  ],
+  [
+   "^Turn (\\d+)$",
+   "Ход $1"
+  ],
+  [
+   "^Compact (.+) tokens of history before sending$",
+   "Сжать историю ($1 токенов) перед отправкой"
+  ],
+  [
+   "^Open checks: (\\d+) of (\\d+) passing$",
+   "Открыть проверки: пройдено $1 из $2"
+  ],
+  [
+   "^Update (\\d+) providers?$",
+   "Обновить провайдеры: $1"
+  ],
+  [
+   "^Merge back to (.+)$",
+   "Влить обратно в $1"
+  ],
+  [
+   "^Filter by (.+)$",
+   "Фильтр: $1"
+  ],
+  [
+   "^Show (\\d+) more$",
+   "Показать ещё $1"
+  ],
+  [
+   "^(.+), No project$",
+   "$1, без проекта"
+  ],
+  [
+   "^(.+), Working$",
+   "$1, в работе"
+  ],
+  [
+   "^(.+), Done$",
+   "$1, готово"
+  ],
+  [
+   "^yesterday at (.+)$",
+   "вчера в $1"
+  ],
+  [
+   "^today at (.+)$",
+   "сегодня в $1"
+  ],
+  [
+   "^tomorrow at (.+)$",
+   "завтра в $1"
+  ],
+  [
+   "^Yesterday at (.+)$",
+   "Вчера в $1"
+  ],
+  [
+   "^Today at (.+)$",
+   "Сегодня в $1"
+  ],
+  [
+   "^Tomorrow at (.+)$",
+   "Завтра в $1"
+  ],
+  [
+   "^(\\d+) background tasks? (?:was|were) stopped and (\\d+) finished$",
+   "Остановлено фоновых задач: $1, завершено: $2"
+  ],
+  [
+   "^(\\d+) background tasks? (?:was|were) stopped$",
+   "Остановлено фоновых задач: $1"
+  ],
+  [
+   "^(\\d+) background tasks? finished$",
+   "Завершено фоновых задач: $1"
+  ],
+  [
+   "^Waiting on (\\d+) subagents?$",
+   "Ожидание субагентов: $1"
+  ],
+  [
+   "^((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?), ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?), ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?), and ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?)$",
+   "$1, $2, $3, $4"
+  ],
+  [
+   "^((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?), ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?), and ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?)$",
+   "$1, $2, $3"
+  ],
+  [
+   "^((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?) and ((?:Ran|ran|Changed|changed|Read|read|Used|used|Edited|edited|Searched|searched|Performed|performed|checked|asked for|Wrote|wrote|Fetched|fetched|Explored|explored|Sent|sent|Updated|updated|Got|got) .+?)$",
+   "$1, $2"
+  ],
+  [
+   "^Ran (\\d+) commands?$",
+   "Выполнено команд: $1"
+  ],
+  [
+   "^ran (\\d+) commands?$",
+   "выполнено команд: $1"
+  ],
+  [
+   "^Changed (\\d+) files?$",
+   "Изменено файлов: $1"
+  ],
+  [
+   "^changed (\\d+) files?$",
+   "изменено файлов: $1"
+  ],
+  [
+   "^Read (\\d+) files?$",
+   "Прочитано файлов: $1"
+  ],
+  [
+   "^read (\\d+) files?$",
+   "прочитано файлов: $1"
+  ],
+  [
+   "^Edited (\\d+) files?$",
+   "Отредактировано файлов: $1"
+  ],
+  [
+   "^edited (\\d+) files?$",
+   "отредактировано файлов: $1"
+  ],
+  [
+   "^Used (\\d+) tools?$",
+   "Использовано инструментов: $1"
+  ],
+  [
+   "^used (\\d+) tools?$",
+   "использовано инструментов: $1"
+  ],
+  [
+   "^(?:Performed|performed) (\\d+) other actions?$",
+   "других действий: $1"
+  ],
+  [
+   "^(?:checked|Checked) (.+) (\\d+) times?$",
+   "проверено: $1 ($2)"
+  ],
+  [
+   "^(?:asked for|Asked for) (\\d+) secrets?$",
+   "запрошено секретов: $1"
+  ],
+  [
+   "^(?:Searched|searched) (.+) in (.+)$",
+   "Поиск $1 в $2"
+  ],
+  [
+   "^(?:Searched|searched) (.+)$",
+   "Поиск $1"
+  ],
+  [
+   "^(?:Sent|sent) (\\d+) messages? to (\\d+) threads?$",
+   "отправлено сообщений: $1 (тредов: $2)"
+  ],
+  [
+   "^(?:Sent|sent) (\\d+) messages?$",
+   "отправлено сообщений: $1"
+  ],
+  [
+   "^Tasks (\\d+)/(\\d+)$",
+   "Задачи $1/$2"
+  ],
+  [
+   "^(\\d+) done$",
+   "готово: $1"
+  ],
+  [
+   "^Run context: (?!.*, (?:Current|Local) checkout$)(.+)$",
+   "Контекст запуска: $1"
+  ],
+  [
+   "^Контекст запуска: (.+), Current checkout$",
+   "Контекст запуска: $1, текущий checkout"
+  ],
+  [
+   "^Контекст запуска: (.+), Local checkout$",
+   "Контекст запуска: $1, локальный checkout"
+  ],
+  [
+   "^(\\d+) clients? · (\\d+) pairing links?$",
+   "Клиентов: $1 · ссылок сопряжения: $2"
+  ],
+  [
+   "^(\\d+) clients?$",
+   "Клиентов: $1"
+  ],
+  [
+   "^(.+) did not answer$",
+   "$1 не ответил"
+  ],
+  [
+   "^Delete (?!this |the |all |selected )(.+)$",
+   "Удалить $1"
+  ],
+  [
+   "^(Used (?!\\d).+?), ran (\\d+) commands?, tool calls? failed$",
+   "$1, выполнено команд: $2, вызов инструмента завершился ошибкой"
+  ],
+  [
+   "^(Used (?!\\d).+?), used (.+?) (\\d+) times?, ran (\\d+) commands?$",
+   "$1, использовано: $2 ($3), выполнено команд: $4"
+  ],
+  [
+   "^(Used (?!\\d).+?), ran (\\d+) commands?$",
+   "$1, выполнено команд: $2"
+  ],
+  [
+   "^Used (?!\\d)(.+?),? and (.+)$",
+   "Использовано: $1 и $2"
+  ],
+  [
+   "^Used (?!\\d)(.+)$",
+   "Использовано: $1"
+  ],
+  [
+   "^(?:updated|Updated) (.+) (\\d+) times?$",
+   "обновлено: $1 ($2)"
+  ],
+  [
+   "^(?:used|Used) (.+) (\\d+) times?$",
+   "использовано: $1 ($2)"
+  ],
+  [
+   "^(.+), (Low|Medium|High|Extra High|Max|Ultra|Minimal)$",
+   "$1, $2"
+  ],
+  [
+   "^Command \"(.*)\" and subagent \"(.*)\" were stopped$",
+   "Команда «$1» и субагент «$2» остановлены"
+  ],
+  [
+   "^Command \"(.*)\" was stopped$",
+   "Команда «$1» остановлена"
+  ],
+  [
+   "^Subagent \"(.*)\" was stopped$",
+   "Субагент «$1» остановлен"
+  ],
+  [
+   "^Terminal (\\d+)$",
+   "Терминал $1"
+  ],
+  [
+   "^Close Terminal (\\d+)$",
+   "Закрыть терминал $1"
+  ],
+  [
+   "^Close terminal \"(.+)\"\\?$",
+   "Закрыть терминал «$1»?"
+  ],
+  [
+   "^(?!(?:All|all|Changed|Show|Hide|Collapse|Expand|Open|Select|\\d+) )([A-Za-z0-9._-]+) files$",
+   "Файлы $1"
+  ],
+  [
+   "^(\\d+) unmodified lines?$",
+   "Неизменённых строк: $1"
+  ],
+  [
+   "^(\\d+)d (\\d+)h$",
+   "$1 д $2 ч"
+  ],
+  [
+   "^(\\d+)w (\\d+)d$",
+   "$1 нед $2 д"
+  ],
+  [
+   "^(.+): (\\d+)% left, resets in (.+), (\\d+)% of the window left$",
+   "$1: осталось $2%, сброс через $3, осталось $4% окна"
+  ],
+  [
+   "^(\\d+) sessions? · API estimate$",
+   "Сессий: $1 · оценка по API"
+  ],
+  [
+   "^(\\d+) sessions?$",
+   "Сессий: $1"
+  ],
+  [
+   "^([\\d.]+)% of cost$",
+   "$1% стоимости"
+  ],
+  [
+   "^(\\d+) days$",
+   "$1 дней"
+  ],
+  [
+   "^Jan (\\d+)$",
+   "$1 янв"
+  ],
+  [
+   "^Feb (\\d+)$",
+   "$1 фев"
+  ],
+  [
+   "^Mar (\\d+)$",
+   "$1 мар"
+  ],
+  [
+   "^Apr (\\d+)$",
+   "$1 апр"
+  ],
+  [
+   "^May (\\d+)$",
+   "$1 мая"
+  ],
+  [
+   "^Jun (\\d+)$",
+   "$1 июн"
+  ],
+  [
+   "^Jul (\\d+)$",
+   "$1 июл"
+  ],
+  [
+   "^Aug (\\d+)$",
+   "$1 авг"
+  ],
+  [
+   "^Sep (\\d+)$",
+   "$1 сен"
+  ],
+  [
+   "^Oct (\\d+)$",
+   "$1 окт"
+  ],
+  [
+   "^Nov (\\d+)$",
+   "$1 ноя"
+  ],
+  [
+   "^Dec (\\d+)$",
+   "$1 дек"
+  ],
+  [
+   "^Close #(\\d+)$",
+   "Закрыть #$1"
+  ],
+  [
+   "^Merge #(\\d+)$",
+   "Влить #$1"
+  ],
+  [
+   "^(.+)\\. Show where this value comes from$",
+   "$1. Показать, откуда это значение"
+  ],
+  [
+   "^Reset (.+) to default$",
+   "Сбросить: $1"
+  ],
+  [
+   "^(.+): (iOS|Android) not available$",
+   "$1: $2 недоступно"
+  ],
+  [
+   "^([\\w .-]{1,40}) via ([\\w .-]{1,40})$",
+   "$1 через $2"
+  ],
+  [
+   "^(Provider|Identity|Config), step (\\d+)$",
+   "$1, шаг $2"
+  ],
+  [
+   "^Use T3 Code in another app \\(MCP\\) · (.+)$",
+   "Использовать T3 Code в другом приложении (MCP) · $1"
+  ],
+  [
+   "^From (.+) \\(remote\\)$",
+   "От $1 (удалённой)"
+  ],
+  [
+   "^([\\d.]+)% of tokens · (.+)$",
+   "$1% токенов · $2"
+  ],
+  [
+   "^([\\d.]+)% of cost · (.+)$",
+   "$1% стоимости · $2"
+  ],
+  [
+   "^From (?!the |a |this |all )([^ ]+)$",
+   "От $1"
+  ],
+  [
+   "^(.+) \\(remote\\)$",
+   "$1 (удалённая)"
+  ],
+  [
+   "^Unpin (?!this |the |a |all )(.+)$",
+   "Открепить $1"
+  ],
+  [
+   "^Pin (?!this |the |a |all )(.+)$",
+   "Закрепить $1"
+  ]
+ ]
+}

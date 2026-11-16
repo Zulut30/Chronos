@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Студия</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231952C5' stroke-width='2'%3E%3Cpath d='M3 5h18v12H3z'/%3E%3Cpath d='M8 21h8M12 17v4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/hub.css">
+<script>
+(()=>{const q=new URLSearchParams(location.hash.slice(1));const r=document.documentElement;
+if(q.get('theme')==='dark')r.classList.add('dark');if(q.get('olympus')==='1')r.classList.add('olympus');
+for(const k of ['bg','fg','muted','border','panel','accent','primary','primary-fg','radius']){const v=q.get(k);if(v)r.style.setProperty('--'+k,v)}})();
+</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Студия</h1>
+    <div class="ctx" id="ctx"></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="boards" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Доски</button>
+      <button class="tab" role="tab" data-tab="wp" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>WordPress</button>
+    </div>
+  </header>
+  <div id="view"></div>
+</div>
+<div id="toast"></div>
+<script>
+const qs=new URLSearchParams(location.search);
+const CWD=qs.get('cwd')||'';
+const H={'x-oly':'1','content-type':'application/json'};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=async(p,body)=>{const r=await fetch(p,body?{method:'POST',headers:H,body:JSON.stringify(body)}:{cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j};
+function toast(m,err){const d=document.createElement('div');if(err)d.className='err';d.textContent=m;$('#toast').appendChild(d);setTimeout(()=>d.remove(),err?7000:3500)}
+const IC={
+ board:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+ pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4L7 21H3v-4z"/></svg>',
+ trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+ play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>',
+ stop:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>',
+ ext:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
+ send:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>',
+ log:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+ wp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.5 9h17M3.5 15h17M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/></svg>',
+};
+const fmt=t=>new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+let TAB=qs.get('tab')==='wp'?'wp':'boards',LOCS=[],LOC=null,SITES=[],openLog=null,poll=null;
+const boardHref=p=>'/board?path='+encodeURIComponent(p)+location.hash;
+
+function setTab(t){TAB=t;document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+ const u=new URL(location.href);u.searchParams.set('tab',t);history.replaceState(null,'',u);render()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+
+async function load(){
+ const j=await api('/api/locations?cwd='+encodeURIComponent(CWD));LOCS=j.locations;
+ const saved=sessionStorage.getItem('oly-studio-loc');
+ LOC=LOCS.find(l=>l.id===saved)||LOCS.find(l=>l.current)||LOCS[0];
+ const cur=LOCS.find(l=>l.current);
+ $('#ctx').textContent=cur&&cur.kind==='project'?'Проект: '+cur.title:'Без проекта — доски в папке студии';
+ setTab(TAB);
+}
+async function render(){ if(poll){clearInterval(poll);poll=null} return TAB==='wp'?renderWp():renderBoards() }
+
+// ---------- boards ----------
+async function renderBoards(){
+ const v=$('#view');
+ const opts=LOCS.map(l=>`<option value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(l.kind==='project'?l.title:l.kind==='server'?'Папка студии':'Папка: '+l.title)}${l.current?' · текущий':''}</option>`).join('');
+ v.innerHTML=`<div class="row"><select class="input grow" id="loc" aria-label="Где хранить доски">${opts}</select><button class="btn icon" id="addDir" title="Добавить другую папку для досок" aria-label="Добавить папку">${IC.folder}</button></div>
+ <div class="path" style="margin:4px 2px 0" title="${esc(LOC.dir)}">${esc(LOC.dir)}</div>
+ <form class="row section" id="newf"><input class="input grow" id="newName" placeholder="Название новой доски" maxlength="100"><button class="btn primary">${IC.plus}Создать</button></form>
+ <div class="section"><h2>Доски в этой папке</h2><div class="card" id="list"><div class="empty">Загрузка…</div></div></div>
+ <div class="section"><h2>Недавние</h2><div class="card" id="recent"><div class="empty">Загрузка…</div></div></div>`;
+ $('#loc').onchange=e=>{LOC=LOCS.find(l=>l.id===e.target.value);sessionStorage.setItem('oly-studio-loc',LOC.id);renderBoards()};
+ $('#addDir').onclick=async()=>{const d=prompt('Абсолютный путь к папке для досок (например, папка на сервере или в проекте)');if(!d)return;
+  try{const name=prompt('Название первой доски в этой папке','Новая доска');if(!name)return;const j=await api('/api/board/create',{dir:d.trim(),name,custom:true});location.href=boardHref(j.path)}catch(e){toast(e.message,true)}};
+ $('#newf').onsubmit=async e=>{e.preventDefault();const n=$('#newName').value.trim()||'Новая доска';try{const j=await api('/api/board/create',{dir:LOC.dir,name:n});location.href=boardHref(j.path)}catch(err){toast(err.message,true)}};
+ const [b,r]=await Promise.all([api('/api/boards?dir='+encodeURIComponent(LOC.dir)),api('/api/recent')]);
+ const row=(x,sub)=>`<div class="item click" data-path="${esc(x.path)}" tabindex="0"><span class="ic">${IC.board}</span><div class="t"><b>${esc(x.name)}</b><span>${esc(sub)}</span></div>
+  <div class="acts"><button class="btn ghost icon send" data-act="chat" title="Отправить в чат: снимок доски и путь к файлу">${IC.send}</button><button class="btn ghost icon" data-act="rename" title="Переименовать">${IC.pencil}</button><button class="btn ghost icon danger" data-act="trash" title="В корзину">${IC.trash}</button></div></div>`;
+ $('#list').innerHTML=b.boards.length?b.boards.map(x=>row(x,'Изменена '+fmt(x.mtime))).join(''):`<div class="empty">Здесь пока нет досок. Создайте первую — файл появится в <span class="path">${esc(LOC.dir)}</span></div>`;
+ const here=new Set(b.boards.map(x=>x.path.toLowerCase()));const rec=r.recent.filter(x=>!here.has(x.path.toLowerCase()));
+ $('#recent').innerHTML=rec.length?rec.slice(0,8).map(x=>row(x,x.dir)).join(''):'<div class="empty">Открытые доски появятся здесь — так их легко вернуть.</div>';
+ v.querySelectorAll('.item.click').forEach(el=>{
+  const p=el.dataset.path;
+  el.onclick=e=>{const a=e.target.closest('[data-act]');if(a){e.stopPropagation();return act(a.dataset.act,p)}location.href=boardHref(p)};
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target===el)location.href=boardHref(p)};
+ });
+}
+async function act(a,p){
+ const name=p.split(/[\\/]/).pop().replace(/\.excalidraw$/i,'');
+ try{
+  if(a==='chat'){location.href=boardHref(p)+(location.hash?'&':'#')+'send=1';return}
+  if(a==='rename'){const n=prompt('Новое название',name);if(!n||n===name)return;await api('/api/board/rename',{path:p,name:n});toast('Переименовано')}
+  if(a==='trash'){if(!confirm(`Убрать «${name}» в корзину (.trash рядом с доской)?`))return;await api('/api/board/delete',{path:p});toast('Доска перемещена в .trash')}
+  renderBoards();
+ }catch(e){toast(e.message,true)}
+}
+
+// ---------- WordPress ----------
+const ST={running:'Работает',starting:'Запускается…',stopped:'Остановлен',error:'Ошибка'};
+async function renderWp(){
+ const v=$('#view');
+ const cur=LOCS.find(l=>l.current&&l.kind==='project');
+ const projOpts=LOCS.filter(l=>l.kind==='project').map(l=>`<option value="${esc(l.root)}"${cur&&l===cur?' selected':''}>${esc(l.title)}</option>`).join('');
+ v.innerHTML=`<div class="section" style="margin-top:0"><h2>Сайты</h2><div class="card" id="sites"><div class="empty">Загрузка…</div></div></div>
+ <div class="section"><h2>Новый сайт WordPress Playground</h2><div class="card"><form class="new" id="wpf">
+  <label class="full">Название<input class="input" name="name" placeholder="Например, Тест плагина" required maxlength="80"></label>
+  <label>Проект<select class="input" name="root"><option value="">— без проекта —</option>${projOpts}</select></label>
+  <label>Подключить папку проекта как<select class="input" name="mountAs"><option value="plugin">плагин</option><option value="theme">тему</option><option value="wp-content">wp-content</option><option value="none">не подключать</option></select></label>
+  <label>Слаг плагина/темы<input class="input" name="slug" placeholder="по имени папки"></label>
+  <label>Где хранить сайт<select class="input" name="store"><option value="server">папка студии</option><option value="project">в проекте (.wordpress)</option></select></label>
+  <label>PHP<select class="input" name="php"><option>8.3</option><option>8.4</option><option>8.2</option><option>8.1</option><option>8.0</option><option>7.4</option></select></label>
+  <label>WordPress<input class="input" name="wp" value="latest"></label>
+  <div class="full row"><span class="muted small grow">Первый запуск скачивает WordPress (около минуты). Данные и база SQLite сохраняются между запусками.</span><button class="btn primary">${IC.plus}Создать и запустить</button></div>
+ </form></div></div>`;
+ $('#wpf').onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+  try{const j=await api('/api/wp/sites',f);await api('/api/wp/start',{id:j.site.id});toast('Сайт создаётся и запускается');e.target.reset();loadSites()}catch(err){toast(err.message,true)}};
+ await loadSites();
+ poll=setInterval(()=>{if(SITES.some(s=>s.status==='starting'))loadSites()},2500);
+}
+async function loadSites(){
+ const box=$('#sites');if(!box)return;
+ const j=await api('/api/wp/sites');SITES=j.sites;
+ const cur=LOCS.find(l=>l.current&&l.kind==='project');
+ const mine=SITES.filter(s=>cur&&s.root&&s.root.toLowerCase()===cur.root.toLowerCase()),other=SITES.filter(s=>!mine.includes(s));
+ const row=s=>{const run=s.status==='running',busy=s.status==='starting';
+  const mount=(s.mounts||[]).map(m=>m.vfs.replace('/wordpress/','')).join(', ');
+  return `<div class="item" data-id="${esc(s.id)}"><span class="dot ${s.status}" title="${ST[s.status]||s.status}"></span><div class="t"><b>${esc(s.name)}</b><span>${ST[s.status]||s.status} · 127.0.0.1:${s.port}${mount?' · '+esc(mount):''}${s.root?' · '+esc(s.root.split(/[\\/]/).pop()):''}</span></div>
+  <div class="acts on">${run||busy?`<button class="btn" data-act="open"${busy?' disabled':''}>${IC.ext}Открыть</button><button class="btn ghost icon" data-act="stop" title="Остановить">${IC.stop}</button>`:`<button class="btn" data-act="start">${IC.play}Запустить</button>`}
+  <button class="btn ghost icon" data-act="log" title="Журнал">${IC.log}</button><button class="btn ghost icon danger" data-act="remove" title="Убрать из списка (файлы останутся)">${IC.trash}</button></div></div>${openLog===s.id?`<pre class="log" id="log">…</pre>`:''}`};
+ box.innerHTML=SITES.length?(mine.map(row).join('')+(mine.length&&other.length?`<div class="item muted small" style="min-height:28px">Другие проекты</div>`:'')+other.map(row).join('')):'<div class="empty">Сайтов пока нет. Создайте сайт ниже — папка проекта подключится как плагин или тема, изменения видны сразу.</div>';
+ box.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>wpAct(b.dataset.act,b.closest('.item').dataset.id));
+ if(openLog){const s=SITES.find(x=>x.id===openLog);if(s)api('/api/wp/log?id='+encodeURIComponent(s.id)).then(r=>{const el=$('#log');if(el){el.textContent=r.log||'Журнал пуст';el.scrollTop=1e9}})}
+}
+async function wpAct(a,id){
+ try{
+  if(a==='start'){await api('/api/wp/start',{id});toast('Запускаю…')}
+  if(a==='stop'){await api('/api/wp/stop',{id});toast('Остановлен')}
+  if(a==='open'){const s=SITES.find(x=>x.id===id);const r=await api('/api/open',{site:id});if(!r.delivered)location.href=s.adminUrl;else toast('Открыто во вкладке шторки')}
+  if(a==='log'){openLog=openLog===id?null:id}
+  if(a==='remove'){const s=SITES.find(x=>x.id===id);if(!confirm(`Убрать «${s.name}» из списка? Файлы сайта останутся в ${s.dataDir}`))return;await api('/api/wp/remove',{id})}
+  loadSites();
+ }catch(e){toast(e.message,true)}
+}
+load().catch(e=>{$('#view').innerHTML=`<div class="card"><div class="empty">Не удалось загрузить: ${esc(e.message)}</div></div>`});
+</script>
+</body></html>

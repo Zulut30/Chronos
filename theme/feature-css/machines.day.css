@@ -1,0 +1,17 @@
+/* Olympus day: machines (rename in Settings → Окружения, @-mentions in the composer) */
+.oly-mach-pencil{border-radius:2px;color:#0E111699}
+.oly-mach-pencil:hover{background:#1952C514;color:#1952C5}
+.oly-mach-input{background:#FFFDF8;border-color:#0E111633;border-radius:2px;color:#0E1116}
+.oly-mach-input:focus{border-color:#1952C5;box-shadow:0 0 0 2px #1952C526}
+.oly-mach-btn{border-radius:2px;border-color:#0E111633;color:#0E1116}
+.oly-mach-btn:hover{background:#0E11160d}
+.oly-mach-primary{background:#1952C5;border-color:#1952C5;color:#FFFDF8}
+.oly-mach-primary:hover{background:#1747AB;filter:none}
+.oly-mach-ghost{border-color:transparent;color:#0E111699}
+.oly-mach-hint{color:#0E111699}
+.oly-mach-mention{border-bottom-color:#0E11161f}
+.oly-mach-head{color:#0E111699;letter-spacing:.02em}
+.oly-mach-item{border-radius:2px;color:#0E1116}
+.oly-mach-item:hover{background:#1952C514}
+.oly-mach-item:hover .oly-mach-ic{color:#1952C5}
+.oly-mach-ic,.oly-mach-sub,.oly-mach-key{color:#0E111699}

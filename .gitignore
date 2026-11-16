@@ -1,0 +1,14 @@
+*.asar
+*.log
+node_modules/
+__pycache__/
+data/
+state.json
+installed-state.json
+restart-*.json
+post-verify.json
+ui-check.json
+public-models.json
+services/studio-service/public/excalidraw/
+.env
+*.key

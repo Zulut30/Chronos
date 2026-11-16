@@ -1,0 +1,298 @@
+
+const q=new URLSearchParams(location.hash.slice(1));
+if(q.get('theme')==='dark')document.documentElement.classList.add('dark');if(q.get('olympus')==='1')document.documentElement.classList.add('olympus');
+for(const k of ['bg','fg','muted','border','panel','accent','primary','primary-fg','radius']){const v=q.get(k);if(v)document.documentElement.style.setProperty('--'+k,v)}
+const api=async(p,body)=>{const r=await fetch(p,body?{method:'POST',headers:{'content-type':'application/json','x-oly':'1'},body:JSON.stringify(body)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+const LSG=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},LSS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const NAME_RE=/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const plural=(n,a,b,c)=>{const m10=n%10,m100=n%100;return n+' '+(m10===1&&m100!==11?a:m10>=2&&m10<=4&&(m100<10||m100>=20)?b:c)};
+const fmtDate=ms=>ms?new Date(ms).toLocaleString('ru-RU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+const fmtSize=b=>b<1024?b+' Б':b<1048576?(b/1024).toFixed(1).replace('.',',')+' КБ':(b/1048576).toFixed(1).replace('.',',')+' МБ';
+const I={
+ grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+ ssh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/></svg>',
+ proj:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+ pc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg>',
+ x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+ sync:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 21v-5h5M21 3v5h-5"/></svg>',
+ down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>'};
+
+let LOCS=[],view='overview',LIST={},HASH={},HERR={},HOSTS={},UP=null,upBusy=false,SEL=new Set();
+const busyLoc=new Set();
+function toast(msg,err){const d=document.createElement('div');if(err)d.className='err';d.textContent=msg;$('#toast').appendChild(d);setTimeout(()=>d.remove(),err?8000:4000)}
+const locById=id=>LOCS.find(l=>l.id===id);
+const hostsOf=()=>[...new Set(LOCS.filter(l=>l.kind==='ssh').map(l=>l.host))];
+const shortLabel=l=>l.kind==='local'&&!l.project?l.label:l.label.split(' · ').pop();
+const gkey=l=>l.kind==='ssh'?l.host:l.project||'Этот компьютер';
+
+/* ---------- data ---------- */
+async function loadLocal(l){busyLoc.add(l.id);try{LIST[l.id]=await api('/api/skills?loc='+encodeURIComponent(l.id))}catch(e){LIST[l.id]={skills:[],exists:false,error:e.message}}busyLoc.delete(l.id);paint();
+ api('/api/hashes?loc='+encodeURIComponent(l.id)).then(h=>{HASH[l.id]=h;delete HERR[l.id];paint()}).catch(e=>{HERR[l.id]=e.message;paint()})}
+async function loadHost(h,force){HOSTS[h]={s:'load'};paint();
+ try{const data=await api('/api/host?host='+encodeURIComponent(h)+(force?'&refresh=1':''));for(const id in data)LIST[id]=data[id];HOSTS[h]={s:'ok'};
+  const keep=LSG('oly-skills-hosts',[]);if(!keep.includes(h))LSS('oly-skills-hosts',keep.concat(h));paint();
+  for(const l of LOCS.filter(x=>x.host===h&&LIST[x.id]&&LIST[x.id].exists)){try{HASH[l.id]=await api('/api/hashes?loc='+encodeURIComponent(l.id)+(force?'&refresh=1':''));force=false}catch(e){HERR[l.id]=e.message}paint()}}
+ catch(e){HOSTS[h]={s:'err',e:e.message};paint();if(view!=='overview')toast(e.message,true)}}
+async function loadLocs(refresh){LOCS=await api('/api/locations'+(refresh?'?refresh=1':''));
+ await Promise.all(LOCS.filter(l=>l.kind==='local'&&l.exists!==false).map(loadLocal));
+ for(const h of LSG('oly-skills-hosts',[]))if(hostsOf().includes(h))loadHost(h,refresh)}
+async function refreshLocs(ids){const hosts=new Set();for(const id of ids){const l=locById(id);if(!l)continue;if(l.kind==='ssh')hosts.add(l.host);else await loadLocal(l)}for(const h of hosts)await loadHost(h,true)}
+const hashOf=(id,name,off)=>HASH[id]&&HASH[id][(off?'!':'')+name];
+
+/* ---------- index of skills across locations ---------- */
+function index(){const map=new Map();
+ for(const l of LOCS){const d=LIST[l.id];if(!d||!d.skills)continue;
+  for(const s of d.skills){let e=map.get(s.name);if(!e){e={name:s.name,desc:s.description,cells:{}};map.set(s.name,e)}if(!e.desc)e.desc=s.description;
+   const prev=e.cells[l.id];if(!prev||prev.disabled&&!s.disabled)e.cells[l.id]={disabled:s.disabled,mtime:s.mtime}}}
+ for(const e of map.values()){const cnt={},newest={};for(const id in e.cells){const c=e.cells[id];c.hash=hashOf(id,e.name,c.disabled);if(c.hash){cnt[c.hash]=(cnt[c.hash]||0)+1;newest[c.hash]=Math.max(newest[c.hash]||0,c.mtime||0)}}
+  e.versions=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||newest[b]-newest[a]);for(const id in e.cells){const c=e.cells[id];c.v=c.hash?e.versions.indexOf(c.hash):(HERR[id]?'?':0)}}
+ return map}
+function columns(){return LOCS.filter(l=>{const d=LIST[l.id];return d&&d.exists&&(l.kind!=='local'||!l.project||d.skills.length)})}
+
+/* ---------- nav ---------- */
+function navHtml(){const g={};for(const l of LOCS)(g[l.group]=g[l.group]||[]).push(l);
+ let h=`<button class="loc" data-view="overview" aria-current="${view==='overview'}"><span class="ic">${I.grid}</span>Обзор<span class="n"></span></button>`;
+ for(const[group,ls]of Object.entries(g)){h+=`<div class="group">${esc(group)}</div>`;if(group==='Проекты'&&!ls.some(l=>l.exists!==false))h+='<div class="sub" style="white-space:normal">Папок со скиллами в проектах пока нет — установите скилл в проект через «Добавить» или «Копировать в…»</div>';let sub=null;
+  for(const l of ls){const d=LIST[l.id];if(l.project&&l.exists===false&&!(d&&d.skills.length))continue;const key=l.project||l.host||'';
+   if(key&&key!==sub){sub=key;const hs=l.host&&HOSTS[l.host];h+=`<div class="sub">${esc(key)}${l.t3?' <span class="badge">T3</span>':''}${hs&&hs.s==='err'?' <span class="badge warn" title="'+esc(hs.e)+'">нет связи</span>':''}</div>`}
+   const n=d&&d.skills?d.skills.filter(s=>!s.disabled).length:null;const ic=l.kind==='ssh'?I.ssh:l.project?I.proj:I.pc;
+   h+=`<button class="loc${(d&&!d.exists)||(l.exists===false&&!n)?' dim':''}" data-view="${esc(l.id)}" aria-current="${view===l.id}"><span class="ic">${ic}</span>${esc(shortLabel(l))}<span class="n">${n==null?'':n}</span></button>`}}
+ $('#nav').innerHTML=h}
+
+/* ---------- views ---------- */
+let paintQ=false;function paint(){if(paintQ)return;paintQ=true;requestAnimationFrame(()=>{paintQ=false;navHtml();if(document.querySelector('.overlay[data-modal]'))return;render()})}
+function setView(v){view=v;SEL.clear();const f=$('#filter');f.placeholder=v==='overview'?'Поиск по всем расположениям':'Фильтр';
+ const l=locById(v);if(l&&l.kind==='ssh'&&!(HOSTS[l.host]&&HOSTS[l.host].s==='ok'))loadHost(l.host);paint()}
+function render(){const sc=$('#main').scrollTop;if(view==='overview'){if(skillMode==='catalog')renderCatalog();else renderOverview()}else renderLoc();$('#main').insertAdjacentHTML('afterbegin',skillToolbar());$('#main').scrollTop=sc}
+const match=(name,desc)=>{const f=$('#filter').value.trim().toLowerCase();return !f||f.split(/\s+/).every(t=>(name+' '+(desc||'')).toLowerCase().includes(t))};
+
+function renderOverview(){$('#crumb').textContent='Обзор';const cols=columns(),idx=index();const all=[...idx.values()].sort((a,b)=>a.name.localeCompare(b.name));const rows=all.filter(e=>match(e.name,e.desc)&&skillPass(e.name,e.cells,e.versions.length));
+ for(const n of[...SEL])if(!idx.has(n))SEL.delete(n);
+ const hosts=hostsOf();
+ let h=`<div class="content wide"><div class="head"><h2>Обзор</h2><span class="grow"></span><button class="btn" data-act="upcheck"${upBusy?' disabled':''}>${I.down}${upBusy?'Проверяю skills.sh…':'Проверить обновления'}</button></div>
+ <div class="hint">Где установлен каждый скилл: ${plural(all.length,'скилл','скилла','скиллов')} в ${plural(cols.length,'расположении','расположениях','расположениях')}. Цвет точки — версия содержимого: одинаковый цвет — одинаковые копии.</div>`;
+ if(hosts.length){h+='<div class="srv">Серверы:'+hosts.map(x=>{const s=HOSTS[x];return `<button class="chip" data-host="${esc(x)}" data-s="${s?s.s:''}" title="${esc(s&&s.e?s.e:s&&s.s==='ok'?'Загружено · нажмите, чтобы обновить':'Загрузить список скиллов по SSH')}"><span class="st"></span>${esc(x)}</button>`}).join('')+(hosts.some(x=>!HOSTS[x])?'<button class="btn ghost sm" data-act="allhosts">Загрузить все</button>':'')+'</div>'}
+ if(SEL.size)h+=`<div class="bulk"><span class="cnt">Выбрано: ${SEL.size}</span><button class="btn sm" data-act="bcopy-o">Копировать в…</button><button class="btn sm" data-act="bsync">${I.sync}Синхронизировать</button><span class="grow"></span><button class="btn ghost sm" data-act="unsel">Снять выбор</button></div>`;
+ if(!cols.length){$('#main').innerHTML=h+'<div class="list"><div class="empty">Загрузка…</div></div></div>';return}
+ const groups=[];for(const l of cols){const k=gkey(l);const g=groups[groups.length-1];if(g&&g.k===k)g.n++;else groups.push({k,n:1,l})}
+ const allSel=rows.length&&rows.every(e=>SEL.has(e.name));
+ h+='<div class="mwrap"><table class="matrix"><thead><tr><th class="sk" rowspan="2"><label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-selall="o"'+(allSel?' checked':'')+'> Скилл</label></th>'+
+  groups.map(g=>`<th class="gl" colspan="${g.n}" title="${esc(g.l.kind==='ssh'?'Сервер '+g.k:g.k)}">${g.l.kind==='ssh'?I.ssh:g.l.project?I.proj:I.pc} ${esc(g.k)}</th>`).join('')+'<th rowspan="2" style="border-left:1px solid var(--border)"></th></tr><tr>'+
+  cols.map((l,i)=>`<th class="${i&&gkey(cols[i-1])!==gkey(l)?'gsep':''}" title="${esc(l.label)}">${esc(l.short||shortLabel(l))}</th>`).join('')+'</tr></thead><tbody>';
+ if(!rows.length)h+=`<tr><td class="sk" colspan="${cols.length+2}"><div class="empty">${all.length?'Ничего не найдено.':'Скиллов пока нет.'}</div></td></tr>`;
+ for(const e of rows){const vn=e.versions.length;const up=UP&&UP[e.name];let st='';
+  if(vn>1)st+=`<span class="badge warn" title="Копии отличаются содержимым">${plural(vn,'версия','версии','версий')}</span> <button class="btn ghost sm" data-act="sync" data-n="${esc(e.name)}">${I.sync}Синхр.</button>`;
+  if(up&&up.hash&&!sameSkill(up,e))st+=` <span class="badge" title="${esc('В skills.sh есть другой скилл с таким же именем: '+up.source+'. Описание не совпадает — обновление не предлагается.')}">тёзка в skills.sh</span>`;
+  else if(up&&up.hash){const stale=Object.values(e.cells).some(c=>c.hash&&c.hash!==up.hash);st+=stale?` <button class="btn sm" data-act="update" data-n="${esc(e.name)}" title="${esc(up.source)} — содержимое отличается от установленного">${I.down}Обновить</button>`:` <span class="badge ok" title="${esc(up.source)}">skills.sh ✓</span>`}
+  else if(UP&&up===null)st+=' <span class="badge" title="Скилла с таким именем нет в каталоге skills.sh">не из skills.sh</span>';
+  h+=`<tr data-sel="${SEL.has(e.name)}"><td class="sk"><div style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-sel="${esc(e.name)}"${SEL.has(e.name)?' checked':''} style="margin-top:3px"><div style="min-width:0"><div class="name" data-act="viewany" data-n="${esc(e.name)}"><span>${esc(e.name)}</span><span class="badge" title="Установлен в ${plural(Object.keys(e.cells).length,'расположении','расположениях','расположениях')}">${Object.keys(e.cells).length}</span></div><div class="desc">${esc(e.desc)}</div></div></div></td>`+
+   cols.map((l,i)=>{const c=e.cells[l.id];const sep=i&&gkey(cols[i-1])!==gkey(l)?' gsep':'';if(!c)return `<td class="c${sep}"></td>`;
+    const t=l.label+(c.disabled?' · отключён':'')+(vn>1&&c.v!=='?'?' · версия '+(c.v+1):'')+(c.mtime?' · '+fmtDate(c.mtime):'');
+    return `<td class="c${sep}"><span class="dot${c.disabled?' off':''}" data-v="${c.v}" title="${esc(t)}"></span></td>`}).join('')+`<td class="st">${st}</td></tr>`}
+ h+='</tbody></table></div><div class="legend"><span><i class="dot"></i>установлен</span><span><i class="dot off"></i>отключён</span><span><i class="dot" data-v="1"></i>другая версия</span></div></div>';
+ $('#main').innerHTML=h}
+
+function renderLoc(){const cur=locById(view);if(!cur){view='overview';return renderOverview()}$('#crumb').textContent=cur.label;const d=LIST[cur.id];
+ let h=`<div class="content"><div class="head"><h2>${esc(cur.label)}</h2><span class="grow"></span>${cur.kind==='local'?'<button class="btn" data-act="reveal">Открыть папку</button>':''}</div><div class="path">${esc(cur.kind==='ssh'?cur.host+':'+cur.path:cur.path)}</div>`;
+ const hs=cur.host&&HOSTS[cur.host];
+ if(!d){$('#main').innerHTML=h+`<div class="list"><div class="empty">${hs&&hs.s==='err'?esc(hs.e)+'<br><br><button class="btn" data-host="'+esc(cur.host)+'">Повторить</button>':cur.kind==='ssh'?'Подключение к '+esc(cur.host)+'…':'Загрузка…'}</div></div></div>`;return}
+ const skills=d.skills||[],list=skills.filter(s=>match(s.name,s.description)&&skillPass(s.name,{[cur.id]:s},index().get(s.name)?.versions.length||0));const key=s=>s.name+'|'+(s.disabled?1:0);
+ for(const k of[...SEL])if(!skills.some(s=>key(s)===k))SEL.delete(k);
+ if(SEL.size){const sel=skills.filter(s=>SEL.has(key(s)));const anyOn=sel.some(s=>!s.disabled),anyOff=sel.some(s=>s.disabled);
+  h+=`<div class="bulk"><span class="cnt">Выбрано: ${SEL.size}</span><button class="btn sm" data-act="bcopy">Копировать в…</button>${anyOn?'<button class="btn sm" data-act="boff">Отключить</button>':''}${anyOff?'<button class="btn sm" data-act="bon">Включить</button>':''}<button class="btn sm danger" data-act="bdel">Удалить</button><span class="grow"></span><button class="btn ghost sm" data-act="unsel">Снять выбор</button></div>`}
+ if(!list.length){h+=`<div class="list"><div class="empty">${!d.exists?'Папки пока нет — она появится при установке первого скилла.':skills.length?'Ничего не найдено.':'Скиллов нет.'}</div></div></div>`;$('#main').innerHTML=h;return}
+ const allSel=list.every(s=>SEL.has(key(s)));const off=skills.filter(s=>s.disabled).length;
+ h+=`<div class="listhead"><input type="checkbox" data-selall="l"${allSel?' checked':''}><span>${plural(skills.length-off,'скилл','скилла','скиллов')}${off?' · '+off+' отключ.':''}</span></div><div class="list">`+list.map(s=>{const k=key(s);
+  return `<div class="row${s.disabled?' off':''}" data-sel="${SEL.has(k)}"><input type="checkbox" data-sel="${esc(k)}"${SEL.has(k)?' checked':''}><div class="txt"><div class="name"><span>${esc(s.name)}</span>${s.disabled?'<span class="badge off">отключён</span>':''}${s.link?'<span class="badge">ссылка</span>':''}</div><div class="desc">${esc(s.description)}</div></div><div class="acts"><button class="btn ghost" data-act="view" data-n="${esc(s.name)}" data-off="${s.disabled?1:0}">Открыть</button><button class="btn ghost" data-act="copy" data-n="${esc(s.name)}" data-off="${s.disabled?1:0}">Копировать в…</button><button class="btn ghost" data-act="${s.disabled?'on':'off'}" data-n="${esc(s.name)}">${s.disabled?'Включить':'Отключить'}</button><button class="btn ghost danger" data-act="del" data-n="${esc(s.name)}" data-off="${s.disabled?1:0}">Удалить</button></div></div>`}).join('')+'</div></div>';
+ $('#main').innerHTML=h}
+
+/* ---------- dialogs ---------- */
+function dialog(title,bodyHtml,footHtml,wide){const o=document.createElement('div');o.className='overlay';o.dataset.modal='';o.innerHTML=`<div class="dialog${wide?' wide':''}" role="dialog" aria-label="${esc(title)}"><div class="dh"><h3>${esc(title)}</h3><span class="grow"></span><span class="dh-extra"></span><button class="btn ghost icon" data-close title="Закрыть">${I.x}</button></div><div class="body">${bodyHtml}</div>${footHtml?'<footer>'+footHtml+'</footer>':''}</div>`;
+ o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeDlg(o)});document.body.appendChild(o);return o}
+function closeDlg(o){o.remove();paint()}
+function targetsHtml(preselect,exclude,meta){const g={};for(const l of LOCS){if(exclude&&exclude.includes(l.id))continue;(g[l.group]=g[l.group]||[]).push(l)}
+ return Object.entries(g).map(([group,ls])=>`<div class="tgroup">${esc(group)}</div><div class="targets">`+ls.map(l=>`<label><input type="checkbox" value="${esc(l.id)}"${preselect.includes(l.id)?' checked':''}> ${esc(l.label)}${l.t3?' <span class="badge">T3</span>':''}<span class="meta">${meta?meta(l):''}</span></label>`).join('')+'</div>').join('')}
+const OW='<label class="opt"><input type="checkbox" id="ow"> Заменять, если скилл уже есть (старая версия уйдёт в корзину)</label>';
+const picked=o=>[...o.querySelectorAll('.targets input:checked')].map(i=>i.value);
+function report(results,what){const ok=results.filter(r=>r.ok).length;if(ok)toast(`${what}: готово в ${plural(ok,'месте','местах','местах')}`);for(const r of results.filter(r=>!r.ok))toast((locById(r.id)?.label||r.id)+': '+r.error,true)}
+async function runBtn(btn,label,fn){const t=btn.textContent;btn.disabled=true;btn.textContent=label;try{await fn()}catch(err){toast(err.message,true);btn.disabled=false;btn.textContent=t}}
+
+/* mini markdown renderer (escapes everything, no raw HTML) */
+function mdInline(s){const codes=[];s=s.replace(/`([^`]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000'});s=esc(s)
+ .replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(_,t,u)=>/^(https?:|mailto:)/.test(u)?`<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`:`<span class="lnk" title="${u}">${t}</span>`)
+ .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^\w])__(.+?)__(?!\w)/g,'$1<strong>$2</strong>').replace(/(^|[^*\w])\*(?!\s)(.+?)\*(?!\w)/g,'$1<em>$2</em>').replace(/(^|[^\w])_(?!\s)(.+?)_(?!\w)/g,'$1<em>$2</em>').replace(/~~(.+?)~~/g,'<del>$1</del>')
+ .replace(/^\[ \] /,'☐ ').replace(/^\[[xX]\] /,'☑ ');
+ return s.replace(/\u0000(\d+)\u0000/g,(_,n)=>'<code>'+esc(codes[n])+'</code>')}
+function md(src){const L=src.replace(/\r\n?/g,'\n').split('\n');let h='',i=0;
+ const isBlock=l=>/^\s*(```|~~~|#{1,6}\s|>|([-*+]|\d+[.)])\s)/.test(l)||/^\s*([-*_])(\s*\1){2,}\s*$/.test(l);
+ while(i<L.length){const l=L[i];
+  let m=/^(\s*)(```|~~~)(.*)$/.exec(l);if(m){const fence=m[2];const buf=[];i++;while(i<L.length&&!L[i].trim().startsWith(fence))buf.push(L[i++]);i++;h+='<pre><code>'+esc(buf.join('\n'))+'</code></pre>';continue}
+  if(!l.trim()){i++;continue}
+  if((m=/^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l))){h+=`<h${m[1].length}>${mdInline(m[2])}</h${m[1].length}>`;i++;continue}
+  if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)){h+='<hr>';i++;continue}
+  if(l.includes('|')&&i+1<L.length&&/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i+1])){const cells=r=>r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+   const head=cells(l);i+=2;let t='<table><thead><tr>'+head.map(c=>'<th>'+mdInline(c)+'</th>').join('')+'</tr></thead><tbody>';
+   while(i<L.length&&L[i].includes('|')&&L[i].trim()){t+='<tr>'+cells(L[i]).map(c=>'<td>'+mdInline(c)+'</td>').join('')+'</tr>';i++}h+=t+'</tbody></table>';continue}
+  if(/^\s*>/.test(l)){const buf=[];while(i<L.length&&/^\s*>/.test(L[i]))buf.push(L[i++].replace(/^\s*>\s?/,''));h+='<blockquote>'+md(buf.join('\n'))+'</blockquote>';continue}
+  if(/^\s*([-*+]|\d+[.)])\s+/.test(l)){const items=[];
+   while(i<L.length){const x=L[i];const mm=/^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(x);if(mm){items.push({ind:mm[1].replace(/\t/g,'    ').length,ord:/\d/.test(mm[2]),text:mm[3]});i++;continue}
+    if(x.trim()&&/^\s{2,}/.test(x)&&items.length&&!/^\s*(```|~~~)/.test(x)){items[items.length-1].text+=' '+x.trim();i++;continue}break}
+   const st=[];for(const it of items){while(st.length&&it.ind<st[st.length-1].ind)h+='</li></'+st.pop().tag+'>';const top=st[st.length-1];
+    if(!top||it.ind>top.ind){const tag=it.ord?'ol':'ul';st.push({ind:it.ind,tag});h+='<'+tag+'><li>'+mdInline(it.text)}else h+='</li><li>'+mdInline(it.text)}
+   while(st.length)h+='</li></'+st.pop().tag+'>';continue}
+  const buf=[];while(i<L.length&&L[i].trim()&&!(buf.length&&isBlock(L[i])))buf.push(L[i++].trim());h+='<p>'+buf.map(mdInline).join('<br>')+'</p>'}
+ return h}
+function splitFm(text){const t=text.replace(/^﻿/,'').replace(/\r\n/g,'\n');const m=/^---\n([\s\S]*?)\n---\n?/.exec(t);if(!m)return{fm:null,body:t};
+ const fm=[];const lines=m[1].split('\n');for(let i=0;i<lines.length;i++){const kv=/^([A-Za-z_-]+):\s*(.*)$/.exec(lines[i]);if(!kv)continue;let v=kv[2].trim();
+  if(/^[>|][+-]?$/.test(v)||v===''){const p=[];while(i+1<lines.length&&(/^\s+\S/.test(lines[i+1])||!lines[i+1].trim())){i++;if(lines[i].trim())p.push(lines[i].trim())}v=p.join(' ')}fm.push([kv[1],v.replace(/^["']|["']$/g,'')])}
+ return{fm,body:t.slice(m[0].length)}}
+
+async function viewSkill(locId,name,off){const l=locById(locId);const o=dialog(name,'<div class="empty">Загрузка…</div>',(l.kind==='local'?'<button class="btn" id="vrev">Открыть папку</button>':'')+'<span class="grow"></span><button class="btn" id="vcopy">Копировать в…</button><button class="btn" data-close>Закрыть</button>',true);
+ o.querySelector('.dh-extra').innerHTML=`<span class="src" style="margin-right:6px">${esc(shortLabel(l)===l.label?l.label:l.label)}</span><span class="tabs"><button aria-selected="true" data-tab="r">Просмотр</button><button aria-selected="false" data-tab="s">Исходник</button></span>`;
+ const rev=o.querySelector('#vrev');if(rev)rev.onclick=()=>api('/api/reveal',{loc:locId,name,disabled:!!off}).catch(e=>toast(e.message,true));
+ o.querySelector('#vcopy').onclick=()=>copyDialog(locId,[{name,disabled:!!off}]);
+ try{const r=await api(`/api/skill?loc=${encodeURIComponent(locId)}&name=${encodeURIComponent(name)}${off?'&disabled=1':''}`);const{fm,body}=splitFm(r.markdown);
+  const files=r.files||[];const total=files.reduce((s,f)=>s+f.size,0);
+  const rendered=(fm?'<dl class="fm">'+fm.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')+'</dl>':'')+'<div class="mdv">'+md(body)+'</div>'+
+   (files.length?`<details class="files"><summary>Файлы: ${files.length} · ${fmtSize(total)}</summary>${files.map(f=>`<div><span>${esc(f.path)}</span><span>${fmtSize(f.size)}</span></div>`).join('')}</details>`:'');
+  const src='<pre class="md">'+esc(r.markdown)+'</pre>';const bodyEl=o.querySelector('.body');bodyEl.innerHTML=rendered;
+  o.querySelector('.tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;for(const x of o.querySelectorAll('.tabs button'))x.setAttribute('aria-selected',String(x===b));bodyEl.innerHTML=b.dataset.tab==='r'?rendered:src;bodyEl.scrollTop=0}}
+ catch(err){o.querySelector('.body').innerHTML='<div class="empty">'+esc(err.message)+'</div>'}}
+
+function copyDialog(fromId,items){const title=items.length===1?'Копировать «'+items[0].name+'» в…':'Копировать '+plural(items.length,'скилл','скилла','скиллов')+' в…';
+ const o=dialog(title,targetsHtml([],[fromId])+OW,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Копировать</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const to=picked(o);if(!to.length)return toast('Выберите, куда копировать',true);
+  runBtn(ok,'Копирую…',async()=>{const all=[];for(const it of items){const r=await api('/api/copy',{from:it.from||fromId,name:it.name,to,overwrite:o.querySelector('#ow').checked,disabled:!!it.disabled});all.push(...r.results.map(x=>({...x,error:x.error&&items.length>1?it.name+': '+x.error:x.error})))}
+   closeDlg(o);report(all,items.length===1?'Скопировано':'Скопировано');SEL.clear();await refreshLocs(to)})}}
+
+function deleteDialog(locId,items){const l=locById(locId);const one=items.length===1;
+ const o=dialog(one?'Удалить «'+items[0].name+'»?':'Удалить '+plural(items.length,'скилл','скилла','скиллов')+'?',`<p>${one?'Скилл будет перемещён':'Скиллы будут перемещены'} в корзину (${l.kind==='ssh'?'~/.skills-trash на сервере':'~/.t3/caches/skills-trash'}), ${one?'его':'их'} можно вернуть вручную.</p>${one?'':'<p class="src">'+items.map(i=>esc(i.name)).join(', ')+'</p>'}`,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Удалить</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>runBtn(ok,'Удаляю…',async()=>{let n=0;for(const it of items){try{await api('/api/delete',{loc:locId,name:it.name,disabled:!!it.disabled});n++}catch(e){toast(it.name+': '+e.message,true)}}
+  closeDlg(o);if(n)toast('Удалено: '+(one?items[0].name:n));SEL.clear();await refreshLocs([locId])})}
+
+async function toggle(locId,items,enable){let n=0;for(const it of items){try{await api('/api/toggle',{loc:locId,name:it.name,enable});n++}catch(e){toast(it.name+': '+e.message,true)}}
+ if(n)toast((enable?'Включено: ':'Отключено: ')+(items.length===1?items[0].name:n)+(enable?'':' — агент перестанет его видеть, файлы перенесены в skills.disabled'));SEL.clear();await refreshLocs([locId])}
+
+function syncDialog(names){const idx=index();const list=names.map(n=>idx.get(n)).filter(Boolean);if(!list.length)return;
+ if(list.length===1){const e=list[0];const ids=Object.keys(e.cells);const newest=ids.filter(id=>!e.cells[id].disabled).sort((a,b)=>(e.cells[b].mtime||0)-(e.cells[a].mtime||0))[0]||ids[0];
+  const vlab=c=>c.v==='?'?'?':'версия '+(c.v+1);
+  const body=`<p class="hint" style="margin-top:0">Выберите копию-образец — она заменит остальные. Старые версии уйдут в корзину.</p><div class="tgroup">Образец</div><div class="targets">`+
+   ids.map(id=>{const c=e.cells[id],l=locById(id);return `<label><input type="radio" name="src" value="${esc(id)}"${id===newest?' checked':''}> ${esc(l.label)}<span class="meta"><span class="dot${c.disabled?' off':''}" data-v="${c.v}"></span>${vlab(c)}${c.mtime?' · '+fmtDate(c.mtime):''}${c.disabled?' · отключён':''}</span></label>`}).join('')+'</div>'+
+   `<div class="tgroup">Куда записать</div><div class="targets" id="stg"></div><details style="margin-top:10px"><summary class="hint" style="cursor:pointer">Добавить в другие расположения</summary>${targetsHtml([],ids)}</details>`;
+  const o=dialog('Синхронизировать «'+e.name+'»',body,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Синхронизировать</button>');
+  const fill=()=>{const src=o.querySelector('input[name=src]:checked').value,sh=e.cells[src].hash;o.querySelector('#stg').innerHTML=ids.filter(id=>id!==src&&!e.cells[id].disabled).map(id=>{const c=e.cells[id];return `<label><input type="checkbox" value="${esc(id)}"${!sh||c.hash!==sh?' checked':''}> ${esc(locById(id).label)}<span class="meta">${c.hash===sh?'уже совпадает':vlab(c)}</span></label>`}).join('')||'<div class="empty" style="padding:12px">Других копий нет</div>'};
+  fill();o.querySelectorAll('input[name=src]').forEach(r=>r.onchange=fill);
+  const ok=o.querySelector('#ok');ok.onclick=()=>{const src=o.querySelector('input[name=src]:checked').value,to=picked(o).filter(x=>x!==src);if(!to.length)return toast('Нечего синхронизировать',true);
+   runBtn(ok,'Синхронизирую…',async()=>{const r=await api('/api/copy',{from:src,name:e.name,to,overwrite:true,disabled:!!e.cells[src].disabled});closeDlg(o);report(r.results,'Синхронизировано «'+e.name+'»');await refreshLocs(to)})};return}
+ const plan=list.map(e=>{const ids=Object.keys(e.cells).filter(id=>!e.cells[id].disabled);const src=ids.sort((a,b)=>(e.cells[b].mtime||0)-(e.cells[a].mtime||0))[0];const sh=src&&e.cells[src].hash;return{e,src,to:ids.filter(id=>id!==src&&sh&&e.cells[id].hash&&e.cells[id].hash!==sh)}}).filter(p=>p.to.length);
+ if(!plan.length)return toast('У выбранных скиллов все копии одинаковые');
+ const o=dialog('Синхронизировать '+plural(plan.length,'скилл','скилла','скиллов'),'<p class="hint" style="margin-top:0">Образец — самая свежая копия каждого скилла; она заменит отличающиеся. Старые версии уйдут в корзину.</p><div class="box">'+plan.map(p=>`<div class="res"><div class="txt"><div class="name">${esc(p.e.name)}</div><div class="src">${esc(locById(p.src).label)} → ${p.to.map(id=>esc(locById(id).label)).join(', ')}</div></div></div>`).join('')+'</div>','<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Синхронизировать</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>runBtn(ok,'Синхронизирую…',async()=>{const all=[],ids=new Set();for(const p of plan){const r=await api('/api/copy',{from:p.src,name:p.e.name,to:p.to,overwrite:true});all.push(...r.results.map(x=>({...x,error:x.error&&p.e.name+': '+x.error})));p.to.forEach(x=>ids.add(x))}
+  closeDlg(o);report(all,'Синхронизировано');SEL.clear();await refreshLocs([...ids])})}
+
+const normD=s=>String(s||'').toLowerCase().replace(/[^a-zа-яё0-9]+/g,' ').trim().slice(0,80);
+const sameSkill=(up,e)=>up.via==='registry'||(normD(up.description)&&normD(up.description)===normD(e.desc))||Object.values(e.cells).some(c=>c.hash===up.hash);
+async function upCheck(){const names=[...index().keys()];if(!names.length)return;upBusy=true;paint();
+ try{UP=await api('/api/upstream',{names});const idx=index();const n=names.filter(nm=>UP[nm]&&UP[nm].hash&&sameSkill(UP[nm],idx.get(nm))).length;
+  const stale=names.filter(nm=>UP[nm]&&UP[nm].hash&&sameSkill(UP[nm],idx.get(nm))&&Object.values(idx.get(nm).cells).some(c=>c.hash&&c.hash!==UP[nm].hash)).length;
+  toast(n?`skills.sh: найдено ${plural(n,'скилл','скилла','скиллов')}, ${stale?'обновить можно '+stale:'всё актуально'}`:'В каталоге skills.sh совпадений нет')}
+ catch(e){toast(e.message,true)}upBusy=false;paint()}
+function updateDialog(name){const up=UP&&UP[name];const e=index().get(name);if(!up||!e)return;const ids=Object.keys(e.cells).filter(id=>!e.cells[id].disabled);
+ const o=dialog('Обновить «'+name+'» из skills.sh',`<p class="src" style="margin-top:0">${esc(up.source)} · ${up.via==='registry'?'установлен отсюда этим менеджером':'найден в каталоге по имени'}${up.installs?' · '+Number(up.installs).toLocaleString('ru-RU')+' установок':''}</p><p class="hint">Отмеченные копии будут заменены версией из skills.sh, текущие уйдут в корзину. Локальные правки в них пропадут.</p><div class="targets">`+
+  ids.map(id=>{const c=e.cells[id];return `<label><input type="checkbox" value="${esc(id)}"${c.hash!==up.hash?' checked':''}> ${esc(locById(id).label)}<span class="meta">${c.hash===up.hash?'уже актуален':c.mtime?'изменён '+fmtDate(c.mtime):''}</span></label>`}).join('')+'</div>',
+  '<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Обновить</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const to=picked(o);if(!to.length)return toast('Выберите копии для обновления',true);
+  runBtn(ok,'Обновляю…',async()=>{const r=await api('/api/install',{source:up.source,skillId:up.skillId,name,to,overwrite:true});closeDlg(o);report(r.results,'Обновлено «'+name+'»');await refreshLocs(to)})}}
+
+function template(name,desc){const title=name.replace(/[-_.]+/g,' ').replace(/^./,c=>c.toUpperCase());desc=String(desc||'').replace(/\s+/g,' ').trim()||`Use when … (опишите, в каких задачах агенту применять скилл «${name}»).`;
+ return `---\nname: ${name}\ndescription: ${/[:#]/.test(desc)?JSON.stringify(desc):desc}\n---\n\n# ${title}\n\n## Когда использовать\n\n- …\n\n## Порядок работы\n\n1. …\n2. …\n3. …\n\n## Проверка результата\n\n- …\n`}
+function createDialog(){const cur=locById(view);const pre=cur?[cur.id]:['local:user:claude'];
+ const o=dialog('Новый скилл',`<label class="field"><span>Имя (папка и name в SKILL.md): латиница, цифры, «-», «_», «.»</span><input class="input" id="cn" placeholder="my-skill" spellcheck="false"></label><div class="err-text" id="cerr"></div>
+  <label class="field"><span>Описание — когда агенту применять скилл</span><textarea class="input" id="cd" rows="2" placeholder="Use when …"></textarea></label>
+  <label class="field"><span>SKILL.md</span><textarea class="input" id="cm" rows="12" spellcheck="false" style="font:12.5px/1.5 ui-monospace,Consolas,monospace"></textarea></label>
+  <div class="tgroup">Куда создать</div>${targetsHtml(pre,null)}`,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Создать</button>',true);
+ const n=o.querySelector('#cn'),d=o.querySelector('#cd'),m=o.querySelector('#cm');let touched=false;
+ const upd=()=>{const nm=n.value.trim();o.querySelector('#cerr').textContent=nm&&!NAME_RE.test(nm)?'Недопустимое имя':(nm&&index().has(nm)?'Скилл с таким именем уже есть — будет создан только там, где его нет':'');if(!touched)m.value=template(nm||'my-skill',d.value)};
+ n.oninput=upd;d.oninput=upd;m.oninput=()=>{touched=true};upd();n.focus();
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const nm=n.value.trim();if(!NAME_RE.test(nm))return toast('Укажите имя скилла',true);const to=picked(o);if(!to.length)return toast('Выберите, куда создать',true);
+  runBtn(ok,'Создаю…',async()=>{const r=await api('/api/create',{name:nm,description:d.value,markdown:m.value,to});closeDlg(o);report(r.results,'Создан «'+nm+'»');await refreshLocs(to)})}}
+
+function addDialog(){const o=dialog('Добавить из skills.sh','<div style="display:flex;gap:8px;margin-bottom:10px"><input class="input" id="sq" placeholder="Например: frontend, pdf, testing" style="flex:1"><button class="btn" id="sgo">Найти</button></div><div id="sres" class="empty">Поиск по каталогу skills.sh</div>');
+ const go=async()=>{const v=o.querySelector('#sq').value.trim();if(!v)return;const box=o.querySelector('#sres');box.className='empty';box.textContent='Ищу…';
+  try{const res=await api('/api/search?q='+encodeURIComponent(v));if(!res.length){box.textContent='Ничего не найдено';return}const idx=index();
+   box.className='box';box.innerHTML=res.map(s=>`<div class="res"><div class="txt"><div class="name"><span>${esc(s.name)}</span>${idx.has(s.skillId)?'<span class="badge ok">установлен</span>':''}</div><div class="src">${esc(s.source)} · ${Number(s.installs||0).toLocaleString('ru-RU')} установок</div></div><button class="btn" data-install="${esc(s.source)}|${esc(s.skillId)}">Установить…</button></div>`).join('')}
+  catch(err){box.textContent=err.message}};
+ o.querySelector('#sgo').onclick=go;o.querySelector('#sq').addEventListener('keydown',e=>{if(e.key==='Enter')go()});o.querySelector('#sq').focus();
+ o.addEventListener('click',e=>{const b=e.target.closest('[data-install]');if(!b)return;const[source,skillId]=b.dataset.install.split('|');const cur=locById(view);
+  const t=dialog('Установить «'+skillId+'»',`<p class="src" style="margin-top:0">${esc(source)}</p>`+targetsHtml(cur?[cur.id]:['local:user:claude'],null)+OW,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="iok">Установить</button>');
+  const btn=t.querySelector('#iok');btn.onclick=()=>{const to=picked(t);if(!to.length)return toast('Выберите, куда установить',true);
+   runBtn(btn,'Устанавливаю…',async()=>{const r=await api('/api/install',{source,skillId,to,overwrite:t.querySelector('#ow').checked});closeDlg(t);report(r.results,'Установлено «'+skillId+'»');await refreshLocs(to)})}})}
+
+/* ---------- events ---------- */
+document.addEventListener('change',e=>{const c=e.target;if(c.type!=='checkbox'||c.closest('.overlay'))return;
+ if(c.dataset.selall){const rows=[...document.querySelectorAll('#main input[data-sel]')];for(const r of rows)c.checked?SEL.add(r.dataset.sel):SEL.delete(r.dataset.sel);return paint()}
+ if(c.dataset.sel!=null){c.checked?SEL.add(c.dataset.sel):SEL.delete(c.dataset.sel);paint()}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button,[data-act]');if(!b||b.closest('.overlay'))return;
+ if(b.dataset.view)return setView(b.dataset.view);
+ if(b.dataset.host)return loadHost(b.dataset.host,HOSTS[b.dataset.host]&&HOSTS[b.dataset.host].s==='ok');
+ const a=b.dataset.act,n=b.dataset.n,off=b.dataset.off==='1',cur=locById(view);if(!a)return;
+ if(a==='unsel'){SEL.clear();return paint()}
+ if(a==='allhosts'){for(const h of hostsOf())if(!HOSTS[h])loadHost(h);return}
+ if(a==='upcheck')return upCheck();
+ if(a==='sync')return syncDialog([n]);
+ if(a==='bsync')return syncDialog([...SEL]);
+ if(a==='update')return updateDialog(n);
+ if(a==='viewany'){const e2=index().get(n);if(!e2)return;const ids=Object.keys(e2.cells);const id=ids.find(x=>!e2.cells[x].disabled&&locById(x).kind==='local')||ids.find(x=>!e2.cells[x].disabled)||ids[0];return viewSkill(id,n,e2.cells[id].disabled)}
+ if(a==='bcopy-o'){const idx=index();const items=[...SEL].map(nm=>{const e2=idx.get(nm);const ids=Object.keys(e2.cells).sort((x,y)=>(e2.cells[x].v===0?0:1)-(e2.cells[y].v===0?0:1)||(locById(x).kind==='local'?0:1)-(locById(y).kind==='local'?0:1));return{name:nm,from:ids[0],disabled:e2.cells[ids[0]].disabled}});return copyDialog(null,items)}
+ if(!cur)return;
+ const selItems=()=>(LIST[cur.id]?.skills||[]).filter(s=>SEL.has(s.name+'|'+(s.disabled?1:0))).map(s=>({name:s.name,disabled:s.disabled}));
+ if(a==='reveal')return api('/api/reveal',{loc:cur.id}).catch(e=>toast(e.message,true));
+ if(a==='view')return viewSkill(cur.id,n,off);
+ if(a==='copy')return copyDialog(cur.id,[{name:n,disabled:off}]);
+ if(a==='del')return deleteDialog(cur.id,[{name:n,disabled:off}]);
+ if(a==='off'||a==='on')return toggle(cur.id,[{name:n}],a==='on');
+ if(a==='bcopy')return copyDialog(cur.id,selItems());
+ if(a==='bdel')return deleteDialog(cur.id,selItems());
+ if(a==='boff')return toggle(cur.id,selItems().filter(x=>!x.disabled),false);
+ if(a==='bon')return toggle(cur.id,selItems().filter(x=>x.disabled),true);
+});
+$('#filter').addEventListener('input',()=>render());
+$('#refresh').onclick=()=>{LIST={};HASH={};HERR={};UP=null;loadLocs(true).then(()=>{if(view!=='overview'){const l=locById(view);if(l&&l.kind==='ssh')loadHost(l.host,true)}})};
+$('#create').onclick=createDialog;$('#add').onclick=addDialog;
+addEventListener('keydown',e=>{if(e.key==='Escape'){const o=[...document.querySelectorAll('.overlay')].pop();if(o)closeDlg(o);else parent.postMessage({type:'oly-skills-close'},'*')}});
+let skillMode=LSG('oly-skills-layout-v3','catalog'),skillState='all',skillAgent='all',onlyFavorites=false;
+let favorites=new Set(LSG('oly-skills-favorites',[]));
+function skillPass(name,cells,versions=0){
+ if(onlyFavorites&&!favorites.has(name))return false;
+ const entries=Object.entries(cells).filter(([id])=>skillAgent==='all'||locById(id)?.agent===skillAgent||id.toLowerCase().includes(skillAgent));
+ if(!entries.length)return false;
+ if(skillState==='enabled'&&!entries.some(([,c])=>!c.disabled))return false;
+ if(skillState==='disabled'&&!entries.some(([,c])=>c.disabled))return false;
+ if(skillState==='different'&&versions<2)return false;
+ return true;
+}
+function skillToolbar(){return `<div class="skill-toolbar"><div class="skill-segments"><button class="btn sm" data-layout="catalog" aria-pressed="${skillMode==='catalog'}">Каталог</button><button class="btn sm" data-layout="matrix" aria-pressed="${skillMode==='matrix'}">Сравнить копии</button></div><button class="btn sm" data-favonly aria-pressed="${onlyFavorites}">☆ Избранное</button><select class="input" data-skill-filter="state" aria-label="Состояние скилла">${[['all','Все состояния'],['enabled','Включённые'],['disabled','Отключённые'],['different','Разные версии']].map(([v,l])=>`<option value="${v}" ${skillState===v?'selected':''}>${l}</option>`).join('')}</select><select class="input" data-skill-filter="agent" aria-label="Агент">${[['all','Все агенты'],['codex','Codex'],['claude','Claude'],['agents','Общие']].map(([v,l])=>`<option value="${v}" ${skillAgent===v?'selected':''}>${l}</option>`).join('')}</select><span class="grow"></span><small>Поиск: Ctrl+K</small></div>`}
+function renderCatalog(){
+ $('#crumb').textContent='Каталог';const idx=index();const rows=[...idx.values()].filter(e=>match(e.name,e.desc)&&skillPass(e.name,e.cells,e.versions.length)).sort((a,b)=>Number(favorites.has(b.name))-Number(favorites.has(a.name))||a.name.localeCompare(b.name));
+ let h='<div class="content skill-catalog"><div class="head"><h2>Скиллы <small>'+rows.length+'</small></h2><span class="grow"></span><button class="btn" data-act="upcheck">Проверить обновления</button></div>';
+ const hosts=hostsOf();if(hosts.length)h+='<div class="srv">Серверы: '+hosts.map(host=>`<button class="chip" data-host="${esc(host)}" data-s="${HOSTS[host]?.s||''}"><span class="st"></span>${esc(host)}</button>`).join('')+'</div>';
+ if(SEL.size)h+=`<div class="bulk"><span>Выбрано: ${SEL.size}</span><button class="btn sm" data-act="bcopy-o">Копировать в…</button><button class="btn sm" data-act="bsync">Синхронизировать</button><button class="btn ghost sm" data-act="unsel">Снять выбор</button></div>`;
+ h+='<div class="skill-grid">'+rows.map(e=>{
+  const ids=Object.keys(e.cells),enabled=ids.filter(id=>!e.cells[id].disabled).length;
+  return `<article class="skill-card"><header><input type="checkbox" data-sel="${esc(e.name)}" aria-label="Выбрать ${esc(e.name)}" ${SEL.has(e.name)?'checked':''}><button class="skill-name" data-act="viewany" data-n="${esc(e.name)}">${esc(e.name)}</button><button class="btn ghost sm favorite" data-favorite="${esc(e.name)}" aria-label="${favorites.has(e.name)?'Убрать из избранного':'В избранное'}" aria-pressed="${favorites.has(e.name)}">${favorites.has(e.name)?'★':'☆'}</button></header><p>${esc(e.desc||'Описание отсутствует')}</p><div class="skill-places"><span class="badge ${enabled?'ok':'off'}">${enabled?'Включён':'Отключён'}</span>${ids.slice(0,3).map(id=>`<button class="badge" data-view="${esc(id)}" title="${esc(locById(id)?.label||id)}">${esc(locById(id)?.short||shortLabel(locById(id)))}</button>`).join('')}${ids.length>3?`<span class="badge">+${ids.length-3}</span>`:''}</div><footer><button class="btn sm" data-act="viewany" data-n="${esc(e.name)}">Открыть</button><button class="btn ghost sm" data-copy-skill="${esc(e.name)}">Копировать в…</button>${e.versions.length>1?`<button class="btn ghost sm" data-act="sync" data-n="${esc(e.name)}">${e.versions.length} версии</button>`:''}</footer></article>`;
+ }).join('')+'</div>'+(!rows.length?'<div class="empty">Скиллов по этим условиям нет. Измените фильтры или добавьте новый скилл.</div>':'')+'</div>';
+ $('#main').innerHTML=h;
+}
+document.addEventListener('change',e=>{if(e.target.dataset.skillFilter==='state')skillState=e.target.value;else if(e.target.dataset.skillFilter==='agent')skillAgent=e.target.value;else return;render()});
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.layout){skillMode=b.dataset.layout;LSS('oly-skills-layout-v3',skillMode);render()}
+ if(b.hasAttribute('data-favonly')){onlyFavorites=!onlyFavorites;render()}
+ if(b.dataset.favorite){const n=b.dataset.favorite;favorites.has(n)?favorites.delete(n):favorites.add(n);LSS('oly-skills-favorites',[...favorites]);render()}
+ if(b.dataset.copySkill){const n=b.dataset.copySkill,entry=index().get(n);if(!entry)return;const ids=Object.keys(entry.cells),id=ids.find(id=>!entry.cells[id].disabled)||ids[0];copyDialog(id,[{name:n,disabled:entry.cells[id].disabled}])}
+});
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#filter').focus();$('#filter').select()}});
+
+loadLocs().then(paint).catch(e=>{$('#main').innerHTML='<div class="empty">'+esc(e.message)+'</div>'});

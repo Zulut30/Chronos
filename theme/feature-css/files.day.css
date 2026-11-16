@@ -1,0 +1,16 @@
+/* 40-files — Olympus day: cream cards, ink text, royal blue accents, 2px radii */
+.oly-ftoast{background:#FFFDF8;color:#0E1116;border:1px solid #0E111629;border-radius:2px;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640}
+.oly-ftoast-ic{color:#1952C5}
+.oly-ftoast.is-err .oly-ftoast-ic{color:#B3261E}
+.oly-ftoast-t{font-family:"Cormorant Garamond",Didot,Georgia,serif;font-size:17px;font-weight:600;line-height:1.25}
+.oly-ftoast-d{color:#0E1116a3}
+.oly-ftoast-bar{background:#1952C51f;border-radius:0}
+.oly-ftoast-bar i{background:#1952C5}
+.oly-ftoast-btn{background:#FFFDF8;color:#0E1116;border:1px solid #0E111633;border-radius:2px}
+.oly-ftoast-btn:hover{background:#1952C5;border-color:#1952C5;color:#FFFDF8}
+.oly-ftoast-x{border-radius:2px}
+.oly-ftoast-x:hover{background:#0E11160f;color:#0E1116}
+.oly-dl-float{background:#FFFDF8;color:#1952C5;border:1px solid #0E111633;border-radius:2px;box-shadow:2px 2px 0 #0E11160d}
+.oly-dl-float:hover{background:#1952C5;border-color:#1952C5;color:#FFFDF8}
+.oly-dl-head{border-radius:2px}
+.oly-dl-head:hover{background:#1952C514;color:#1952C5}

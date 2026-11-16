@@ -1,0 +1,21 @@
+{
+ "exact": {
+  "Question": "Вопрос",
+  "Questions": "Вопросы",
+  "Submit": "Отправить",
+  "Submit answer": "Отправить ответ",
+  "Submit answers": "Отправить ответы",
+  "Next question": "Следующий вопрос",
+  "Next": "Далее",
+  "Submitting...": "Отправка…",
+  "Other": "Другое",
+  "Skip": "Пропустить",
+  "Dismiss question": "Закрыть вопрос"
+ },
+ "patterns": [
+  [
+   "^Question (\\d+) of (\\d+)$",
+   "Вопрос $1 из $2"
+  ]
+ ]
+}

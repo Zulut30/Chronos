@@ -1,0 +1,16 @@
+/* «API-ключи» settings panel — Olympus night */
+.oly-ik-intro{color:#E8F0FBa6}
+.oly-ik-badge{border-radius:2px;border-color:#E3BF5C4d;color:#E8F0FB99;background:#0E1E3E99;letter-spacing:.04em}
+.oly-ik-badge[data-state=set]{color:#E8F0FB}
+.oly-ik-badge[data-state=ok]{color:#E9C76A;border-color:#E3BF5C99;background:#E3BF5C14}
+.oly-ik-badge[data-state=err]{color:#F2A49B;border-color:#F2A49B66;background:#F2A49B12}
+.oly-ik-link{color:#E9C76A;text-decoration-color:#E3BF5C66}
+.oly-ik-meta{color:#E8F0FB8c}
+.oly-ik-meta code,.oly-ik-tools code{border-radius:2px;background:#E3BF5C0f;border-color:#E3BF5C40;color:#E8F0FBbf}
+.oly-ik-result{color:#E8F0FB8c}
+.oly-ik-result[data-ok=true]{color:#E9C76A}
+.oly-ik-result[data-ok=false]{color:#F2A49B}
+.oly-ik-eye{border-radius:2px;color:#E8F0FB80}
+.oly-ik-eye:hover{color:#E9C76A;background:#E3BF5C1a}
+.oly-ik-btns [data-danger]{color:#F2A49B}
+.oly-ik-btns [data-confirm]{color:#081530;background:#F2A49B!important}

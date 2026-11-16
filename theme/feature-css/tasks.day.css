@@ -1,0 +1,42 @@
+/* tasks board (30-tasks.js) · Olympus day: cream paper, ink, royal blue, classical headings */
+.oly-tk-row:hover{background:#E9E1D0}
+.oly-tk-row svg{color:#1952C5}
+.oly-tk-overlay{background:#0E111640}
+.oly-tk-dialog{background:#FBF8F1;border:1px solid #0E11162e;border-radius:2px;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640}
+.oly-tk-nav{background:linear-gradient(#F8F4EC,#EDE5D4);border-right-color:#0E11161f}
+.oly-tk-navtitle{font:500 26px/1.1 "Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;padding-bottom:16px;color:#0E1116}
+.oly-tk-navtitle svg{color:#1952C5}
+.oly-tk-sec{text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;color:#0E111699}
+.oly-tk-item{border-radius:2px;color:#0E1116b3}
+.oly-tk-item:hover{background:#E9E1D0;color:#0E1116}
+.oly-tk-item[aria-current=true]{background:#FFFDF8;color:#0E1116;box-shadow:inset 3px 0 #1952C5,0 1px 0 #0E111612,0 6px 16px -10px #0A1E5059}
+.oly-tk-item .here{background:#1952C5}
+.oly-tk-head{border-bottom-color:#0E11161f;background:#FFFDF8}
+.oly-tk-crumb h2{font:500 26px/1.1 "Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;color:#0E1116}
+.oly-tk-board{background:#F3EFE6}
+.oly-tk-col{background:#EDE6D6;border-color:#0E11161a;border-radius:2px}
+.oly-tk-colhead{text-transform:uppercase;letter-spacing:.08em;font-size:11.5px;font-weight:600;color:#0E1116}
+.oly-tk-colhead small{letter-spacing:0}
+.oly-tk-card{background:#FFFDF8;border-color:#0E11161f;border-radius:2px;box-shadow:2px 2px 0 #0E11160a}
+.oly-tk-card:hover{border-color:#1952C566}
+.oly-tk-card[aria-selected=true]{border-color:#1952C5;box-shadow:inset 3px 0 #1952C5,2px 2px 0 #1952C51a}
+.oly-tk-dot[data-s=doing]{background:#1952C5}
+.oly-tk-btn,.oly-tk-ico,.oly-tk-input,.oly-tk-dialog select,.oly-tk-dialog textarea,.oly-tk-addbtn,.oly-tk-add,.oly-tk-md,.oly-tk-n,.oly-tk-tabs button,.oly-tk-checks{border-radius:2px}
+.oly-tk-input,.oly-tk-dialog select,.oly-tk-dialog textarea:not(.oly-tk-title){background:#FFFDF8;border-color:#0E111633}
+.oly-tk-btn.primary{background:#1952C5;color:#FFFDF8}
+.oly-tk-btn.primary:hover{background:#1446AA}
+.oly-tk-btn:not(.primary):hover,.oly-tk-ico:hover,.oly-tk-addbtn:hover{background:#E9E1D0}
+.oly-tk-detail{background:#FFFDF8;border-left-color:#0E11162e;box-shadow:-3px 0 0 #0E11160a,-16px 0 40px -24px #0A1E5066}
+.oly-tk-dialog .oly-tk-title{font:500 26px/1.15 "Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;color:#0E1116}
+.oly-tk-block h4,.oly-tk-fields label{text-transform:uppercase;letter-spacing:.07em;font-size:10.5px;color:#0E111699}
+.oly-tk-n{background:#F3EFE6;border-left:2px solid #1952C559}
+.oly-tk-prog i{background:#1952C5}
+.oly-tk-mbox{background:#FFFDF8;border-radius:2px;border-color:#0E11162e;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640}
+.oly-tk-mbox h3{font:500 24px/1.15 "Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif}
+.oly-tk-pop{background:#FFFDF8;border:1px solid #0E11162e;border-radius:2px;box-shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111659}
+.oly-tk-pophead{background:#F3EFE6;border-bottom-color:#0E11161f}
+.oly-tk-pophead svg{color:#1952C5}
+.oly-tk-popg{text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+.oly-tk-opt{border-radius:2px}
+.oly-tk-opt[aria-selected=true]{background:#EFE8D8;box-shadow:inset 2px 0 #1952C5}
+.oly-tk-toast{background:#0E1116;color:#FFFDF8;border-radius:2px}
