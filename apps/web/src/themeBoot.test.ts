@@ -18,6 +18,7 @@ import {
   THEME_APPEARANCE_MODE_STORAGE_KEY,
   THEME_FOLLOW_SYSTEM_STORAGE_KEY,
   toCanonicalThemeColor,
+  CHRONOS_BUILT_IN_THEMES,
 } from "./themePalette";
 
 const THEME_STORAGE_KEY = "t3code:theme";
@@ -43,6 +44,7 @@ function runBootScript(options: {
   storageThrows?: boolean;
   prefersDark: boolean;
 }): BootResult {
+  const storage = { ...options.storage };
   const classes = new Set<string>();
   const bootVariables: Record<string, string> = {};
   const meta = {
@@ -78,7 +80,12 @@ function runBootScript(options: {
     localStorage: {
       getItem: (key: string): string | null => {
         if (options.storageThrows) throw new Error("storage blocked");
-        return options.storage?.[key] ?? null;
+        return storage[key] ?? null;
+      },
+      // chronos: first-run theme selection writes to storage before the splash is painted.
+      setItem: (key: string, value: string) => {
+        if (options.storageThrows) throw new Error("storage blocked");
+        storage[key] = value;
       },
     },
     matchMedia: () => ({ matches: options.prefersDark }),
@@ -154,6 +161,7 @@ describe("index.html boot script", () => {
     prefersDark: boolean;
   }> = [
     { name: "no stored preference on a dark OS", storage: {}, prefersDark: true },
+    { name: "no stored preference on a light OS", storage: {}, prefersDark: false },
     {
       name: "T3 Chat follows a dark OS",
       storage: { [THEME_STORAGE_KEY]: "t3-chat", [THEME_FOLLOW_SYSTEM_STORAGE_KEY]: "true" },
@@ -253,6 +261,7 @@ describe("index.html boot script", () => {
 
   it.each(parityCases)("matches the runtime appearance: $name", ({ storage, prefersDark }) => {
     const boot = runBootScript({ storage, prefersDark });
+    if (Object.keys(storage).length === 0) expect(boot.themeId).toBe("olympus");
     expect(boot.isDark).toBe(runtimeResolvedAppearance(storage, prefersDark) === "dark");
   });
 
@@ -310,7 +319,14 @@ describe("index.html boot script", () => {
   });
 
   it("keeps every built-in boot splash in sync with the real palettes", () => {
-    for (const theme of [T3_CHAT_THEME, GROVE_THEME, OCEAN_THEME, EMBER_THEME, IRIS_THEME]) {
+    for (const theme of [
+      ...CHRONOS_BUILT_IN_THEMES,
+      T3_CHAT_THEME,
+      GROVE_THEME,
+      OCEAN_THEME,
+      EMBER_THEME,
+      IRIS_THEME,
+    ]) {
       expect(theme.appearance).toBe("light");
       for (const mode of ["light", "dark"] as const) {
         const colors = getThemeColorsForMode(theme, mode);
@@ -324,11 +340,11 @@ describe("index.html boot script", () => {
         });
         expect(boot.themeId).toBe(theme.id);
         expect(boot.isDark).toBe(mode === "dark");
-        expect(boot.bootVariables["--boot-background"]).toBe(colors!.canvas);
-        expect(boot.bootVariables["--boot-foreground"]).toBe(colors!.text);
-        expect(boot.bootVariables["--boot-accent"]).toBe(colors!.accent);
-        expect(boot.backgroundColor).toBe(colors!.chrome);
-        expect(boot.metaContent).toBe(colors!.chrome);
+        expect(toCanonicalThemeColor(boot.bootVariables["--boot-background"])).toBe(colors!.canvas);
+        expect(toCanonicalThemeColor(boot.bootVariables["--boot-foreground"])).toBe(colors!.text);
+        expect(toCanonicalThemeColor(boot.bootVariables["--boot-accent"])).toBe(colors!.accent);
+        expect(toCanonicalThemeColor(boot.backgroundColor)).toBe(colors!.chrome);
+        expect(toCanonicalThemeColor(boot.metaContent)).toBe(colors!.chrome);
       }
     }
   });

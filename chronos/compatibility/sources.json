@@ -1,0 +1,121 @@
+﻿{
+  "schema": 1,
+  "observedAtUtc": "2026-11-17T16:33:15.8473759Z",
+  "referenceArchiveSha256": "14737166395d6c86a7628ec6ed3c361c93088eed333bf213f5fc2a78febc8bc5",
+  "files": [
+    {
+      "reference": "olympus-v3/src/10-plan-mode.js",
+      "bytes": 7254,
+      "sha256": "3b4652386b8e72fe586994b61d8cc4aac24639c7fa43dad4623be52ed2cdc748",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/20-speed.js",
+      "bytes": 25548,
+      "sha256": "68dc10ca0ab4df01b847c434ae8a6ee43f9951ab5bfa080f5ad553158c5fe88f",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/30-tasks.js",
+      "bytes": 70118,
+      "sha256": "be526eacbf0315c7ab8a962e8ffce8dc9b11946f9b749e78a6c14c70ada7635d",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/50-machines.js",
+      "bytes": 20616,
+      "sha256": "2fc9505afe5a8d14fd26bfe22796526708e43c8dd4abe123e7ef8b521d616877",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/55-composer.js",
+      "bytes": 9630,
+      "sha256": "a06da8d124cddc79d8cbca8acb258aaddca9af9dd6387952a47c78b0c49efaec",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/60-studio.js",
+      "bytes": 25951,
+      "sha256": "4bddd30badc33429631869d4a00c6b996417f1bd82b9af3c0c5696a9ad5b5323",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/70-openrouter.js",
+      "bytes": 17330,
+      "sha256": "fdc034b71bc54e8a1d7fc7b7084e88ffa5fb6f14df952bfe7104da45d7b410c3",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/88-rich-text.js",
+      "bytes": 5580,
+      "sha256": "398d9ef9540fbbde6b4ce7fd1a137cf4ae08f64fb649fe089c03e58d27f33505",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/90-mcp-manager.js",
+      "bytes": 6005,
+      "sha256": "71a3350308d931c97a290f9fb686ae25890a4e476829b74ae6d598b29bcbce94",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/src/92-studio-shell.js",
+      "bytes": 3819,
+      "sha256": "55e6942c11c1da286756203d60974519330e5377a9b821d3810948a3d2521a0e",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "ru-l10n/features/40-files.js",
+      "bytes": 32502,
+      "sha256": "79b98e58b16399b6bdcef6f9e9b869b9ee6e0c62d46f0232c2633861c37618bf",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "ru-l10n/features/80-integrations.js",
+      "bytes": 27374,
+      "sha256": "ebfb65a0ddb13b87431c5ebc49e8c7769a7af87cf805795f874c9c732e755509",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "ru-l10n/extras.js",
+      "bytes": 4761,
+      "sha256": "7daac610e96461bdb53262652a8e9602495346095a7cb32083719ba6e1a0c5d4",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "mcp-manager/index.html",
+      "bytes": 3556,
+      "sha256": "f195aa395f2cdbafe9952d7ff5ac359ad00294c63f9f08a09c3b9ec8c3a2f4fa",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "mcp-manager/app.js",
+      "bytes": 7506,
+      "sha256": "0252d854df93d6fa8bf77f4084ac6aa3f79bc5ef3a4e74b2afda55b1111cd53e",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "mcp-manager/style.css",
+      "bytes": 3964,
+      "sha256": "b397af3c2dee9732a157ea70633b8d0743ca60f9499e41df4fcf05b0b88100ee",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "studio-service/public/index.html",
+      "bytes": 17976,
+      "sha256": "94cea0d2e008090375562765564b808c743bd239329f0186573c3d5e1f8f0eea",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "studio-service/public/hub.css",
+      "bytes": 5337,
+      "sha256": "f29eaef0aef69269ba6333b70cd20290140c96b52b426319c78f6a8cd5202a3e",
+      "disposition": "behavior-reference-only"
+    },
+    {
+      "reference": "olympus-v3/ux-polish-20261117/package.py",
+      "bytes": 6697,
+      "sha256": "9f0dce1615d913e19f58cc0e35067703dadb502898399476212f075793b8a405",
+      "disposition": "behavior-reference-only"
+    }
+  ]
+}

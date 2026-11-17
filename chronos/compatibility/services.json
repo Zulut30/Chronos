@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "platform": "win32-x64",
+  "upstream": "0.1.11-nightly.20261117.4838",
+  "referencePackage": "ux-polish-20261117",
+  "referenceArchiveSha256": "14737166395d6c86a7628ec6ed3c361c93088eed333bf213f5fc2a78febc8bc5",
+  "mode": "retain-existing-local-services",
+  "services": [
+    { "id": "skills", "directory": "skills-manager", "port": 4517, "health": "/api/health" },
+    {
+      "id": "tasks",
+      "directory": "tasks-service",
+      "port": 4518,
+      "health": "/api/health",
+      "service": "oly-tasks"
+    },
+    {
+      "id": "files",
+      "directory": "files-service",
+      "port": 4519,
+      "health": "/health",
+      "service": "oly-files"
+    },
+    {
+      "id": "studio",
+      "directory": "studio-service",
+      "port": 4520,
+      "health": "/api/health",
+      "service": "t3-studio"
+    },
+    {
+      "id": "integrations",
+      "directory": "integrations-service",
+      "port": 4522,
+      "health": "/api/health",
+      "service": "oly-integrations"
+    },
+    {
+      "id": "mcp",
+      "directory": "mcp-manager",
+      "port": 4523,
+      "health": "/api/health",
+      "service": "oly-mcp-manager"
+    }
+  ],
+  "stdio": ["openrouter", "oly-web", "oly-tasks", "oly-skills", "t3-studio"],
+  "preserve": [
+    ".t3/caches/t3-customizations",
+    ".t3/tasks",
+    ".t3/skills",
+    ".codex/config.toml",
+    ".claude.json",
+    ".cursor/mcp.json",
+    ".config/opencode/opencode.json"
+  ],
+  "constraints": [
+    "Existing Windows host only; not a clean-machine service installer",
+    "Local Electron or HTTP loopback web port 3773 only (other dev ports use a fixed local proxy); hosted/remote browsers and mobile do not call client localhost",
+    "No legacy bundles or installed ASAR in the payload",
+    "No service code, credentials or user state copied into distributable"
+  ]
+}

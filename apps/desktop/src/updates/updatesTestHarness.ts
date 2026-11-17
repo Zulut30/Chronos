@@ -249,13 +249,15 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
   let previousInstallRecord = options.installRecord;
   const isInstallRecord = (path: string) =>
     path.endsWith(DesktopUpdates.DESKTOP_UPDATE_INSTALL_RECORD_FILE);
+  // chronos: this fixture models Unix resources even when the test runner is on Windows.
   const layerFileSystem = FileSystem.layerNoop({
     readFileString: (path) => {
       const installRecord = isInstallRecord(path)
         ? (installRecords.get(path) ?? previousInstallRecord)
         : undefined;
       if (installRecord !== undefined) return Effect.succeed(installRecord);
-      return path === "/missing/resources/package-type" && options.packageType !== undefined
+      return path.replaceAll("\\", "/") === "/missing/resources/package-type" &&
+        options.packageType !== undefined
         ? Effect.succeed(options.packageType)
         : Effect.fail(
             PlatformError.systemError({
@@ -271,7 +273,9 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
       Effect.sync(() => {
         if (isInstallRecord(path)) installRecords.set(path, data);
         else {
-          if (path.endsWith("/desktop-update-restart")) updateRestartMarkers.add(path);
+          if (path.replaceAll("\\", "/").endsWith("/desktop-update-restart")) {
+            updateRestartMarkers.add(path);
+          }
           updateMarkerContents.set(path, data);
         }
       }),
@@ -318,7 +322,9 @@ export function makeHarness(options: UpdatesHarnessOptions = {}) {
     installSteps,
     updateRestartMarkers,
     updateInProgressMarker: () =>
-      [...updateMarkerContents].find(([path]) => path.endsWith("/desktop-update-in-progress"))?.[1],
+      [...updateMarkerContents].find(([path]) =>
+        path.replaceAll("\\", "/").endsWith("/desktop-update-in-progress"),
+      )?.[1],
     installRecords,
     previousInstallRecord: () => previousInstallRecord,
     downloadCount: () => downloadCount,

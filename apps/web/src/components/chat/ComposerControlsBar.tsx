@@ -1,4 +1,6 @@
 import type { ChatComposerProps } from "./ChatComposer";
+// chronos: context references and speed use the real composer state.
+import { ChronosComposerTools } from "../../chronos/workspace/ChronosComposer";
 import type { PromptUltrathink } from "./TraitsPicker";
 import type { ProviderInstanceEntry } from "../../providerInstances";
 import { type AppModelOption } from "../../modelSelection";
@@ -263,6 +265,11 @@ export function ComposerControlsBar(props: {
   ) : (
     <>
       {composerModelPicker}
+      <ChronosComposerTools
+        threadRef={routeThreadRef ?? null}
+        draftId={draftId}
+        onPromptEdit={onPromptEdit}
+      />
 
       <>
         {restingBlockDefs.map((def, index) => {

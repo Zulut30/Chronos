@@ -61,6 +61,8 @@ import {
 import { useAvailableSettingsSearchItems } from "./useAvailableSettingsSearchItems";
 import { handleSettingsSectionKeyDown } from "./settingsSectionNavigation";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
+// chronos: MCP and skills remain accessible from Settings without DOM injection.
+import { ChronosSettingsNav } from "../../chronos/workspace/SettingsPage";
 
 const SnapShotIcon = createLucideIcon("snap-shot", [
   [
@@ -429,6 +431,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           </div>
         </SidebarGroup>
       </SidebarContent>
+      <ChronosSettingsNav />
       <SidebarFooter className="max-md:hidden">
         <Suspense fallback={null}>
           <T3ConnectSidebarSignIn />

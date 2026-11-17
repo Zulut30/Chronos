@@ -56,7 +56,9 @@ import {
   type ComposerSubmissionIntent,
   collapseExpandedComposerCursor,
 } from "../../composer-logic";
-import { type ChatMessage, DEFAULT_INTERACTION_MODE } from "../../types";
+import { type ChatMessage } from "../../types";
+// chronos: capture this draft's native mode for create/start before asynchronous preparation.
+import { readChronosInteractionMode } from "../../chronos/workspace/planMode";
 import { recordPromptSent } from "../GitHubStarPrompt";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
@@ -391,6 +393,8 @@ export function useComposerSend(input: ComposerSendInput) {
     // What the user pressed send on; uploads below can take a while, and a redirect must not
     // decline approvals for a draft that changed meanwhile.
     const promptAtSend = promptRef.current;
+    // chronos: a route switch during upload must not change the mode of this submission.
+    const interactionModeAtSend = readChronosInteractionMode(composerDraftTarget);
     if (
       usageLimitsOffered &&
       usageLimitsKey !== null &&
@@ -1158,6 +1162,7 @@ export function useComposerSend(input: ComposerSendInput) {
     });
     if (multipleModelSelections !== null) {
       await sendToMultipleModels({
+        interactionModeAtSend,
         threadId: threadIdForSend,
         project: activeProject,
         branch: activeThreadBranch!,
@@ -1252,7 +1257,7 @@ export function useComposerSend(input: ComposerSendInput) {
           ? { branch: localCheckoutBranchMismatch.currentBranch }
           : {}),
         runtimeMode,
-        interactionMode: DEFAULT_INTERACTION_MODE,
+        interactionMode: interactionModeAtSend,
       });
       if (settingsResult._tag === "Failure") {
         failure = settingsResult;
@@ -1285,7 +1290,7 @@ export function useComposerSend(input: ComposerSendInput) {
           },
           modelSelection: ctxSelectedModelSelection,
           runtimeMode,
-          interactionMode: DEFAULT_INTERACTION_MODE,
+          interactionMode: interactionModeAtSend,
         },
       });
       if (compactResult._tag === "Failure") {
@@ -1306,7 +1311,7 @@ export function useComposerSend(input: ComposerSendInput) {
                       title,
                       modelSelection: threadCreateModelSelection,
                       runtimeMode,
-                      interactionMode: DEFAULT_INTERACTION_MODE,
+                      interactionMode: interactionModeAtSend,
                       branch: activeThreadBranch,
                       worktreePath: activeThread.worktreePath,
                       createdAt: activeThread.createdAt,
@@ -1355,7 +1360,7 @@ export function useComposerSend(input: ComposerSendInput) {
           modelSelection: ctxSelectedModelSelection,
           titleSeed: title,
           runtimeMode,
-          interactionMode: DEFAULT_INTERACTION_MODE,
+          interactionMode: interactionModeAtSend,
           dispatchMode: turnDispatchMode,
           ...(freshArm === undefined ? {} : { freshContext: true }),
           ...(bootstrap ? { bootstrap } : {}),

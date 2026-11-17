@@ -8,7 +8,13 @@ const reloadToSetting = (state: { readonly locale: string }) => persistGTLocale(
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
   const { locale, translations } = useSyncExternalStore(subscribeI18n, getI18nSnapshot);
   return (
-    <GTProvider locale={locale} translations={translations} _reload={reloadToSetting}>
+    // chronos: remount on a language change so text localized at element creation re-renders.
+    <GTProvider
+      key={locale}
+      locale={locale}
+      translations={translations}
+      _reload={reloadToSetting}
+    >
       {children}
     </GTProvider>
   );

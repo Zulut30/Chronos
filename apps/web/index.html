@@ -7,7 +7,8 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="theme-color" content="#000000" />
-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <!-- chronos: Chronos icon (Vite bundles it from src/chronos) -->
+    <link rel="icon" href="/src/chronos/chronos-favicon-64.png" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
@@ -52,6 +53,21 @@
         // Keep this small boot-time copy in sync with the built-in palettes so
         // the selected theme is visible before the app has mounted.
         const BUILT_IN_THEME_PALETTES = {
+          // chronos: Olympus (src/chronos/olympus.theme.json), so its first frame is not stock.
+          olympus: {
+            light: {
+              background: "#F3EFE6",
+              foreground: "#0E1116",
+              accent: "#1952C5",
+              chrome: "#F3EFE6",
+            },
+            dark: {
+              background: "#081530",
+              foreground: "#E8F0FB",
+              accent: "#E3BF5C",
+              chrome: "#0B1730",
+            },
+          },
           "t3-chat": {
             light: {
               background: "oklch(0.982446 0.010114 325.653)",
@@ -219,6 +235,20 @@
         };
 
         try {
+          // chronos: the same first-run default as src/chronos/theme.ts, applied before the
+          // first frame: Olympus, following the system's light/dark appearance.
+          if (window.localStorage.getItem("chronos:default-theme-seeded") === null) {
+            window.localStorage.setItem("chronos:default-theme-seeded", "1");
+            if (
+              window.localStorage.getItem("t3code:theme") === null &&
+              window.localStorage.getItem(THEME_HALVES_STORAGE_KEY) === null
+            ) {
+              window.localStorage.setItem("t3code:theme", "olympus");
+              if (window.localStorage.getItem(THEME_APPEARANCE_MODE_STORAGE_KEY) === null) {
+                window.localStorage.setItem(THEME_APPEARANCE_MODE_STORAGE_KEY, "system");
+              }
+            }
+          }
           const storedTheme = window.localStorage.getItem("t3code:theme");
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           const LEGACY_THEME_IDS = {
@@ -686,8 +716,9 @@
   <body>
     <div id="root">
       <div id="boot-shell">
-        <div id="boot-shell-card" aria-label="T3 Code splash screen">
-          <img id="boot-shell-logo" src="/apple-touch-icon.png" alt="T3 Code" />
+        <!-- chronos: product name -->
+        <div id="boot-shell-card" aria-label="Chronos splash screen">
+          <img id="boot-shell-logo" src="/src/chronos/chronos-icon-256.png" alt="Chronos" />
         </div>
       </div>
     </div>

@@ -16,11 +16,17 @@ import remarkRehype from "remark-rehype";
 import { find, html } from "property-information";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+// chronos: preserve only validated inline formatting across the existing sanitizer.
+import { chronosPrepareRichText, chronosRestoreRichText } from "./chronosRichText.ts";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { remarkGithubAlerts } from "./markdownGithubAlerts.ts";
 import { remarkNormalizeListItemIndentation } from "./markdownListIndentation.ts";
 import { remarkKeepOrderedListNumbers } from "./markdownOrderedListNumbers.ts";
+import {
+  remarkEnableLeadingWhitespace,
+  remarkKeepLeadingWhitespace,
+} from "./markdownLeadingWhitespace.ts";
 import {
   CODEX_ARTIFACT_TEMPLATE_HAST_PROPERTIES,
   remarkCodexDirectives,
@@ -206,9 +212,14 @@ function rehypeNormalizeLocalEditorLinks() {
 
 const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
   ...defaultSchema,
+  // chronos: these inline tags carry presentation only.
+  tagNames: [...(defaultSchema.tagNames ?? []), "mark", "u"],
   attributes: {
     ...defaultSchema.attributes,
-    "*": (defaultSchema.attributes?.["*"] ?? []).filter((attribute) => attribute !== "title"),
+    "*": [
+      ...(defaultSchema.attributes?.["*"] ?? []).filter((attribute) => attribute !== "title"),
+      "dataChronosStyle",
+    ],
     // Fence languages plus the two math classes the web chat's math plugin emits.
     code: [
       ["className", /^language-./, "math-inline", "math-display"],
@@ -259,10 +270,12 @@ export const CHAT_MARKDOWN_REMARK_PLUGINS: PluggableList = [
   remarkNormalizeLinksAndTagInlineCode,
 ];
 
+// Leading whitespace is kept only where each line renders as a line.
 export const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS: PluggableList = [
   remarkGfm,
   remarkEndAutolinksAtScriptPunctuation,
   remarkKeepAutolinkSuffixes,
+  remarkKeepLeadingWhitespace,
   remarkLinkAbsoluteFilePaths,
   remarkKeepWindowsPaths,
   remarkGithubAlerts,
@@ -277,8 +290,10 @@ export const CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS: PluggableList = [
 
 // Users type paths like ~/a and (~/b, which GFM's single-tilde strikethrough hides as <del>.
 // Appended after the base list, this reconfigures its remark-gfm entry; ~~double~~ still strikes.
+// Users also indent lines with spaces, which CommonMark drops from a paragraph.
 export const CHAT_USER_MARKDOWN_REMARK_PLUGINS: PluggableList = [
   [remarkGfm, { singleTilde: false }],
+  remarkEnableLeadingWhitespace,
 ];
 
 // Start tags an HTML parser closes an open `<p>` for.
@@ -356,7 +371,9 @@ export const CHAT_MARKDOWN_REHYPE_PLUGINS: PluggableList = [
   rehypeRawWhenPresent,
   rehypePreserveImageSourceMeta,
   rehypeNormalizeLocalEditorLinks,
+  chronosPrepareRichText,
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
+  chronosRestoreRichText,
 ];
 
 const isImageNode = (node: PhrasingContent | undefined): boolean =>
@@ -887,3 +904,10 @@ export function decodeMarkdownLinkEscapes(href: string): string {
   }
   return isWindowsAbsolutePath(href) ? href : href.replace(/\\([!-/:-@[-`{-~])/g, "$1");
 }
+
+// chronos: begin (safe rich-text clipboard uses the same parser as the chat)
+export { CHRONOS_RICH_COLORS, chronosRichStyle } from "./chronosRichText.ts";
+export function chronosMarkdownRichTree(markdown: string): unknown {
+  return imageSourceProcessor.runSync(imageSourceProcessor.parse(markdown));
+}
+// chronos: end

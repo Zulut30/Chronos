@@ -6,6 +6,8 @@ import {
   WorkspaceBreadcrumbSeparator,
 } from "../WorkspaceBreadcrumb";
 import { SETTINGS_SECTION_LABELS } from "./settingsSearch";
+// chronos: extension pages share the native Settings breadcrumb.
+import { chronosSettingsLabel } from "../../chronos/workspace/state";
 
 const SETTINGS_LABEL = msg("Settings");
 
@@ -17,7 +19,11 @@ const SETTINGS_BREADCRUMB_LABELS: Readonly<Record<string, string>> = {
 
 function settingsBreadcrumbLabel(pathname: string): string | null {
   const normalizedPathname = pathname.replace(/\/+$/, "") || "/";
-  return SETTINGS_BREADCRUMB_LABELS[normalizedPathname] ?? null;
+  return (
+    SETTINGS_BREADCRUMB_LABELS[normalizedPathname] ??
+    chronosSettingsLabel(normalizedPathname) ??
+    null
+  );
 }
 
 export function SettingsBreadcrumb({ pathname }: { pathname: string }) {

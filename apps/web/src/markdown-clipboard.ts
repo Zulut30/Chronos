@@ -1,4 +1,6 @@
 import { UNFINISHED_DRIVE_PATH } from "@t3tools/shared/markdownWindowsPaths";
+// chronos: selections retain inline ancestors and portable colors for rich editors.
+import { portableRichHtml, restoreRichSelectionAncestors } from "./chronos/richText/clipboard";
 
 const SKIPPED_TAGS = new Set(["BUTTON", "INPUT", "SCRIPT", "STYLE", "TEMPLATE"]);
 const SKIPPED_CLASS_NAMES = ["select-none", "sr-only"];
@@ -284,8 +286,11 @@ function serializeNode(node: Node, inTableCell = false): string {
   }
   const markdownCopy = element.getAttribute("data-markdown-copy");
   if (markdownCopy !== null) {
-    // A diagram copies as its fenced source, which is code too.
-    if (element.hasAttribute("data-markdown-mermaid")) {
+    // chronos: fenced code and diagram sources bypass prose whitespace cleanup.
+    if (
+      element.hasAttribute("data-markdown-mermaid") ||
+      element.hasAttribute("data-markdown-verbatim")
+    ) {
       return verbatimBlock(escapeTablePipes(markdownCopy.trimEnd(), inTableCell));
     }
     return element.hasAttribute("data-markdown-math")
@@ -482,6 +487,7 @@ function mathSourceElement(wrapper: Element): Element {
 }
 
 function sanitizedHtmlFrom(container: Element): string {
+  portableRichHtml(container);
   for (const diagram of container.querySelectorAll("[data-markdown-mermaid]")) {
     const source = diagram.getAttribute("data-markdown-copy");
     if (source !== null) diagram.replaceChildren(mermaidSourceHtml(source));
@@ -544,7 +550,12 @@ export function chatMarkdownClipboardPayload(
     if (range.collapsed) continue;
     const container = document.createElement("div");
     container.appendChild(range.cloneContents());
+    restoreRichSelectionAncestors(range, container);
     keepStartListNumbers(range, container);
+    // The indentation typed at a line start only shows; pasted, it would turn lines into code.
+    for (const indentation of container.querySelectorAll("[data-leading-whitespace]")) {
+      indentation.remove();
+    }
     const ancestor = range.commonAncestorContainer;
     const ancestorElement =
       ancestor.nodeType === Node.ELEMENT_NODE ? (ancestor as Element) : ancestor.parentElement;

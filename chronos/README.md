@@ -1,20 +1,20 @@
 # Chronos
 
 Chronos — форк [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (MIT), который отличается от
-T3 Code только оформлением: название, иконка, логотип в шапке и тема Olympus по умолчанию.
+T3 Code оформлением и русским интерфейсом: название, иконка, логотип в шапке и тема Olympus по умолчанию.
 Под капотом всё как в T3: T3 Connect, туннель, мобильное приложение, протокол `t3code://`,
 CLI `t3`, папки данных.
 
 ## Что остаётся как в T3 (не менять)
 
-| Что | Значение |
-| --- | --- |
-| appId / AppUserModelId | `com.t3tools.t3code` |
-| Профиль Electron (userData) | `%APPDATA%\t3code-v2` (Windows), `~/Library/Application Support/t3code-v2` (macOS) |
-| Данные сервера | `~/.t3` (`~/.t3/userdata`) |
-| Протокол | `t3code://` |
-| T3 Connect | Clerk `pk_live_Y2xlcmsudDMuY29kZXMk`, relay `https://relay.t3.codes` (публичные значения из `.env.example`) |
-| CLI | `t3`, версии и архивы — официальные релизы T3 |
+| Что                         | Значение                                                                                                    |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| appId / AppUserModelId      | `com.t3tools.t3code`                                                                                        |
+| Профиль Electron (userData) | `%APPDATA%\t3code-v2` (Windows), `~/Library/Application Support/t3code-v2` (macOS)                          |
+| Данные сервера              | `~/.t3` (`~/.t3/userdata`)                                                                                  |
+| Протокол                    | `t3code://`                                                                                                 |
+| T3 Connect                  | Clerk `pk_live_Y2xlcmsudDMuY29kZXMk`, relay `https://relay.t3.codes` (публичные значения из `.env.example`) |
+| CLI                         | `t3`, версии и архивы — официальные релизы T3                                                               |
 
 Поэтому Chronos подхватывает треды, настройки, вход в T3 Connect и пейринг установленного
 «T3 Code (Nightly)». Одновременно оба приложения работать не могут (общий appId и общие данные):
@@ -25,13 +25,13 @@ CLI `t3`, папки данных.
 `chronos/version.json`:
 
 ```json
-{ "upstream": "0.1.10-nightly.20261116.4800", "revision": 1 }
+{ "upstream": "0.1.11-nightly.20261117.4838", "revision": 1 }
 ```
 
-- `upstream` — nightly-тег апстрима (`v<upstream>` в pingdotgg/t3code), на котором стоит наш `main`.
+- `upstream` — nightly-тег апстрима (`v<upstream>` в pingdotgg/t3code), на котором стоит эта ветка.
 - `revision` — счётчик релизов Chronos поверх этого nightly; после синхронизации с апстримом
   сбрасывается в 1.
-- Версия приложения: `<upstream>.chronos.<revision>`, например `0.1.10-nightly.20261116.4800.chronos.1`.
+- Версия приложения: `<upstream>.chronos.<revision>`, например `0.1.11-nightly.20261117.4838.chronos.1`.
   По semver она идёт сразу после своей nightly T3 и раньше следующей, поэтому сравнение с версиями
   T3 остаётся корректным.
 - Тег релиза: `chronos-v<версия>` (`node chronos/scripts/chronos-version.mjs` печатает всё сразу).
@@ -74,36 +74,92 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 - Тема встроена в веб-клиент с id `olympus` (как опубликованная раньше через `t3 theme set`).
   На первом запуске профиля Chronos один раз выбирает её с режимом «как в системе»;
   если пользователь уже выбирал тему, выбор не трогается (ключ `chronos:default-theme-seeded`).
-- Встроенная тема не проходит через лимит CSS опубликованных тем (`THEME_CSS_MAX_LENGTH` = 50 000),
+- Встроенная тема не проходит через лимит CSS опубликованных тем (`THEME_CSS_MAX_LENGTH` = 100 000),
   поэтому лимит не менялся. Старый опубликованный `~/.t3/userdata/themes/olympus.json` (327 КБ)
   сервер пропускает с предупреждением в логе — его заменяет встроенная тема.
+
+## Русский интерфейс
+
+- Языки: English и Русский (Настройки → Язык; там же «Как в системе»). Выбор хранится в
+  клиентских настройках (`language`), как в апстриме.
+- По умолчанию — язык системы: при первом запуске профиля Chronos один раз меняет нетронутое
+  значение `en` (дефолт схемы) на `system`; `ru-*` → русский, остальное → английский
+  (`apps/web/src/chronos/i18n/languages.ts`, ключ `chronos:default-language-seeded`).
+- Механизм апстрима — gt-react (`apps/web/src/i18n`, `gt.config.json`). Строки, обёрнутые в
+  `<T>`/`gt()` (пока 77, экраны настроек), переводит его каталог `translations/ru.json`.
+  Остальной интерфейс в апстриме — английские литералы. Оборачивать их в файлах апстрима =
+  тысячи правок и конфликт на каждом слиянии, поэтому Chronos добавляет свой каталог
+  `apps/web/src/chronos/i18n/ru.catalog.json` (англ. строка → рус., плюс шаблоны с `$1`).
+- Каталог применяется при создании React-элементов: плагин Vite (`vitePlugin.ts`) подменяет
+  `react/jsx-runtime` для модулей `apps/web/src` на `jsxRuntime.ts`, а `localizeElement.ts`
+  переводит текстовые дети и атрибуты `title`/`placeholder`/`aria-label`/`alt`. DOM не
+  наблюдается. Пользовательский текст не трогается: `pre`/`code`/`kbd`/`textarea`, элементы с
+  `dir` (заголовки тредов, сообщения), `.chat-markdown`, `.font-mono`, пузыри сообщений.
+  Строки-данные (`title === "New thread"` на сервере, ключи, протокол) не переводятся: меняется
+  только отображаемый текст. Тот же слой показывает «T3 Code» как «Chronos» (кроме мобильного
+  приложения T3 и T3 Connect). Каталог грузится отдельным чанком вместе с `ru.json` апстрима;
+  смена языка перемонтирует дерево (`key` на `GTProvider`).
+- Источник каталога: `chronos/legacy-package/client/l10n/` (`ru-final.json`, `runtime-*.json`)
+  - `chronos/l10n/ru.overrides.json` (новые строки по `glossary.md`; `keep` — имена, которые
+    остаются английскими). Пересборка: `node chronos/l10n/build-ru-catalog.mjs`.
+- Проверка: `node chronos/scripts/l10n-check.mjs [--missing] [--min 95]` — доля переведённых
+  литералов интерфейса из `apps/web/src`, полнота `ru.json` апстрима, битые плейсхолдеры
+  (`{name}`, `${x}`, `%s`, `$n` в шаблонах). `--missing` пишет непереведённые строки в
+  `chronos/.work/l10n-missing.tsv`. Запускается в `chronos-checks.yml`.
+- Не переведено: нативные меню Electron и тексты main-процесса, строки, которые собираются в
+  коде из кусков без литерала (их ловят только шаблоны), подсказки, которые Base UI создаёт сам.
 
 ## Где Chronos встраивается в код апстрима
 
 Все правки в файлах апстрима помечены комментарием `chronos:` (`git grep -n "chronos:"`).
 Новые файлы — только в `chronos/`, `apps/*/src/chronos/` и `.github/workflows/chronos-*.yml`.
 
-| Файл апстрима | Правка |
-| --- | --- |
-| `packages/shared/src/cliRelease.ts` | блок `chronos: begin/end` в конце (версии, адреса); `cliReleaseChannelOf` читает версию апстрима |
-| `apps/desktop/src/updates/updateChannels.ts` | nightly-признак по версии апстрима |
-| `apps/desktop/src/main.ts` | SSH-рантайм качает CLI версии апстрима |
-| `apps/desktop/src/app/DesktopEnvironment.ts` | имя продукта Chronos, заголовок окна |
-| `apps/desktop/src/updates/DesktopUpdates.ts` | macOS: «Скачать» открывает страницу релиза |
-| `scripts/build-desktop-artifact.ts` | productName, иконки, имя артефактов, фид обновлений, WSL-архив |
-| `apps/web/src/hooks/useTheme.ts` | первый импорт — выбор Olympus по умолчанию |
-| `apps/web/src/themePalette.ts` | Olympus среди встроенных тем |
-| `apps/web/src/components/settings/ThemeSettings.tsx`, `CommandPaletteThemeItems.tsx` | Olympus в списках тем |
-| `apps/web/src/components/sidebar/SidebarChrome.tsx` | логотип Chronos в шапке |
-| `apps/web/src/components/desktopUpdate.logic.ts` | ссылка на релиз по тегу `chronos-v…` |
-| `README.md`, `.gitignore` | строка о форке, игнор `chronos/.work/` |
-| `.github/workflows/*` | апстримные workflow удалены |
+| Файл апстрима                                                                        | Правка                                                                                           |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `packages/shared/src/cliRelease.ts`                                                  | блок `chronos: begin/end` в конце (версии, адреса); `cliReleaseChannelOf` читает версию апстрима |
+| `apps/desktop/src/updates/updateChannels.ts`                                         | nightly-признак по версии апстрима                                                               |
+| `apps/desktop/src/ssh/DesktopSshEnvironment.ts`                                      | SSH-рантайм качает CLI версии апстрима, в том числе через заданное зеркало                       |
+| `apps/desktop/src/app/DesktopEnvironment.ts`                                         | имя продукта Chronos, заголовок окна                                                             |
+| `apps/desktop/src/updates/DesktopUpdates.ts`                                         | macOS: «Скачать» открывает страницу релиза                                                       |
+| `scripts/build-desktop-artifact.ts`                                                  | productName, иконки, имя артефактов, фид обновлений, WSL-архив                                   |
+| `apps/web/src/hooks/useTheme.ts`                                                     | первый импорт — выбор Olympus по умолчанию                                                       |
+| `apps/web/src/themePalette.ts`                                                       | Olympus среди встроенных тем                                                                     |
+| `apps/web/src/components/settings/ThemeSettings.tsx`, `CommandPaletteThemeItems.tsx` | Olympus в списках тем                                                                            |
+| `apps/web/src/components/sidebar/SidebarChrome.tsx`                                  | логотип Chronos в шапке                                                                          |
+| `apps/web/src/components/desktopUpdate.logic.ts`                                     | ссылка на релиз по тегу `chronos-v…`                                                             |
+| `apps/web/vite.config.ts`                                                            | плагин `chronosL10nPlugin` (русский каталог и имя Chronos в JSX); имя в `<title>`                |
+| `apps/web/src/i18n/locales.ts`                                                       | языки: только `en` и `ru`                                                                        |
+| `apps/web/src/i18n/initializeI18n.ts`                                                | вместе с `ru.json` грузится каталог Chronos                                                      |
+| `apps/web/src/i18n/I18nProvider.tsx`                                                 | `key={locale}`: перемонтирование при смене языка                                                 |
+| `apps/web/src/i18n/runtime.ts`                                                       | первый запуск — язык системы                                                                     |
+| `apps/web/src/branding.ts`                                                           | имя продукта в браузерной сборке                                                                 |
+| `apps/web/index.html`                                                                | Olympus и его первый запуск в загрузочном скрипте (без мелькания), иконка и имя на заставке      |
+| `apps/desktop/src/electron/ElectronDialog.ts`                                        | диалоги называют продукт Chronos                                                                 |
+| `apps/desktop/src/app/DesktopStartupRecovery.ts`                                     | «Предыдущие версии» — релизы Chronos, имя на странице восстановления                             |
+| `README.md`, `.gitignore`                                                            | строка о форке, игнор `chronos/.work/`                                                           |
+| `.github/workflows/*`                                                                | апстримные workflow удалены                                                                      |
 
-Новые модули: `apps/desktop/src/chronos/ChronosUpdates.ts`, `apps/web/src/chronos/`
-(`theme.ts`, `seedDefaultTheme.ts`, `ChronosBrandMark.tsx`, `olympus.theme.json`, `chronos-mark.png`).
+| `apps/web/src/AppRoot.tsx` | Chronos workspace, native Settings navigation и CSS цветов |
+| `apps/web/src/components/{CommandPalette,sidebar/SidebarChrome}.tsx` | Точки входа в расширения |
+| `apps/web/src/components/settings/{SettingsSidebarNav,SettingsBreadcrumb}.tsx`, `routes/_chat.settings.tsx` | Нативные локальные страницы и device scope |
+| `apps/web/src/routes/_chat.settings.{mcp,skills,chronos-keys}.tsx` | Тонкие обязательные entry points файлового роутера; реализация под chronos/ |
+| `apps/web/src/components/chat/{ChatComposer,ComposerControlsBar}.tsx` | Intake Studio и инструменты композера/Plan |
+| `apps/web/src/components/chat/{useComposerSend,useMultipleModelSend,useComposerResume,useThreadLifecycle}.ts*` | Снимок выбранного interactionMode до подготовки и RPC |
+| `apps/web/src/components/{ChatMarkdown,files/FileBrowserPanel}.tsx` | Ссылки задач и загрузка из дерева файлов |
+| `apps/web/src/components/chat/MessageCopyButton.tsx`, `markdown-clipboard.ts` | Санитизированный rich HTML и частичные выделения |
+| `packages/shared/src/markdownPipeline.ts` | Allowlist rich text из отдельного модуля; экспорт в существующей точке |
+| `apps/web/src/state/environments.ts` | Aliases только отображения, без изменения identity/соединений |
+| `apps/web/vite.config.ts` | Только dev proxy фиксированных localhost-сервисов, без localhost в remote production |
 
-Юнит-тесты апстрима, которые проверяют название «T3 Code (Nightly)», с Chronos расходятся — это
-ожидаемо; в CI Chronos тесты апстрима не запускаются.
+Новые модули: `apps/desktop/src/chronos/` (`ChronosUpdates.ts`, `ChronosBrand.ts`),
+`apps/web/src/chronos/` (`theme.ts`, `seedDefaultTheme.ts`, `ChronosBrandMark.tsx`,
+`olympus.theme.json`, иконки, `i18n/`), `chronos/l10n/`, `chronos/scripts/l10n-check.mjs`,
+`.github/workflows/chronos-checks.yml`.
+
+В CI обязательны полные юнит-наборы web/desktop, включая Chronos (SSH, Olympus, русский каталог,
+бренд, профиль, обновления и перетаскивание файлов), выбранные проверки shared и серверные
+регрессии авторизации, миграций, проекций и запрета сна WSL. Ожидания имени продукта в тестах
+адаптированы к Chronos; Linux-раннер устанавливает libsecret для нативного теста хранилища.
 
 ## Синхронизация с апстримом и релизы
 
@@ -121,3 +177,28 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 - `chronos/legacy-package/` — старый пакет бинарного патчинга установленного T3 (`server.asar`):
   русский интерфейс, задачи, студия и т. д. Источник для переноса функций на следующих этапах;
   в сборку не входит.
+
+## Граница переноса из бинарного пакета
+
+| Функция локального пакета           | Состояние в Git-форке                                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Olympus (день/ночь), бренд и иконки | Встроены; сохранён пользовательский выбор темы, переключение через настройки и палитру команд                                                           |
+| Русский интерфейс                   | Перенесён в JSX-слой и каталоги; без DOM-переводчика legacy                                                                                             |
+| Отдельная кнопка день/ночь legacy   | Не перенесена; смена режима доступна штатными средствами                                                                                                |
+| Задачи `#T-12`                      | React-доска: проекты/группы, доска/таблица, фильтры, порядок, checklist, заметки, корзина; сохранён внешний tasks-service                               |
+| Скиллы                              | Страница штатных Settings с существующим skills-manager; сервис и его MCP не переустанавливаются                                                        |
+| Plan                                | Нативный `interactionMode`, отдельный draft/thread; create/start/fanout/resume/standalone фиксируют режим до await                                      |
+| Файлы и машины                      | Загрузка файла/папки из контекстного меню, очередь/отмена/показ папки, локальный/SSH/URL-путь; aliases и упоминания машин                               |
+| Композер                            | Ссылки на задачи, машины, модели и `!`-поиск через существующие MCP; вложения идут через штатный intake и редактор T3                                   |
+| Studio                              | Один React chooser, доски и WordPress — в native preview; создание/rename/корзина, board-to-chat/PNG через SSE и штатные вложения                       |
+| OpenRouter и API-ключи              | React-каталог text/image/video/speech/transcription/audio/decision и отдельная страница ключей; OpenRouter MCP и integrations-service остаются внешними |
+| Скорость                            | Нативные usage timestamps, live-оценка роста текста, legacy-замеры и калибровка `oly-speed-v2`; оценки помечены `≈`                                     |
+| Rich text / clipboard               | Общий allowlist Markdown, безопасные стили и фиксированные цвета HTML clipboard, включая частичное выделение                                            |
+| Менеджер MCP                        | Штатный маршрут Settings, embedded-форма существующего mcp-manager без второго overlay и заголовка                                                      |
+
+Установщик и явный пакет совместимости собираются CI. Пакет не включает старый архив или JS-бандлы:
+он проверяет существующие сервисы/MCP и сохраняет их файлы на месте. Обычный `.exe` сам по себе
+не устанавливает отсутствующие сервисы. Процедура и ограничения — [compatibility/README.md](compatibility/README.md).
+Встроенный web-клиент и Electron получают локальный слой (production web — HTTP localhost:3773); hosted web/мобильный клиент не обращаются
+к localhost чужого устройства и сохраняют штатные функции T3. Генерация через OpenRouter оплачивается
+провайдером согласно запросу агента; автоматических платных проверок нет.

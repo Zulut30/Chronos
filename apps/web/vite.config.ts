@@ -21,6 +21,9 @@ import {
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { resolveTaggedSourceVersion } from "../../scripts/lib/tagged-source-version";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
+import { chronosL10nPlugin } from "./src/chronos/i18n/vitePlugin";
+// chronos: development-only loopback proxies keep service CORS policies unchanged.
+import { chronosServicesPlugin } from "./src/chronos/workspace/viteServicesPlugin";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 import { formatAppDisplayName, resolveWebAppStageLabel } from "./src/branding.logic";
@@ -283,7 +286,8 @@ function bootstrapTitlePlugin(): Plugin {
         hostedAppChannel: configuredHostedAppChannel,
         development,
       });
-      const title = formatAppDisplayName({ baseName: "T3 Code", stageLabel });
+      // chronos: product name.
+      const title = formatAppDisplayName({ baseName: "Chronos", stageLabel });
       return html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
     },
   };
@@ -332,6 +336,9 @@ export default defineConfig(({ command }) => {
           }),
       tanstackRouter({ autoCodeSplitting: true }),
       react({ compiler: true }),
+      // chronos: Russian interface and Chronos name for the app's own JSX.
+      chronosL10nPlugin(),
+      chronosServicesPlugin(),
       tailwindPlugins(bundledDev),
       warmBundledDevPlugin(),
       bundledDev ? bundledDevStableNamesPlugin() : undefined,

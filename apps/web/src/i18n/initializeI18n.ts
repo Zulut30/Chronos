@@ -1,10 +1,13 @@
 import { initializeGTSPA } from "gt-react";
 
+import { loadChronosCatalog } from "../chronos/i18n/catalog";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./locales";
 
 // English is the source text, so it never loads a chunk.
 async function loadTranslations(locale: string): Promise<unknown> {
   if (locale === DEFAULT_LOCALE) return {};
+  // chronos: Chronos' Russian catalog for strings not wrapped in <T> yet, ready with GT's own.
+  await loadChronosCatalog(locale);
   const module: { default: unknown } = await import(`./translations/${locale}.json`);
   return module.default;
 }

@@ -1,4 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
+// chronos: display aliases preserve the saved environment identity and credentials.
+import { useMachineAliases } from "../chronos/workspace/machineAliases";
 import {
   connectionCatalogDisplayUrl,
   hasRelayRoute,
@@ -40,13 +42,15 @@ function projectEnvironmentPresentation(
 }
 
 export function useEnvironments() {
+  const aliases = useMachineAliases();
   const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
   const networkStatus = useAtomValue(environmentCatalog.networkStatusValueAtom);
   const presentationById = useAtomValue(environmentPresentations.presentationsAtom);
 
-  const environments = [...presentationById.entries()].map(([environmentId, presentation]) =>
-    projectEnvironmentPresentation(environmentId, presentation),
-  );
+  const environments = [...presentationById.entries()].map(([environmentId, presentation]) => ({
+    ...projectEnvironmentPresentation(environmentId, presentation),
+    label: aliases[presentation.entry.target.label] || presentation.entry.target.label,
+  }));
 
   return {
     isReady: catalog.isReady,
@@ -111,6 +115,10 @@ export function useEnvironmentIdentities() {
 
 export function usePullRequestsSupported() {
   return useAtomValue(environmentSummaries.pullRequestsSupportedAtom);
+}
+
+export function useIssuesSupported() {
+  return useAtomValue(environmentSummaries.issuesSupportedAtom);
 }
 
 export function useEnvironmentMachines() {
