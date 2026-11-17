@@ -1,6 +1,4 @@
-# Chronos checks: typecheck of the patched packages, Chronos unit tests, the Russian catalog
-# check (coverage + placeholders), and upstream's web/desktop unit suites for information
-# (some upstream tests expect T3 branding). See chronos/README.md.
+# Chronos checks: types, Russian catalogs, web/desktop unit suites and focused server regressions.
 name: Chronos checks
 
 on:
@@ -46,23 +44,39 @@ jobs:
       - name: Typecheck
         run: vp run --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
-      - name: Chronos unit tests
+      - name: Linux native test dependencies
         run: |
-          (cd apps/web && vp test run --project unit src/chronos)
-          (cd apps/desktop && vp test run src/chronos src/app/DesktopStartupRecovery.test.ts)
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev pkg-config
 
-      - name: Integration regression tests
-        run: |
-          (cd apps/desktop && vp test run src/ssh/DesktopSshEnvironment.test.ts src/ipc/methods/fileDrag.test.ts)
-          (cd apps/web && vp test run --project unit src/themePalette.test.ts src/themeCssHooks.test.ts src/components/desktopUpdate.logic.test.ts)
-          (cd packages/shared && vp test run src/cliRelease.test.ts src/themeCss.test.ts)
+      - name: Shared release and theme regression tests
+        working-directory: packages/shared
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts
 
-      - name: Upstream web unit tests (informational)
-        continue-on-error: true
+      - name: Web unit tests
         working-directory: apps/web
         run: vp test run --project unit
 
-      - name: Upstream desktop tests (informational)
-        continue-on-error: true
+      - name: Desktop unit tests
         working-directory: apps/desktop
         run: vp test run
+
+  server:
+    name: Server integration regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=t3...
+      - name: Auth, migrations, projection index and WSL keep awake
+        working-directory: apps/server
+        run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
