@@ -165,12 +165,12 @@ export function IntegrationsPanel() {
     try {
       await serviceRequest("integrations", path, { body: { id, ...body } });
       keys.refresh();
+      setBusy(null);
       return true;
     } catch (reason) {
       setError(String(reason));
-      return false;
-    } finally {
       setBusy(null);
+      return false;
     }
   };
   return (

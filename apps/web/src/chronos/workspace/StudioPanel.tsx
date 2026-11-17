@@ -50,9 +50,8 @@ export function StudioPanel() {
         await open(`/board?path=${encodeURIComponent(result.path)}`);
     } catch (reason) {
       setError(String(reason));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
   return (
     <div>

@@ -13,7 +13,8 @@ const repoRoot = NodePath.resolve(
 const webSourceFiles = NodeFS.readdirSync(NodePath.join(repoRoot, "apps/web/src"), {
   recursive: true,
 })
-  .map(String)
+  // chronos: Windows check:changed filters must select the same compiler cases as CI.
+  .map((file) => String(file).replaceAll("\\", "/"))
   .filter((file) => /\.tsx?$/.test(file) && !/\.(test|browser)\.tsx?$/.test(file))
   .filter((file) => !file.endsWith(".gen.ts"))
   .map((file) => `apps/web/src/${file}`);

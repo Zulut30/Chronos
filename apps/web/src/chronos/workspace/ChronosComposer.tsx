@@ -70,6 +70,15 @@ export function ChronosComposerBridge({
   return null;
 }
 
+async function studioPng(png: string, title: string, signal: AbortSignal): Promise<File> {
+  if (!png.startsWith("/api/chat/png")) throw Error("Некорректный адрес снимка доски.");
+  const response = await fetch(serviceUrl("studio", png), { signal });
+  if (!response.ok) throw Error("Снимок доски недоступен.");
+  return new File([await response.blob()], `${title.replace(/[\\/:*?"<>|]/g, "_")}.png`, {
+    type: "image/png",
+  });
+}
+
 export function ChronosStudioBridge() {
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- owns the external Studio SSE connection and closes it on unmount
   useEffect(() => {
@@ -113,17 +122,7 @@ export function ChronosStudioBridge() {
         }
         const files: File[] = [];
         if (message.png) {
-          if (!message.png.startsWith("/api/chat/png"))
-            throw Error("Некорректный адрес снимка доски.");
-          const response = await fetch(serviceUrl("studio", message.png), { signal: abort.signal });
-          if (!response.ok) throw Error("Снимок доски недоступен.");
-          files.push(
-            new File(
-              [await response.blob()],
-              `${(message.title ?? "board").replace(/[\\/:*?"<>|]/g, "_")}.png`,
-              { type: "image/png" },
-            ),
-          );
+          files.push(await studioPng(message.png, message.title ?? "board", abort.signal));
         }
         await deliverToComposer({
           text: `Доска Excalidraw «${message.title ?? ""}»${message.selection ? " (выделенный фрагмент)" : ""}: ${message.path ?? ""} `,
