@@ -139,6 +139,18 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 | `README.md`, `.gitignore`                                                            | строка о форке, игнор `chronos/.work/`                                                           |
 | `.github/workflows/*`                                                                | апстримные workflow удалены                                                                      |
 
+| `apps/web/src/AppRoot.tsx` | Chronos workspace, native Settings navigation и CSS цветов |
+| `apps/web/src/components/{CommandPalette,sidebar/SidebarChrome}.tsx` | Точки входа в расширения |
+| `apps/web/src/components/settings/{SettingsSidebarNav,SettingsBreadcrumb}.tsx`, `routes/_chat.settings.tsx` | Нативные локальные страницы и device scope |
+| `apps/web/src/routes/_chat.settings.{mcp,skills,chronos-keys}.tsx` | Тонкие обязательные entry points файлового роутера; реализация под chronos/ |
+| `apps/web/src/components/chat/{ChatComposer,ComposerControlsBar}.tsx` | Intake Studio и инструменты композера/Plan |
+| `apps/web/src/components/chat/{useComposerSend,useMultipleModelSend,useComposerResume,useThreadLifecycle}.ts*` | Снимок выбранного interactionMode до подготовки и RPC |
+| `apps/web/src/components/{ChatMarkdown,files/FileBrowserPanel}.tsx` | Ссылки задач и загрузка из дерева файлов |
+| `apps/web/src/components/chat/MessageCopyButton.tsx`, `markdown-clipboard.ts` | Санитизированный rich HTML и частичные выделения |
+| `packages/shared/src/markdownPipeline.ts` | Allowlist rich text из отдельного модуля; экспорт в существующей точке |
+| `apps/web/src/state/environments.ts` | Aliases только отображения, без изменения identity/соединений |
+| `apps/web/vite.config.ts` | Только dev proxy фиксированных localhost-сервисов, без localhost в remote production |
+
 Новые модули: `apps/desktop/src/chronos/` (`ChronosUpdates.ts`, `ChronosBrand.ts`),
 `apps/web/src/chronos/` (`theme.ts`, `seedDefaultTheme.ts`, `ChronosBrandMark.tsx`,
 `olympus.theme.json`, иконки, `i18n/`), `chronos/l10n/`, `chronos/scripts/l10n-check.mjs`,
@@ -168,17 +180,25 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 
 ## Граница переноса из бинарного пакета
 
-| Функция локального пакета                                          | Состояние в Git-форке                                                                         |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| Olympus (день/ночь), бренд и иконки                                | Встроены; сохранён пользовательский выбор темы, переключение через настройки и палитру команд |
-| Русский интерфейс                                                  | Перенесён в JSX-слой и каталоги; без DOM-переводчика legacy                                   |
-| Отдельная кнопка день/ночь legacy                                  | Не перенесена; смена режима доступна штатными средствами                                      |
-| Доска задач `#T-12`, менеджер скиллов                              | Только legacy-клиент и внешние сервисы; штатные Issues и scheduled tasks их не заменяют       |
-| Файлы, `@`-машины, контекстные вкладки композера, скорость ток/с   | Дополнения legacy не перенесены; штатные возможности T3 остаются                              |
-| Studio (Excalidraw, WordPress Playground, отправка доски в чат)    | Только legacy-клиент и внешний studio-service                                                 |
-| OpenRouter media/MCP и локальная страница API-ключей               | Только legacy-клиент и внешние сервисы                                                        |
-| Rich text / цветной HTML, менеджер MCP и исправление буфера обмена | Новые локальные бинарные патчи; в снимке legacy и сборке Git-форка отсутствуют                |
+| Функция локального пакета           | Состояние в Git-форке                                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Olympus (день/ночь), бренд и иконки | Встроены; сохранён пользовательский выбор темы, переключение через настройки и палитру команд                                                           |
+| Русский интерфейс                   | Перенесён в JSX-слой и каталоги; без DOM-переводчика legacy                                                                                             |
+| Отдельная кнопка день/ночь legacy   | Не перенесена; смена режима доступна штатными средствами                                                                                                |
+| Задачи `#T-12`                      | React-доска: проекты/группы, доска/таблица, фильтры, порядок, checklist, заметки, корзина; сохранён внешний tasks-service                               |
+| Скиллы                              | Страница штатных Settings с существующим skills-manager; сервис и его MCP не переустанавливаются                                                        |
+| Plan                                | Нативный `interactionMode`, отдельный draft/thread; create/start/fanout/resume/standalone фиксируют режим до await                                      |
+| Файлы и машины                      | Загрузка файла/папки из контекстного меню, очередь/отмена/показ папки, локальный/SSH/URL-путь; aliases и упоминания машин                               |
+| Композер                            | Ссылки на задачи, машины, модели и `!`-поиск через существующие MCP; вложения идут через штатный intake и редактор T3                                   |
+| Studio                              | Один React chooser, доски и WordPress — в native preview; создание/rename/корзина, board-to-chat/PNG через SSE и штатные вложения                       |
+| OpenRouter и API-ключи              | React-каталог text/image/video/speech/transcription/audio/decision и отдельная страница ключей; OpenRouter MCP и integrations-service остаются внешними |
+| Скорость                            | Нативные usage timestamps, live-оценка роста текста, legacy-замеры и калибровка `oly-speed-v2`; оценки помечены `≈`                                     |
+| Rich text / clipboard               | Общий allowlist Markdown, безопасные стили и фиксированные цвета HTML clipboard, включая частичное выделение                                            |
+| Менеджер MCP                        | Штатный маршрут Settings, embedded-форма существующего mcp-manager без второго overlay и заголовка                                                      |
 
-Сборка Git-форка не включает установщик бинарных патчей и не обеспечивает их переносимость
-между nightly. При общем appId установка такого артефакта заменит установленное приложение;
-до переноса нужных расширений артефакты CI предназначены для проверки отдельно от живой установки.
+Установщик и явный пакет совместимости собираются CI. Пакет не включает старый архив или JS-бандлы:
+он проверяет существующие сервисы/MCP и сохраняет их файлы на месте. Обычный `.exe` сам по себе
+не устанавливает отсутствующие сервисы. Процедура и ограничения — [compatibility/README.md](compatibility/README.md).
+Встроенный web-клиент и Electron получают локальный слой (production web — HTTP localhost:3773); hosted web/мобильный клиент не обращаются
+к localhost чужого устройства и сохраняют штатные функции T3. Генерация через OpenRouter оплачивается
+провайдером согласно запросу агента; автоматических платных проверок нет.

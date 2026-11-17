@@ -252,6 +252,8 @@ import {
 } from "./CommandPaletteAddProject";
 import { useCommandPaletteThreadItems } from "./CommandPaletteThreadItems";
 import { useCommandPaletteThemeItems } from "./CommandPaletteThemeItems";
+// chronos: the same extensions are reachable from the command palette.
+import { chronosCommandItems } from "../chronos/workspace/commandItems";
 import {
   CommandPaletteVirtualizedResults,
   scrollCommandPaletteRowIntoView,
@@ -1625,6 +1627,7 @@ function OpenCommandPaletteDialog(props: {
   }
 
   actionItems.push(changeThemeItem);
+  actionItems.push(...chronosCommandItems());
   actionItems.push(changeAppearanceItem);
 
   actionItems.push(themeEditorItem);

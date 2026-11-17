@@ -24,7 +24,6 @@ import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { buildThreadRouteParams } from "../../threadRoutes";
-import { DEFAULT_INTERACTION_MODE } from "../../types";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import {
   boundAttachmentIds,
@@ -86,6 +85,7 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
 
   return async ({
     threadId,
+    interactionModeAtSend,
     project,
     branch,
     selections,
@@ -100,6 +100,7 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
     draftChangedDuringPreparation,
   }: {
     readonly threadId: ThreadId;
+    readonly interactionModeAtSend: import("@t3tools/contracts").ProviderInteractionMode;
     readonly project: EnvironmentProject;
     readonly branch: string;
     readonly selections: ReadonlyArray<ModelSelection>;
@@ -179,14 +180,14 @@ export function useMultipleModelSend(input: MultipleModelSendInput) {
                   modelSelection: target.selection,
                   titleSeed: title,
                   runtimeMode,
-                  interactionMode: DEFAULT_INTERACTION_MODE,
+                  interactionMode: interactionModeAtSend,
                   bootstrap: {
                     createThread: {
                       projectId: project.id,
                       title,
                       modelSelection: target.selection,
                       runtimeMode,
-                      interactionMode: DEFAULT_INTERACTION_MODE,
+                      interactionMode: interactionModeAtSend,
                       branch,
                       worktreePath: null,
                       createdAt: createdAt,

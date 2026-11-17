@@ -1,4 +1,6 @@
 import { UNFINISHED_DRIVE_PATH } from "@t3tools/shared/markdownWindowsPaths";
+// chronos: selections retain inline ancestors and portable colors for rich editors.
+import { portableRichHtml, restoreRichSelectionAncestors } from "./chronos/richText/clipboard";
 
 const SKIPPED_TAGS = new Set(["BUTTON", "INPUT", "SCRIPT", "STYLE", "TEMPLATE"]);
 const SKIPPED_CLASS_NAMES = ["select-none", "sr-only"];
@@ -482,6 +484,7 @@ function mathSourceElement(wrapper: Element): Element {
 }
 
 function sanitizedHtmlFrom(container: Element): string {
+  portableRichHtml(container);
   for (const diagram of container.querySelectorAll("[data-markdown-mermaid]")) {
     const source = diagram.getAttribute("data-markdown-copy");
     if (source !== null) diagram.replaceChildren(mermaidSourceHtml(source));
@@ -544,6 +547,7 @@ export function chatMarkdownClipboardPayload(
     if (range.collapsed) continue;
     const container = document.createElement("div");
     container.appendChild(range.cloneContents());
+    restoreRichSelectionAncestors(range, container);
     keepStartListNumbers(range, container);
     // The indentation typed at a line start only shows; pasted, it would turn lines into code.
     for (const indentation of container.querySelectorAll("[data-leading-whitespace]")) {

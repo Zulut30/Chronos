@@ -13,7 +13,9 @@ import {
 import { useState } from "react";
 import { newMessageId } from "~/lib/utils";
 import type { ComposerHandleRef } from "../../composerHandleContext";
-import { DEFAULT_INTERACTION_MODE } from "../../types";
+// chronos: continuing a thread preserves its scoped Plan choice across awaits.
+import { readChronosInteractionMode } from "../../chronos/workspace/planMode";
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import type { makeThreadErrorSetter } from "../ChatView.logic";
@@ -99,6 +101,9 @@ export function useComposerResume(input: ComposerResumeInput) {
       return;
     }
     const threadId = activeThread.id;
+    const interactionModeAtSend = readChronosInteractionMode(
+      scopeThreadRef(environmentId, threadId),
+    );
     sendInFlightRef.current = true;
     setResumingThreadKeys((current) => new Set(current).add(routeThreadKey));
     setThreadError(threadId, null);
@@ -118,7 +123,7 @@ export function useComposerResume(input: ComposerResumeInput) {
           ? { branch: localCheckoutBranchMismatch.currentBranch }
           : {}),
         runtimeMode,
-        interactionMode: DEFAULT_INTERACTION_MODE,
+        interactionMode: interactionModeAtSend,
       });
       if (settingsResult._tag === "Failure") return settingsResult;
       const turnResult = await startThreadTurn({
@@ -134,7 +139,7 @@ export function useComposerResume(input: ComposerResumeInput) {
             attachments: [],
           },
           runtimeMode,
-          interactionMode: DEFAULT_INTERACTION_MODE,
+          interactionMode: interactionModeAtSend,
           dispatchMode: "start",
         },
       });

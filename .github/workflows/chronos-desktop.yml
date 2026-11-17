@@ -257,6 +257,15 @@ jobs:
           fi
           ls -la release-publish
 
+      - name: Package compatibility with existing Windows services
+        if: matrix.platform == 'win'
+        run: |
+          set -euo pipefail
+          installer=(release-publish/*.exe)
+          test "${#installer[@]}" -eq 1
+          node chronos/scripts/package-compatibility.mjs --installer "${installer[0]}" --out compatibility-package
+          (cd compatibility-package && zip -q ../release-publish/chronos-windows-compatibility.zip *)
+
       - name: Upload desktop artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

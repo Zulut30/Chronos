@@ -1,4 +1,8 @@
 import { RouterProvider } from "@tanstack/react-router";
+// chronos: native extension UI and its external-service bridge survive route changes.
+import { ChronosWorkspace } from "./chronos/workspace/ChronosWorkspace";
+import { chronosRichColorCss } from "./chronos/workspace/richColors";
+import { ChronosSettingsNavigation } from "./chronos/workspace/SettingsPage";
 
 import { ElectronBrowserHost } from "./browser/ElectronBrowserHost";
 import { QuitHoldOverlay } from "./components/QuitHoldOverlay";
@@ -12,6 +16,9 @@ export function AppRoot({ router }: { readonly router: AppRouter }) {
     <I18nProvider>
       <AppAtomRegistryProvider>
         <RouterProvider router={router} />
+        <ChronosWorkspace />
+        <ChronosSettingsNavigation router={router} />
+        <style>{chronosRichColorCss}</style>
         <ElectronBrowserHost />
         <QuitHoldOverlay />
       </AppAtomRegistryProvider>

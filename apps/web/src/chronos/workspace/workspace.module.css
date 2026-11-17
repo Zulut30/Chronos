@@ -1,0 +1,224 @@
+.chronos-launcher,
+.chronos-composer-tools button:not([data-slot="button"]),
+.chronos-composer-tools select {
+  font: inherit;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.chronos-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #0007;
+  z-index: 90;
+}
+.chronos-workspace {
+  position: fixed;
+  inset: 4%;
+  z-index: 91;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 70px #0006;
+  overflow: hidden;
+  font: 13px var(--font-sans);
+}
+.chronos-workspace header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.chronos-workspace-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.chronos-workspace nav {
+  width: 160px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 8px;
+  overflow: auto;
+}
+.chronos-workspace nav button:not([data-slot="button"]) {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 4px;
+}
+.chronos-workspace main {
+  padding: 16px;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+:is(.chronos-workspace, .chronos-settings-page) button:not([data-slot="button"]),
+:is(.chronos-workspace, .chronos-settings-page) input,
+:is(.chronos-workspace, .chronos-settings-page) select,
+:is(.chronos-workspace, .chronos-settings-page) textarea {
+  font: inherit;
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  max-width: 100%;
+}
+:is(.chronos-workspace, .chronos-settings-page) button:not([data-slot="button"]) {
+  cursor: pointer;
+}
+:is(.chronos-workspace, .chronos-settings-page) button:not([data-slot="button"]):hover,
+:is(.chronos-workspace, .chronos-settings-page)
+  button:not([data-slot="button"])[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+:is(.chronos-workspace, .chronos-settings-page) button:not([data-slot="button"]):disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.chronos-workspace :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+:is(.chronos-workspace, .chronos-settings-page) label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+}
+:is(.chronos-workspace, .chronos-settings-page) label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+}
+:is(.chronos-workspace, .chronos-settings-page) textarea {
+  width: 100%;
+  resize: vertical;
+}
+:is(.chronos-workspace, .chronos-settings-page) h3 {
+  font-weight: 600;
+  margin: 8px 0;
+}
+:is(.chronos-workspace, .chronos-settings-page) [role="alert"] {
+  color: var(--destructive);
+  white-space: pre-wrap;
+}
+:is(.chronos-workspace, .chronos-settings-page) small {
+  display: block;
+  color: var(--muted-foreground);
+}
+.chronos-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+.chronos-card,
+.chronos-columns article {
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.chronos-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 12px;
+  overflow: auto;
+}
+.chronos-columns section {
+  min-height: 180px;
+}
+.chronos-columns article > button:not([data-slot="button"]) {
+  text-align: left;
+  width: 100%;
+}
+.chronos-task-table section {
+  margin: 12px 0;
+}
+.chronos-task-editor {
+  max-width: 850px;
+}
+.chronos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.chronos-list button:not([data-slot="button"]) {
+  text-align: left;
+}
+.chronos-service-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 400px;
+}
+.chronos-service-frame iframe {
+  flex: 1;
+  min-height: 400px;
+  width: 100%;
+  border: 0;
+  background: var(--background);
+}
+.chronos-composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+  font-size: 11px;
+}
+.chronos-composer-tools button:not([data-slot="button"]),
+.chronos-composer-tools select {
+  padding: 2px 5px;
+}
+:global(.chat-markdown) mark {
+  background: #ffe58f66;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 0.15em;
+}
+:global(.chat-markdown) u {
+  text-underline-offset: 0.18em;
+}
+@media (max-width: 700px) {
+  .chronos-workspace {
+    inset: 1%;
+  }
+  .chronos-workspace-layout {
+    flex-direction: column;
+  }
+  .chronos-workspace nav {
+    display: flex;
+    width: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    gap: 4px;
+  }
+  .chronos-workspace nav button:not([data-slot="button"]) {
+    width: auto;
+    white-space: nowrap;
+  }
+  .chronos-workspace main {
+    padding: 8px;
+  }
+  .chronos-columns {
+    grid-template-columns: repeat(4, 220px);
+  }
+}
+
+.chronos-settings-page {
+  height: 100%;
+  min-height: 500px;
+  padding: 12px;
+  color: var(--foreground);
+}

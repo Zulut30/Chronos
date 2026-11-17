@@ -41,6 +41,9 @@ jobs:
       - name: Ensure Electron runtime is installed
         run: vp run --filter @t3tools/desktop ensure:electron
 
+      - name: Chronos module lint
+        run: vp lint apps/web/src/chronos/workspace apps/web/src/chronos/richText packages/shared/src/chronosRichText.ts packages/shared/src/chronosRichText.test.ts chronos/scripts/package-compatibility.mjs chronos/scripts/package-compatibility.test.mjs
+
       - name: Typecheck
         run: vp run --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
@@ -51,7 +54,18 @@ jobs:
 
       - name: Shared release and theme regression tests
         working-directory: packages/shared
-        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/chronosRichText.test.ts src/markdownPipeline.test.ts
+
+      - name: Compatibility package contract
+        run: node --test chronos/scripts/package-compatibility.test.mjs
+
+      - name: Install Chromium for focused interaction tests
+        working-directory: apps/web
+        run: vp exec playwright install --with-deps chromium
+
+      - name: Chronos interactions and clipboard
+        working-directory: apps/web
+        run: vp test run --project browser src/chronos/richText/clipboard.browser.test.tsx src/chronos/workspace/workspace.browser.test.tsx src/components/chat/MessageCopyButton.browser.test.tsx
 
       - name: Web unit tests
         working-directory: apps/web

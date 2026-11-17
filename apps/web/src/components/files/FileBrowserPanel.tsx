@@ -22,6 +22,8 @@ import { useStableCallback } from "~/hooks/useStableCallback";
 import { useTheme } from "~/hooks/useTheme";
 import { useWorkspaceMutationRefresh } from "~/hooks/useWorkspaceMutationRefresh";
 import { useFileContextMenu, type FileContextMenuAction } from "~/fileContextMenu";
+// chronos: download through the existing local/SSH service without altering remote filesystem RPCs.
+import { beginChronosDownload, chronosDownloadItems } from "../../chronos/workspace/downloads";
 import { readLocalApi } from "~/localApi";
 import { T3_PIERRE_ICONS } from "~/pierre-icons";
 import { PIERRE_TREE_UNSAFE_CSS, pierreTreeStyle } from "~/pierre-tree-theme";
@@ -212,12 +214,21 @@ export default function FileBrowserPanel({
         const clicked = await api.contextMenu.show(
           [
             ...fileMenuItems,
+            ...chronosDownloadItems(),
             { id: "copy-mention", label: "Copy mention" },
             { id: "add-to-chat", label: "Add to chat" },
           ],
           position,
         );
         if (clicked === null) return;
+        // chronos: the service owns progress, cancellation and download destination.
+        if (clicked === "chronos-download") {
+          await beginChronosDownload(
+            fileTarget,
+            entryKindsRef.current.get(relativePath) === "directory",
+          );
+          return;
+        }
         // Open-with submenu ids are absent from the top-level item list.
         const isFileMenuAction =
           fileMenuItems.some((entry) => entry.id === clicked) || clicked.startsWith("editor:");

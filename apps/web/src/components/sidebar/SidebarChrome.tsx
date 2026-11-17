@@ -15,6 +15,8 @@ import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
 import { ChronosBrandMark } from "../../chronos/ChronosBrandMark";
+// chronos: extensions use native React panels and preserve the existing local services.
+import { ChronosLauncher } from "../../chronos/workspace/ChronosLauncher";
 import {
   resolveEnvironmentIdentificationPillLabel,
   resolveSidebarStageBackdropVariant,
@@ -289,6 +291,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         </>
       )}
       <SidebarThreadUndoNotice />
+      <ChronosLauncher />
       <SidebarUpdatePill />
     </SidebarMenu>
   );

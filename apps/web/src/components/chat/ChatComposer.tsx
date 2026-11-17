@@ -1,4 +1,6 @@
 import { copySnapshot } from "./copySnapshot";
+// chronos: Studio PNGs and extension references go through the native attachment intake.
+import { ChronosComposerBridge } from "../../chronos/workspace/ChronosComposer";
 import { VoiceInputSetup } from "./VoiceInputSetup";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
 import { insertAttachmentReferencesForDraft } from "./composerAttachmentReferences";
@@ -3451,6 +3453,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       data-chat-composer-form="true"
       {...threadContextDropTargetProps()}
     >
+      <ChronosComposerBridge
+        enabled={!backgroundThread && !hiddenThread}
+        threadRef={routeThreadRef ?? null}
+        cwd={gitCwd}
+        onFiles={addComposerAttachments}
+        onText={(text) =>
+          setPrompt(
+            `${promptRef.current}${promptRef.current && !/\s$/.test(promptRef.current) ? "\n" : ""}${text}`,
+          )
+        }
+      />
       <ComposerBanner.Dock>
         <ComposerBanner.Column>
           <ComposerBannerStack items={shelfItems} />

@@ -1,4 +1,6 @@
 import { resolvePathLinkTarget } from "@t3tools/shared/fileLinks";
+// chronos: task references open the native board while code and ordinary links stay untouched.
+import { chronosTaskLink, remarkChronosTaskReferences } from "../chronos/workspace/taskReferences";
 import { clientHostEnvironmentAtom } from "../state/clientHostEnvironment";
 import { buildFileLinkParentSuffixByPath, fileLinkLabel } from "@t3tools/shared/fileLinks";
 import {
@@ -1179,6 +1181,8 @@ const CHAT_MARKDOWN_COMPONENTS = {
     } = use(ChatMarkdownRendererContext);
     const text = use(ChatMarkdownTextContext);
     const citation = href ? parseAssistantCitationHref(href) : null;
+    const taskLink = chronosTaskLink(href, children);
+    if (taskLink) return taskLink;
     const before = node?.position?.start.offset;
     const after = node?.position?.end.offset;
     const leading = before !== undefined && CITATION_LEADS_BLOCK.test(text.slice(0, before));
@@ -1780,10 +1784,14 @@ const CHAT_MARKDOWN_COMPONENTS = {
 const REMARK_MATH: Pluggable = [remarkMath, { singleDollarTextMath: true }];
 // Shared lists, so every message with the same options shares a processor and its cache.
 const CHAT_MARKDOWN_REMARK_PLUGIN_SETS = {
-  plain: CHAT_MARKDOWN_REMARK_PLUGINS,
-  breaks: CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS,
-  math: [REMARK_MATH, ...CHAT_MARKDOWN_REMARK_PLUGINS],
-  mathBreaks: [REMARK_MATH, ...CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS],
+  plain: [...CHAT_MARKDOWN_REMARK_PLUGINS, remarkChronosTaskReferences],
+  breaks: [...CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS, remarkChronosTaskReferences],
+  math: [REMARK_MATH, ...CHAT_MARKDOWN_REMARK_PLUGINS, remarkChronosTaskReferences],
+  mathBreaks: [
+    REMARK_MATH,
+    ...CHAT_MARKDOWN_REMARK_PLUGINS_WITH_BREAKS,
+    remarkChronosTaskReferences,
+  ],
 } satisfies Record<string, PluggableList>;
 
 const combinedPlugins = new WeakMap<PluggableList, WeakMap<PluggableList, PluggableList>>();
