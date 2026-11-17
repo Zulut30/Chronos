@@ -6,6 +6,7 @@ import {
   subscribeClientSettings,
   updateClientSettings,
 } from "../hooks/useSettings";
+import { seedChronosDefaultLanguage } from "../chronos/i18n/languages";
 import { initializeI18n } from "./initializeI18n";
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from "./locales";
 
@@ -68,6 +69,8 @@ export function persistGTLocale(locale: string): void {
 
 export function startI18n(): void {
   initializeI18n(persistGTLocale);
+  // chronos: first run follows the system language (ru-* -> Russian, otherwise English).
+  seedChronosDefaultLanguage();
   subscribeClientSettings(applyLanguageSetting);
   applyLanguageSetting();
 }

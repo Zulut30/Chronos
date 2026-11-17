@@ -1,0 +1,61 @@
+# Chronos checks: typecheck of the patched packages, Chronos unit tests, the Russian catalog
+# check (coverage + placeholders), and upstream's web/desktop unit suites for information
+# (some upstream tests expect T3 branding). See chronos/README.md.
+name: Chronos checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "feature/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chronos-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Russian catalog (coverage, placeholders)
+        run: node chronos/scripts/l10n-check.mjs --min 95
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/shared... --filter=@t3tools/scripts...
+
+      - name: Ensure Electron runtime is installed
+        run: vp run --filter @t3tools/desktop ensure:electron
+
+      - name: Typecheck
+        run: vp run --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
+
+      - name: Chronos unit tests
+        run: |
+          (cd apps/web && vp test run --project unit src/chronos)
+          (cd apps/desktop && vp test run src/chronos src/app/DesktopStartupRecovery.test.ts)
+
+      - name: Upstream web unit tests (informational)
+        continue-on-error: true
+        working-directory: apps/web
+        run: vp test run --project unit
+
+      - name: Upstream desktop tests (informational)
+        continue-on-error: true
+        working-directory: apps/desktop
+        run: vp test run

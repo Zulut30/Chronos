@@ -6,6 +6,8 @@ import * as Schema from "effect/Schema";
 
 import * as Electron from "electron";
 
+import { chronosBrand, chronosBrandMessageBox } from "../chronos/ChronosBrand.ts";
+
 export class ElectronDialogPickFolderError extends Schema.TaggedError<ElectronDialogPickFolderError>()(
   "ElectronDialogPickFolderError",
   {
@@ -166,7 +168,9 @@ export const make = ElectronDialog.of({
     });
     return result.canceled ? [] : result.filePaths;
   }),
-  showMessageBox: Effect.fn("ElectronDialog.showMessageBox")(function (options, owner) {
+  showMessageBox: Effect.fn("ElectronDialog.showMessageBox")(function (rawOptions, owner) {
+    // chronos: dialogs name the product Chronos.
+    const options = chronosBrandMessageBox(rawOptions);
     return Effect.tryPromise({
       try: () =>
         owner === undefined
@@ -185,7 +189,8 @@ export const make = ElectronDialog.of({
   }),
   showErrorBox: Effect.fn("ElectronDialog.showErrorBox")(function (title, content) {
     return Effect.try({
-      try: () => Electron.dialog.showErrorBox(title, content),
+      // chronos: dialogs name the product Chronos.
+      try: () => Electron.dialog.showErrorBox(chronosBrand(title), chronosBrand(content)),
       catch: (cause) =>
         new ElectronDialogShowErrorBoxError({
           titleLength: title.length,

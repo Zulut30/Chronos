@@ -78,6 +78,37 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
   поэтому лимит не менялся. Старый опубликованный `~/.t3/userdata/themes/olympus.json` (327 КБ)
   сервер пропускает с предупреждением в логе — его заменяет встроенная тема.
 
+## Русский интерфейс
+
+- Языки: English и Русский (Настройки → Язык; там же «Как в системе»). Выбор хранится в
+  клиентских настройках (`language`), как в апстриме.
+- По умолчанию — язык системы: при первом запуске профиля Chronos один раз меняет нетронутое
+  значение `en` (дефолт схемы) на `system`; `ru-*` → русский, остальное → английский
+  (`apps/web/src/chronos/i18n/languages.ts`, ключ `chronos:default-language-seeded`).
+- Механизм апстрима — gt-react (`apps/web/src/i18n`, `gt.config.json`). Строки, обёрнутые в
+  `<T>`/`gt()` (пока ~70, экраны настроек), переводит его каталог `translations/ru.json`.
+  Остальной интерфейс в апстриме — английские литералы. Оборачивать их в файлах апстрима =
+  тысячи правок и конфликт на каждом слиянии, поэтому Chronos добавляет свой каталог
+  `apps/web/src/chronos/i18n/ru.catalog.json` (англ. строка → рус., плюс шаблоны с `$1`).
+- Каталог применяется при создании React-элементов: плагин Vite (`vitePlugin.ts`) подменяет
+  `react/jsx-runtime` для модулей `apps/web/src` на `jsxRuntime.ts`, а `localizeElement.ts`
+  переводит текстовые дети и атрибуты `title`/`placeholder`/`aria-label`/`alt`. DOM не
+  наблюдается. Пользовательский текст не трогается: `pre`/`code`/`kbd`/`textarea`, элементы с
+  `dir` (заголовки тредов, сообщения), `.chat-markdown`, `.font-mono`, пузыри сообщений.
+  Строки-данные (`title === "New thread"` на сервере, ключи, протокол) не переводятся: меняется
+  только отображаемый текст. Тот же слой показывает «T3 Code» как «Chronos» (кроме мобильного
+  приложения T3 и T3 Connect). Каталог грузится отдельным чанком вместе с `ru.json` апстрима;
+  смена языка перемонтирует дерево (`key` на `GTProvider`).
+- Источник каталога: `chronos/legacy-package/client/l10n/` (`ru-final.json`, `runtime-*.json`)
+  + `chronos/l10n/ru.overrides.json` (новые строки по `glossary.md`; `keep` — имена, которые
+  остаются английскими). Пересборка: `node chronos/l10n/build-ru-catalog.mjs`.
+- Проверка: `node chronos/scripts/l10n-check.mjs [--missing] [--min 95]` — доля переведённых
+  литералов интерфейса из `apps/web/src`, полнота `ru.json` апстрима, битые плейсхолдеры
+  (`{name}`, `${x}`, `%s`, `$n` в шаблонах). `--missing` пишет непереведённые строки в
+  `chronos/.work/l10n-missing.tsv`. Запускается в `chronos-checks.yml`.
+- Не переведено: нативные меню Electron и тексты main-процесса, строки, которые собираются в
+  коде из кусков без литерала (их ловят только шаблоны), подсказки, которые Base UI создаёт сам.
+
 ## Где Chronos встраивается в код апстрима
 
 Все правки в файлах апстрима помечены комментарием `chronos:` (`git grep -n "chronos:"`).
@@ -96,11 +127,22 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 | `apps/web/src/components/settings/ThemeSettings.tsx`, `CommandPaletteThemeItems.tsx` | Olympus в списках тем |
 | `apps/web/src/components/sidebar/SidebarChrome.tsx` | логотип Chronos в шапке |
 | `apps/web/src/components/desktopUpdate.logic.ts` | ссылка на релиз по тегу `chronos-v…` |
+| `apps/web/vite.config.ts` | плагин `chronosL10nPlugin` (русский каталог и имя Chronos в JSX); имя в `<title>` |
+| `apps/web/src/i18n/locales.ts` | языки: только `en` и `ru` |
+| `apps/web/src/i18n/initializeI18n.ts` | вместе с `ru.json` грузится каталог Chronos |
+| `apps/web/src/i18n/I18nProvider.tsx` | `key={locale}`: перемонтирование при смене языка |
+| `apps/web/src/i18n/runtime.ts` | первый запуск — язык системы |
+| `apps/web/src/branding.ts` | имя продукта в браузерной сборке |
+| `apps/web/index.html` | Olympus и его первый запуск в загрузочном скрипте (без мелькания), иконка и имя на заставке |
+| `apps/desktop/src/electron/ElectronDialog.ts` | диалоги называют продукт Chronos |
+| `apps/desktop/src/app/DesktopStartupRecovery.ts` | «Предыдущие версии» — релизы Chronos, имя на странице восстановления |
 | `README.md`, `.gitignore` | строка о форке, игнор `chronos/.work/` |
 | `.github/workflows/*` | апстримные workflow удалены |
 
-Новые модули: `apps/desktop/src/chronos/ChronosUpdates.ts`, `apps/web/src/chronos/`
-(`theme.ts`, `seedDefaultTheme.ts`, `ChronosBrandMark.tsx`, `olympus.theme.json`, `chronos-mark.png`).
+Новые модули: `apps/desktop/src/chronos/` (`ChronosUpdates.ts`, `ChronosBrand.ts`),
+`apps/web/src/chronos/` (`theme.ts`, `seedDefaultTheme.ts`, `ChronosBrandMark.tsx`,
+`olympus.theme.json`, иконки, `i18n/`), `chronos/l10n/`, `chronos/scripts/l10n-check.mjs`,
+`.github/workflows/chronos-checks.yml`.
 
 Юнит-тесты апстрима, которые проверяют название «T3 Code (Nightly)», с Chronos расходятся — это
 ожидаемо; в CI Chronos тесты апстрима не запускаются.
