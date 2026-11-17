@@ -40,7 +40,7 @@ export function loadChronosCatalog(locale: string): Promise<void> {
   if (locale !== CHRONOS_CATALOG_LOCALE || catalog) return Promise.resolve();
   pending ??= import("./ru.catalog.json")
     .then((module) => {
-      catalog = compile(module.default as CatalogFile);
+      catalog = compile(module.default as unknown as CatalogFile);
     })
     .catch((error: unknown) => {
       pending = null;
