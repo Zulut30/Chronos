@@ -1,3 +1,5 @@
+// chronos: must stay the first import so the Olympus default is seeded before theme reads.
+import "../chronos/seedDefaultTheme";
 import { pipe } from "effect/Function";
 import type { DesktopBridge } from "@t3tools/contracts";
 import { safeErrorLogAttributes } from "@t3tools/client-runtime/errors";

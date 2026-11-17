@@ -27,6 +27,7 @@ import {
   GROVE_THEME,
   IRIS_THEME,
   OCEAN_THEME,
+  CHRONOS_BUILT_IN_THEMES,
 } from "../../themePalette";
 import {
   AlertDialog,
@@ -55,6 +56,8 @@ import {
 import { ThemeWireframe } from "./ThemeWireframe";
 
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
+  // chronos: Olympus first.
+  ...CHRONOS_BUILT_IN_THEMES,
   T3_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,

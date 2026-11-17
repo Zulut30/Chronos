@@ -86,7 +86,9 @@ export const CLI_RELEASE_CHANNELS: ReadonlyArray<CliReleaseChannel> = [
 ];
 
 export function cliReleaseChannelOf(version: string): CliReleaseChannel {
-  const channel = /^[^-+]+-(nightly|preview)\.\d{8}\.\d+$/.exec(version)?.[1];
+  // chronos: a Chronos build rides the track of the upstream nightly it is based on.
+  const upstreamVersion = chronosUpstreamVersion(version);
+  const channel = /^[^-+]+-(nightly|preview)\.\d{8}\.\d+$/.exec(upstreamVersion)?.[1];
   return channel === "nightly" || channel === "preview" ? channel : "stable";
 }
 
@@ -163,3 +165,27 @@ export function npmReleaseDatabaseMigration(manifest: unknown): number | undefin
   return Option.getOrUndefined(decodeNpmReleaseMigrationManifest(manifest))?.t3code
     .databaseMigration;
 }
+
+// --- chronos: begin (Chronos fork glue, see chronos/README.md) ---
+// Chronos builds are versioned `<upstream nightly>.chronos.<revision>`, for example
+// 0.1.10-nightly.20261116.4800.chronos.1: semver sorts it right after the T3 nightly it is
+// based on and before the next one. Everything that needs a real T3 release (update
+// tracks, CLI archives for SSH/WSL runtimes) reads the upstream nightly through
+// `chronosUpstreamVersion`.
+const CHRONOS_VERSION_PATTERN = /^([^-+]+-nightly\.\d{8}\.\d+)\.chronos\.(\d+)$/;
+export const CHRONOS_PRODUCT_NAME = "Chronos";
+export const CHRONOS_REPOSITORY = "Zulut30/Chronos";
+export const CHRONOS_RELEASES_URL = `https://github.com/${CHRONOS_REPOSITORY}/releases`;
+/** GitHub redirects this to the newest published (non-prerelease) Chronos release. */
+export const CHRONOS_UPDATE_FEED_URL = `${CHRONOS_RELEASES_URL}/latest/download`;
+
+export function isChronosVersion(version: string): boolean {
+  return CHRONOS_VERSION_PATTERN.test(version);
+}
+
+/** The upstream T3 nightly a Chronos version is built on; other versions pass through unchanged. */
+export function chronosUpstreamVersion(version: string): string {
+  const match = CHRONOS_VERSION_PATTERN.exec(version);
+  return match?.[1] ?? version;
+}
+// --- chronos: end ---

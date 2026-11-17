@@ -30,6 +30,7 @@ import {
 } from "./lib/contextChipAccents";
 
 import { appAtomRegistry, subscribeAtomChanges } from "./rpc/atomRegistry";
+import { CHRONOS_OLYMPUS_THEME_FILE } from "./chronos/theme";
 import { applyThemeBackground } from "./themeBackground";
 import { applyThemeCss } from "./themeCss";
 import { themeServerEnvironmentThemesAtom } from "./state/server";
@@ -1220,7 +1221,14 @@ export function updateThemeColorFamily(
   }
 }
 
-const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEMES;
+// chronos: Olympus ships built in, ahead of the T3 themes.
+export const CHRONOS_BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
+  environmentThemeDefinition(CHRONOS_OLYMPUS_THEME_FILE),
+];
+const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = [
+  ...CHRONOS_BUILT_IN_THEMES,
+  ...BUILT_IN_THEMES,
+];
 
 export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | null {
   const themeId = themeIdFromPreference(theme);

@@ -51,3 +51,7 @@ node_modules/
 .pnpm-store/
 
 /packages/ssh/.ssh-launcher-test-*/
+
+# chronos: local scratch for fork tooling
+chronos/.work/
+__pycache__/

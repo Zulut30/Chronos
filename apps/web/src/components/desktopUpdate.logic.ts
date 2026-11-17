@@ -1,4 +1,5 @@
 import type { DesktopUpdateActionResult, DesktopUpdateState } from "@t3tools/contracts";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
 
 export type DesktopUpdateButtonAction = "download" | "install" | "none";
 
@@ -32,7 +33,9 @@ export function getDesktopUpdateReleaseUrl(
 ): string | null {
   const normalizedVersion = version?.trim();
   if (!normalizedVersion) return null;
-  return `${desktopReleaseRepositoryUrl(repository)}/tag/v${encodeURIComponent(normalizedVersion)}`;
+  // chronos: Chronos releases are tagged `chronos-v<version>`.
+  const tagPrefix = isChronosVersion(normalizedVersion) ? "chronos-v" : "v";
+  return `${desktopReleaseRepositoryUrl(repository)}/tag/${tagPrefix}${encodeURIComponent(normalizedVersion)}`;
 }
 
 export function getDesktopUpdateReleaseHistoryUrl(

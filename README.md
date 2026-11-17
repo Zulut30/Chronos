@@ -1,3 +1,6 @@
+> **Chronos** — a cosmetic fork of T3 Code (name, icon, Olympus theme). Fork notes, builds and
+> releases: [chronos/README.md](chronos/README.md). Everything below is the upstream README.
+
 <p align="center">
   <a href="https://t3.codes">
     <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="T3 Code logo" />

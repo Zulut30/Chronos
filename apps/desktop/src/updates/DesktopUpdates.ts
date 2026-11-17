@@ -28,6 +28,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
 import * as DesktopBackendManager from "../backend/DesktopBackendManager.ts";
+import * as ChronosUpdates from "../chronos/ChronosUpdates.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -630,6 +631,11 @@ export const make = Effect.gen(function* () {
   const downloadAvailableUpdate = Effect.fn("desktop.updates.downloadAvailableUpdate")(function* (
     refresh: boolean,
   ) {
+    // chronos: unsigned macOS builds download from the release page in the browser.
+    if (ChronosUpdates.isManualUpdatePlatform(environment)) {
+      yield* ChronosUpdates.openLatestReleasePage;
+      return { accepted: true, completed: false };
+    }
     const admission = yield* Effect.scoped(
       admitAfterCheck(
         Effect.gen(function* () {

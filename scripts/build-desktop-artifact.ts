@@ -19,6 +19,12 @@ import { fromYaml } from "@t3tools/shared/schemaYaml";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import {
+  CHRONOS_PRODUCT_NAME,
+  CHRONOS_UPDATE_FEED_URL,
+  chronosUpstreamVersion,
+  isChronosVersion,
+} from "@t3tools/shared/cliRelease";
 import rootPackageJson from "../package.json" with { type: "json" };
 import desktopPackageJson from "../apps/desktop/package.json" with { type: "json" };
 import gnomeCaptureBundle from "../apps/desktop/gnome-extension/bundle.json" with { type: "json" };
@@ -2723,7 +2729,8 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
 });
 
 export function resolveDesktopUpdateChannel(version: string): "latest" | "nightly" {
-  return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
+  // chronos: a Chronos build follows the track of its upstream nightly.
+  return /-nightly\.\d{8}\.\d+$/.test(chronosUpstreamVersion(version)) ? "nightly" : "latest";
 }
 
 export function isDesktopPreviewVersion(version: string): boolean {
@@ -2735,6 +2742,14 @@ export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
 }
 
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
+  // chronos: Chronos icons (sources in chronos/brand).
+  if (isChronosVersion(version)) {
+    return {
+      macIconPng: "chronos/brand/chronos-macos-1024.png",
+      linuxIconPng: "chronos/brand/chronos-1024.png",
+      windowsIconIco: "chronos/brand/chronos.ico",
+    };
+  }
   if (resolveDesktopUpdateChannel(version) === "nightly") {
     return {
       macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
@@ -2766,6 +2781,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
+  // chronos: cosmetic product name; appId, userData and protocols stay T3.
+  if (isChronosVersion(version)) return CHRONOS_PRODUCT_NAME;
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
@@ -2791,7 +2808,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    // chronos: Chronos-named artifacts.
+    artifactName: isChronosVersion(version)
+      ? "Chronos-${version}-${arch}.${ext}"
+      : "T3-Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2819,7 +2839,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const updateChannel = resolveDesktopUpdateChannel(version);
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
   buildConfig.publish = null;
-  if (!isDesktopPreviewVersion(version)) {
+  if (isChronosVersion(version)) {
+    // chronos: updates come from the newest Chronos GitHub release. The feed is the
+    // `releases/latest/download` redirect, so release tags need not be semver.
+    buildConfig.publish = [
+      { provider: "generic", url: CHRONOS_UPDATE_FEED_URL, channel: updateChannel },
+    ];
+  } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
     if (publishConfig) {
       buildConfig.publish = [publishConfig];
@@ -3497,7 +3523,8 @@ export const validateWindowsPackagedPayload = Effect.fn(
     }
     const members = parseWslRuntimeArchiveMembers(listing.stdout);
     // The WSL installer finds t3 under the archive's single stem-named directory.
-    const stem = wslRuntimeArchiveStem(input.appVersion, input.targetArch);
+    // chronos: the WSL runtime is the upstream T3 CLI archive this build is based on.
+    const stem = wslRuntimeArchiveStem(chronosUpstreamVersion(input.appVersion), input.targetArch);
     const topLevel = new Set(members.map((member) => member.split("/")[0]));
     if (topLevel.size !== 1 || !topLevel.has(stem)) {
       return yield* invalidWslRuntime(
