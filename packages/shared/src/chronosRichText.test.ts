@@ -1,5 +1,5 @@
 import { expect, it } from "vite-plus/test";
-import { chronosMarkdownRichTree, chronosRichStyle } from "./markdownPipeline";
+import { chronosMarkdownRichTree, chronosRichStyle } from "./markdownPipeline.ts";
 
 it("keeps allowed rich formatting while rejecting CSS execution, forged markers and scripts", () => {
   const tree = JSON.stringify(
