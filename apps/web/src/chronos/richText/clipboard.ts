@@ -1,4 +1,6 @@
 import { chronosMarkdownRichTree, chronosRichStyle } from "@t3tools/shared/markdownPipeline";
+import { toHtml } from "hast-util-to-html";
+import type { Root } from "hast";
 
 const RICH = "[data-chronos-rich],mark,u";
 
@@ -32,36 +34,25 @@ export function portableRichHtml(container: Element): void {
   }
 }
 
-interface HtmlNode {
-  type?: string;
-  tagName?: string;
-  value?: string;
-  properties?: Record<string, unknown>;
-  children?: HtmlNode[];
-}
-function dom(node: HtmlNode): Node {
-  if (node.type === "text") return document.createTextNode(node.value ?? "");
-  if (node.type !== "element") {
-    const fragment = document.createDocumentFragment();
-    node.children?.forEach((child) => fragment.appendChild(dom(child)));
-    return fragment;
-  }
-  const element = document.createElement(node.tagName ?? "span");
-  for (const [name, value] of Object.entries(node.properties ?? {})) {
-    if (typeof value === "string" && ["style", "href", "src", "alt", "title"].includes(name))
-      element.setAttribute(name, value);
-  }
-  node.children?.forEach((child) => element.appendChild(dom(child)));
-  return element;
-}
-
-export function chronosMessageClipboard(text: string): { text: string; html: string } | null {
+export function chronosMessageClipboard(
+  text: string,
+  serializer: {
+    fragment: (node: Node) => string;
+    codeBlock: (source: string, language: string | null) => string;
+  },
+): { text: string; html: string } | null {
   if (typeof document === "undefined" || !/<(?:span\b[^>]*style|font\b|mark\b|u\b)/i.test(text))
     return null;
   const container = document.createElement("div");
-  container.appendChild(dom(chronosMarkdownRichTree(text) as HtmlNode));
+  container.innerHTML = toHtml(chronosMarkdownRichTree(text) as Root);
   if (!container.querySelector("[style],mark,u")) return null;
   portableRichHtml(container);
-  const plain = container.innerText || container.textContent || "";
-  return { text: plain, html: `<meta charset="utf-8">${container.innerHTML}` };
+  const html = `<meta charset="utf-8">${container.innerHTML}`;
+  for (const pre of container.querySelectorAll("pre")) {
+    const language =
+      pre.querySelector("code")?.className.match(/(?:^|\s)language-([^\s]+)/)?.[1] ?? null;
+    pre.setAttribute("data-markdown-copy", serializer.codeBlock(pre.textContent ?? "", language));
+    pre.setAttribute("data-markdown-verbatim", "");
+  }
+  return { text: serializer.fragment(container), html };
 }

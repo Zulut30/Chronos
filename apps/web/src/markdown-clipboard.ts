@@ -286,8 +286,11 @@ function serializeNode(node: Node, inTableCell = false): string {
   }
   const markdownCopy = element.getAttribute("data-markdown-copy");
   if (markdownCopy !== null) {
-    // A diagram copies as its fenced source, which is code too.
-    if (element.hasAttribute("data-markdown-mermaid")) {
+    // chronos: fenced code and diagram sources bypass prose whitespace cleanup.
+    if (
+      element.hasAttribute("data-markdown-mermaid") ||
+      element.hasAttribute("data-markdown-verbatim")
+    ) {
       return verbatimBlock(escapeTablePipes(markdownCopy.trimEnd(), inTableCell));
     }
     return element.hasAttribute("data-markdown-math")

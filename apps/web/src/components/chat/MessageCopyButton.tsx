@@ -1,6 +1,10 @@
 import { memo, useRef } from "react";
 // chronos: full-message copies include sanitized, standalone rich HTML.
 import { chronosMessageClipboard } from "../../chronos/richText/clipboard";
+import {
+  serializeRenderedMarkdownFragment,
+  serializeCodeBlockToMarkdown,
+} from "../../markdown-clipboard";
 import { CheckIcon, CopyIcon, type LucideIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
@@ -28,7 +32,10 @@ export const MessageCopyButton = memo(function MessageCopyButton({
   className?: string;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
-  const rich = chronosMessageClipboard(text);
+  const rich = chronosMessageClipboard(text, {
+    fragment: serializeRenderedMarkdownFragment,
+    codeBlock: serializeCodeBlockToMarkdown,
+  });
   const { copyToClipboard, isCopied } = useCopyToClipboard<void>({
     onError: (error: Error) => showAnchoredCopyErrorToast(ref, error),
     timeout: ANCHORED_COPY_TOAST_TIMEOUT_MS,

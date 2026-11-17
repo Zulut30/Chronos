@@ -1,7 +1,11 @@
 import { expect, it, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
 import { chronosMessageClipboard } from "./clipboard";
-import { chatMarkdownClipboardPayload } from "../../markdown-clipboard";
+import {
+  chatMarkdownClipboardPayload,
+  serializeRenderedMarkdownFragment,
+  serializeCodeBlockToMarkdown,
+} from "../../markdown-clipboard";
 import { MessageCopyButton } from "../../components/chat/MessageCopyButton";
 import { AnchoredToastProvider } from "../../components/ui/toast";
 
@@ -36,21 +40,28 @@ it("copies a partial colored selection with fixed colors and rich ancestors", as
 });
 
 it("exports sanitized rich messages and leaves ordinary Markdown and literal code on upstream copy", () => {
-  const payload = chronosMessageClipboard(
+  const copy = (text: string) =>
+    chronosMessageClipboard(text, {
+      fragment: serializeRenderedMarkdownFragment,
+      codeBlock: serializeCodeBlockToMarkdown,
+    });
+  const payload = copy(
     '<span style="color:blue;background:yellow;font-style:italic" onclick="evil()">Привет</span> <mark>мир</mark>',
   )!;
   expect(payload.html).toMatch(/#1952c5|rgb\(25, 82, 197\)/i);
   expect(payload.html).toContain("font-style:");
   expect(payload.html).not.toContain("onclick");
   expect(payload.text.trim()).toBe("Привет мир");
-  expect(chronosMessageClipboard("**upstream**")).toBeNull();
-  expect(chronosMessageClipboard("`<mark>code</mark>`")).toBeNull();
+  expect(copy("**upstream**")).toBeNull();
+  expect(copy("`<mark>code</mark>`")).toBeNull();
 });
 
 it("the native message copy button writes both fixed-color HTML and readable plain text", async () => {
+  const markdown =
+    '<span style="color:green;font-weight:bold">Готово</span>\n\nВторая строка\n\n10. Первый\n11. Второй\n\n```ts\nconst value = 1;\n```';
   await using screen = await render(
     <AnchoredToastProvider timeout={0}>
-      <MessageCopyButton text={'<span style="color:green;font-weight:bold">Готово</span>'} />
+      <MessageCopyButton text={markdown} />
     </AnchoredToastProvider>,
   );
   using write = vi.spyOn(navigator.clipboard, "write").mockResolvedValue(undefined);
@@ -58,5 +69,7 @@ it("the native message copy button writes both fixed-color HTML and readable pla
   await vi.waitFor(() => expect(write).toHaveBeenCalledOnce());
   const item = write.mock.calls[0]![0][0]!;
   expect(await (await item.getType("text/html")).text()).toMatch(/#2e7d32|rgb\(46, 125, 50\)/i);
-  expect((await (await item.getType("text/plain")).text()).trim()).toBe("Готово");
+  expect((await (await item.getType("text/plain")).text()).trim()).toBe(
+    "Готово\n\nВторая строка\n\n10. Первый\n11. Второй\n\n```ts\nconst value = 1;\n```",
+  );
 });
