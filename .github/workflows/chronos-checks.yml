@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - "feature/**"
+      - "upstream-sync/**"
 
 permissions:
   contents: read
@@ -49,6 +50,12 @@ jobs:
         run: |
           (cd apps/web && vp test run --project unit src/chronos)
           (cd apps/desktop && vp test run src/chronos src/app/DesktopStartupRecovery.test.ts)
+
+      - name: Integration regression tests
+        run: |
+          (cd apps/desktop && vp test run src/ssh/DesktopSshEnvironment.test.ts src/ipc/methods/fileDrag.test.ts)
+          (cd apps/web && vp test run --project unit src/themePalette.test.ts src/themeCssHooks.test.ts src/components/desktopUpdate.logic.test.ts)
+          (cd packages/shared && vp test run src/cliRelease.test.ts src/themeCss.test.ts)
 
       - name: Upstream web unit tests (informational)
         continue-on-error: true
