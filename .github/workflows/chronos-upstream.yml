@@ -13,13 +13,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-          sparse-checkout: |
-            /chronos/
-          sparse-checkout-cone-mode: false
+      - name: Fetch the Chronos history and report scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          git fetch --no-tags origin "$GITHUB_SHA"
+          git sparse-checkout set --cone chronos
+          git checkout --detach FETCH_HEAD
       - name: Compare the published T3 nightly with the Chronos base
         shell: bash
         run: |
