@@ -1,6 +1,6 @@
 ---
 name: chronos-release
-description: Выпуск релиза Chronos (Zulut30/Chronos) — версия в chronos/version.json, тег chronos-v<версия>, CI-сборка Windows/macOS и GitHub Release с фидами обновлений. Тег и релиз создаются только по явному слову пользователя. Используй, когда просят «выпусти Chronos», «сделай релиз», «новая версия Chronos» или по /chronos-release.
+description: Выпуск релиза Chronos (Zulut30/Chronos) — версия в chronos/version.json, тег версии Chronos, CI-сборка Windows/macOS и GitHub Release с фидами обновлений. Тег и релиз создаются только по явному слову пользователя. Используй, когда просят «выпусти Chronos», «сделай релиз», «новая версия Chronos» или по /chronos-release.
 ---
 
 # Релиз Chronos
@@ -25,7 +25,7 @@ git tag -l 'chronos-v*' && gh release list --repo Zulut30/Chronos --limit 5
 - Если тег из `chronos-version.mjs` уже выпущен — увеличь `revision` в `chronos/version.json`
   (после синхронизации с апстримом `revision` = 1, `upstream` уже обновлён).
 - Коммит `Chronos <версия>` в `main`, push — после согласия пользователя на релиз.
-- Желательно зелёный ручной прогон на этом коммите:
+- Для публикации нужны успешные **Chronos checks** и ручная **Chronos desktop** на точном SHA из `main`. Тег публикует проверенные артефакты этого прогона. Запуск сборки:
   `gh workflow run chronos-desktop.yml --repo Zulut30/Chronos --ref main`.
 
 Покажи пользователю: версию, базу апстрима, что вошло с прошлого релиза
@@ -50,7 +50,7 @@ Job `release` публикует обычный (не pre-release) релиз с
 `nightly.yml` (Windows) и `nightly-mac.yml` (macOS arm64+x64). Именно `releases/latest/download`
 читает updater — pre-release или черновик обновления не получат.
 
-Если сборка упала до публикации: исправь в `main`, увеличь `revision`, новый тег (старый тег
+При временном сбое скачивания или публикации проверь статус релиза и повтори упавший job. Если требуется исправление исходников, увеличь `revision`, создай новый тег (старый тег
 удалять только с согласия пользователя).
 
 ## 4. Отчёт

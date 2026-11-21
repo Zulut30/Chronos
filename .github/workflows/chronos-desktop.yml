@@ -59,6 +59,7 @@ jobs:
           node chronos/scripts/chronos-version.mjs "${args[@]}"
 
   bundle:
+    if: github.ref_type != 'tag'
     name: Build JS bundle
     needs: version
     runs-on: ubuntu-24.04
@@ -98,6 +99,7 @@ jobs:
 
   # Vite builds do not typecheck; this covers the packages Chronos patches.
   typecheck:
+    if: github.ref_type != 'tag'
     name: Typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -278,10 +280,11 @@ jobs:
   release:
     name: Publish GitHub Release
     if: github.ref_type == 'tag' && startsWith(github.ref_name, 'chronos-v')
-    needs: [version, typecheck, desktop]
+    needs: version
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
+      actions: read
       contents: write
     steps:
       - name: Checkout
@@ -297,9 +300,26 @@ jobs:
         with:
           install-args: --filter=@t3tools/scripts...
 
+      - name: Locate the tested build of this commit
+        id: verified
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          head=$(git rev-parse HEAD)
+          test "$head" = "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          runs="repos/$GITHUB_REPOSITORY/actions/workflows"
+          checked=$(gh api "$runs/chronos-checks.yml/runs?head_sha=$head&status=success" --jq '.workflow_runs[0].id // empty')
+          build=$(gh api "$runs/chronos-desktop.yml/runs?head_sha=$head&event=workflow_dispatch&status=success" --jq '.workflow_runs[0].id // empty')
+          test -n "$checked" && test -n "$build" || { echo "A successful Chronos checks run and a manual desktop build are required for $head"; exit 1; }
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
       - name: Download desktop artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          run-id: ${{ steps.verified.outputs.build }}
+          github-token: ${{ github.token }}
           pattern: chronos-*
           path: release-assets
           merge-multiple: true
@@ -323,6 +343,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
+          node chronos/scripts/verify-release.mjs release-assets "$VERSION"
           cd release-assets
           cp "Chronos-${VERSION}-x64.exe" Chronos-Setup-x64.exe
           cp "Chronos-${VERSION}-arm64.dmg" Chronos-mac-arm64.dmg
@@ -338,13 +359,13 @@ jobs:
         run: |
           set -euo pipefail
           notes=$(printf '%s\n' \
-            "Chronos ${VERSION} — T3 Code ${UPSTREAM} with Chronos branding and the Olympus theme." \
+            "Chronos ${VERSION} — T3 Code ${UPSTREAM} with an independent installation, T3 Connect and the Olympus theme." \
             "" \
             "- Windows x64: \`Chronos-${VERSION}-x64.exe\` (unsigned: SmartScreen → More info → Run anyway)." \
             "- macOS: \`.dmg\` for arm64 (Apple silicon) or x64 (Intel), unsigned: right-click → Open on first launch." \
             "" \
             "Upstream: https://github.com/pingdotgg/t3code/releases/tag/v${UPSTREAM}")
-          gh release create "$TAG" release-assets/* \
+          gh release create "$TAG" release-assets/Chronos-* release-assets/nightly*.yml release-assets/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "Chronos ${VERSION}" \
