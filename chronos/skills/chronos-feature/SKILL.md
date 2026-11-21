@@ -9,6 +9,11 @@ Chronos = апстрим T3 + тонкий слой. Чем меньше стр�
 слияние (`chronos-upstream-sync`). Устройство форка — `chronos/README.md`.
 
 ## Где писать код
+В рабочей копии без `chronos/scripts/upstream-plan.mjs` сначала найди ветку
+`feature/chronos-development` через `git branch --all` и проверь актуальную инструкцию в ней.
+Начинай от общей ветки с функциями, указанной в разделе «Разработка Chronos и перенос функций T3»
+в `chronos/README.md`. Для отдельного изменения T3 там описан перенос с исходным SHA.
+
 1. **Новые файлы — всегда в своих папках:**
    - веб-клиент: `apps/web/src/chronos/<feature>/…`
    - десктоп (Electron main): `apps/desktop/src/chronos/…`
@@ -42,8 +47,8 @@ appId `com.t3tools.t3code`, userData `t3code-v2`, `~/.t3`, протокол `t3c
   (`apps/server/src/chronos/`) или оставить внешними.
 
 ## Проверка
-- `git grep -n "chronos:"` — все точки встраивания помечены; `git diff origin/main --stat` — правки
-  в файлах апстрима минимальны.
+- `node chronos/scripts/upstream-plan.mjs feature <база-ветки>` покажет и новые файлы, и правки
+  вне каталогов Chronos. Сверь эти правки с таблицей встраивания и проверь затронутую функцию.
 - Локально тяжёлую сборку не гонять (нужны Node 26 + pnpm 12 + vite-plus); проверка —
   `gh workflow run chronos-desktop.yml --repo Zulut30/Chronos --ref <ветка>` и зелёный прогон.
 - Работай в ветке `feature/<имя>`, в `main` — по решению пользователя.

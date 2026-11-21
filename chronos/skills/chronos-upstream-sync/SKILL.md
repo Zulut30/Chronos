@@ -8,6 +8,8 @@ description: Вливает новые изменения официальног
 Репозиторий: `~/Documents/Chronos` (Windows: `%USERPROFILE%\Documents\Chronos`; `origin` = Zulut30/Chronos, публичный;
 `upstream` = pingdotgg/t3code). Устройство форка — `chronos/README.md`, прочитай его раздел
 «Где Chronos встраивается» перед работой.
+Если в рабочей копии ещё нет `chronos/scripts/upstream-plan.mjs`, найди ветку
+`feature/chronos-development` через `git branch --all` и прочитай её `chronos/README.md`.
 
 ## Жёсткие правила
 - В `main` **ничего не вливать и не пушить** без явного «вливай» от пользователя в этом разговоре.
@@ -27,11 +29,13 @@ git ls-remote --tags upstream 'v*-nightly.*' | grep -v '\^{}' | sed 's#.*refs/ta
 node chronos/scripts/chronos-version.mjs     # текущая база: поле upstream
 ```
 Целевая база — самый новый nightly-тег `vX-nightly.YYYYMMDD.N` (или тот, что назвал пользователь).
-Подтяни его коммит: `git fetch upstream tag <tag> --no-tags` и после слияния удали локальный тег
-(`git tag -d <tag>`) — теги апстрима не должны попасть в origin.
+Получи его коммит командой `git fetch --no-tags upstream refs/tags/<tag>` и запиши SHA из
+`git rev-parse "FETCH_HEAD^{commit}"`. Ниже это `<target-sha>`. Старую базу возьми из
+`upstreamCommit` в `chronos/version.json`. Начинай с общей ветки разработки, указанной
+в `chronos/README.md`. Выполни `node chronos/scripts/upstream-plan.mjs nightly <target-sha>`.
 
-Сводка для пользователя (`git log --oneline --no-merges <старый тег>..<новый тег>` и
-`git diff --stat` по тем же точкам; старый тег = `v<upstream из version.json>`):
+Сводка для пользователя (`git log --oneline --no-merges <upstreamCommit>..<target-sha>` и
+`git diff --stat` по тем же точкам):
 - что меняется — сгруппируй по темам (desktop, server, web, mobile, CI, обновления, темы);
 - риски: миграции БД, смена appId/userData/протокола/релея/Clerk, updater, сборка
   (`scripts/build-desktop-artifact.ts`, `release*.yml`), брендинг, темы;
@@ -40,8 +44,8 @@ node chronos/scripts/chronos-version.mjs     # текущая база: поле
 
 ## 2. Ветка и слияние
 ```bash
-git switch -c upstream-sync/$(date +%Y-%m-%d) origin/main
-git merge --no-ff <коммит тега> -m "Merge upstream T3 <tag> into Chronos"
+git switch -c upstream-sync/<дата> <общая-ветка-Chronos>
+git merge --no-ff <target-sha> -m "Merge upstream T3 <tag> into Chronos"
 ```
 Конфликты:
 - `.github/workflows/*` (кроме `chronos-*.yml`): апстримные workflow у нас удалены — оставляй
@@ -55,7 +59,8 @@ git merge --no-ff <коммит тега> -m "Merge upstream T3 <tag> into Chron
   Если поменял — остановись и опиши пользователю.
 
 После слияния:
-1. В `chronos/version.json` поставь `upstream` = новая версия, `revision` = 1.
+1. В `chronos/version.json` поставь `upstream` = новая версия, `upstreamCommit` = полный
+   SHA коммита этого nightly-тега, `revision` = 1. Проверь `node chronos/scripts/upstream-plan.mjs surface`.
 2. Если менялась тема (`chronos/theme/`), выполни `node chronos/scripts/sync-theme.mjs`.
 3. `git grep -n "chronos:"` — все точки на месте; `node chronos/scripts/chronos-version.mjs` — ок.
 4. Коммит, `git push -u origin upstream-sync/<дата>` (пуш новой ветки разрешён).
@@ -73,8 +78,9 @@ gh run watch <id> --repo Zulut30/Chronos --exit-status   # или проверя
 - база была → стала (теги, число коммитов), главное из сводки и риски;
 - как разрешены конфликты, какие точки встраивания менялись;
 - ссылка на прогон CI и статус по платформам;
-- ветка `upstream-sync/<дата>` и вопрос: **вливать в main?**
+- ветка `upstream-sync/<дата>`, исходная рабочая ветка Chronos и результат проверок.
 
-Только после явного «да»: `git switch main && git merge --ff-only upstream-sync/<дата>`
-(или `--no-ff`, если main ушёл вперёд) → `git push origin main`. Ветку удалить можно после этого,
-локально и в origin, тоже по согласию. Релиз — отдельно через `chronos-release`.
+Для принятого обновления объедини проверенную ветку синхронизации с той рабочей веткой Chronos,
+от которой она создана. Если обе ветки успели измениться, проверь результат их слияния.
+Для слияния или push в `main` требуется явное решение пользователя. Релиз проходит отдельно
+через `chronos-release`.

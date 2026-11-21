@@ -1,9 +1,64 @@
 # Chronos
 
-Chronos — форк [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (MIT), который отличается от
-T3 Code оформлением и русским интерфейсом: название, иконка, логотип в шапке и тема Olympus по умолчанию.
-Под капотом всё как в T3: T3 Connect, туннель, мобильное приложение, протокол `t3code://`,
-CLI `t3`, папки данных.
+Chronos развивает доску задач, Studio, управление скиллами и MCP, русский интерфейс и тему Olympus
+на базе [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (MIT).
+
+## Разработка Chronos и перенос функций T3
+
+Общая рабочая ветка — `feature/chronos-development`. Она включает доработки поверх nightly 4838.
+От неё создаём ветку под задачу. Законченную функцию возвращаем в общую ветку после проверки.
+Когда эта основа войдёт в `main`, новые задачи можно начинать от обновлённой `main`.
+
+### Своя функция
+
+```sh
+git switch -c feature/my-feature feature/chronos-development
+node chronos/scripts/upstream-plan.mjs feature feature/chronos-development
+```
+
+Размещай реализацию в `apps/web/src/chronos/`, `apps/desktop/src/chronos/` или
+`apps/server/src/chronos/` по месту исполнения. Команда показывает изменения ветки и рабочей копии,
+включая новые файлы. По списку путей вне каталогов Chronos проверь, какие вызовы связывают
+функцию с T3. Обнови таблицу точек встраивания ниже и прогони тест изменённого поведения.
+Для обзора всех исходных файлов T3, изменённых или удалённых в текущем коммите форка,
+выполни `node chronos/scripts/upstream-plan.mjs surface`.
+
+### Одна функция оригинального T3
+
+В чистой ветке, созданной от общей рабочей ветки, получи коммиты официального репозитория.
+Если в свежем клоне есть только `origin`, один раз добавь источник командой
+`git remote add upstream https://github.com/pingdotgg/t3code.git`.
+
+```sh
+git fetch --no-tags upstream main
+git log --oneline FETCH_HEAD
+node chronos/scripts/upstream-plan.mjs pick <sha>
+git show <sha>
+git cherry-pick -x <sha>
+```
+
+Вместо `<sha>` подставь SHA обычного коммита T3. Проверь его зависимости, тесты и перечисленные
+отчётом общие файлы. Если функция занимает несколько коммитов, переноси их по порядку,
+каждый раз запуская `pick` перед переносом. Ключ `-x` записывает исходный SHA в историю.
+При отмене незавершённого переноса используй `git cherry-pick --abort`. Версию полной базы
+обновляем только при слиянии nightly.
+
+### Целая nightly
+
+```sh
+git switch -c upstream-sync/nightly-5038 feature/chronos-development
+git fetch --no-tags upstream refs/tags/v0.1.12-nightly.20261121.5038
+node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
+```
+
+Подставь выбранный тег и имя новой ветки. Отчёт сравнивает обе стороны с SHA в
+`chronos/version.json` и пробует слияние через `git merge-tree`. Он показывает и общие пути
+для проверки поведения, и файлы, в которых Git требует разрешить конфликт. Для `pick`
+пробный перенос берёт разницу относительно единственного родителя коммита.
+Оба режима работают с коммитами и оставляют ветку, индекс и рабочие файлы на месте.
+Код выхода 0 означает, что отчёт построен, в том числе при найденных конфликтах.
+Нужен Git с поддержкой `merge-tree --merge-base`. После выбора nightly следуй
+[процедуре слияния и проверки](skills/chronos-upstream-sync/SKILL.md).
 
 ## Что остаётся как в T3 (не менять)
 
@@ -25,10 +80,11 @@ CLI `t3`, папки данных.
 `chronos/version.json`:
 
 ```json
-{ "upstream": "0.1.11-nightly.20261117.4838", "revision": 1 }
+{ "upstream": "0.1.11-nightly.20261117.4838", "upstreamCommit": "ea6d3fc30fb066635f31326f49b85cdee8fbf8d7", "revision": 1 }
 ```
 
 - `upstream` — nightly-тег апстрима (`v<upstream>` в pingdotgg/t3code), на котором стоит эта ветка.
+- `upstreamCommit` — полный SHA коммита этого тега. Сохраняется в истории форка и доступен в полном клоне без тегов T3.
 - `revision` — счётчик релизов Chronos поверх этого nightly; после синхронизации с апстримом
   сбрасывается в 1.
 - Версия приложения: `<upstream>.chronos.<revision>`, например `0.1.11-nightly.20261117.4838.chronos.1`.

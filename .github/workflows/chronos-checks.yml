@@ -33,6 +33,9 @@ jobs:
       - name: Russian catalog (coverage, placeholders)
         run: node chronos/scripts/l10n-check.mjs --min 95
 
+      - name: Preview feature changes and upstream integration in a temporary repository
+        run: node --test chronos/scripts/upstream-plan.test.mjs
+
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
