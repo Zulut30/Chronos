@@ -17,6 +17,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          sparse-checkout: |
+            /chronos/
+          sparse-checkout-cone-mode: false
       - name: Compare the published T3 nightly with the Chronos base
         shell: bash
         run: |
