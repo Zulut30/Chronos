@@ -54,8 +54,8 @@ git merge --no-ff <target-sha> -m "Merge upstream T3 <tag> into Chronos"
   (см. таблицу в `chronos/README.md`). Если функция апстрима переехала, перенеси правку туда же и
   обнови таблицу.
 - `pnpm-lock.yaml` — бери апстримную версию (Chronos зависимостей не добавляет).
-- Проверь, что апстрим не поменял: appId `com.t3tools.t3code`, userData `t3code-v2`, протокол
-  `t3code`, `.env.example` (Clerk/relay), регулярки версий nightly (`git grep -n "nightly|preview"`).
+- Проверь, что апстрим не поменял: отдельный appId `io.github.zulut30.chronos`, профиль `Chronos`, callback `chronos://`, внутренний origin
+  `t3code://app`, `.env.example` (Clerk/relay), регулярки версий nightly (`git grep -n "nightly|preview"`).
   Если поменял — остановись и опиши пользователю.
 
 После слияния:

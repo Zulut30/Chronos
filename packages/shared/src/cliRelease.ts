@@ -173,6 +173,8 @@ export function npmReleaseDatabaseMigration(manifest: unknown): number | undefin
 // tracks, CLI archives for SSH/WSL runtimes) reads the upstream nightly through
 // `chronosUpstreamVersion`.
 const CHRONOS_VERSION_PATTERN = /^([^-+]+-nightly\.\d{8}\.\d+)\.chronos\.(\d+)$/;
+export const CHRONOS_APP_ID = "io.github.zulut30.chronos";
+export const CHRONOS_SCHEME = "chronos";
 export const CHRONOS_PRODUCT_NAME = "Chronos";
 export const CHRONOS_REPOSITORY = "Zulut30/Chronos";
 export const CHRONOS_RELEASES_URL = `https://github.com/${CHRONOS_REPOSITORY}/releases`;

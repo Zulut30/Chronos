@@ -28,6 +28,7 @@ import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
 import * as DesktopBackendManager from "../backend/DesktopBackendManager.ts";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as ChronosUpdates from "../chronos/ChronosUpdates.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
@@ -405,6 +406,7 @@ export const make = Effect.gen(function* () {
     Ref.get(releaseFloorRef).pipe(
       Effect.map(
         (floor) =>
+          (!isChronosVersion(environment.appVersion) || isChronosVersion(version)) &&
           desktopUpdateChannelOf(version) === state.channel &&
           (Option.isSome(floor)
             ? compareSemverVersions(version, floor.value) >= 0
@@ -1349,6 +1351,12 @@ export const make = Effect.gen(function* () {
       options?: { readonly minimumVersion?: string | undefined },
     ) {
       yield* Effect.annotateCurrentSpan({ channel: nextChannel });
+      if (isChronosVersion(environment.appVersion) && nextChannel !== "nightly") {
+        return yield* new DesktopUpdateChannelManagedError({
+          channel: nextChannel,
+          policyMessage: "Chronos publishes verified updates on the Nightly channel.",
+        });
+      }
       if (Option.isSome(channelBlockedReason(nextChannel))) {
         return yield* new DesktopUpdateChannelManagedError({
           channel: nextChannel,

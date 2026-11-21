@@ -60,6 +60,17 @@ describe("DesktopEnvironment", () => {
     }),
   );
 
+  it.effect("isolates packaged Chronos from the active T3 environment", () =>
+    Effect.gen(function* () {
+      const environment = yield* makeEnvironment(
+        { isPackaged: true, appVersion: "0.1.11-nightly.20261117.4838.chronos.2" },
+        { T3CODE_HOME: "/real/t3", T3CODE_DESKTOP_APP_USER_MODEL_ID: "com.t3tools.t3code" },
+      );
+      assert.equal(environment.stateDir, "/Users/alice/.chronos/userdata");
+      assert.equal(environment.appUserModelId, "io.github.zulut30.chronos");
+    }),
+  );
+
   it.effect("keeps implicit development state separate from production state", () =>
     Effect.gen(function* () {
       const development = yield* makeEnvironment(

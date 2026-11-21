@@ -30,7 +30,7 @@ Chronos = апстрим T3 + тонкий слой. Чем меньше стр�
 4. Каждую новую точку встраивания добавь в таблицу «Где Chronos встраивается» в `chronos/README.md`.
 
 ## Чего не трогать
-appId `com.t3tools.t3code`, userData `t3code-v2`, `~/.t3`, протокол `t3code://`, relay/Clerk
+У самостоятельной сборки Chronos свой appId `io.github.zulut30.chronos`, профиль `Chronos`, дом `~/.chronos` и внешний callback `chronos://`. Для совместимости сохраняй внутренний origin `t3code://app`, relay/Clerk
 (`.env.example`), мобильный пейринг, имя CLI `t3`, схемы БД и RPC-контракты
 (`packages/contracts`). Функции, которым нужны новые RPC/таблицы, сначала обсуди с пользователем:
 они расходятся с мобильным приложением и remote-серверами T3.

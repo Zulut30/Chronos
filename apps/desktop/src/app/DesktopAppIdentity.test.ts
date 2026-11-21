@@ -160,6 +160,22 @@ describe("DesktopAppIdentity", () => {
     ),
   );
 
+  it.effect("opens an independent Chronos profile alongside an existing T3 install", () =>
+    withIdentity(
+      Effect.gen(function* () {
+        const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+        assert.equal(
+          yield* identity.resolveUserDataPath,
+          "/Users/alice/Library/Application Support/Chronos",
+        );
+      }),
+      {
+        legacyPathExists: true,
+        environment: { appVersion: "0.1.11-nightly.20261117.4838.chronos.2" },
+      },
+    ),
+  );
+
   it.effect("keeps using the legacy development profile", () =>
     withIdentity(
       Effect.gen(function* () {

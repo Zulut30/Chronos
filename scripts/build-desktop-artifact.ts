@@ -20,6 +20,8 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import {
+  CHRONOS_APP_ID,
+  CHRONOS_SCHEME,
   CHRONOS_PRODUCT_NAME,
   CHRONOS_UPDATE_FEED_URL,
   chronosUpstreamVersion,
@@ -1262,6 +1264,7 @@ function normalizePasskeyRpDomain(value: string): string {
 
 export function resolveMacPasskeySigningConfiguration(
   env: Readonly<Record<string, string | undefined>>,
+  appId = DESKTOP_APP_ID,
 ): MacPasskeySigningConfiguration {
   const teamId = env.T3CODE_APPLE_TEAM_ID?.trim().toUpperCase() ?? "";
   if (!APPLE_TEAM_ID_PATTERN.test(teamId)) {
@@ -1297,7 +1300,7 @@ export function resolveMacPasskeySigningConfiguration(
   }
 
   return {
-    appId: DESKTOP_APP_ID,
+    appId,
     teamId,
     rpDomains: uniqueRpDomains,
     provisioningProfilePath,
@@ -2781,7 +2784,7 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
-  // chronos: cosmetic product name; appId, userData and protocols stay T3.
+  // chronos: product name for the native installer.
   if (isChronosVersion(version)) return CHRONOS_PRODUCT_NAME;
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
@@ -2806,7 +2809,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 ) {
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
-    appId: DESKTOP_APP_ID,
+    appId: isChronosVersion(version) ? CHRONOS_APP_ID : DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
     // chronos: Chronos-named artifacts.
     artifactName: isChronosVersion(version)
@@ -2897,7 +2900,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       protocols: [
         {
           name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },
         {
           name: "Web site URL",
@@ -2950,7 +2953,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       protocols: [
         {
           name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },
       ],
       desktop: {
@@ -2994,7 +2997,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.npmRebuild = false;
     buildConfig.nsis = {
       differentialPackage: true,
-      include: "apps/desktop/resources/installer.nsh",
+      ...(isChronosVersion(version) ? {} : { include: "apps/desktop/resources/installer.nsh" }),
     };
     const winConfig: Record<string, unknown> = {
       target: [target],
@@ -3886,7 +3889,11 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed
       ? yield* Effect.try({
-          try: () => resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot })),
+          try: () =>
+            resolveMacPasskeySigningConfiguration(
+              loadRepoEnv({ repoRoot }),
+              isChronosVersion(appVersion) ? CHRONOS_APP_ID : DESKTOP_APP_ID,
+            ),
           catch: MacPasskeySigningConfigurationResolutionError.fromCause,
         })
       : undefined;
@@ -3941,7 +3948,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    name: isChronosVersion(appVersion) ? "chronos" : "t3code",
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,

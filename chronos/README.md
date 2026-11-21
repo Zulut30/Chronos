@@ -60,20 +60,13 @@ node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
 Нужен Git с поддержкой `merge-tree --merge-base`. После выбора nightly следуй
 [процедуре слияния и проверки](skills/chronos-upstream-sync/SKILL.md).
 
-## Что остаётся как в T3 (не менять)
+## Установка рядом с T3
 
-| Что                         | Значение                                                                                                    |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| appId / AppUserModelId      | `com.t3tools.t3code`                                                                                        |
-| Профиль Electron (userData) | `%APPDATA%\t3code-v2` (Windows), `~/Library/Application Support/t3code-v2` (macOS)                          |
-| Данные сервера              | `~/.t3` (`~/.t3/userdata`)                                                                                  |
-| Протокол                    | `t3code://`                                                                                                 |
-| T3 Connect                  | Clerk `pk_live_Y2xlcmsudDMuY29kZXMk`, relay `https://relay.t3.codes` (публичные значения из `.env.example`) |
-| CLI                         | `t3`, версии и архивы — официальные релизы T3                                                               |
+Установщик Windows регистрирует приложение Chronos с идентификатором `io.github.zulut30.chronos`. Профиль Electron находится в `%APPDATA%\Chronos` (на Mac в `~/Library/Application Support/Chronos`), сервер и его база — в `~/.chronos/userdata`. Для изолированного стенда каталог сервера задаётся через `CHRONOS_HOME`. У каждого экземпляра свой локальный сервер и блокировка профиля.
 
-Поэтому Chronos подхватывает треды, настройки, вход в T3 Connect и пейринг установленного
-«T3 Code (Nightly)». Одновременно оба приложения работать не могут (общий appId и общие данные):
-установщик Chronos заменяет T3 Nightly.
+Встроенный клиент использует внутренний origin `t3code://app` для совместимости с серверами T3. Внешний callback Chronos — `chronos://app/`. T3 Connect использует официальные публичные параметры Clerk и relay из `.env.example`. Новая установка проходит свой вход и привязку. Команда `~/.chronos/bin/t3` (на Windows `t3.cmd`) обращается к среде Chronos.
+
+Ежедневная проверка **T3 nightly compatibility report** сверяет SHA базового тега с официальным репозиторием и публикует список пересечений и конфликтов во вкладке Actions. Перенос выполняется в рабочей ветке по результатам проверки. Для доработок внешнего вида и взаимодействия используй [chronos-ui](skills/chronos-ui/SKILL.md).
 
 ## Версии
 
@@ -117,7 +110,7 @@ Chronos. Так фоновая служба, удалённые SSH/WSL-рант
 - Фид — generic-провайдер electron-updater: `https://github.com/Zulut30/Chronos/releases/latest/download`.
   GitHub перенаправляет его на последний опубликованный (не pre-release) релиз Chronos.
 - Канал: версия Chronos считается nightly, поэтому приложение читает `nightly.yml` /
-  `nightly-mac.yml`. Если вручную переключить канал на Stable, обновления Chronos не придут.
+  `nightly-mac.yml`. Самостоятельная сборка принимает проверенные версии Chronos в этом канале.
 - Windows: обычное «Скачать → Перезапустить» (тихая установка NSIS).
 - macOS: сборки без подписи не могут установить обновление сами. Приложение показывает, что есть
   новая версия, а «Скачать» открывает страницу последнего релиза в браузере.

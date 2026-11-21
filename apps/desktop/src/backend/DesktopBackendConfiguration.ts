@@ -7,6 +7,7 @@ import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Mac from "effect/crypto/Mac";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Hex from "effect/encoding/Hex";
 import * as FileSystem from "effect/FileSystem";
@@ -567,6 +568,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       cwd: environment.backendCwd,
       env: {
         ...backendChildEnvPatch(),
+        ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir } : {}),
         ELECTRON_RUN_AS_NODE: "1",
         T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1",
         T3CODE_CLI_PATH: Option.getOrUndefined(input.cliPath),
@@ -746,6 +748,7 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
       "env",
       `PATH=${launchPath}`,
       ...command,
+      ...(isChronosVersion(environment.appVersion) ? ["--base-dir", "~/.chronos"] : []),
       "--bootstrap-fd",
       "0",
       ...devUrlArgs,

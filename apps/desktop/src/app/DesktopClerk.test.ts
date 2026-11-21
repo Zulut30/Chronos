@@ -64,9 +64,11 @@ const layerDesktopClerk = (
     copyText: () => Effect.void,
   },
   listeners = new Map<string, (...args: unknown[]) => void>(),
+  appVersion = "1.0.0",
 ) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
     stateDir: clerkStateDir,
+    appVersion,
     isDevelopment,
     appDataDirectory: "/tmp/app-data",
     platform,
@@ -119,6 +121,13 @@ describe("DesktopClerk", () => {
 
   it.each([
     {
+      name: "standalone Chronos on Windows",
+      isDevelopment: false,
+      platform: "win32" as const,
+      appVersion: "0.1.11-nightly.20261117.4838.chronos.2",
+      userData: "/tmp/app-data/Chronos",
+    },
+    {
       name: "packaged macOS",
       isDevelopment: false,
       platform: "darwin" as const,
@@ -144,7 +153,7 @@ describe("DesktopClerk", () => {
     },
   ])(
     "creates the bridge before startup can yield to the event loop ($name)",
-    ({ isDevelopment, platform, userData }) => {
+    ({ isDevelopment, platform, userData, appVersion }) => {
       const events: string[] = [];
       storageMock.mockReturnValue(storageAdapter);
       createClerkBridgeMock.mockImplementation(() => {
@@ -155,7 +164,15 @@ describe("DesktopClerk", () => {
       Effect.runSync(
         Effect.scoped(
           Layer.build(
-            layerDesktopClerk(isDevelopment, events, platform, DesktopPreReadyFileSystem.layer),
+            layerDesktopClerk(
+              isDevelopment,
+              events,
+              platform,
+              DesktopPreReadyFileSystem.layer,
+              undefined,
+              undefined,
+              appVersion,
+            ),
           ),
         ),
       );
@@ -170,6 +187,10 @@ describe("DesktopClerk", () => {
       assert.deepEqual(storageMock.mock.calls, [
         [{ path: NodePath.join(NodePath.resolve(clerkStateDir), "clerk") }],
       ]);
+      assert.equal(
+        createClerkBridgeMock.mock.calls[0]?.[0]?.renderer.scheme,
+        appVersion ? "chronos" : isDevelopment ? "t3code-dev" : "t3code",
+      );
       assert.notStrictEqual(createClerkBridgeMock.mock.calls[0]?.[0]?.storage, storageAdapter);
     },
   );

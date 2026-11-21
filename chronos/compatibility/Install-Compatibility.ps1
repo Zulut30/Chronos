@@ -32,10 +32,10 @@ foreach($relative in $manifest.preserve){
   elseif(Test-Path -LiteralPath $path -PathType Container){$protected+=Get-ChildItem -LiteralPath $path -File -Recurse | Where-Object {$_.FullName -notmatch '[\\/](node_modules|\.git|logs|cache)[\\/]' -and $_.Extension -in '.json','.toml','.js','.mjs','.py','.html','.css','.vbs','.ps1'}}
 }
 $before=@{};foreach($file in $protected){$before[$file.FullName]=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash}
-$checkpoint=Join-Path $ProfileHome ('.t3\chronos-install-checkpoints\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
+$checkpoint=Join-Path $ProfileHome ('.chronos\install-checkpoints\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Path $checkpoint | Out-Null
 $before | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $checkpoint 'before-hashes.json') -Encoding UTF8
-Write-Output 'Close T3 manually before continuing the installer. Existing services remain in place.'
+Write-Output 'Installing Chronos alongside T3. Existing services remain in place.'
 $process=Start-Process -FilePath $resolvedInstaller -PassThru -Wait
 if($process.ExitCode -ne 0){throw "Installer exited with code $($process.ExitCode)"}
 $changed=@();foreach($file in $before.Keys){if(-not(Test-Path -LiteralPath $file) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $before[$file]){$changed+=$file}}

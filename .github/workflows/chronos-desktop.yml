@@ -317,6 +317,18 @@ jobs:
           done
           cat release-assets/*.yml
 
+      - name: Prepare permanent installer links
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          cd release-assets
+          cp "Chronos-${VERSION}-x64.exe" Chronos-Setup-x64.exe
+          cp "Chronos-${VERSION}-arm64.dmg" Chronos-mac-arm64.dmg
+          cp "Chronos-${VERSION}-x64.dmg" Chronos-mac-x64.dmg
+          sha256sum Chronos-Setup-x64.exe Chronos-mac-{arm64,x64}.dmg > SHA256SUMS
+
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}

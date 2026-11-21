@@ -1,0 +1,37 @@
+name: T3 nightly compatibility report
+on:
+  schedule:
+    - cron: "31 7 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chronos-upstream-report
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare the published T3 nightly with the Chronos base
+        shell: bash
+        run: |
+          set -euo pipefail
+          upstream=https://github.com/pingdotgg/t3code.git
+          base=$(node -p "require('./chronos/version.json').upstream")
+          pinned=$(node -p "require('./chronos/version.json').upstreamCommit")
+          git fetch --no-tags "$upstream" "refs/tags/v$base"
+          test "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$pinned"
+          git ls-remote --tags --refs --sort=-version:refname "$upstream" 'v*-nightly.*' > "$RUNNER_TEMP/nightlies"
+          read -r sha ref < "$RUNNER_TEMP/nightlies"
+          git fetch --no-tags "$upstream" "$ref"
+          test "$(git rev-parse FETCH_HEAD)" = "$sha"
+          echo "### ${ref#refs/tags/}" >> "$GITHUB_STEP_SUMMARY"
+          node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD | tee "$RUNNER_TEMP/report"
+          echo '~~~~text' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/report" >> "$GITHUB_STEP_SUMMARY"
+          echo '~~~~' >> "$GITHUB_STEP_SUMMARY"
