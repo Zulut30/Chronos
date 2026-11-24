@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off -- Build-time translator used by the Vite plugin and parity scripts in Node.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -17,7 +18,7 @@ const presentational = new Set([
 const keys = [...presentational, "label", "title", "text", "message", "detail", "summary"].join("|");
 // patch-combined.py permits unescaped backticks as delimiters and a single level of interpolation.
 const body = /(?:[^\x60$\\]|\$(?!\{)|\$\{[^\x60{}]*\})*/.source;
-const keyed = new RegExp(/(?<![\p{L}\p{N}_$.])/.source + "(" + keys + "):`(" + body + ")`", "gu");
+const keyed = new RegExp("(?<![\\p{L}\\p{N}_$.])" + "(" + keys + "):`(" + body + ")`", "gu");
 const literal = new RegExp("`(" + body + ")`", "gu");
 // Python str.strip also treats U+001C..001F as whitespace and leaves the BOM alone.
 const leading = /^[\p{White_Space}\x1c-\x1f]+/u;

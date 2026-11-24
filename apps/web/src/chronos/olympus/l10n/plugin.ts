@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off -- Vite build plugin: runs in Node at build time, never in the client.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

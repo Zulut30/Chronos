@@ -48,7 +48,8 @@ export function shiftMappings(mappings: string, code: string, edits: Edit[]): st
   let line = 0, lineStart = 0;
   let columns: Edit[] = [];
   function flush() {
-    if (columns.length && lines[line]) lines[line] = shiftLine(lines[line], columns);
+    const current = lines[line];
+    if (columns.length && current) lines[line] = shiftLine(current, columns);
     columns = [];
   }
   for (const edit of edits) {
