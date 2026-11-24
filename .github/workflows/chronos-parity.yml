@@ -1,0 +1,43 @@
+name: Chronos Olympus translation parity
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'parity/**'
+
+permissions:
+  contents: read
+
+jobs:
+  l10n-4774:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      CHRONOS_L10N_STRICT: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download and unpack the pinned official Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $reference = Get-Content -Raw chronos/parity/l10n-4774.json | ConvertFrom-Json
+          $tag = $reference.tag
+          $asset = 'T3-Code-' + $tag.Substring(1) + '-x64.exe'
+          $dir = Join-Path $env:RUNNER_TEMP 'olympus-l10n'
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $installer = Join-Path $dir $asset
+          curl.exe --fail --location --retry 3 --silent --show-error "https://github.com/pingdotgg/t3code/releases/download/$tag/$asset" --output $installer
+          if ($LASTEXITCODE) { throw "Installer download failed: $LASTEXITCODE" }
+          if ((Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash -ne $reference.installerSha256) { throw 'Installer SHA-256 mismatch' }
+          $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          & $sevenZip x -y -bd $installer '$PLUGINSDIR\app-64.7z' "-o$dir"
+          if ($LASTEXITCODE) { throw "NSIS extraction failed: $LASTEXITCODE" }
+          & $sevenZip x -y -bd (Join-Path $dir '$PLUGINSDIR/app-64.7z') 'resources/server.asar' "-o$dir"
+          if ($LASTEXITCODE) { throw "Payload extraction failed: $LASTEXITCODE" }
+      - name: Compare official chunks to Olympus LIVE references
+        shell: pwsh
+        run: node chronos/scripts/parity/verify-l10n.mjs --asar (Join-Path $env:RUNNER_TEMP 'olympus-l10n/resources/server.asar')

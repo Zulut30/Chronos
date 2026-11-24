@@ -52,8 +52,9 @@ function activateLocale(locale: string): void {
 
 function applyLanguageSetting(): void {
   // Not desktopBridge.getSystemLocale(): that is the regional/time locale, not the UI language.
+  const language = getClientSettings().language;
   requestedLocale = resolveLocale(
-    getClientSettings().language,
+    !language || language === "en" ? "ru" : language, // chronos(olympus): main N02
     navigator.languages,
     SUPPORTED_LOCALES,
     DEFAULT_LOCALE,

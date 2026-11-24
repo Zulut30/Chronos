@@ -1,0 +1,791 @@
+{
+  "tag": "v0.1.10-nightly.20261116.4774",
+  "installerSha256": "8302e84605385e3073bf43fbee5e744e081aa41bb42a47b22d49148264cec7d5",
+  "serverAsarSha256": "8cc741f1b5e7857f3f29b069a4d80d420b2c4ef206d85bed8ad7d37487d37af5",
+  "runtimeSha256": "9605068e2aaeda1eb68a6114e59b81685194cbee777b4b783dc16c2d8351a7f5",
+  "dictionarySha256": "cef7b8231947f671757e3d2a7858fdfd3b924d1e4de62a7949a3d9694aa4b929",
+  "files": {
+    "apps/server/dist/ManagedEndpointRuntime--5XAAKR8.mjs": {
+      "localizations": 0,
+      "sha256": "ee450cf4e82a46e093c56a1413197e7015a8dbef7119023fb628375117ff00ab",
+      "nativeCleanBytes": [
+        [
+          831250,
+          831250
+        ],
+        [
+          1177336,
+          1177338
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/AddProviderInstanceDialog-5eotnjob.js": {
+      "localizations": 217,
+      "sha256": "7da26b906da5e8e68d2d59f411766cb2d61c4985bf6ac5ec074e4f63fea7222f"
+    },
+    "apps/server/dist/client/assets/AppRouteModal-ABQk0u4b.js": {
+      "localizations": 2,
+      "sha256": "0d38742721b9f55dce553b425c40b98bd2151116f85c05913718b3a4dc298718"
+    },
+    "apps/server/dist/client/assets/BinaryViewer-B42ulpTe.js": {
+      "localizations": 18,
+      "sha256": "42ee623d478dfe452730fc4da5f04a7446730cea7f141c63743717fc62c46304"
+    },
+    "apps/server/dist/client/assets/ChatMarkdown-lT6xQ6yD.js": {
+      "localizations": 138,
+      "sha256": "c5113fae49d1d1b717cb776015664d0e5d583a76016e03cadf785c607cf75076",
+      "nativeCleanBytes": [
+        [
+          300783,
+          300783
+        ],
+        [
+          300865,
+          300865
+        ],
+        [
+          302384,
+          302391
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/CliCommandSettingsRow-BPSG9aCJ.js": {
+      "localizations": 9,
+      "sha256": "6c0c5ea9ca065172b0a7f56f923b660105b9289067b6c6cf194f71904ea6b6d4"
+    },
+    "apps/server/dist/client/assets/CommandBlock-TonJEOu4.js": {
+      "localizations": 1,
+      "sha256": "b793dfa147083bb7eeda6bac4b58f15a8a624f451d2a5bb058cfc6acf4b24a48"
+    },
+    "apps/server/dist/client/assets/ConnectionDiagnosisDetails-_VWW0BYT.js": {
+      "localizations": 6,
+      "sha256": "1aca92d1518bbe8ce0d661d2ad00118a23fe88f288859d4c578a4f472c6ccc41"
+    },
+    "apps/server/dist/client/assets/ConnectionsSettings-HhAYwrMX.js": {
+      "localizations": 226,
+      "sha256": "01b5ae3c951913456b134d4c8f4945fd89627aad4e6c3236ef4b99485ad0fcb4"
+    },
+    "apps/server/dist/client/assets/DevicePanel-CBkRfzlB.js": {
+      "localizations": 108,
+      "sha256": "a5dd9c6a1325ec89ec782ab1cd834fe2ca13d9f4ba35a4ef2ea77a307ca1b546"
+    },
+    "apps/server/dist/client/assets/DeviceSetup-JbHgbo7d.js": {
+      "localizations": 22,
+      "sha256": "23db01763b9b0b3bf6db51c5e7a15de7b95399e446198681be0154406488ff28"
+    },
+    "apps/server/dist/client/assets/DiffCommentAnnotation-YS_-TTND.js": {
+      "localizations": 13,
+      "sha256": "ea70b73b356981ea86cf37a69be5d38b5e6891c44176a412ab41fd252c69eda6"
+    },
+    "apps/server/dist/client/assets/DiffFileTree-nDCWdVHg.js": {
+      "localizations": 1,
+      "sha256": "e337a5cf09614f13845055b182172f25339c809b0f1d82b19fd6178fb820f974"
+    },
+    "apps/server/dist/client/assets/DiffPanel-BVARAjwr.js": {
+      "localizations": 32,
+      "sha256": "258fd611070394cfe5e3220cdb7617525f5b7f290cddd6d41fc4037efdddfb18",
+      "nativeCleanBytes": [
+        [
+          7,
+          7
+        ],
+        [
+          46733,
+          46733
+        ],
+        [
+          46860,
+          46860
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/DiffWorkerPoolProvider-DTawNb6s.js": {
+      "localizations": 3,
+      "sha256": "cd310bc6f6ed85598ad983434503caeaf18c28cde243f17727b4cc4f342b792f"
+    },
+    "apps/server/dist/client/assets/DocumentPages-1Nb_Q0YD.js": {
+      "localizations": 3,
+      "sha256": "89ed90e18c318179c30a240abd6806397296ddc3ff22e001c5ef79c71021e469"
+    },
+    "apps/server/dist/client/assets/ElectronManagedAuthShell-DE24n8Nf.js": {
+      "localizations": 152,
+      "sha256": "0226a2de3393cba25d9d4e6f05731a97928e0357b93bcc165fadc8e23deda5c6"
+    },
+    "apps/server/dist/client/assets/EnvironmentMachineIcon-CPYsYfzY.js": {
+      "localizations": 2,
+      "sha256": "79825bb6546d45131aab6e167014a93a73a4c563386d4579a6fabce849017e1d"
+    },
+    "apps/server/dist/client/assets/FileExplorerPane-0yj9oNO0.js": {
+      "localizations": 43,
+      "sha256": "cfa54ca70cb4553d2f0542a2076abe575b925fc6bd6324ed7add100429a9e523"
+    },
+    "apps/server/dist/client/assets/FilePreviewPanel-DrCsky_s.js": {
+      "localizations": 53,
+      "sha256": "ccfc24ec6b239fc2d930d2039f07342660cb6df96e8d9cd7a5e5662537334c48"
+    },
+    "apps/server/dist/client/assets/FontViewer-ZJK2kDq1.js": {
+      "localizations": 9,
+      "sha256": "f1340a69cd3490def7aec3c10922baf49a107b869ee2fbc37a3c47e8f70a772c"
+    },
+    "apps/server/dist/client/assets/IntegrationsSettings-nakc5v8z.js": {
+      "localizations": 137,
+      "sha256": "eee3aca4ee3ea8d44d3fcbccf872bc0e71ae91d895d274fbd207f5d8c18bd107"
+    },
+    "apps/server/dist/client/assets/LargeTextViewer-DjX1kX9v.js": {
+      "localizations": 8,
+      "sha256": "cc59069707ccdc5e9ef84c11e3b4255da3aa85f2901542588ac5215c6b9c7838"
+    },
+    "apps/server/dist/client/assets/LinkMachineSelect-DnZHN5Y8.js": {
+      "localizations": 6,
+      "sha256": "5c8997a329ab1c783fa23b5099d7eff5dd870295520b4f5c66dd725db4ffd836"
+    },
+    "apps/server/dist/client/assets/ManagedPolicy-CQRFc1Mu.js": {
+      "localizations": 1,
+      "sha256": "e27222ba5c8add2362ccf9fd713cf018700c6224c80bdc03c62c2a8eadd1491a"
+    },
+    "apps/server/dist/client/assets/Match-CtCj-_Kc.js": {
+      "localizations": 5,
+      "sha256": "3a69be445f8c3b5ea7b29a7a9da38bee925009fb9549ef6ed9af56094d9596dc"
+    },
+    "apps/server/dist/client/assets/MermaidViewer-9MRJBEy-.js": {
+      "localizations": 2,
+      "sha256": "b3ff5c1e337add509a6a1c117ecc10c76f5b419e0f8749e0f5c201e65de867f2"
+    },
+    "apps/server/dist/client/assets/NoProjectsHero-9dW2Ipbl.js": {
+      "localizations": 4,
+      "sha256": "5b95669da422365d37ed9f177ebeb9bb30648fd24c279d3c4c30805a9ab8d8da"
+    },
+    "apps/server/dist/client/assets/NotebookPreview-DDQ9f1sD.js": {
+      "localizations": 4,
+      "sha256": "6d35d5604aad8431ed11f65ed7188003d611a6b36872383a5e1949121d0c0982"
+    },
+    "apps/server/dist/client/assets/OfficeViewer-CNmGLa-8.js": {
+      "localizations": 19,
+      "sha256": "87d889edc4bb7677aac2a5fcdaf4e8298afb71ec3b6cf6adfca9e6bb68ef7778"
+    },
+    "apps/server/dist/client/assets/OpenXmlOfficeViewer-CVvcGeaQ.js": {
+      "localizations": 12,
+      "sha256": "9b6bc17f7e79b424a3a195ec3760cde257892571cd5d1afd1e27d234de2b025d"
+    },
+    "apps/server/dist/client/assets/PanelLayoutControls-D5h6PAPa.js": {
+      "localizations": 202,
+      "sha256": "97d188a01c017d5db3f19de1d0e6177bc5ada600ba0bc091f3dbb4e5591b5718"
+    },
+    "apps/server/dist/client/assets/PdfViewer-BKvO5-qu.js": {
+      "localizations": 44,
+      "sha256": "382be49662d6fb2ee174cd6e182de06195e6b22059ae9e44bc9dadfa9809ccb8"
+    },
+    "apps/server/dist/client/assets/Presentation-1PjO9PYQ.js": {
+      "localizations": 8,
+      "sha256": "e2c5ccc083d7e96e2ddb1ab31e55b2344a61cd094605340b0fe3e3a79696dc05"
+    },
+    "apps/server/dist/client/assets/PreviewImageContent-Cssf54nY.js": {
+      "localizations": 6,
+      "sha256": "20b7a2cf60310f45a43c1c6e6ba2f903a8103bb67eb1a704c1b2f6560a48eeee"
+    },
+    "apps/server/dist/client/assets/PreviewPanel-BHTahaKH.js": {
+      "localizations": 64,
+      "sha256": "6bba0fe071a85d4f33fb5f800e63e70d813adc7c9926110bcd6c1de20917d417"
+    },
+    "apps/server/dist/client/assets/ProjectDefaultsSettings-Dqv9KjMG.js": {
+      "localizations": 31,
+      "sha256": "671bed30e763f9934f62e083bf837bb71ee6c981abb13251f8f06772166c9fcb"
+    },
+    "apps/server/dist/client/assets/ProjectIconPickerDialog-C2s8L2oN.js": {
+      "localizations": 48,
+      "sha256": "6433ce2b1a7aa89dea32812829893869f252b2dec15f0a55c26558fdf893526a"
+    },
+    "apps/server/dist/client/assets/ProjectMonogram-BqT_pQ-O.js": {
+      "localizations": 18,
+      "sha256": "01f4b16a224a2a6bc1c5fff250d79b28a5da29e6accac1f84e94c28a33e07dd8"
+    },
+    "apps/server/dist/client/assets/ProviderAuthTerminal-BGTfOuFL.js": {
+      "localizations": 3,
+      "sha256": "e767e1bff4bf567a14be97f46c9df4e6d6296a60d722c321f4674c7532bbe2f8"
+    },
+    "apps/server/dist/client/assets/ProviderModelPicker-BbXFa17i.js": {
+      "localizations": 16,
+      "sha256": "919cddccf8db0f924bbc0433e25a82a6c7aa67fbbe5b1ba1c261e04f7c199e7c"
+    },
+    "apps/server/dist/client/assets/ProviderSettingsForm-D6puBvM-.js": {
+      "localizations": 10,
+      "sha256": "081dbceee03643600a396e8dbe7a7a3cbc45366508f118f420161f4f3f4015c3"
+    },
+    "apps/server/dist/client/assets/PullRequestCodeTab-DB730Wx9.js": {
+      "localizations": 34,
+      "sha256": "91a1abd7b964dabd3255d0bb93e3b2e6a14c19fabdab96a7891683a62e1375c6"
+    },
+    "apps/server/dist/client/assets/ScheduledTasksSettings-u8gk54Y-.js": {
+      "localizations": 105,
+      "sha256": "a11265309cac9dfc3c935ef9ea010a0777794dc204751f38b6938faadea78cd0"
+    },
+    "apps/server/dist/client/assets/SecretSourceInput-BV6Tv5Qc.js": {
+      "localizations": 2,
+      "sha256": "c31e94ea25396e13bb70dd0d9b89ccc3c14718e2e1a6502c44324619044a5cd9"
+    },
+    "apps/server/dist/client/assets/ServerUpdateAction-CdmqZ5Gq.js": {
+      "localizations": 13,
+      "sha256": "40dd1217fa4839dfc3dad923cec7ba652ad9f35954ed3355c5b68a04c83cf27f"
+    },
+    "apps/server/dist/client/assets/SettingsPanels-CUO_vFXu.js": {
+      "localizations": 202,
+      "sha256": "f3c9281ea920e36d9d3c317325b00d63ce8f64838c006ddbb0091b93ca97c41a"
+    },
+    "apps/server/dist/client/assets/SettingsScopeNotice-ed_fpWcW.js": {
+      "localizations": 1,
+      "sha256": "fe2ec4707397595c0192371eb723e57d2c46ec77876f0ab44fcd5566078117d8"
+    },
+    "apps/server/dist/client/assets/Sidebar.logic-D-9GGz4o.js": {
+      "localizations": 9,
+      "sha256": "bf26a5b53c7eb70e1b0ccba329bf74e7fccdaa83d5845915a1bb09dee92657aa"
+    },
+    "apps/server/dist/client/assets/Spreadsheet-C1FVQiZY.js": {
+      "localizations": 2,
+      "sha256": "d418d32f4eeaf3e1652fafc55247d66f65f5360b912068b21d5f8167e4ff3b29"
+    },
+    "apps/server/dist/client/assets/StorageSettings-sCr0roqt.js": {
+      "localizations": 66,
+      "sha256": "2e3118333a24458bfaa47c033e7e6e7ddd6c0c641ce8f5e84c3dab210b0ea90a"
+    },
+    "apps/server/dist/client/assets/T3ConnectAccountPages-WT4hWJ7Q.js": {
+      "localizations": 33,
+      "sha256": "c5de386176e15b351c49bdb366dca39266a77066d734a6ad6ee8f25aed21e76d"
+    },
+    "apps/server/dist/client/assets/T3ConnectSidebarSignIn-oi_bK3Mq.js": {
+      "localizations": 2,
+      "sha256": "12cd57c4fe200a3535185a1d5e1ea39274696cea4c3186b3c204d57cda50014f"
+    },
+    "apps/server/dist/client/assets/ThemeEditorPanel-CYNJRdeX.js": {
+      "localizations": 50,
+      "sha256": "e4a9976cf877675cabf8e22da4408427bbf6f155e062800bc7defa184d721e30"
+    },
+    "apps/server/dist/client/assets/ThreadDetailsItemsMenu-nmodI3O-.js": {
+      "localizations": 33,
+      "sha256": "2b3f3c9252a2187f7e76efefe4d63a6b298344d51d1f61f8a76b59e1787b77bc",
+      "nativeCleanBytes": [
+        [
+          406006,
+          406006
+        ],
+        [
+          465165,
+          465165
+        ],
+        [
+          509245,
+          509288
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/ThreadTerminalDrawer-DZMvTxW-.js": {
+      "localizations": 12,
+      "sha256": "b868a44b1b1ca3ab117ffdebd89c9d6e4b5078dea6ad70097bd0a297a3b1cb10"
+    },
+    "apps/server/dist/client/assets/UsageLimits-MnFl4D3C.js": {
+      "localizations": 15,
+      "sha256": "cbdd25f8873900d0bcbb1f8113909088dd25c3d6d23721dfbe73686321adb639",
+      "nativeCleanBytes": [
+        [
+          24696,
+          24696
+        ],
+        [
+          24990,
+          24990
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/WordDocument-Cgcp6XZ_.js": {
+      "localizations": 1,
+      "sha256": "0ebf67e9954a7b57310f30b2626ca9172aee49262d1d75090a54933b3aa9fe91"
+    },
+    "apps/server/dist/client/assets/_chat-CZ9dvfEY.js": {
+      "localizations": 537,
+      "sha256": "096001c102da3b37cc8931944eeb15bba1c7b238d00b4f43389b54b2daf27b01",
+      "nativeCleanBytes": [
+        [
+          237051,
+          237051
+        ],
+        [
+          237304,
+          237306
+        ],
+        [
+          237502,
+          237504
+        ],
+        [
+          277779,
+          277779
+        ],
+        [
+          279003,
+          279003
+        ],
+        [
+          283504,
+          283506
+        ],
+        [
+          284078,
+          284080
+        ],
+        [
+          284583,
+          284585
+        ],
+        [
+          289001,
+          289001
+        ],
+        [
+          289311,
+          289313
+        ],
+        [
+          289541,
+          289543
+        ],
+        [
+          510142,
+          510142
+        ],
+        [
+          939597,
+          939599
+        ],
+        [
+          963792,
+          963796
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/_chat.index-Bau3gb3C.js": {
+      "localizations": 15,
+      "sha256": "7fab5d31b17fba3baf47c5c1b8a4337aafab8ebb14ab637d250d00c7fbf97c34"
+    },
+    "apps/server/dist/client/assets/_chat.new-Dmyb9Buw.js": {
+      "localizations": 21,
+      "sha256": "e13c810d902775829aab871f7903644471e0e31c7a252cd3a09946aaa1b44678"
+    },
+    "apps/server/dist/client/assets/_chat.pull-requests-DJM7j4M3.js": {
+      "localizations": 59,
+      "sha256": "9df301f1174d8f2a1befdf31b6f686a85aecbb3353f7b4e8cc80badaeb2a460c"
+    },
+    "apps/server/dist/client/assets/_chat.settings-aQ-sMlzQ.js": {
+      "localizations": 11,
+      "sha256": "dea075daa3fd2bf041152b10c3d37013b77da37f75b75b4e85752fd391594366"
+    },
+    "apps/server/dist/client/assets/_chat.settings.appearance-CUBqb35D.js": {
+      "localizations": 114,
+      "sha256": "6b2f495571c7ce3b8491e58d0e1f9edbbceec9fb31e3727b2d3d3afbd4abc404"
+    },
+    "apps/server/dist/client/assets/_chat.settings.archived-CWUMGCk0.js": {
+      "localizations": 7,
+      "sha256": "1b63bb6b66766d60414fa51f7ec216eeb2596b937e524ac8943534e9a5efb978"
+    },
+    "apps/server/dist/client/assets/_chat.settings.diagnostics-CGTI2SAp.js": {
+      "localizations": 156,
+      "sha256": "ff2153aeeddf1d4f4a8ea7ad001e481416e2b876faa730a9649c719662437fb7"
+    },
+    "apps/server/dist/client/assets/_chat.settings.keybindings--iGxtYKP.js": {
+      "localizations": 27,
+      "sha256": "b11196b1f3115e7fd1a1ae0e1fd3cd757d58370b1344c79b0ea37509f8a6a219"
+    },
+    "apps/server/dist/client/assets/_chat.settings.labs-D9DcKadQ.js": {
+      "localizations": 16,
+      "sha256": "f48b8f164fef4657709d9f7dcbfb29654f60c963f1443443986778f672f05183"
+    },
+    "apps/server/dist/client/assets/_chat.settings.open-source-licenses-ClcQtBcO.js": {
+      "localizations": 14,
+      "sha256": "3db8fac1a70bf7766cdb3eae665afc557025336979517c4bdeb7398e3cefb18c"
+    },
+    "apps/server/dist/client/assets/_chat.settings.projects-DaZzr8FG.js": {
+      "localizations": 43,
+      "sha256": "9af6b6de17967a3de9c7c95ebb2f35cafb320986820260b400133fbe5912f534"
+    },
+    "apps/server/dist/client/assets/_chat.settings.providers-BujuNlOC.js": {
+      "localizations": 86,
+      "sha256": "10a9c5232182c8259dd65acc9dc52af5ed718f291f030e3da5b5a9556c7dcd4f"
+    },
+    "apps/server/dist/client/assets/_chat.settings.secrets-BK9nehis.js": {
+      "localizations": 16,
+      "sha256": "6fa061fbd8a6f794a78d9ef514e3f5f4aedb19ba59be06fb3357a160d1dfa479"
+    },
+    "apps/server/dist/client/assets/_chat.settings.snap-shot-C1CBBXGF.js": {
+      "localizations": 146,
+      "sha256": "c52acf11f00c03d5da739114247513f47afd3de475e61f79a459ff561dd2eced"
+    },
+    "apps/server/dist/client/assets/_chat.settings.source-control-CqJiA6US.js": {
+      "localizations": 80,
+      "sha256": "33765a4994b2cc512ec87b75930d8e95397af500e5b63fba56b07ceaf03cd5e3"
+    },
+    "apps/server/dist/client/assets/_chat.settings.voice-CiOgbDps.js": {
+      "localizations": 123,
+      "sha256": "081a24a8567a74655575a1857e82ec925b8e1ad4cef3ca77ac35dfddaaf0d710"
+    },
+    "apps/server/dist/client/assets/_chat.settings.worktrees-B6p63cji.js": {
+      "localizations": 19,
+      "sha256": "357356a6308dc91215e522c89f5de49004e8b808912c6abedbd41a6d303174ac"
+    },
+    "apps/server/dist/client/assets/_chat.usage-D4YK1JQk.js": {
+      "localizations": 92,
+      "sha256": "bd956e3d5c65e6f1e19e19dcf3551a46ced1b6273a4ddabac7be14d08bd4da7c"
+    },
+    "apps/server/dist/client/assets/approve-agent-CHiw2d5A.js": {
+      "localizations": 17,
+      "sha256": "0b88e9eb4c63a23f75f6aa14d576c81842ecf6fffca1f42673985c84f575ea37"
+    },
+    "apps/server/dist/client/assets/assets-XggmHgh0.js": {
+      "localizations": 1,
+      "sha256": "a03ab880595495fac9b282c6608239dbc23907993ccd2e9645c460126a977b89"
+    },
+    "apps/server/dist/client/assets/browserDefaults-CU4Eiw_d.js": {
+      "localizations": 1,
+      "sha256": "a722e4fc26ad55c54df22be2046aa1cdab6f934fd951202995ad974717bc2dff"
+    },
+    "apps/server/dist/client/assets/clerkAppearance-CNTqIlkg.js": {
+      "localizations": 1,
+      "sha256": "48562ace53156f7f6de756ba8fe19eb4367c522d80b8e017e66e40e575ee72c2"
+    },
+    "apps/server/dist/client/assets/cloudLinkState-ddCctNX6.js": {
+      "localizations": 10,
+      "sha256": "4637ad5a29c1e46e446cf9b4302104fb31cef4593ef27c80cccb9f542d5032e8"
+    },
+    "apps/server/dist/client/assets/color-picker-ubFXLRzm.js": {
+      "localizations": 1,
+      "sha256": "f77b2936f6b383ca9989b36e1a03310dffebe34020727175d4581cc8885f999a"
+    },
+    "apps/server/dist/client/assets/combobox-DDehKlWQ.js": {
+      "localizations": 1,
+      "sha256": "a7b1c20c687414c26f1f7bd4090cb9d653b8426fdf62f4e963d1a3149f403269"
+    },
+    "apps/server/dist/client/assets/commandPaletteBus-Dhr3iwSh.js": {
+      "localizations": 18,
+      "sha256": "2c699965aa3e51fa73000b26a6e7463ff2ad6fc53302f237d7819c944fb0c09e"
+    },
+    "apps/server/dist/client/assets/composerDraftUploads-BWtylx2D.js": {
+      "localizations": 14,
+      "sha256": "d6b8ae08f07022ad1abf222ee736d7d2fdca844733fa484b6a22d5f80dface5b"
+    },
+    "apps/server/dist/client/assets/connect-CKDP5SPP.js": {
+      "localizations": 8,
+      "sha256": "ddc736a3c32ab38d3f7dfae9e67fd92ad697364e6b27550069d3bd9f7eab8bd1"
+    },
+    "apps/server/dist/client/assets/contextPresentationRegistry-BM-Deg2S.js": {
+      "localizations": 11,
+      "sha256": "b9ada45802a51c4f254799cca53515fcf1e91cef92be67b9b97d45b50c2df424"
+    },
+    "apps/server/dist/client/assets/dialog-CT5EMfql.js": {
+      "localizations": 1,
+      "sha256": "70bf1c36e1b1bb423b5fc364a668b360f188f227328d1b1e07eb20e7a2fcd7ef"
+    },
+    "apps/server/dist/client/assets/dist-DkBgkJao.js": {
+      "localizations": 9,
+      "sha256": "217ecf157545ec71731862c479637116f480e21ffae1443a67e27d73d82df10b"
+    },
+    "apps/server/dist/client/assets/editorPreferences-B9hQdurX.js": {
+      "localizations": 5,
+      "sha256": "4789fcc0787ceb6a8dbbae7346d8a4468a76e4322b739fd540bc43f9a465705a"
+    },
+    "apps/server/dist/client/assets/entities-BYt4Kx9w.js": {
+      "localizations": 3,
+      "sha256": "9881426441d3629753b87ca11df4b24c5fa2f58a51da345394a8e1c647644622"
+    },
+    "apps/server/dist/client/assets/guest-BM2FlfYM.js": {
+      "localizations": 27,
+      "sha256": "0033f3360fc51cf3fdcf73c1c41d78e54d71158b5caa61e789ad4b476b7c4fd4"
+    },
+    "apps/server/dist/client/assets/highlights-BF6Gp_9w.js": {
+      "localizations": 2,
+      "sha256": "f545c976dba747fcf52bf7db1f1df302795653ae638913cf09a748d47fb7fb65"
+    },
+    "apps/server/dist/client/assets/highlights-DUvI2TAi-DqYuASdq.js": {
+      "localizations": 2,
+      "sha256": "39e816e8ec7b142651aa1d0914ad6ad84328b91b9494744417c44276238000d5"
+    },
+    "apps/server/dist/client/assets/index-C8eVBVgY.js": {
+      "localizations": 25,
+      "sha256": "71da137918c57ac909bf3d53a072617b3043ed810d3ef7ec09b53902a5677019"
+    },
+    "apps/server/dist/client/assets/langs-CkJPLZvO.js": {
+      "localizations": 5,
+      "sha256": "1687ad08307196b8429fbed6d118330e7b3489879560a7190b65f31f02dada20"
+    },
+    "apps/server/dist/client/assets/langs-hpg6MgFq.js": {
+      "localizations": 5,
+      "sha256": "09e206070e2443838d62e3f3117125c546a4896e6ad64bd3c77085244bc76d3e"
+    },
+    "apps/server/dist/client/assets/main-lxHaZZx7.js": {
+      "localizations": 621,
+      "sha256": "cb61a5804338c1d7cf76b622f837aa443bb282ae72b8cf37719814c53f74ca8f",
+      "nativeCleanBytes": [
+        [
+          436962,
+          436962
+        ],
+        [
+          1108310,
+          1108323
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/managedPolicy-C3h_s6lU.js": {
+      "localizations": 1,
+      "sha256": "56ed20f148e17705cf099c10cbe338cdd3e42b2cb04237b98ad1f35683350eee"
+    },
+    "apps/server/dist/client/assets/openPullRequestLink-B6hWAC90.js": {
+      "localizations": 3,
+      "sha256": "1fd01ba82cb20a46e923f95bd16418f6d0230c3f3b64d42dfcda81fcbfa03a5d"
+    },
+    "apps/server/dist/client/assets/peerLinks-C5fFCsij.js": {
+      "localizations": 2,
+      "sha256": "57a7c8dc81f79eda455afd60799ab78cf888b1894552d70131c9a282c0f88255"
+    },
+    "apps/server/dist/client/assets/pierre-icons-Bzfbe5S-.js": {
+      "localizations": 0,
+      "sha256": "f18c070b5c82aeb624535ab6a62f1419fcabe024311c67c1e2b3a64edf058915",
+      "nativeCleanBytes": [
+        [
+          63328,
+          63331
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/projectFilesQueryState-_Bml8ddM.js": {
+      "localizations": 3,
+      "sha256": "f7ef89b54dedbdcbe2743ffaf93f1b5c1a3bab3e7692be1c433b8f6d8371157d"
+    },
+    "apps/server/dist/client/assets/projectScripts-3NnYmbBO.js": {
+      "localizations": 33,
+      "sha256": "c9adb9da3d86bfd8304cfe03388534d91d46a86e32d5893f785ad61c8089e241"
+    },
+    "apps/server/dist/client/assets/pullRequests-DCzFl2Ve.js": {
+      "localizations": 15,
+      "sha256": "4647cd5831c26c7d62839bebee9a0602aed8ffc40135298da1aaf84c09ca91d8"
+    },
+    "apps/server/dist/client/assets/queries-BWHktTOh.js": {
+      "localizations": 2,
+      "sha256": "579b2bfd96b85b58c7511c0b4f822e82219b668d71087e0542d860cfba5c63fa"
+    },
+    "apps/server/dist/client/assets/query-CW6ILiMx.js": {
+      "localizations": 1,
+      "sha256": "8c87bf3dc0a6a347fde674305592e7b4d72a1b2906133d5c58b0b5e922c3e115"
+    },
+    "apps/server/dist/client/assets/settingsLayout-FJp2nM8c.js": {
+      "localizations": 19,
+      "sha256": "6d2b330caf81574fd49bbdc04f64a69b8f5a05ec5ed2abac64bd12d35257c2dd"
+    },
+    "apps/server/dist/client/assets/sidebar-CeyD-oae.js": {
+      "localizations": 3,
+      "sha256": "f04084c34891c9f210185b846c97c3e75f2a41b0dd32e262fee6e082d92c8dcf"
+    },
+    "apps/server/dist/client/assets/textGenerators-C3Aftrfo.js": {
+      "localizations": 1,
+      "sha256": "14d06912ad6c5a1bb812e6f016f71bb364a6caa83c30bf2096d077f56ce8844d"
+    },
+    "apps/server/dist/client/assets/themePalette-BrFetdG-.js": {
+      "localizations": 0,
+      "sha256": "cc24149636d9dcb0699cdbf8171ddbcb9e65d1b0c44f20f865c712490db3a001",
+      "nativeCleanBytes": [
+        [
+          77944,
+          78059
+        ],
+        [
+          82258,
+          82260
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/threadOverlayRetention-CgJvv-J1.js": {
+      "localizations": 5,
+      "sha256": "213f5f0b5fd5b284944fcf6f7052fabeaa4cd41ec5607dec4cf33a320e8f5e81"
+    },
+    "apps/server/dist/client/assets/toast-CWP1xNE8.js": {
+      "localizations": 17,
+      "sha256": "c4c95297c9760cdcf0c04747060a371691214eb44d21fb3d4c7388d03607a6aa"
+    },
+    "apps/server/dist/client/assets/useDictationShortcut-DyzhZYhy.js": {
+      "localizations": 6,
+      "sha256": "8274adc86d765ade309fe80f611f7708bbccf20290a0e280ae4b0d1a4950019e"
+    },
+    "apps/server/dist/client/assets/useEnvironmentSpeechInput-Jigw2ZqG.js": {
+      "localizations": 69,
+      "sha256": "4d4fdc8897dee9c26598018e0ecbda574da8144338898d9ba3025b28d52082bc"
+    },
+    "apps/server/dist/client/assets/useNextRenderData-BprnIUFD.js": {
+      "localizations": 9,
+      "sha256": "e2ef0435fc85b8c4195f668e6823d1c2816d07271532e79632a7d900546c3195"
+    },
+    "apps/server/dist/client/assets/useOpenLink-CRrK84el.js": {
+      "localizations": 2,
+      "sha256": "b17e2664e9c20f5f1ef6529356914c8cb90f05460fcb7bd0dc2518a66f50f146"
+    },
+    "apps/server/dist/client/assets/usePermissionStatus-TxMXazfO.js": {
+      "localizations": 2,
+      "sha256": "0067b6e80885cf10dc0556b0e430c128a1e71405a8f85814b4f8a7e0e3e88a6c"
+    },
+    "apps/server/dist/client/assets/usePullRequestActions-A2PRvevm.js": {
+      "localizations": 53,
+      "sha256": "e719039653bcee99b0540f912b1602b4cdc4bb04301e4f11cb347db090109cd5"
+    },
+    "apps/server/dist/client/assets/useResizableWidth-CcMOORkB.js": {
+      "localizations": 2,
+      "sha256": "09f5485abbb2b8f1a25e15ad97a4d7e034d52b55cacca9e1830b362239945846"
+    },
+    "apps/server/dist/client/assets/useSettings-CxDS6fOm.js": {
+      "localizations": 11,
+      "sha256": "f323244fbda30279fa2e5cc6fe6536dc6bfb6db9de5c55859d787a098c4effa1"
+    },
+    "apps/server/dist/client/assets/useTimelineFollow-CRJZhO3u.js": {
+      "localizations": 194,
+      "sha256": "6055be4bca79e376b426bfaa4a49dc5a84b98567d117bb65a76d196c57dc2a45"
+    },
+    "apps/server/dist/client/assets/utils-BTU7ae6Y.js": {
+      "localizations": 0,
+      "sha256": "94b2d8ca1fdf2f724f79e95e1ed36f1b7dd880b19599679eae72354927d18558",
+      "nativeCleanBytes": [
+        [
+          449145,
+          449145
+        ],
+        [
+          524192,
+          524194
+        ]
+      ]
+    },
+    "apps/server/dist/client/assets/vcsRefInvalidation-D-ivc3bH.js": {
+      "localizations": 1,
+      "sha256": "6e97304bc0ac362b10d2505660536b99c095009278c8c2a6cb22ffea2a0a323e"
+    },
+    "apps/server/dist/client/assets/welcome-CMTDNR8n.js": {
+      "localizations": 39,
+      "sha256": "8d752f18707b342bb782911f49f503472f920ec701c889a18b823d6cbb0a7bf1"
+    },
+    "apps/server/dist/client/assets/wizard-AfD8-R-M.js": {
+      "localizations": 1,
+      "sha256": "b7801be8837a8e061b86cb9ae691ce8504ad6bb41b3afd58bd3deed783a272aa"
+    },
+    "apps/server/dist/client/assets/worker-DXHlh7X2.js": {
+      "localizations": 2,
+      "sha256": "0a8929e57dd9eb157cbf5502217f4b4e1fca3804bb9ec1ff410ca8d0fb06d393"
+    },
+    "apps/server/dist/relayTracing-CeJ93I6Y.mjs": {
+      "localizations": 0,
+      "sha256": "4600305196574595d6d9dfa8895f081ea3bb20850d29c01a7cbc2915235381c4",
+      "nativeCleanBytes": [
+        [
+          434543,
+          434658
+        ]
+      ]
+    },
+    "apps/server/dist/runtimeLayer-ojyN-pY_.mjs": {
+      "localizations": 0,
+      "sha256": "be7b58de0a402529aa05d7159af30495668616fba89647d27cab91121f93c430",
+      "nativeCleanBytes": [
+        [
+          4083577,
+          4083577
+        ],
+        [
+          4084506,
+          4084506
+        ],
+        [
+          4084569,
+          4084569
+        ],
+        [
+          4084723,
+          4084741
+        ],
+        [
+          4084833,
+          4084833
+        ],
+        [
+          4085009,
+          4085009
+        ],
+        [
+          4087331,
+          4087331
+        ]
+      ]
+    },
+    "apps/server/dist/server-syNn-CpO.mjs": {
+      "localizations": 0,
+      "sha256": "b597e1faecaceb83bf5515fae122ab0df741e5dcd0459a23a4f523e413f194f0",
+      "nativeCleanBytes": [
+        [
+          543783,
+          543783
+        ],
+        [
+          545310,
+          545462
+        ],
+        [
+          554573,
+          554662
+        ],
+        [
+          554747,
+          554747
+        ],
+        [
+          555397,
+          555397
+        ],
+        [
+          555956,
+          556223
+        ],
+        [
+          556309,
+          556414
+        ],
+        [
+          866777,
+          866777
+        ],
+        [
+          2208267,
+          2208267
+        ],
+        [
+          2208505,
+          2208505
+        ],
+        [
+          2208789,
+          2208793
+        ],
+        [
+          2208864,
+          2208872
+        ],
+        [
+          2219785,
+          2219817
+        ],
+        [
+          2995455,
+          2995455
+        ],
+        [
+          3030155,
+          3030155
+        ],
+        [
+          3030206,
+          3030291
+        ]
+      ]
+    }
+  }
+}
