@@ -160,6 +160,23 @@ describe("DesktopAppIdentity", () => {
     ),
   );
 
+  // chronos: standalone Chronos opens an independent Electron profile.
+  it.effect("opens an independent Chronos profile alongside an existing T3 install", () =>
+    withIdentity(
+      Effect.gen(function* () {
+        const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+        assert.equal(
+          yield* identity.resolveUserDataPath,
+          "/Users/alice/Library/Application Support/Chronos",
+        );
+      }),
+      {
+        legacyPathExists: true,
+        environment: { appVersion: "0.1.10-nightly.20261116.4774.chronos.4" },
+      },
+    ),
+  );
+
   it.effect("keeps using the legacy development profile", () =>
     withIdentity(
       Effect.gen(function* () {
@@ -200,9 +217,13 @@ describe("DesktopAppIdentity", () => {
 
         const runtimeName = calls.setName[0];
         assert.isDefined(runtimeName);
-        assert.equal(runtimeName, `T3 Code ${stage}`);
+        // chronos: the native identity keeps the stage; the packaged About name omits it.
+        assert.equal(runtimeName, `Chronos ${stage}`);
         assert.match(runtimeName.replaceAll(" ", ""), /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
-        assert.equal(calls.setAboutPanelOptions[0]?.applicationName, `T3 Code (${stage})`);
+        assert.equal(
+          calls.setAboutPanelOptions[0]?.applicationName,
+          stage === "Dev" ? "Chronos (Dev)" : "Chronos",
+        );
       }),
       { calls, environment },
     );

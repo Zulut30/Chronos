@@ -60,6 +60,18 @@ describe("DesktopEnvironment", () => {
     }),
   );
 
+  // chronos: standalone Chronos ignores T3 env overrides and isolates state/AUMID.
+  it.effect("isolates packaged Chronos from the active T3 environment", () =>
+    Effect.gen(function* () {
+      const environment = yield* makeEnvironment(
+        { isPackaged: true, appVersion: "0.1.10-nightly.20261116.4774.chronos.4" },
+        { T3CODE_HOME: "/real/t3", T3CODE_DESKTOP_APP_USER_MODEL_ID: "com.t3tools.t3code" },
+      );
+      assert.equal(environment.stateDir, "/Users/alice/.chronos/userdata");
+      assert.equal(environment.appUserModelId, "io.github.zulut30.chronos");
+    }),
+  );
+
   it.effect("keeps implicit development state separate from production state", () =>
     Effect.gen(function* () {
       const development = yield* makeEnvironment(

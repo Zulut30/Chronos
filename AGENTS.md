@@ -1,5 +1,8 @@
 # T3 Code
 
+<!-- chronos: fork instructions -->
+For Chronos development, Olympus parity work on base 4774, and T3 backports, start with [chronos/README.md](chronos/README.md) and stream reports in `chronos/parity/`. Use the skills in `chronos/skills/` for this checkout. Olympus features and translation are ported as-is (no React rewrite); for UI verification follow `chronos/skills/chronos-ui/SKILL.md`.
+
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web, desktop, and mobile clients.
 
 You can think of T3 Code as an open source "bring-your-own-subscription" alternative to apps like Claude Desktop, Codex App, Cursor Glass and Conductor.

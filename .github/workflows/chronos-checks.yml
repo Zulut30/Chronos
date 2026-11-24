@@ -1,0 +1,91 @@
+# Chronos checks: version config, upstream-plan, types, web/desktop unit suites and focused server regressions.
+name: Chronos checks
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - parity/olympus
+      - "feature/**"
+      - "upstream-sync/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chronos-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Validate Chronos version metadata
+        run: node chronos/scripts/chronos-version.mjs
+
+      - name: Preview feature changes and upstream integration in a temporary repository
+        run: node --test chronos/scripts/upstream-plan.test.mjs
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=@t3tools/contracts... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/shared... --filter=@t3tools/scripts... --filter=@t3tools/oxlint-plugin-t3code...
+
+      - name: Ensure Electron runtime is installed
+        run: vp run --filter @t3tools/desktop ensure:electron
+
+      - name: Chronos desktop module lint
+        run: vp lint apps/desktop/src/chronos
+
+      - name: Typecheck
+        run: vp run --filter @t3tools/contracts --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
+
+      - name: Linux native test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev pkg-config
+
+      - name: Shared release and theme regression tests
+        working-directory: packages/shared
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts
+
+      - name: Web unit tests
+        working-directory: apps/web
+        run: vp test run --project unit
+
+      - name: Desktop unit tests
+        working-directory: apps/desktop
+        run: vp test run
+
+  server:
+    name: Server integration regressions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=t3...
+      - name: Server typecheck
+        run: vp run --filter t3 typecheck
+      - name: Auth, migrations, projection index and WSL keep awake
+        working-directory: apps/server
+        run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts

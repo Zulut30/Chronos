@@ -2,6 +2,7 @@ import { createClerkBridge } from "@clerk/electron";
 import * as NodeURL from "node:url";
 import { storage } from "@clerk/electron/storage";
 import * as Context from "effect/Context";
+import { CHRONOS_SCHEME, isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -85,7 +86,8 @@ export const desktopClerkFrontendApiHostname = resolveDesktopClerkFrontendApiHos
     : __T3CODE_BUILD_CLERK_PUBLISHABLE_KEY__,
 );
 
-function createDesktopClerkBridge(stateDir: string, isDevelopment: boolean, userDataPath: string) {
+// chronos: accept the callback scheme explicitly so standalone Chronos uses chronos://.
+function createDesktopClerkBridge(stateDir: string, scheme: string, userDataPath: string) {
   return createClerkBridge({
     storage: openClerkTokenStorage(
       stateDir,
@@ -95,7 +97,7 @@ function createDesktopClerkBridge(stateDir: string, isDevelopment: boolean, user
     manageSingleInstanceLock: false,
     passkeys: true,
     renderer: {
-      scheme: ElectronProtocol.getDesktopScheme(isDevelopment),
+      scheme,
       host: ElectronProtocol.DESKTOP_HOST,
     },
   });
@@ -142,7 +144,14 @@ export const make = Effect.gen(function* () {
   yield* Effect.acquireRelease(
     Effect.try({
       try: () =>
-        createDesktopClerkBridge(environment.stateDir, environment.isDevelopment, userDataPath),
+        createDesktopClerkBridge(
+          environment.stateDir,
+          // chronos: standalone Chronos receives external auth callbacks on chronos://.
+          isChronosVersion(environment.appVersion)
+            ? CHRONOS_SCHEME
+            : ElectronProtocol.getDesktopScheme(environment.isDevelopment),
+          userDataPath,
+        ),
       catch: (cause) =>
         new DesktopClerkBridgeInitializationError({
           stateDir: environment.stateDir,

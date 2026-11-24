@@ -19,6 +19,14 @@ import { fromYaml } from "@t3tools/shared/schemaYaml";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import {
+  CHRONOS_APP_ID,
+  CHRONOS_SCHEME,
+  CHRONOS_PRODUCT_NAME,
+  CHRONOS_UPDATE_FEED_URL,
+  chronosUpstreamVersion,
+  isChronosVersion,
+} from "@t3tools/shared/cliRelease";
 import rootPackageJson from "../package.json" with { type: "json" };
 import desktopPackageJson from "../apps/desktop/package.json" with { type: "json" };
 import gnomeCaptureBundle from "../apps/desktop/gnome-extension/bundle.json" with { type: "json" };
@@ -1256,6 +1264,8 @@ function normalizePasskeyRpDomain(value: string): string {
 
 export function resolveMacPasskeySigningConfiguration(
   env: Readonly<Record<string, string | undefined>>,
+  // chronos: allow passing CHRONOS_APP_ID for standalone Chronos builds.
+  appId = DESKTOP_APP_ID,
 ): MacPasskeySigningConfiguration {
   const teamId = env.T3CODE_APPLE_TEAM_ID?.trim().toUpperCase() ?? "";
   if (!APPLE_TEAM_ID_PATTERN.test(teamId)) {
@@ -1291,7 +1301,7 @@ export function resolveMacPasskeySigningConfiguration(
   }
 
   return {
-    appId: DESKTOP_APP_ID,
+    appId,
     teamId,
     rpDomains: uniqueRpDomains,
     provisioningProfilePath,
@@ -2723,7 +2733,8 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
 });
 
 export function resolveDesktopUpdateChannel(version: string): "latest" | "nightly" {
-  return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
+  // chronos: a Chronos build follows the track of its upstream nightly.
+  return /-nightly\.\d{8}\.\d+$/.test(chronosUpstreamVersion(version)) ? "nightly" : "latest";
 }
 
 export function isDesktopPreviewVersion(version: string): boolean {
@@ -2735,6 +2746,14 @@ export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
 }
 
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
+  // chronos: Chronos icons (sources in chronos/brand).
+  if (isChronosVersion(version)) {
+    return {
+      macIconPng: "chronos/brand/chronos-macos-1024.png",
+      linuxIconPng: "chronos/brand/chronos-1024.png",
+      windowsIconIco: "chronos/brand/chronos.ico",
+    };
+  }
   if (resolveDesktopUpdateChannel(version) === "nightly") {
     return {
       macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
@@ -2766,6 +2785,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
+  // chronos: product name for the native installer.
+  if (isChronosVersion(version)) return CHRONOS_PRODUCT_NAME;
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
@@ -2789,9 +2810,12 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 ) {
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
-    appId: DESKTOP_APP_ID,
+    // chronos: standalone Chronos appId and artifact naming.
+    appId: isChronosVersion(version) ? CHRONOS_APP_ID : DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    artifactName: isChronosVersion(version)
+      ? "Chronos-${version}-${arch}.${ext}"
+      : "T3-Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2819,7 +2843,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const updateChannel = resolveDesktopUpdateChannel(version);
   // Missing publish config infers a GitHub feed from tokens; staging has no repository, so manifest generation would crash.
   buildConfig.publish = null;
-  if (!isDesktopPreviewVersion(version)) {
+  if (isChronosVersion(version)) {
+    // chronos: updates come from the newest Chronos GitHub release. The feed is the
+    // `releases/latest/download` redirect, so release tags need not be semver.
+    buildConfig.publish = [
+      { provider: "generic", url: CHRONOS_UPDATE_FEED_URL, channel: updateChannel },
+    ];
+  } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
     if (publishConfig) {
       buildConfig.publish = [publishConfig];
@@ -2871,7 +2901,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       protocols: [
         {
           name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          // chronos: standalone Chronos registers chronos:// instead of stealing t3code://.
+          schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },
         {
           name: "Web site URL",
@@ -2924,7 +2955,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       protocols: [
         {
           name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          // chronos: standalone Chronos registers chronos:// instead of stealing t3code://.
+          schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },
       ],
       desktop: {
@@ -2968,7 +3000,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     buildConfig.npmRebuild = false;
     buildConfig.nsis = {
       differentialPackage: true,
-      include: "apps/desktop/resources/installer.nsh",
+      // chronos: omit T3's installer.nsh so Chronos installs cleanly alongside T3.
+      ...(isChronosVersion(version) ? {} : { include: "apps/desktop/resources/installer.nsh" }),
     };
     const winConfig: Record<string, unknown> = {
       target: [target],
@@ -3497,7 +3530,8 @@ export const validateWindowsPackagedPayload = Effect.fn(
     }
     const members = parseWslRuntimeArchiveMembers(listing.stdout);
     // The WSL installer finds t3 under the archive's single stem-named directory.
-    const stem = wslRuntimeArchiveStem(input.appVersion, input.targetArch);
+    // chronos: the WSL runtime is the upstream T3 CLI archive this build is based on.
+    const stem = wslRuntimeArchiveStem(chronosUpstreamVersion(input.appVersion), input.targetArch);
     const topLevel = new Set(members.map((member) => member.split("/")[0]));
     if (topLevel.size !== 1 || !topLevel.has(stem)) {
       return yield* invalidWslRuntime(
@@ -3859,7 +3893,12 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed
       ? yield* Effect.try({
-          try: () => resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot })),
+          // chronos: standalone Chronos passkey entitlements use CHRONOS_APP_ID.
+          try: () =>
+            resolveMacPasskeySigningConfiguration(
+              loadRepoEnv({ repoRoot }),
+              isChronosVersion(appVersion) ? CHRONOS_APP_ID : DESKTOP_APP_ID,
+            ),
           catch: MacPasskeySigningConfigurationResolutionError.fromCause,
         })
       : undefined;
@@ -3914,7 +3953,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    // chronos: standalone installer package metadata uses Chronos fork identity and publisher.
+    name: isChronosVersion(appVersion) ? "chronos" : "t3code",
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,
@@ -3925,8 +3965,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
     description:
       "T3 Code is an open-source desktop app for coding agents. Work with your existing agent subscriptions, review code changes, and run commands in your projects. Connect from desktop, web, or mobile to continue working remotely.",
     license: "MIT",
-    homepage: "https://t3.codes",
-    author: "T3 Tools",
+    homepage: isChronosVersion(appVersion)
+      ? "https://github.com/Zulut30/Chronos"
+      : "https://t3.codes",
+    author: isChronosVersion(appVersion) ? "Chronos contributors" : "T3 Tools",
     main: "apps/desktop/dist-electron/boot.cjs",
     build: yield* createBuildConfig(
       options.platform,

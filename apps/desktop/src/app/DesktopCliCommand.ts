@@ -4,6 +4,7 @@ import * as NodeFSP from "node:fs/promises";
 import type { DesktopCliCommandState } from "@t3tools/contracts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Context from "effect/Context";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -86,6 +87,27 @@ export const make = Effect.gen(function* () {
   const env = yield* HostProcess.Environment;
   const path = environment.path;
   const windows = environment.platform === "win32";
+  // chronos: leave global PATH `t3` to an existing T3 install; use ~/.chronos/bin/t3 instead.
+  if (isChronosVersion(environment.appVersion)) {
+    const state = Effect.succeed({
+      supported: false,
+      installedPath: null,
+      onPath: false,
+      launcherPath: null,
+    } as const);
+    const unavailable = Effect.fail(
+      new DesktopCliCommandError({
+        message: `Use the Chronos CLI at ${DesktopCliShim.launcherPath(environment)}.`,
+      }),
+    );
+    return DesktopCliCommand.of({
+      state,
+      install: unavailable,
+      uninstall: unavailable,
+      addToPath: unavailable,
+      installOnFirstLaunch: Effect.void,
+    });
+  }
   const launcher = DesktopCliShim.launcherPath(environment);
   const binDirectory = path.dirname(launcher);
   const ownedPathMarker = path.join(environment.stateDir, "cli-command-path-entry");

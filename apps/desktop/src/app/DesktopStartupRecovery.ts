@@ -17,8 +17,14 @@ import type { BackendStartupFailure } from "../backend/DesktopBackendManager.ts"
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopObservability from "./DesktopObservability.ts";
 import * as DesktopState from "./DesktopState.ts";
+import {
+  CHRONOS_RELEASES_URL,
+  chronosBrand,
+  chronosReleaseTagUrl,
+} from "../chronos/ChronosBrand.ts";
 
-const RELEASES_URL = "https://github.com/pingdotgg/t3code/releases";
+// chronos: Chronos releases; the page also names the product Chronos (see render below).
+const RELEASES_URL = CHRONOS_RELEASES_URL;
 const LAST_STARTED_VERSION_FILE = "desktop-last-started-version";
 // Buttons are plain links to this host; will-navigate cancels them and runs the action.
 const ACTION_ORIGIN = "https://startup-recovery.invalid";
@@ -194,12 +200,15 @@ export const listen: Effect.Effect<
     const window = yield* Ref.get(windowRef);
     const failure = yield* Ref.get(failureRef);
     if (Option.isNone(window) || Option.isNone(failure) || window.value.isDestroyed()) return;
-    const html = buildStartupRecoveryHtml({
-      appVersion: environment.appVersion,
-      failure: failure.value,
-      offer: yield* offer,
-      logDir: environment.logDir,
-    });
+    // chronos: product name Chronos.
+    const html = chronosBrand(
+      buildStartupRecoveryHtml({
+        appVersion: environment.appVersion,
+        failure: failure.value,
+        offer: yield* offer,
+        logDir: environment.logDir,
+      }),
+    );
     if ((yield* Ref.getAndSet(renderedHtmlRef, html)) === html) return;
     void window.value.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
   });
@@ -225,7 +234,8 @@ export const listen: Effect.Effect<
       }
       case "reinstall":
         if (current._tag === "Reinstall") {
-          yield* electronShell.openExternal(`${RELEASES_URL}/tag/v${current.version}`);
+          // chronos: Chronos tags are chronos-v<version>.
+          yield* electronShell.openExternal(chronosReleaseTagUrl(current.version));
         }
         return;
       case "releases":

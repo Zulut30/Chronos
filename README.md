@@ -1,3 +1,16 @@
+<!-- chronos: fork header -->
+# Chronos
+
+Chronos — настольное приложение для работы с ИИ-агентами на базе T3 Code (`v0.1.10-nightly.20261116.4774`) с переносом функциональности Olympus и установкой рядом с T3. У Chronos свой профиль, изолированный каталог данных и отдельная лента обновлений.
+
+**Скачать Chronos** · [Windows x64 (.exe)](https://github.com/Zulut30/Chronos/releases/latest/download/Chronos-Setup-x64.exe) · [Mac с Apple Silicon (.dmg)](https://github.com/Zulut30/Chronos/releases/latest/download/Chronos-mac-arm64.dmg) · [Mac с Intel (.dmg)](https://github.com/Zulut30/Chronos/releases/latest/download/Chronos-mac-x64.dmg)
+
+Откройте установщик Windows или перенесите Chronos из DMG в «Программы». Подключите своего агента. Для доступа с телефона откройте «Настройки → Общий доступ» и включите T3 Connect для новой среды. Сборки выпускаются без цифровой подписи издателя. Внешняя тема Olympus (`userdata/themes/`) и расширенные инструменты Olympus (доска задач, Studio и менеджеры локальных сервисов) используют отдельно установленные локальные сервисы.
+
+[Все версии и контрольные суммы](https://github.com/Zulut30/Chronos/releases) · [Устройство и разработка Chronos](chronos/README.md)
+
+<details><summary>Original T3 Code documentation</summary>
+
 <p align="center">
   <a href="https://t3.codes">
     <img src="./assets/prod/t3-black-web-icon-192x192.png" width="80" height="80" alt="T3 Code logo" />
@@ -106,3 +119,6 @@ We have limited review capacity. Small, focused fixes are the most likely to be 
 ## License
 
 [MIT](./LICENSE)
+
+<!-- chronos: end fork wrapper -->
+</details>

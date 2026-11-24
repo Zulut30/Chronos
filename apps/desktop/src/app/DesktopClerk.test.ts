@@ -64,9 +64,12 @@ const layerDesktopClerk = (
     copyText: () => Effect.void,
   },
   listeners = new Map<string, (...args: unknown[]) => void>(),
+  // chronos: allow testing standalone Chronos versions alongside stock versions.
+  appVersion = "1.0.0",
 ) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
     stateDir: clerkStateDir,
+    appVersion,
     isDevelopment,
     appDataDirectory: "/tmp/app-data",
     platform,
@@ -118,6 +121,14 @@ describe("DesktopClerk", () => {
   });
 
   it.each([
+    // chronos: standalone Chronos registers its own profile and chronos:// callback scheme.
+    {
+      name: "standalone Chronos on Windows",
+      isDevelopment: false,
+      platform: "win32" as const,
+      appVersion: "0.1.10-nightly.20261116.4774.chronos.4",
+      userData: "/tmp/app-data/Chronos",
+    },
     {
       name: "packaged macOS",
       isDevelopment: false,
@@ -144,7 +155,7 @@ describe("DesktopClerk", () => {
     },
   ])(
     "creates the bridge before startup can yield to the event loop ($name)",
-    ({ isDevelopment, platform, userData }) => {
+    ({ isDevelopment, platform, userData, appVersion }) => {
       const events: string[] = [];
       storageMock.mockReturnValue(storageAdapter);
       createClerkBridgeMock.mockImplementation(() => {
@@ -155,7 +166,15 @@ describe("DesktopClerk", () => {
       Effect.runSync(
         Effect.scoped(
           Layer.build(
-            layerDesktopClerk(isDevelopment, events, platform, DesktopPreReadyFileSystem.layer),
+            layerDesktopClerk(
+              isDevelopment,
+              events,
+              platform,
+              DesktopPreReadyFileSystem.layer,
+              undefined,
+              undefined,
+              appVersion,
+            ),
           ),
         ),
       );
@@ -170,6 +189,10 @@ describe("DesktopClerk", () => {
       assert.deepEqual(storageMock.mock.calls, [
         [{ path: NodePath.join(NodePath.resolve(clerkStateDir), "clerk") }],
       ]);
+      assert.equal(
+        createClerkBridgeMock.mock.calls[0]?.[0]?.renderer.scheme,
+        appVersion ? "chronos" : isDevelopment ? "t3code-dev" : "t3code",
+      );
       assert.notStrictEqual(createClerkBridgeMock.mock.calls[0]?.[0]?.storage, storageAdapter);
     },
   );
