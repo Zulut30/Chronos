@@ -93,6 +93,18 @@ export function CollapsedComposerPromptPreview(props: {
           />
         );
       case "context-reference": {
+        // chronos(olympus): _chat-CZ9dvfEY.js N12
+        if (segment.kind?.startsWith("oly-")) {
+          return (
+            <span
+              key={key}
+              className="oly-reference-chip"
+              title={segment.kind === "oly-model" ? segment.contextId : segment.label}
+            >
+              {segment.label}
+            </span>
+          );
+        }
         const entry = resolvedContextRecord(props.contextRecords, segment.kind, segment.contextId);
         return entry ? (
           <ContextChipShell

@@ -1909,7 +1909,8 @@ export default function ChatView(props: ChatViewProps) {
         threadId: activeThreadId,
         message: { messageId: newMessageId(), role: "user", text, attachments: [] },
         runtimeMode,
-        interactionMode: DEFAULT_INTERACTION_MODE,
+        // chronos(olympus): _chat-CZ9dvfEY.js N13
+        interactionMode: globalThis.__olyPlanMode(DEFAULT_INTERACTION_MODE, activeThreadId),
         dispatchMode: "queue",
       },
     });
@@ -3232,8 +3233,12 @@ export default function ChatView(props: ChatViewProps) {
     return embedded ? null : <NoActiveThreadState />;
   }
 
+  // chronos(olympus): _chat-CZ9dvfEY.js N14
+  const PanelHost = globalThis.__olyPanelHost || RightPanelSurfaceContent;
   const rightPanelContent = activeThreadRef ? (
-    <RightPanelSurfaceContent
+    <PanelHost
+      __hj={RightPanelSurfaceContent}
+      __surfaces={renderedRightPanelSurfaces}
       surface={renderedRightPanelSurface}
       activeSurfaceId={activeRightPanelSurface?.id ?? null}
       threadRef={activeThreadRef}

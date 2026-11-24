@@ -9,6 +9,7 @@ import type {
   TableCell,
   Text,
 } from "mdast";
+import { richMarkdown } from "./olympusRichMarkdown.ts";
 import { remarkKeepWindowsPaths } from "./markdownWindowsPaths.ts";
 import { type PluggableList, type Processor, type Transformer, unified } from "unified";
 import remarkParse from "remark-parse";
@@ -206,9 +207,14 @@ function rehypeNormalizeLocalEditorLinks() {
 
 const CHAT_MARKDOWN_SANITIZE_SCHEMA = {
   ...defaultSchema,
+  // chronos(olympus): ChatMarkdown-lT6xQ6yD.js N01
+  ...(richMarkdown ? { tagNames: [...(defaultSchema.tagNames ?? []), "mark", "u"] } : {}),
   attributes: {
     ...defaultSchema.attributes,
-    "*": (defaultSchema.attributes?.["*"] ?? []).filter((attribute) => attribute !== "title"),
+    // chronos(olympus): ChatMarkdown-lT6xQ6yD.js N02
+    "*": (defaultSchema.attributes?.["*"] ?? [])
+      .filter((attribute) => attribute !== "title")
+      .concat(richMarkdown ? ["dataOlyStyle"] : []),
     // Fence languages plus the two math classes the web chat's math plugin emits.
     code: [
       ["className", /^language-./, "math-inline", "math-display"],
@@ -356,7 +362,10 @@ export const CHAT_MARKDOWN_REHYPE_PLUGINS: PluggableList = [
   rehypeRawWhenPresent,
   rehypePreserveImageSourceMeta,
   rehypeNormalizeLocalEditorLinks,
+  // chronos(olympus): ChatMarkdown-lT6xQ6yD.js N03
+  ...(richMarkdown ? [richMarkdown.pre] : []),
   [rehypeSanitize, CHAT_MARKDOWN_SANITIZE_SCHEMA],
+  ...(richMarkdown ? [richMarkdown.post] : []),
 ];
 
 const isImageNode = (node: PhrasingContent | undefined): boolean =>

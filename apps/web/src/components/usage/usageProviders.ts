@@ -32,6 +32,12 @@ export const PROVIDER_PRESENTATION = {
     color: "#5b9bbd",
     driverKind: ProviderDriverKind.make("opencode"),
   },
+  // chronos(olympus): UsageLimits-MnFl4D3C.js N01
+  openrouter: {
+    label: "OpenRouter",
+    color: "#6467F2",
+    driverKind: ProviderDriverKind.make("opencode"),
+  },
   antigravity: {
     label: "Antigravity",
     color: "#8c7bd1",
@@ -56,11 +62,13 @@ export function providersWithUsage(
     readonly provider: UsageProviderKind;
     readonly costUsd: number;
     readonly totalTokens: number;
+    readonly records: number;
   }[],
 ): readonly UsageProviderKind[] {
   const active = new Set(
     totals
-      .filter((entry) => entry.totalTokens > 0 || entry.costUsd > 0)
+      // chronos(olympus): UsageLimits-MnFl4D3C.js N02
+      .filter((entry) => entry.totalTokens > 0 || entry.costUsd > 0 || entry.records > 0)
       .map((entry) => entry.provider),
   );
   return PROVIDER_ORDER.filter((provider) => active.has(provider));

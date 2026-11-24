@@ -21,9 +21,11 @@ import {
 import { loadRepoEnv } from "../../scripts/lib/public-config";
 import { resolveTaggedSourceVersion } from "../../scripts/lib/tagged-source-version";
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
+import { olympusFeatures } from "./src/chronos/olympus/plugin";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 import { formatAppDisplayName, resolveWebAppStageLabel } from "./src/branding.logic";
+import { olympusL10n } from "./src/chronos/olympus/l10n/plugin";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -317,6 +319,7 @@ export default defineConfig(({ command }) => {
     assetsInclude: ["**/*.wasm"],
     plugins: [
       bootstrapTitlePlugin(),
+      olympusL10n(), // chronos(olympus): l10n
       devCompressionPlugin(),
       chunkCycleGuardPlugin(),
       builtDev
@@ -331,7 +334,8 @@ export default defineConfig(({ command }) => {
             ],
           }),
       tanstackRouter({ autoCodeSplitting: true }),
-      react({ compiler: true }),
+      olympusFeatures(),
+      react({ compiler: true, exclude: [/\/node_modules\//, /\/chronos\/olympus\/features\//] }),
       tailwindPlugins(bundledDev),
       warmBundledDevPlugin(),
       bundledDev ? bundledDevStableNamesPlugin() : undefined,

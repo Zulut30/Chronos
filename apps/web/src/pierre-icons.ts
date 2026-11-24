@@ -1,3 +1,4 @@
+import "./chronos/olympus/features/15-lang-icons.js";
 import {
   createFileTreeIconResolver,
   getBuiltInSpriteSheet,
@@ -23,7 +24,7 @@ const DOCUMENT_ICON_COLORS: Readonly<Record<string, string>> = {
   "t3-file-icon-epub": "light-dark(#693acf, #9d6afb)",
 };
 
-const T3_FILE_ICON_SPRITE = `
+let T3_FILE_ICON_SPRITE = `
 <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true">
   <!-- Lucide Film icon, ISC license. -->
   <symbol id="t3-file-icon-video" viewBox="0 0 24 24">
@@ -191,6 +192,9 @@ export const T3_PIERRE_ICONS = {
   },
 } satisfies FileTreeIcons;
 
+// chronos(olympus): pierre-icons-Bzfbe5S-.js N01
+globalThis.__olyLangIcons?.apply(getBuiltInSpriteSheet.olympusSpriteSheets, T3_PIERRE_ICONS);
+T3_FILE_ICON_SPRITE = T3_PIERRE_ICONS.spriteSheet;
 const completeIconResolver = createFileTreeIconResolver(T3_PIERRE_ICONS);
 
 const LANGUAGE_EXTENSION_ALIASES: Record<string, string> = {

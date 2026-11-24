@@ -781,6 +781,8 @@ export function useComposerSend(input: ComposerSendInput) {
       return;
     }
     const threadIdForSend = activeThread.id;
+    // chronos(olympus): _chat-CZ9dvfEY.js N04
+    const olySendPlan = globalThis.__olyPlanMode(DEFAULT_INTERACTION_MODE, threadIdForSend);
     const sendSnapshot = snapshotComposerSend({
       prompt: promptForSend,
       images: composerImages,
@@ -849,13 +851,17 @@ export function useComposerSend(input: ComposerSendInput) {
     );
     const messageIdForSend = newMessageId();
     const messageCreatedAt = new Date().toISOString();
-    const outgoingMessageText = formatOutgoingPrompt({
+    let outgoingMessageText = formatOutgoingPrompt({
       provider: ctxSelectedProvider,
       model: ctxSelectedModel,
       models: ctxSelectedProviderModels,
       effort: ctxSelectedPromptEffort,
       text: messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
     });
+    // chronos(olympus): _chat-CZ9dvfEY.js N05
+    if (typeof globalThis.__olyWrapModeText === "function") {
+      outgoingMessageText = globalThis.__olyWrapModeText(outgoingMessageText, threadIdForSend);
+    }
     if (composerRef.current?.validateProviderInput(outgoingMessageText) === false) {
       return;
     }
@@ -1252,7 +1258,8 @@ export function useComposerSend(input: ComposerSendInput) {
           ? { branch: localCheckoutBranchMismatch.currentBranch }
           : {}),
         runtimeMode,
-        interactionMode: DEFAULT_INTERACTION_MODE,
+        // chronos(olympus): _chat-CZ9dvfEY.js N06
+        interactionMode: olySendPlan,
       });
       if (settingsResult._tag === "Failure") {
         failure = settingsResult;
@@ -1306,7 +1313,8 @@ export function useComposerSend(input: ComposerSendInput) {
                       title,
                       modelSelection: threadCreateModelSelection,
                       runtimeMode,
-                      interactionMode: DEFAULT_INTERACTION_MODE,
+                      // chronos(olympus): _chat-CZ9dvfEY.js N07
+                      interactionMode: olySendPlan,
                       branch: activeThreadBranch,
                       worktreePath: activeThread.worktreePath,
                       createdAt: activeThread.createdAt,
@@ -1355,7 +1363,8 @@ export function useComposerSend(input: ComposerSendInput) {
           modelSelection: ctxSelectedModelSelection,
           titleSeed: title,
           runtimeMode,
-          interactionMode: DEFAULT_INTERACTION_MODE,
+          // chronos(olympus): _chat-CZ9dvfEY.js N08
+          interactionMode: olySendPlan,
           dispatchMode: turnDispatchMode,
           ...(freshArm === undefined ? {} : { freshContext: true }),
           ...(bootstrap ? { bootstrap } : {}),

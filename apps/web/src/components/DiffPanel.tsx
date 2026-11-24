@@ -1,3 +1,5 @@
+// chronos(olympus): DiffPanel-BVARAjwr.js N01
+import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { useAtomValue } from "@effect/atom-react";
 import type { FileDiffContentsLoader, FileDiffMetadata } from "@pierre/diffs";
@@ -1465,18 +1467,28 @@ export default function DiffPanel({
                     onFileCollapsedChange={setDiffFileCollapsed}
                     renderHeaderPrefix={(fileDiff, fileKey, collapsed) => {
                       return (
-                        <DiffFileCollapseToggle
-                          filePath={resolveFileDiffPath(fileDiff)}
-                          fileKey={fileKey}
-                          collapsed={collapsed}
-                          onToggle={toggleDiffFileCollapsed}
-                          {...(fileDiff.cacheKey?.endsWith(":pending") &&
-                          !collapsedDiffFileKeys.has(fileKey)
-                            ? {
-                                load: () => requestFile(resolveFileDiffPath(fileDiff)),
-                              }
-                            : {})}
-                        />
+                        // chronos(olympus): DiffPanel-BVARAjwr.js N02
+                        <>
+                          <DiffFileCollapseToggle
+                            filePath={resolveFileDiffPath(fileDiff)}
+                            fileKey={fileKey}
+                            collapsed={collapsed}
+                            onToggle={toggleDiffFileCollapsed}
+                            {...(fileDiff.cacheKey?.endsWith(":pending") &&
+                            !collapsedDiffFileKeys.has(fileKey)
+                              ? {
+                                  load: () => requestFile(resolveFileDiffPath(fileDiff)),
+                                }
+                              : {})}
+                          />
+                          {/* chronos(olympus): DiffPanel-BVARAjwr.js N03 */}
+                          <PierreEntryIcon
+                            pathValue={resolveFileDiffPath(fileDiff)}
+                            kind="file"
+                            theme={resolvedTheme}
+                            className="size-3.5"
+                          />
+                        </>
                       );
                     }}
                     options={{

@@ -99,6 +99,8 @@ export function useComposerResume(input: ComposerResumeInput) {
       return;
     }
     const threadId = activeThread.id;
+    // chronos(olympus): _chat-CZ9dvfEY.js N09
+    const olyResumePlan = globalThis.__olyPlanMode(DEFAULT_INTERACTION_MODE, threadId);
     sendInFlightRef.current = true;
     setResumingThreadKeys((current) => new Set(current).add(routeThreadKey));
     setThreadError(threadId, null);
@@ -118,7 +120,8 @@ export function useComposerResume(input: ComposerResumeInput) {
           ? { branch: localCheckoutBranchMismatch.currentBranch }
           : {}),
         runtimeMode,
-        interactionMode: DEFAULT_INTERACTION_MODE,
+        // chronos(olympus): _chat-CZ9dvfEY.js N10
+        interactionMode: olyResumePlan,
       });
       if (settingsResult._tag === "Failure") return settingsResult;
       const turnResult = await startThreadTurn({
@@ -134,7 +137,8 @@ export function useComposerResume(input: ComposerResumeInput) {
             attachments: [],
           },
           runtimeMode,
-          interactionMode: DEFAULT_INTERACTION_MODE,
+          // chronos(olympus): _chat-CZ9dvfEY.js N11
+          interactionMode: olyResumePlan,
           dispatchMode: "start",
         },
       });

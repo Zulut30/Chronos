@@ -490,6 +490,17 @@ export function ComposerContextReferenceChip(props: {
   label: string;
 }): ReactElement {
   const records = use(ComposerContextRecordsContext);
+  // chronos(olympus): ThreadDetailsItemsMenu-nmodI3O-.js N02
+  if (props.kind?.startsWith("oly-")) {
+    return (
+      <span
+        className="oly-reference-chip"
+        title={props.kind === "oly-model" ? props.contextId : props.label}
+      >
+        {props.label}
+      </span>
+    );
+  }
   return composerContextPresentationRegistry.render(props.kind, records.get(props.contextId), {
     label: props.label,
   });

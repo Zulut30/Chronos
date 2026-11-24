@@ -210,5 +210,9 @@ export function selectionTouchesMentionBoundary(
 }
 
 export function splitPromptIntoComposerSegments(prompt: string): ComposerPromptSegment[] {
-  return splitPromptTextIntoComposerSegments(prompt);
+  // chronos(olympus): ThreadDetailsItemsMenu-nmodI3O-.js N01
+  return (
+    globalThis.__olyReferences?.lex(prompt, splitPromptTextIntoComposerSegments) ??
+    splitPromptTextIntoComposerSegments(prompt)
+  );
 }

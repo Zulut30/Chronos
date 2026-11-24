@@ -518,6 +518,8 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
     if (!context?.providerAvailable) return;
 
     const threadId = activeThread.id;
+    // chronos(olympus): _chat-CZ9dvfEY.js N01
+    const olySendPlan = globalThis.__olyPlanMode(DEFAULT_INTERACTION_MODE, threadId);
     const messageId = newMessageId();
     const createdAt = new Date().toISOString();
     sendInFlightRef.current = true;
@@ -542,7 +544,8 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
       createdAt,
       ...(localCheckoutBranchMismatch ? { branch: localCheckoutBranchMismatch.currentBranch } : {}),
       runtimeMode,
-      interactionMode: DEFAULT_INTERACTION_MODE,
+      // chronos(olympus): _chat-CZ9dvfEY.js N02
+      interactionMode: olySendPlan,
     });
     const result =
       settingsResult._tag === "Failure"
@@ -554,7 +557,8 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
               message: { messageId, role: "user", text, attachments: [] },
               modelSelection: context.selectedModelSelection,
               runtimeMode,
-              interactionMode: DEFAULT_INTERACTION_MODE,
+              // chronos(olympus): _chat-CZ9dvfEY.js N03
+              interactionMode: olySendPlan,
               createdAt,
             },
           });

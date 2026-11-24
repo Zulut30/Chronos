@@ -1,5 +1,7 @@
 import { expect, it, vi } from "vite-plus/test";
 
+// This boot-error fixture has no browser DOM for the separately mounted Olympus UI.
+vi.mock("./chronos/olympus/prologue", () => ({}));
 vi.mock("./appInit", () => ({ startAppServices: () => ({ load: async () => {} }) }));
 vi.mock("./AppRoot", () => ({ AppRoot: () => null }));
 vi.mock("./i18n/runtime", () => ({ whenLocaleReady: async () => {} }));

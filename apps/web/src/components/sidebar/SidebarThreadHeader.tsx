@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from "react";
 
+import { dayNightButtonProps } from "../../chronos/olympus/dayNightButton";
 import { cn } from "~/lib/utils";
 import { Button } from "../ui/button";
 import { SidebarInput, SidebarMenuButton } from "../ui/sidebar";
@@ -125,6 +126,8 @@ export function SidebarThreadHeader({
         >
           <SquarePenIcon />
         </SidebarHeaderIconButton>
+        {/* chronos(olympus): main-lxHaZZx7.js N01 */}
+        <SidebarHeaderIconButton {...dayNightButtonProps()} />
       </div>
     </div>
   );

@@ -20,3 +20,6 @@ beforeEach(async () => {
 
 // The app initializes GT at startup; components using its hooks need the same here.
 initializeI18n(() => {});
+
+// Component tests mount without the main prologue and start in the stock interaction mode.
+globalThis.__olyPlanMode ??= (fallback) => fallback;

@@ -178,6 +178,9 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
+      "apps/web/src/chronos/olympus/features/**",
+      // Blank lines in the import list are byte separators in the release prologue.
+      "apps/web/src/chronos/olympus/prologue.ts",
       ".repos/**",
       "infra/task-cache/vendor/**",
       // Macroscope requires one glob per line; Markdown formatting corrupts it.
@@ -213,6 +216,7 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: [
+      "apps/web/src/chronos/olympus/features/**",
       ".repos",
       ".repos/**",
       "infra/task-cache/vendor/**",
