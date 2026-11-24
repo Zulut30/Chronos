@@ -166,6 +166,8 @@ T3). Оставлены только workflow Chronos:
 | `apps/desktop/src/electron/ElectronDialog.ts` | Имя продукта `Chronos` в системных диалогах (без русской локализации) |
 | `apps/desktop/src/app/DesktopStartupRecovery.ts` | Ссылки восстановления на релизы `Zulut30/Chronos` (`chronos-v*`) и имя продукта `Chronos` |
 | `apps/desktop/src/app/DesktopAppIdentity.test.ts`, `DesktopClerk.test.ts`, `DesktopEnvironment.test.ts`, `DesktopPreReadyPlatform.test.ts`, `updates/updatesTestHarness.ts` | Ожидания имени/профиля/схемы Chronos и переносимость путей фикстур на Windows |
+| `apps/web/src/components/sidebar/SidebarChrome.tsx` | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus |
+| `apps/web/src/components/desktopUpdate.logic.ts` | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*` |
 | `scripts/build-desktop-artifact.ts` | `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos |
 | `.github/workflows/*` | Удалены 27 workflow апстрима; добавлены `chronos-desktop.yml`, `chronos-checks.yml`, `chronos-upstream.yml` |
 | `.gitignore`, `AGENTS.md`, `README.md` | Игнор `chronos/.work/` и `__pycache__/`, актуальные инструкции форка |
