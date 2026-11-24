@@ -79,7 +79,8 @@ export const THEME_GUIDE = [
   "",
   "CSS: `css` applies after the app's styles. Use `.dark` or `:root:not(.dark)` for one appearance.",
   "It cannot load files: no @import, no image-set(), and url() only with data: or #id.",
-  "A background image must be embedded as a data: address. `css` holds 50,000 characters, so keep the image near 30 KB.",
+  // chronos(olympus): themePalette-BrFetdG-.js N01 / relayTracing-CeJ93I6Y.mjs N01
+  "Local Olympus patch: embed images as data: addresses. CSS accepts 4,194,304 characters (about 3 MiB of image bytes minus other CSS). External files remain blocked.",
   "The app's own rules can be more specific. If a rule has no effect, add !important.",
   "It cannot reach the terminal text, the file tree, or diff internals. Use color roles for those.",
   "Native scrollbars take `::-webkit-scrollbar` and `::-webkit-scrollbar-thumb`.",

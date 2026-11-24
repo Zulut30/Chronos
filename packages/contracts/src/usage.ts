@@ -13,6 +13,8 @@ export const UsageProviderKind = Schema.Literals([
   "grok",
   "cursor",
   "opencode",
+  // chronos(olympus): ManagedEndpointRuntime--5XAAKR8.mjs N01 / utils-BTU7ae6Y.js N01
+  "openrouter",
   "antigravity",
   "pi",
   "muse",

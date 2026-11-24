@@ -15,6 +15,12 @@ import {
   makeUsageLimits,
 } from "@t3tools/provider-core/server/usageLimits";
 
+// chronos(olympus): runtimeLayer-ojyN-pY_.mjs N01
+import {
+  olyReadAntigravityCliSignIn,
+  type AntigravityCliSignIn,
+} from "../chronos/olympus/antigravityCliSignIn.ts";
+
 export function antigravityUserAgent(platform: NodeJS.Platform, architecture: NodeJS.Architecture) {
   return `antigravity/hub/2.24.0 (aidev_client; os_type=${platform}; arch=${architecture}; cl=963137146)`;
 }
@@ -236,35 +242,39 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
     if (input.authMethod !== "oauth-personal" && input.authMethod !== "oauth-business") {
       return makeUnavailableUsageLimits({ checkedAt, reason: "unsupported" });
     }
+    // chronos(olympus): runtimeLayer-ojyN-pY_.mjs N02-N06
+    let olyCli: AntigravityCliSignIn | undefined;
     if (!(yield* fs.exists(tokenPath))) {
       cached = undefined;
-      return makeUnavailableUsageLimits({
-        checkedAt,
-        reason: "unsupported",
-        message: "Sign in with Google to see Antigravity limits.",
-      });
+      olyCli = olyReadAntigravityCliSignIn(
+        path.join(input.profileDirectory, "antigravity-acp", "antigravity-oauth-token"),
+        platform,
+        architecture,
+      );
+      if (olyCli === undefined) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "unsupported",
+          message: "Sign in with Google to see Antigravity limits.",
+        });
+      }
+      if (!(Date.parse(olyCli.token.expiry ?? "") > (yield* Clock.currentTimeMillis) + 60_000)) {
+        return makeUnavailableUsageLimits({
+          checkedAt,
+          reason: "probeFailed",
+          message:
+            "Antigravity's saved sign-in has expired. Start an Antigravity turn to renew it, then refresh limits.",
+        });
+      }
     }
-    const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));
-    const fingerprint = yield* sha256(
-      `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
-    );
-    const now = yield* Clock.currentTimeMillis;
+    let projectId: string | undefined;
     let accessToken: string;
     let account: string;
-    if (cached?.fingerprint !== fingerprint || cached.expiresAt <= now + 60_000) {
-      cached = undefined;
-      const refreshed = yield* request(
-        HttpClientRequest.post("https://oauth2.googleapis.com/token").pipe(
-          HttpClientRequest.bodyUrlParams({
-            client_id: token.client_id,
-            client_secret: token.client_secret,
-            refresh_token: token.refresh_token,
-            grant_type: "refresh_token",
-          }),
-        ),
-      ).pipe(Effect.flatMap(decodeTokenResponse));
-      accessToken = refreshed.access_token;
-      // Use Google account IDs to merge accounts across environments; refresh tokens differ per machine.
+    if (olyCli !== undefined) {
+      const fingerprint = yield* sha256(
+        `antigravity-cli\0${olyCli.token.refresh_token || olyCli.token.access_token}`,
+      );
+      accessToken = olyCli.token.access_token;
       account = yield* request(
         HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
           HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
@@ -273,17 +283,47 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         Effect.flatMap(antigravityAccountFingerprint),
         Effect.orElseSucceed(() => fingerprint),
       );
-      if (generation === startedGeneration) {
-        cached = {
-          fingerprint,
-          account,
-          accessToken,
-          expiresAt: now + refreshed.expires_in * 1000,
-        };
-      }
     } else {
-      accessToken = cached.accessToken;
-      account = cached.account;
+      const token = yield* fs.readFileString(tokenPath).pipe(Effect.flatMap(decodeTokenFile));
+      projectId = token.project_id;
+      const fingerprint = yield* sha256(
+        `${token.client_id}\0${token.refresh_token}\0${token.project_id ?? ""}`,
+      );
+      const now = yield* Clock.currentTimeMillis;
+      if (cached?.fingerprint !== fingerprint || cached.expiresAt <= now + 60_000) {
+        cached = undefined;
+        const refreshed = yield* request(
+          HttpClientRequest.post("https://oauth2.googleapis.com/token").pipe(
+            HttpClientRequest.bodyUrlParams({
+              client_id: token.client_id,
+              client_secret: token.client_secret,
+              refresh_token: token.refresh_token,
+              grant_type: "refresh_token",
+            }),
+          ),
+        ).pipe(Effect.flatMap(decodeTokenResponse));
+        accessToken = refreshed.access_token;
+        // Use Google account IDs to merge accounts across environments; refresh tokens differ per machine.
+        account = yield* request(
+          HttpClientRequest.get("https://www.googleapis.com/oauth2/v2/userinfo").pipe(
+            HttpClientRequest.setHeaders({ Authorization: `Bearer ${accessToken}` }),
+          ),
+        ).pipe(
+          Effect.flatMap(antigravityAccountFingerprint),
+          Effect.orElseSucceed(() => fingerprint),
+        );
+        if (generation === startedGeneration) {
+          cached = {
+            fingerprint,
+            account,
+            accessToken,
+            expiresAt: now + refreshed.expires_in * 1000,
+          };
+        }
+      } else {
+        accessToken = cached.accessToken;
+        account = cached.account;
+      }
     }
     const endpoints = ENDPOINTS[input.authMethod];
     // Merge endpoints because quota groups differ; the metered host's reading of a bucket wins.
@@ -306,9 +346,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
                   Authorization: `Bearer ${accessToken}`,
                   "User-Agent": antigravityUserAgent(platform, architecture),
                 }),
-                HttpClientRequest.bodyJsonUnsafe(
-                  token.project_id ? { project: token.project_id } : {},
-                ),
+                HttpClientRequest.bodyJsonUnsafe(projectId ? { project: projectId } : {}),
               ),
             ).pipe(
               Effect.flatMap((response) => parse(response, requestedAt)),
@@ -336,7 +374,12 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         message: "Antigravity did not return usable quota information.",
       });
     }
-    return { ...makeUsageLimits({ checkedAt, windows }), credentialFingerprint: account };
+    // chronos(olympus): runtimeLayer-ojyN-pY_.mjs N07
+    return {
+      ...makeUsageLimits({ checkedAt, windows }),
+      credentialFingerprint: account,
+      ...(olyCli?.email ? { olyAccountEmail: olyCli.email } : {}),
+    };
   });
   const probe = read.pipe(
     Effect.provideService(Digest.Digest, crypto),

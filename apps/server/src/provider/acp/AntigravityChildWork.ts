@@ -15,6 +15,8 @@ import * as Schema from "effect/Schema";
 
 import { antigravityManagedPath, antigravityProfileRoot } from "./AntigravityProfilePaths.ts";
 import { boundAntigravityToolText, isCutAntigravityToolText } from "./AntigravityProtocol.ts";
+// chronos(olympus): server-syNn-CpO.mjs N05
+import { olyFindDetachedInvokeRecord } from "../../chronos/olympus/antigravityDetachedChildren.ts";
 
 // Field numbers from the runtime's trajectory protos (exa.cortex_pb).
 const STEP_METADATA = 5;
@@ -44,21 +46,27 @@ interface AntigravityChildLaunch {
   readonly prompt: string;
 }
 
-const decodeLaunchInput = Schema.decodeUnknownOption(
-  Schema.Struct({
-    Subagents: Schema.NonEmptyArray(Schema.Struct({ Role: Schema.String, Prompt: Schema.String })),
-  }),
-);
-
 /** `invoke_subagent` arguments, from the permission prompt or the persisted record. */
 export function antigravitySubagentLaunches(
   input: unknown,
 ): ReadonlyArray<AntigravityChildLaunch> | undefined {
-  return Option.getOrUndefined(
-    Option.map(decodeLaunchInput(input), (decoded) =>
-      decoded.Subagents.map((entry) => ({ role: entry.Role, prompt: entry.Prompt })),
-    ),
-  );
+  // chronos(olympus): server-syNn-CpO.mjs N02
+  const entry = (value: unknown): AntigravityChildLaunch | undefined =>
+    Predicate.isObject(value) &&
+    typeof value.Role === "string" &&
+    typeof value.Prompt === "string"
+      ? { role: value.Role, prompt: value.Prompt }
+      : undefined;
+  if (!Predicate.isObject(input)) return undefined;
+  if ("Subagents" in input) {
+    if (!Array.isArray(input.Subagents) || input.Subagents.length === 0) return undefined;
+    const launches = input.Subagents.map(entry);
+    return launches.every((launch): launch is AntigravityChildLaunch => launch !== undefined)
+      ? launches
+      : undefined;
+  }
+  const single = entry(input);
+  return single === undefined ? undefined : [single];
 }
 
 /** Batch title and prompt; reads match permission-prompt tool call ids against this exact text. */
@@ -120,7 +128,11 @@ const text = (bytes: Uint8Array | undefined, field: number) => {
 interface InvokeRecord {
   readonly toolCallId: string | undefined;
   readonly launches: ReadonlyArray<AntigravityChildLaunch>;
-  readonly children: ReadonlyArray<{ readonly conversationId: string; readonly logUri: string }>;
+  // chronos(olympus): server-syNn-CpO.mjs N03 / N05
+  readonly children: ReadonlyArray<{
+    readonly conversationId: string;
+    readonly logUri?: string;
+  }>;
 }
 
 const NATIVE_ID = /^[A-Za-z0-9-]{1,64}$/;
@@ -381,13 +393,16 @@ async function readChildTranscript(
     )
   )?.path;
   if (expected === undefined) return undefined;
-  let named: string;
-  try {
-    named = NodeURL.fileURLToPath(child.logUri);
-  } catch {
-    return undefined;
+  // chronos(olympus): server-syNn-CpO.mjs N03-N04
+  if (child.logUri !== undefined) {
+    let named: string;
+    try {
+      named = NodeURL.fileURLToPath(child.logUri);
+    } catch {
+      return undefined;
+    }
+    if ((await NodeFSP.realpath(named).catch(() => undefined)) !== expected) return undefined;
   }
-  if ((await NodeFSP.realpath(named).catch(() => undefined)) !== expected) return undefined;
   const handle = await NodeFSP.open(
     expected,
     NodeFS.constants.O_RDONLY | (NodeFS.constants.O_NOFOLLOW ?? 0),
@@ -430,23 +445,29 @@ export const readAntigravityChildWork = Effect.fn("readAntigravityChildWork")(fu
   return yield* Effect.tryPromise({
     try: async (): Promise<ReadonlyArray<OrchestrationV2NativeChildWork>> => {
       const profileRoot = await antigravityProfileRoot(input.profileDirectory);
-      const databasePath =
-        profileRoot === undefined
-          ? undefined
-          : (
-              await antigravityManagedPath(
-                profileRoot,
-                ["antigravity-acp", "conversations", `${input.rootSessionId}.db`],
-                "file",
-              )
-            )?.path;
-      if (profileRoot === undefined || databasePath === undefined) return [];
-      const database = new NodeSqlite.DatabaseSync(databasePath, { readOnly: true });
-      let record: InvokeRecord | undefined;
-      try {
-        record = findInvokeRecord(database, input);
-      } finally {
-        database.close();
+      if (profileRoot === undefined) return [];
+      // chronos(olympus): server-syNn-CpO.mjs N06-N07
+      let record: InvokeRecord | undefined = await olyFindDetachedInvokeRecord(
+        profileRoot,
+        input.rootSessionId,
+        input.nativeTaskId,
+        antigravitySubagentLaunches,
+      );
+      if (record === undefined) {
+        const databasePath = (
+          await antigravityManagedPath(
+            profileRoot,
+            ["antigravity-acp", "conversations", `${input.rootSessionId}.db`],
+            "file",
+          )
+        )?.path;
+        if (databasePath === undefined) return [];
+        const database = new NodeSqlite.DatabaseSync(databasePath, { readOnly: true });
+        try {
+          record = findInvokeRecord(database, input);
+        } finally {
+          database.close();
+        }
       }
       if (record === undefined) return [];
       const { launches, children } = record;

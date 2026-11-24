@@ -65,13 +65,15 @@ function parseOpenCodeMessage(
     outputTokens: tokens(usage.output) + reasoningTokens,
     reasoningTokens,
   };
-  if (totalTokens(totals) === 0) return null;
+  // chronos(olympus): server-syNn-CpO.mjs N09
+  if (totalTokens(totals) === 0 && !message.olyOpenrouterReceipt) return null;
   const id = fallback.id || text(message.id);
   const cost = message.cost;
   const prefix = LITELLM_PREFIXES.get(providerId);
   const free = OPENCODE_GATEWAYS.has(providerId) && model.endsWith("-free");
   return {
-    provider: "opencode",
+    // chronos(olympus): server-syNn-CpO.mjs N10
+    provider: providerId === "openrouter" ? "openrouter" : "opencode",
     timestampMs,
     model,
     ...(prefix !== undefined && !model.includes("/") ? { rateModel: `${prefix}/${model}` } : {}),
@@ -79,12 +81,20 @@ function parseOpenCodeMessage(
     totals,
     // OpenCode records zero for unknown rates and paid subscriptions alike, so only its own
     // gateways' free models report zero; shared pricing estimates every other zero.
+    // chronos(olympus): server-syNn-CpO.mjs N11
     reportedCostUsd:
-      typeof cost === "number" && Number.isFinite(cost) && (cost > 0 || (free && cost === 0))
+      typeof cost === "number" &&
+      Number.isFinite(cost) &&
+      (cost > 0 ||
+        ((free ||
+          message.olyOpenrouterReceipt === true ||
+          (providerId === "openrouter" && model.endsWith(":free"))) &&
+          cost === 0))
         ? cost
         : null,
     speed: "standard",
-    dedupeKey: id ? `opencode:${id}` : null,
+    // chronos(olympus): server-syNn-CpO.mjs N12
+    dedupeKey: id ? `${providerId === "openrouter" ? "openrouter" : "opencode"}:${id}` : null,
   };
 }
 
@@ -480,7 +490,11 @@ const resolveOpenCodeDataDirs = Effect.fn("resolveOpenCodeDataDirs")(function* (
     ),
   ];
   const canonical = new Set<string>();
-  for (const root of roots?.length ? roots : defaults) {
+  // chronos(olympus): server-syNn-CpO.mjs N13
+  for (const root of [
+    ...(roots?.length ? roots : defaults),
+    path.join(homeDirectory, ".t3", "userdata", "openrouter-usage"),
+  ]) {
     const resolved = path.resolve(expandHomePath(root, homeDirectory));
     canonical.add(yield* fileSystem.realPath(resolved).pipe(Effect.orElseSucceed(() => resolved)));
   }

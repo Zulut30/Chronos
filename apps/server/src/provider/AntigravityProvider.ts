@@ -163,7 +163,10 @@ interface AntigravityProviderOptions {
     EffectAcpErrors.AcpError | ProviderSetupError
   >;
   readonly supportsTextGeneration: Effect.Effect<boolean>;
-  readonly probeUsage?: Effect.Effect<ServerProviderUsageLimits>;
+  // chronos(olympus): server-syNn-CpO.mjs N08
+  readonly probeUsage?: Effect.Effect<
+    ServerProviderUsageLimits & { readonly olyAccountEmail?: string }
+  >;
   readonly clearUsage?: Effect.Effect<void>;
   readonly maintenanceCapabilities?: ProviderMaintenanceCapabilities;
   readonly auth?: { readonly type: string; readonly label: string };
@@ -244,6 +247,17 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
             ...state,
             draft: {
               ...state.draft,
+              // chronos(olympus): server-syNn-CpO.mjs N08
+              ...(typeof probed?.olyAccountEmail === "string" &&
+              probed.olyAccountEmail.trim() &&
+              state.draft.auth.status !== "unauthenticated"
+                ? {
+                    auth: {
+                      ...state.draft.auth,
+                      email: probed.olyAccountEmail.trim(),
+                    },
+                  }
+                : {}),
               usageLimits: resolveUsageLimitsAfterProbe({
                 published: state.draft.usageLimits,
                 probed,

@@ -325,10 +325,12 @@ function resolveRate(table: RateTable, model: string): ModelRate | null {
   return table.get(key) ?? null;
 }
 
+// chronos(olympus): server-syNn-CpO.mjs N14
 export type PricedRecord = Pick<
   UsageRecord,
   "model" | "rateModel" | "totals" | "cacheCreation1hTokens" | "speed" | "reportedCostUsd"
->;
+> &
+  Partial<Pick<UsageRecord, "provider">>;
 
 function recordRate(table: RateTable, record: PricedRecord): ModelRate | null {
   const rate = record.rateModel === undefined ? null : lookupRate(table, record.rateModel);
@@ -377,6 +379,10 @@ export function priceUsage(
     categoryCostUsd: null,
     speedPremiumUsd: 0,
   });
+  // chronos(olympus): server-syNn-CpO.mjs N14
+  if (record.provider === "openrouter" && override === undefined) {
+    return reported === null ? unsplit(0, "unpriced") : unsplit(reported, "providerReported");
+  }
   const rate = override ?? recordRate(table, record);
   if (rate === null) {
     return reported === null ? unsplit(0, "unpriced") : unsplit(reported, "providerReported");
