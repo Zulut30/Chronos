@@ -83,7 +83,8 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          install-args: --filter=t3...
+          # The server tsconfig includes ../../scripts/lib, whose imports resolve from @t3tools/scripts.
+          install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
         run: vp run --filter t3 typecheck
       - name: Auth, migrations, projection index and WSL keep awake
