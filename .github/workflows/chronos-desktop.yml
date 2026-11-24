@@ -351,13 +351,21 @@ jobs:
           UPSTREAM: ${{ needs.version.outputs.upstream }}
         run: |
           set -euo pipefail
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
           notes=$(printf '%s\n' \
-            "Chronos ${VERSION} — T3 Code ${UPSTREAM} with an independent installation, T3 Connect and Olympus parity patches." \
+            "На базе исходного кода T3 Code [${UPSTREAM}](https://github.com/pingdotgg/t3code/releases/tag/v${UPSTREAM}). Chronos — неофициальный форк, не связан с T3 Tools, Inc." \
             "" \
-            "- Windows x64: \`Chronos-${VERSION}-x64.exe\` (unsigned: SmartScreen → More info → Run anyway)." \
-            "- macOS: \`.dmg\` for arm64 (Apple silicon) or x64 (Intel), unsigned: right-click → Open on first launch." \
+            "| Платформа | Установщик |" \
+            "|---|---|" \
+            "| Windows x64 | [Chronos-Setup-x64.exe](${base}/Chronos-Setup-x64.exe) |" \
+            "| macOS Apple Silicon | [Chronos-mac-arm64.dmg](${base}/Chronos-mac-arm64.dmg) |" \
+            "| macOS Intel | [Chronos-mac-x64.dmg](${base}/Chronos-mac-x64.dmg) |" \
             "" \
-            "Upstream: https://github.com/pingdotgg/t3code/releases/tag/v${UPSTREAM}")
+            "Сборки не подписаны: Windows — «Подробнее» → «Выполнить в любом случае»; macOS — правый клик → «Открыть» при первом запуске. Контрольные суммы — \`SHA256SUMS\`. Файлы \`.blockmap\`, \`.zip\` и \`*.yml\` нужны автообновлению, качать их не нужно. Chronos ставится рядом с T3 Code и хранит данные отдельно (\`~/.chronos\`)." \
+            "" \
+            "---" \
+            "" \
+            "Built from the T3 Code ${UPSTREAM} source. Chronos is an unofficial fork, not affiliated with T3 Tools, Inc. Installers are unsigned (SmartScreen: More info → Run anyway; macOS: right-click → Open). Checksums: \`SHA256SUMS\`. Installs side by side with T3 Code; data lives in \`~/.chronos\`.")
           gh release create "$TAG" release-assets/Chronos-* release-assets/nightly*.yml release-assets/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
