@@ -30,14 +30,15 @@ T3 Code 4774.
 
 ## Разработка Chronos и перенос функций T3
 
-Текущая ветка переноса — `parity/olympus` (база `v0.1.10-nightly.20261116.4774`). После
-завершения паритета и слияния в `main` новые задачи ведутся от `main`.
+Основная ветка — `main`: перенос Olympus один в один на базе `v0.1.10-nightly.20261116.4774`
+(бывшая ветка `parity/olympus`; прежний `main` с React-переписью сохранён как `legacy/react-rewrite`).
+Новые задачи ведутся от `main`.
 
 ### Своя функция или правка
 
 ```sh
-git switch -c feature/my-feature parity/olympus
-node chronos/scripts/upstream-plan.mjs feature parity/olympus
+git switch -c feature/my-feature main
+node chronos/scripts/upstream-plan.mjs feature main
 ```
 
 Держи код форка изолированно (`chronos/`, `apps/desktop/src/chronos/`, отдельные модули потока),
@@ -117,7 +118,7 @@ node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
 T3). Оставлены только workflow Chronos:
 
 - `.github/workflows/chronos-desktop.yml`:
-  - **push в `parity/olympus`** и **`workflow_dispatch`** — собирают Windows x64 (NSIS) и macOS
+  - **push в `main`** и **`workflow_dispatch`** — собирают Windows x64 (NSIS) и macOS
     arm64/x64 (`dmg` + `zip`) без цифровой подписи и загружают установщики в артефакты прогона
     (`chronos-win-x64`, `chronos-mac-arm64`, `chronos-mac-x64`), без публикации GitHub Release.
   - **тег `chronos-v*`** — проверяет совпадение тега с `chronos/version.json`, находит успешные

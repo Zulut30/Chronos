@@ -10,7 +10,7 @@ Chronos базируется на T3 Code `v0.1.10-nightly.20261116.4774` (`1669
 потоков находятся в `chronos/README.md` и `chronos/parity/`.
 
 ## Где писать код
-Начинай от актуальной рабочей ветки (`parity/olympus` или `main` после слияния паритета).
+Начинай от `main` (перенос Olympus один в один; прежний `main` — `legacy/react-rewrite`, его не трогать).
 
 1. **Новые файлы — в своих папках:**
    - десктоп (Electron main): `apps/desktop/src/chronos/…`

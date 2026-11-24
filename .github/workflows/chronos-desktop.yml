@@ -1,6 +1,6 @@
 # Chronos desktop builds (Windows x64 NSIS, macOS arm64 + x64 dmg/zip), unsigned.
 #
-# - push to parity/olympus or workflow_dispatch: build and keep the installers as workflow artifacts.
+# - push to main or workflow_dispatch: build and keep the installers as workflow artifacts.
 # - tag chronos-v<version>: publish a GitHub Release with the tested installers and the
 #   electron-updater feeds (nightly.yml, nightly-mac.yml).
 #   The tag must match chronos/version.json (chronos/scripts/chronos-version.mjs).
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - parity/olympus
+      - main
     tags:
       - "chronos-v*"
 
