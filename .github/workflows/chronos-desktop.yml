@@ -243,6 +243,24 @@ jobs:
           fi
           vp run dist:desktop:artifact "${args[@]}"
 
+      - name: Verify bundled Olympus services in the distributable
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=$(mktemp -d)
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            7z e -y "-o$stage" release/*.exe '-ir!app-*.7z' >/dev/null
+            7z x -y "-o$stage" "$stage"/app-*.7z 'resources/chronos-services/*' >/dev/null
+            resources="$stage/resources/chronos-services"
+          else
+            unzip -q release/*.zip '*/Contents/Resources/chronos-services/*' -d "$stage"
+            resources=$(find "$stage" -type d -name chronos-services -print -quit)
+          fi
+          test -d "$resources"
+          test -z "$(find "$resources" -name '*.test.mjs' -print -quit)"
+          diff -qr -x '*.test.mjs' chronos/services "$resources"
+          CHRONOS_TEST_RESOURCES="$resources" node --test chronos/scripts/smoke/services.test.mjs
+
       - name: Collect release assets
         run: |
           set -euo pipefail

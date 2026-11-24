@@ -2834,6 +2834,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       : { asarUnpack: ["**/node_modules/@transcribe-cpp/**/*.{dylib,so,so.*}"] }),
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
+      // chronos: stage the runtime allowlist from the checkout outside the app archive.
+      ...(isChronosVersion(version) ? [{ from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"), to: "chronos-services", filter: ["**/*", "!**/*.test.mjs"] }] : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),

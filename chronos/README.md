@@ -24,9 +24,10 @@ T3 Code 4774.
   (`.github/workflows/chronos-parity.yml`).
 
 Тема Olympus остаётся внешней (как в Olympus LIVE — файлы в `userdata/themes/`), встроенной темы
-и переписанного JSX-каталога в `apps/web/src/chronos/` нет. Локальные сервисы Olympus
-(`skills-manager`, `tasks-service`, `files-service`, `studio-service`, `integrations-service`,
-`mcp-manager`, `olympus-hub`, `openrouter-service`) остаются внешними.
+и переписанного JSX-каталога в `apps/web/src/chronos/` нет. Установщик включает семь HTTP-сервисов Olympus и OpenRouter MCP (stdio).
+Chronos проверяет локальные порты после готовности Electron и запускает свободные сервисы
+из ресурсов приложения. Профиль задаёт `CHRONOS_HOME`, по умолчанию `~/.chronos`.
+Подробности — в [отчёте по сервисам](parity/services.md).
 
 ## Разработка Chronos и перенос функций T3
 
@@ -170,7 +171,8 @@ T3). Оставлены только workflow Chronos:
 | `apps/desktop/src/app/DesktopClerk.ts`, `apps/desktop/src/electron/ElectronProtocol.ts` | После моста Clerk (схема `chronos://`) заново регистрируются привилегии `t3code://` вместе с `chronos://` (`apps/desktop/src/chronos/ChronosSchemes.ts`), иначе в окне не работает `fetch` (терминал, wasm) |
 | `apps/web/src/components/sidebar/SidebarChrome.tsx` | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus |
 | `apps/web/src/components/desktopUpdate.logic.ts` | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*` |
-| `scripts/build-desktop-artifact.ts` | `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos |
+| `apps/desktop/src/app/DesktopApp.ts` | Запуск и остановка sidecar-процессов в области жизни DesktopApp после готовности Electron |
+| `scripts/build-desktop-artifact.ts` | Ресурсы сервисов Olympus, `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos |
 | `.github/workflows/*` | Удалены 27 workflow апстрима; добавлены `chronos-desktop.yml`, `chronos-checks.yml`, `chronos-upstream.yml` |
 | `.gitignore`, `AGENTS.md`, `README.md` | Игнор `chronos/.work/` и `__pycache__/`, актуальные инструкции форка |
 

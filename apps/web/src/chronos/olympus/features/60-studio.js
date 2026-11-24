@@ -170,7 +170,7 @@ async function openPop(anchor){
  const pop=document.createElement('div');pop.className='oly-studio-pop';pop.setAttribute('role','menu');pop.setAttribute('aria-label','Студия');
  pop.innerHTML='<div class="h"><b>Студия</b><span>Загрузка…</span></div>';document.body.appendChild(pop);
  const place=()=>{const r=anchor.getBoundingClientRect();pop.style.left=Math.max(8,Math.min(r.left,innerWidth-pop.offsetWidth-8))+'px';pop.style.bottom=Math.max(8,innerHeight-r.top+6)+'px'};place();
- let locs,boards,recent;const sitesP=svc('/api/wp/sites').catch(()=>null);
+ let locs,boards,recent;// chronos: the bundled studio provides boards only.
  try{[locs,recent]=await Promise.all([svc('/api/locations?cwd='+encodeURIComponent(S.cwd||'')),svc('/api/recent')]);
   const cur=locs.locations.find(l=>l.current);boards=(await svc('/api/boards?dir='+encodeURIComponent(cur.dir))).boards;
   const seenP=new Set(boards.map(b=>b.path.toLowerCase()));const rec=recent.recent.filter(r=>!seenP.has(r.path.toLowerCase())).slice(0,Math.max(0,6-Math.min(boards.length,5)));
@@ -182,20 +182,9 @@ async function openPop(anchor){
    ${rec.map(b=>`<button class="it" data-board="${esc(b.path)}" role="menuitem" title="${esc(b.path)}">${ICON_BOARD}<span class="n">${esc(b.name)}</span><span class="m">недавняя</span></button>`).join('')}
    <form data-new><input placeholder="Новая доска…" aria-label="Название новой доски" maxlength="100"></form>
    <button class="it" data-hub="boards" role="menuitem">${ICON_GRID}<span class="n">Все доски и папки</span></button>
-   <div class="sep"></div><div class="g">WordPress Playground</div>
-   <div data-sites><div class="msg">Загрузка сайтов…</div></div>
-   <button class="it" data-hub="wp" role="menuitem">${ICON_PLUS}<span class="n">Все сайты, новый сайт</span></button>`;
+`;
   pop.querySelectorAll('[data-board]').forEach(b=>b.onclick=()=>{closePop();openBoard(b.dataset.board)});
   pop.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>{closePop();openHub(b.dataset.hub)});
-  sitesP.then(sites=>{const box=pop.querySelector('[data-sites]');if(!box)return;if(!sites){box.innerHTML='<div class="msg">Не удалось получить список сайтов.</div>';return}
-   const mySites=sites.sites.filter(s=>cur.kind==='project'&&s.root&&s.root.toLowerCase()===cur.root.toLowerCase());
-   const siteRows=(mySites.length?mySites:sites.sites).slice(0,5);
-   box.innerHTML=siteRows.map(s=>`<button class="it" data-site="${esc(s.id)}" role="menuitem">${ICON_WP}<span class="n">${esc(s.name)}</span><span class="dot ${s.status}"></span><span class="m">${ST[s.status]||s.status}</span></button>`).join('')||'<div class="msg">Сайтов пока нет.</div>';
-   place();
-  box.querySelectorAll('[data-site]').forEach(b=>b.onclick=async()=>{closePop();const s=sites.sites.find(x=>x.id===b.dataset.site);
-   try{if(s.status!=='running'){toast('Запускаю «'+s.name+'»… первый запуск может занять минуту');await svc('/api/wp/start',{id:s.id});
-     for(let i=0;i<160;i++){await sleep(1500);const j=await svc('/api/wp/sites');const x=j.sites.find(y=>y.id===s.id);if(!x||x.status==='running')break;if(x.status==='error')throw new Error('WordPress не запустился — журнал в «Все сайты»')}}
-    await openSite(s)}catch(e){report(e)}})});
   const f=pop.querySelector('[data-new]');f.onsubmit=async e=>{e.preventDefault();const n=f.querySelector('input').value.trim();if(!n)return;
    try{const j=await svc('/api/board/create',{dir:cur.dir,name:n});closePop();openBoard(j.path)}catch(err){report(err)}};
  }catch(e){pop.innerHTML='<div class="h"><b>Студия</b></div><div class="msg">Сервис студии не запущен.<br>Он стартует при входе в Windows. Вручную: <code>t3-studio.vbs</code> в папке автозагрузки.</div>'}
@@ -209,11 +198,11 @@ function ensureButton(){if(document.querySelector('[data-oly-studio]'))return;
  const item=usage.parentElement&&usage.parentElement.closest('li')||usage.parentElement;if(!item||!item.parentElement)return;
  const after=document.querySelector('[data-oly-skills]')||item;
  const clone=item.cloneNode(true);clone.removeAttribute('data-oly-skills');clone.setAttribute('data-oly-studio','');const b=clone.matches('button')?clone:clone.querySelector('button');if(!b)return;
- b.setAttribute('aria-label','Студия');b.title='Студия — доски Excalidraw и WordPress';b.removeAttribute('data-state');b.removeAttribute('aria-expanded');swapIcon(b.querySelector('svg'),ICON_STUDIO);
+ b.setAttribute('aria-label','Студия');b.title='Студия — доски Excalidraw';b.removeAttribute('data-state');b.removeAttribute('aria-expanded');swapIcon(b.querySelector('svg'),ICON_STUDIO);
  b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openHub('boards')});b.addEventListener('contextmenu',e=>{e.preventDefault();openPop(b)});after.parentElement.insertBefore(clone,after.nextSibling)}
 function ensureLauncher(){const box=document.querySelector('[data-surface-launcher-keys]');if(!box||box.querySelector('[data-oly-studio-launch]'))return;
  const rows=[...box.querySelectorAll('button')].map(b=>b.closest('.group')||b).filter(Boolean);const proto=rows[rows.length-1];if(!proto||!proto.parentElement)return;
- for(const[key,label,icon,fn]of[['boards','Excalidraw',ICON_BOARD,()=>openHubInPanel('boards')],['wp','WordPress',ICON_WP,()=>openHubInPanel('wp')]]){
+ for(const[key,label,icon,fn]of[['boards','Excalidraw',ICON_BOARD,()=>openHubInPanel('boards')]]){
   const row=proto.cloneNode(true);row.setAttribute('data-oly-studio-launch',key);row.removeAttribute('onmouseenter');
   row.querySelectorAll('button:not(:first-of-type)').forEach(x=>x.remove());
   const btn=row.matches('button')?row:row.querySelector('button');if(!btn)continue;btn.classList.remove('bg-accent/60');
@@ -227,7 +216,7 @@ function ensureLauncher(){const box=document.querySelector('[data-surface-launch
 function ensureAddMenu(){for(const menu of document.querySelectorAll('[data-slot=menu-popup]')){if(menu.querySelector('[data-oly-studio-mi]'))continue;
  const items=[...menu.querySelectorAll('[data-slot=menu-item]')];if(!items.some(i=>/^(Терминал|Terminal)/.test(i.textContent.trim()))||!items.some(i=>/^(Файлы|Files)/.test(i.textContent.trim())))continue;
  const proto=items[items.length-1];
- for(const[key,label,icon,fn]of[['boards','Excalidraw',ICON_BOARD,()=>openHubInPanel('boards')],['wp','WordPress',ICON_WP,()=>openHubInPanel('wp')]]){
+ for(const[key,label,icon,fn]of[['boards','Excalidraw',ICON_BOARD,()=>openHubInPanel('boards')]]){
   const it=proto.cloneNode(true);it.setAttribute('data-oly-studio-mi',key);it.removeAttribute('id');it.removeAttribute('aria-keyshortcuts');it.removeAttribute('data-highlighted');
   swapIcon(it.querySelector('svg'),icon);
   [...it.childNodes].forEach(n=>{if(n.nodeType===3)n.remove();else if(n.tagName!=='svg')n.remove()});it.appendChild(document.createTextNode(label));
