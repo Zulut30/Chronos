@@ -23,6 +23,7 @@ import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopUserData from "./DesktopUserData.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import { openClerkTokenStorage } from "./ClerkTokenStore.ts";
+import { restoreDesktopSchemePrivileges } from "../chronos/ChronosSchemes.ts";
 import * as DesktopWebLinks from "./DesktopWebLinks.ts";
 
 declare const __T3CODE_BUILD_CLERK_PUBLISHABLE_KEY__: string | undefined;
@@ -143,15 +144,19 @@ export const make = Effect.gen(function* () {
 
   yield* Effect.acquireRelease(
     Effect.try({
-      try: () =>
-        createDesktopClerkBridge(
+      try: () => {
+        const bridge = createDesktopClerkBridge(
           environment.stateDir,
           // chronos: standalone Chronos receives external auth callbacks on chronos://.
           isChronosVersion(environment.appVersion)
             ? CHRONOS_SCHEME
             : ElectronProtocol.getDesktopScheme(environment.isDevelopment),
           userDataPath,
-        ),
+        );
+        // chronos: Clerk's chronos:// registration replaced the t3code:// privileges; restore both.
+        if (isChronosVersion(environment.appVersion)) restoreDesktopSchemePrivileges();
+        return bridge;
+      },
       catch: (cause) =>
         new DesktopClerkBridgeInitializationError({
           stateDir: environment.stateDir,

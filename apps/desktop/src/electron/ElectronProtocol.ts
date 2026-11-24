@@ -108,7 +108,10 @@ function withContentSecurityPolicy(response: Response, policy: string): Response
 }
 
 // Must run synchronously before Electron emits ready.
-function registerDesktopSchemePrivilegesSync(): void {
+// chronos: exported with extra schemes so Chronos can restore these after Clerk registers chronos://.
+export function registerDesktopSchemePrivilegesSync(
+  extra: ReadonlyArray<Electron.CustomScheme> = [],
+): void {
   Electron.protocol.registerSchemesAsPrivileged([
     {
       scheme: DESKTOP_PRODUCTION_SCHEME,
@@ -132,10 +135,11 @@ function registerDesktopSchemePrivilegesSync(): void {
         stream: true,
       },
     },
+    ...extra,
   ]);
 }
 
-const registerDesktopSchemePrivileges = Effect.sync(registerDesktopSchemePrivilegesSync).pipe(
+const registerDesktopSchemePrivileges = Effect.sync(() => registerDesktopSchemePrivilegesSync()).pipe(
   Effect.withSpan("desktop.electron.protocol.registerSchemePrivileges"),
 );
 

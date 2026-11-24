@@ -166,6 +166,7 @@ T3). Оставлены только workflow Chronos:
 | `apps/desktop/src/electron/ElectronDialog.ts` | Имя продукта `Chronos` в системных диалогах (без русской локализации) |
 | `apps/desktop/src/app/DesktopStartupRecovery.ts` | Ссылки восстановления на релизы `Zulut30/Chronos` (`chronos-v*`) и имя продукта `Chronos` |
 | `apps/desktop/src/app/DesktopAppIdentity.test.ts`, `DesktopClerk.test.ts`, `DesktopEnvironment.test.ts`, `DesktopPreReadyPlatform.test.ts`, `updates/updatesTestHarness.ts` | Ожидания имени/профиля/схемы Chronos и переносимость путей фикстур на Windows |
+| `apps/desktop/src/app/DesktopClerk.ts`, `apps/desktop/src/electron/ElectronProtocol.ts` | После моста Clerk (схема `chronos://`) заново регистрируются привилегии `t3code://` вместе с `chronos://` (`apps/desktop/src/chronos/ChronosSchemes.ts`), иначе в окне не работает `fetch` (терминал, wasm) |
 | `apps/web/src/components/sidebar/SidebarChrome.tsx` | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus |
 | `apps/web/src/components/desktopUpdate.logic.ts` | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*` |
 | `scripts/build-desktop-artifact.ts` | `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos |

@@ -17,9 +17,16 @@ afterAll(() => {
   NodeFS.rmSync(clerkStateDir, { recursive: true, force: true });
 });
 
-const { createClerkBridgeMock, requestSingleInstanceLockMock, storageAdapter, storageMock } =
-  vi.hoisted(() => ({
+const {
+  createClerkBridgeMock,
+  requestSingleInstanceLockMock,
+  restoreSchemesMock,
+  storageAdapter,
+  storageMock,
+} = vi.hoisted(() => ({
     createClerkBridgeMock: vi.fn(),
+    // chronos: scheme privileges are re-registered after the bridge in standalone Chronos.
+    restoreSchemesMock: vi.fn(),
     requestSingleInstanceLockMock: vi.fn(() => true),
     storageAdapter: {
       getItem: vi.fn(),
@@ -35,6 +42,10 @@ vi.mock("@clerk/electron", () => ({
 
 vi.mock("@clerk/electron/storage", () => ({
   storage: storageMock,
+}));
+
+vi.mock("../chronos/ChronosSchemes.ts", () => ({
+  restoreDesktopSchemePrivileges: restoreSchemesMock,
 }));
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
@@ -117,6 +128,7 @@ describe("DesktopClerk", () => {
   beforeEach(() => {
     createClerkBridgeMock.mockReset();
     requestSingleInstanceLockMock.mockReset().mockReturnValue(true);
+    restoreSchemesMock.mockReset();
     storageMock.mockReset();
   });
 
@@ -193,6 +205,7 @@ describe("DesktopClerk", () => {
         createClerkBridgeMock.mock.calls[0]?.[0]?.renderer.scheme,
         appVersion ? "chronos" : isDevelopment ? "t3code-dev" : "t3code",
       );
+      assert.equal(restoreSchemesMock.mock.calls.length, appVersion ? 1 : 0);
       assert.notStrictEqual(createClerkBridgeMock.mock.calls[0]?.[0]?.storage, storageAdapter);
     },
   );
