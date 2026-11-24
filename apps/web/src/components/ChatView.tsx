@@ -52,7 +52,7 @@ import { recallCheckoutIsRepo, rememberCheckoutIsRepo } from "./ChatView.logic";
 import { useLogicalProjectEnvironments } from "../hooks/useLogicalProjectEnvironments";
 import { useStableCallback } from "../hooks/useStableCallback";
 import { useProjectScriptEditing } from "./chat/useProjectScriptEditing";
-import { RightPanelSurfaceContent } from "./chat/RightPanelSurfaceContent";
+import { PanelHost } from "../chronos/olympus/PanelHost";
 import { usePendingThreadRequests } from "./chat/usePendingThreadRequests";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { resolveWorktreeRepositorySelection } from "@t3tools/client-runtime/state/thread-repositories";
@@ -3442,11 +3442,9 @@ export default function ChatView(props: ChatViewProps) {
   }
 
   // chronos(olympus): _chat-CZ9dvfEY.js N14
-  const PanelHost = globalThis.__olyPanelHost || RightPanelSurfaceContent;
   const rightPanelContent = activeThreadRef ? (
     <PanelHost
-      __hj={RightPanelSurfaceContent}
-      __surfaces={renderedRightPanelSurfaces}
+      surfaces={renderedRightPanelSurfaces}
       surface={renderedRightPanelSurface}
       activeSurfaceId={activeRightPanelSurface?.id ?? null}
       threadRef={activeThreadRef}

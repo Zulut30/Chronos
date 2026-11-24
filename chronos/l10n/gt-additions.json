@@ -1,0 +1,11 @@
+{
+  "Issue trackers": "Трекеры задач",
+  "Could not load issue trackers": "Не удалось загрузить трекеры задач",
+  "Workflow runs": "Запуски воркфлоу",
+  "Step of the workflow run": "Шаг запущенного воркфлоу",
+  "No workflow runs yet": "Пока ни один воркфлоу не запускался",
+  "Could not load workflow runs": "Не удалось загрузить список запусков",
+  "Loading workflow runs…": "Загружаем список запусков…",
+  "Connect an environment to see its workflow runs.": "Подключите окружение, чтобы увидеть историю запусков воркфлоу.",
+  "Update this server before starting multiple models.": "Чтобы запустить несколько моделей одновременно, обновите сервер."
+}

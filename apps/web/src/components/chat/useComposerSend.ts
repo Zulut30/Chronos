@@ -1091,12 +1091,14 @@ export function useComposerSend(input: ComposerSendInput) {
         setThreadError(threadIdForSend, resolved.error);
         return;
       }
+      // chronos(olympus): validate and dispatch the same mode-wrapped text for each target.
+      const text = globalThis.__olyWrapModeText?.(resolved.text, threadIdForSend) ?? resolved.text;
       if (
         isCurrentRouteThread() &&
-        composerRef.current?.validateProviderInput(resolved.text) === false
+        composerRef.current?.validateProviderInput(text) === false
       )
         return;
-      multipleTargets.push(resolved);
+      multipleTargets.push({ ...resolved, text });
     }
 
     const draftBeforePreparation = useComposerDraftStore
@@ -1364,6 +1366,7 @@ export function useComposerSend(input: ComposerSendInput) {
     if (multipleModelSelections !== null) {
       await sendToMultipleModels({
         threadId: threadIdForSend,
+        interactionMode: olySendPlan,
         project: activeProject,
         branch: activeThreadBranch!,
         selections: multipleModelSelections,

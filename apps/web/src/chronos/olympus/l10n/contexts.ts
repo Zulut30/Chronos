@@ -3,7 +3,7 @@ type Node = { type: string; start: number; end: number; [field: string]: unknown
 export type Parse = (code: string) => unknown;
 export type Site = {
   start: number; end: number; quote: string; parts: string[]; slots: string[];
-  property: string; context: (includeNeighbors?: boolean) => string[];
+  property: string; catalogArgument: boolean; context: (includeNeighbors?: boolean) => string[];
 };
 
 function isNode(value: unknown): value is Node {
@@ -111,8 +111,16 @@ export function visitStrings(code: string, parse: Parse, visit: (site: Site) => 
               last = quasi;
             }
           } else parts.push(String(node.value));
+          // GT hashes English at call time. Minification renames gt/msg and the JSX T
+          // component, but keeps the call argument and component-children shapes.
+          const jsx = parents.at(-3);
+          const catalogArgument =
+            (parent?.node.type === "CallExpression" && parent.field === "arguments" && parent.index === 0) ||
+            (property === "children" && jsx?.node.type === "CallExpression" &&
+              Array.isArray(jsx.node.arguments) && isNode(jsx.node.arguments[0]) &&
+              !["Literal", "TemplateLiteral"].includes(jsx.node.arguments[0].type));
           const opaque = visit({
-            start: node.start, end: node.end, quote: code.charAt(node.start), parts, slots, property,
+            start: node.start, end: node.end, quote: code.charAt(node.start), parts, slots, property, catalogArgument,
             context: (includeNeighbors = true) => {
               const chain = parents.slice(-6).reverse().map(role);
               while (chain.length < 6) chain.push("");

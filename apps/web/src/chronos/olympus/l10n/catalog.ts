@@ -47,7 +47,7 @@ export function applyOlympusCatalog(en: Catalog, ru: Catalog, pairs: Pairs) {
         nodes.push(part);
         return "{olyNode" + (nodes.length - 1) + "}";
       }).join("");
-      if (nodes.length && typeof ru[id] !== "string") {
+      if (nodes.length && Array.isArray(ru[id])) {
         const text = translate(message, []);
         if (text) target = text.split(/(\{olyNode\d+\})/u).filter(Boolean).map((part) => {
           const match = /^\{olyNode(\d+)\}$/u.exec(part);
@@ -74,13 +74,14 @@ export function olympusCatalog(): Plugin {
       if (id.replaceAll("\\", "/") !== file.replaceAll("\\", "/")) return;
       const enPath = resolve(root, "src/i18n/translations/en.json");
       const dictPath = resolve(root, "../../chronos/l10n/ru-final.json");
+      const additionsPath = resolve(root, "../../chronos/l10n/gt-additions.json");
       const runtimePath = resolve(root, "src/chronos/olympus/l10n/runtime-translator.js");
-      for (const path of [file, enPath, dictPath, runtimePath]) this.addWatchFile(path);
+      for (const path of [file, enPath, dictPath, additionsPath, runtimePath]) this.addWatchFile(path);
       const runtime = /^const DICT=(\{.*\});const D=/mu.exec(readFileSync(runtimePath, "utf8"))?.[1];
       if (!runtime) throw new Error("Missing Olympus runtime dictionary");
       const exact = (JSON.parse(runtime) as { exact: Pairs }).exact;
       const tables = readJson<Record<"presentational" | "strict" | "label" | "broad", Pairs>>(dictPath);
-      const pairs = { ...exact, ...tables.broad, ...tables.strict, ...tables.label, ...tables.presentational };
+      const pairs = { ...readJson<Pairs>(additionsPath), ...exact, ...tables.broad, ...tables.strict, ...tables.label, ...tables.presentational };
       // Native composer override N03 supersedes the earlier static translation.
       const placeholder = "Ask anything. @ files, $ skills, / commands";
       pairs[placeholder] = exact[placeholder]!;

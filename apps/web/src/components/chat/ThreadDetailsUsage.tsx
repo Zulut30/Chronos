@@ -317,7 +317,8 @@ function UsageRow({
     <Tooltip>
       <TooltipTrigger
         render={
-          opensUsage ? <Link to="/usage" {...rowProps} /> : <div tabIndex={0} {...rowProps} />
+          // chronos(olympus): limit rows are discovered by their explicit tab stop.
+          opensUsage ? <Link to="/usage" tabIndex={0} {...rowProps} /> : <div tabIndex={0} {...rowProps} />
         }
       >
         <span className="max-w-28 truncate text-muted-foreground group-hover:text-foreground">
