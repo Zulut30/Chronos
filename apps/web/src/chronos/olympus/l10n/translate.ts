@@ -1,113 +1,165 @@
-// @effect-diagnostics nodeBuiltinImport:off -- Build-time translator used by the Vite plugin and parity scripts in Node.
+// @effect-diagnostics nodeBuiltinImport:off -- Shared by the build plugin and offline parity verifier.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { visitStrings, type Parse, type Site } from "./contexts.ts";
 
 export const tableNames = ["presentational", "label", "strict", "broad"] as const;
-type Table = (typeof tableNames)[number];
+export type Table = (typeof tableNames)[number];
 export type Counts = Record<Table, Record<string, number>>;
+export type Edit = { start: number; end: number; length: number; text: string };
 type Tables = Record<Table, Record<string, string>>;
-
-// UTF-16 positions in the input to one pass. The keyed pass precedes the broad pass.
-export type Edit = { start: number; end: number; length: number };
-
-const presentational = new Set([
-  "children", "placeholder", '"aria-label"', "ariaLabel", "tooltip", "description", "heading",
-  "subtitle", "hint", "actionLabel", "confirmLabel", "cancelLabel", "buttonLabel", "helperText",
-  "emptyText", "emptyMessage", "caption", "alt",
-]);
-const keys = [...presentational, "label", "title", "text", "message", "detail", "summary"].join("|");
-// patch-combined.py permits unescaped backticks as delimiters and a single level of interpolation.
-const body = /(?:[^\x60$\\]|\$(?!\{)|\$\{[^\x60{}]*\})*/.source;
-const keyed = new RegExp("(?<![\\p{L}\\p{N}_$.])" + "(" + keys + "):`(" + body + ")`", "gu");
-const literal = new RegExp("`(" + body + ")`", "gu");
-// Python str.strip also treats U+001C..001F as whitespace and leaves the BOM alone.
+const presentational = new Set(["children", "placeholder", "aria-label", "ariaLabel", "tooltip",
+  "description", "heading", "subtitle", "hint", "actionLabel", "confirmLabel", "cancelLabel",
+  "buttonLabel", "helperText", "emptyText", "emptyMessage", "caption", "alt"]);
+const strict = new Set(["title", "text", "message", "detail", "summary"]);
 const leading = /^[\p{White_Space}\x1c-\x1f]+/u;
 const trailing = /[\p{White_Space}\x1c-\x1f]+$/u;
-// GT's generated JSON modules export messages under their 16-hex-digit translation IDs.
-const catalogExports = /\bas ["']?[\da-f]{16}["']?\s*,\s*[\w$]+ as ["']?[\da-f]{16}["']?\s*[,}]/u;
-const terminalRpc = /\bterminalOpen\s*:\s*["'`]terminal\.open["'`]/u;
-const configRpc = /\bserverGetConfig\s*:\s*["'`]server\.getConfig["'`]/u;
+const slot = /\$\{([^`{}]*)\}/gu;
 
 export function newCounts(): Counts {
-  return {
-    presentational: Object.create(null), label: Object.create(null),
-    strict: Object.create(null), broad: Object.create(null),
-  };
+  return { presentational: Object.create(null), label: Object.create(null),
+    strict: Object.create(null), broad: Object.create(null) };
 }
 
-export const tableFiles = [
-  "ru-final.json", "blocked-server.json", "unsafe.json", "unsafe-presentational.en.json",
-];
+export const tableFiles = ["ru-final.json", "blocked-server.json", "unsafe.json", "unsafe-presentational.en.json"];
+export const contextFile = "occurrence-contexts.json";
+// Each rule holds a dictionary key (null = preserved in LIVE) and indexed ESTree context features.
+export type Rule = [string | true | null, ...[number, string][]];
+export type Rules = Record<Table, Record<string, Rule[]>>;
+type Recipe = { key: string; output: string[]; order: number[]; same: [number, number][] };
+type Group = { key: string; recipes: Recipe[] };
+type Dictionary = { index: Record<Table, Map<string, Group>>; rules: Rules; outputs: Set<string> };
 
-export function loadTables(directory: string): Tables {
-  const read = (name: string) => JSON.parse(readFileSync(join(directory, name), "utf8"));
+function parts(key: string) { return key.split(/\$\{[^`{}]*\}/u); }
+export function templateShape(key: string) { return JSON.stringify(parts(key)); }
+
+export function readDictionaries(directory: string): Tables {
+  const read = (file: string) => JSON.parse(readFileSync(join(directory, file), "utf8"));
   const tables: Tables = read("ru-final.json");
-  // The allowlists in ru-final already incorporate these exclusions. Preserve them if edited.
-  // Olympus permits server labels in display props, and compared values only in presentation props.
-  for (const key of read("blocked-server.json") as string[]) {
-    delete tables.strict[key];
-    delete tables.broad[key];
-  }
-  for (const name of ["unsafe.json", "unsafe-presentational.en.json"]) {
-    for (const key of read(name) as string[]) {
-      delete tables.label[key];
-      delete tables.strict[key];
-      delete tables.broad[key];
+  for (const [file, excluded] of [
+    ["blocked-server.json", ["strict", "broad"]],
+    ["unsafe.json", ["label", "strict", "broad"]],
+    ["unsafe-presentational.en.json", ["label", "strict", "broad"]],
+  ] as const) {
+    const blocked = new Set((read(file) as string[]).map(templateShape));
+    for (const table of excluded) {
+      for (const key of Object.keys(tables[table])) if (blocked.has(templateShape(key))) delete tables[table][key];
     }
   }
   return tables;
 }
 
-export function translateChunk(code: string, tables: Tables, counts: Counts) {
-  const passes: [Edit[], Edit[]] = [[], []];
-  // Identify the shared RPC/schema chunk and GT catalog objects from their contents.
-  // The original patch excluded one hashed utils filename and the nine hashed locale filenames.
-  if (!code.includes("jsx") || (terminalRpc.test(code) && configRpc.test(code)) || catalogExports.test(code)) {
-    return { code, keyedCode: code, passes };
-  }
-
-  function replace(text: string, table: Table, start: number, edits: Edit[]) {
-    const dict = tables[table];
-    if (!Object.hasOwn(dict, text) || !dict[text]) return text;
-    const prefix = text.match(leading)?.[0] ?? "";
-    const suffix = text.match(trailing)?.[0] ?? "";
-    const middle = dict[text].replace(leading, "").replace(trailing, "");
-    const result = prefix + middle + suffix;
-    if (result !== text) {
-      counts[table][text] = (counts[table][text] ?? 0) + 1;
-      edits.push({ start: start + prefix.length, end: start + text.length - suffix.length, length: middle.length });
+export function loadTables(directory: string, rules?: Rules): Dictionary {
+  const tables = readDictionaries(directory), outputs = new Set<string>();
+  const index = { presentational: new Map(), label: new Map(), strict: new Map(), broad: new Map() } as Dictionary["index"];
+  for (const table of tableNames) {
+    for (const [key, value] of Object.entries(tables[table])) {
+      const id = templateShape(key), group: Group = index[table].get(id) ?? { key, recipes: [] };
+      const slots = Array.from(key.matchAll(slot), (m) => m[1]!);
+      const translatedSlots = Array.from(value.matchAll(slot), (m) => m[1]!);
+      if (slots.toSorted().join("\0") !== translatedSlots.toSorted().join("\0")) {
+        throw new Error("Translation changes the set or multiplicity of placeholders in " + key);
+      }
+      const order = translatedSlots.map((expr) => slots.indexOf(expr));
+      const same: [number, number][] = [];
+      slots.forEach((expr, i) => { if (slots.indexOf(expr) !== i) same.push([slots.indexOf(expr), i]); });
+      const fitted = (key.match(leading)?.[0] ?? "") + value.replace(leading, "").replace(trailing, "") + (key.match(trailing)?.[0] ?? "");
+      outputs.add(templateShape(fitted));
+      group.recipes.push({ key, output: parts(fitted), order, same });
+      index[table].set(id, group);
     }
-    return result;
   }
-
-  const first = code.replace(keyed, (match: string, key: string, en: string, offset: number) => {
-    const table = presentational.has(key) ? "presentational" : key === "label" ? "label" : "strict";
-    const value = replace(en, table, offset + key.length + 2, passes[0]);
-    return value === en ? match : key + ":`" + value + "`";
-  });
-  const second = first.replace(literal, (match: string, en: string, offset: number) => {
-    const value = replace(en, "broad", offset + 1, passes[1]);
-    return value === en ? match : "`" + value + "`";
-  });
-  return { code: second, keyedCode: first, passes };
+  return { index, outputs, rules: rules ?? JSON.parse(readFileSync(join(directory, contextFile), "utf8")) };
 }
 
-export function checkCoverage(
-  actual: Counts, expected: Counts, strict: boolean, warn: (message: string) => void,
-) {
-  const missing: string[] = [];
-  const totals = tableNames.map((table) => {
-    for (const [text, required] of Object.entries(expected[table])) {
-      const count = actual[table][text] ?? 0;
-      if (count < required) missing.push(table + " " + count + "/" + required + " " + JSON.stringify(text));
-    }
-    const total = Object.values(actual[table]).reduce((a, b) => a + b, 0);
-    return table + "=" + total;
-  });
-  if (missing.length) {
-    const message = "[olympus-l10n] " + totals.join(", ") + "\nBelow 4774 coverage:\n" + missing.join("\n");
-    if (strict) throw new Error(message);
-    warn(message);
+export function candidate(site: Site, dict: Dictionary) {
+  const id = JSON.stringify(site.parts);
+  const prop = site.property;
+  const table: Table = presentational.has(prop) ? "presentational" : prop === "label" ? "label" : strict.has(prop) ? "strict" : "broad";
+  const keyed = dict.index[table].get(id);
+  if (keyed) return { table, group: keyed };
+  const broad = dict.index.broad.get(id);
+  if (broad) return { table: "broad" as const, group: broad };
+  return undefined;
+}
+
+function render(recipe: Recipe, site: Site): string | undefined {
+  if (recipe.same.some(([a, b]) => site.slots[a] !== site.slots[b])) return undefined;
+  if (site.quote !== "`") {
+    const escaped = JSON.stringify(recipe.output[0]).slice(1, -1);
+    return site.quote === "'" ? escaped.replaceAll("\\\"", "\"").replaceAll("'", "\\'") : escaped;
   }
-  return totals.join(", ");
+  const escaped = recipe.output.map((part) => part.replaceAll("\\", "\\\\").replaceAll("`", "\\`").replaceAll("${", "\\${"));
+  return escaped.map((part, i) => i === 0 ? part : "${" + site.slots[recipe.order[i - 1]!] + "}" + part).join("");
+}
+
+export type Finding = { file: string; offset: number; table: Table; key: string; context: string; reason: string };
+
+export function inspectChunk(code: string, file: string, dict: Dictionary, parse: Parse) {
+  const edits: (Edit & { table: Table; key: string })[] = [], unresolved: Finding[] = [];
+  visitStrings(code, parse, (site) => {
+    const hit = candidate(site, dict);
+    if (!hit) return dict.outputs.has(JSON.stringify(site.parts));
+    const { group, table } = hit;
+    const scope = dict.rules[table];
+    const rules = Object.hasOwn(scope, group.key) ? scope[group.key] : undefined;
+    let recipes = group.recipes;
+    if (rules) {
+      const context = site.context(rules.some(([, ...when]) => when.some(([i]) => i >= 6)));
+      const matching = rules.filter(([, ...when]) => when.every(([index, value]) => context[index] === value));
+      if (matching.length && matching.every(([key]) => key === null)) return;
+      const allowed = new Set(matching.map(([key]) => key === true ? group.key : key));
+      recipes = allowed.has(null) ? [] : recipes.filter((r) => allowed.has(r.key));
+    } else if (table === "broad") recipes = [];
+    const results = new Map(recipes.map((r) => [render(r, site), r.key]));
+    const text = results.size === 1 ? results.keys().next().value : undefined;
+    if (text === undefined) {
+      unresolved.push({ file, offset: site.start, table, key: group.key, reason: "unrecognized or ambiguous usage",
+        context: code.slice(Math.max(0, site.start - 70), Math.min(code.length, site.end + 70)) });
+    } else {
+      const start = site.start + 1, end = site.end - 1;
+      if (text !== code.slice(start, end)) {
+        const key = results.get(text)!;
+        const source = code.slice(start, end);
+        const prefix = text.match(leading)?.[0] ?? "", suffix = text.match(trailing)?.[0] ?? "";
+        const lead = source.startsWith(prefix) ? prefix.length : 0, tail = source.endsWith(suffix) ? suffix.length : 0;
+        edits.push({ start: start + lead, end: end - tail, length: text.length - lead - tail,
+          text: text.slice(lead, text.length - tail), table, key });
+      }
+    }
+    // The slot source is opaque in both the English and the already translated literal.
+    return text !== undefined;
+  });
+  return { edits, unresolved };
+}
+
+export function translateChunk(code: string, file: string, tables: Dictionary, counts: Counts, parse: Parse) {
+  const { edits, unresolved } = inspectChunk(code, file, tables, parse);
+  const parts: string[] = [];
+  let previous = 0;
+  for (const edit of edits) {
+    if (edit.start < previous) throw new Error("Overlapping Olympus translation in " + file);
+    parts.push(code.slice(previous, edit.start), edit.text);
+    previous = edit.end;
+    counts[edit.table][edit.key] = (counts[edit.table][edit.key] ?? 0) + 1;
+  }
+  return { code: edits.length ? parts.join("") + code.slice(previous) : code, edits, unresolved };
+}
+
+export function remaining(code: string, file: string, tables: Dictionary, parse: Parse) {
+  const { edits, unresolved } = inspectChunk(code, file, tables, parse);
+  for (const { start, end, table, key } of edits) {
+    unresolved.push({ file, offset: start, table, key, reason: "English after translation",
+      context: code.slice(Math.max(0, start - 70), end + 70) });
+  }
+  return unresolved;
+}
+
+export function checkCoverage(findings: Finding[], strictMode: boolean, warn: (message: string) => void) {
+  if (!findings.length) return;
+  const message = "[olympus-l10n] Remaining English occurrences: " + findings.length + "\n" +
+    findings.map((f) => f.file + "@" + f.offset + " " + f.table + " " + JSON.stringify(f.key) +
+      " (" + f.reason + ") " + JSON.stringify(f.context)).join("\n");
+  if (strictMode) throw new Error(message);
+  warn(message);
 }

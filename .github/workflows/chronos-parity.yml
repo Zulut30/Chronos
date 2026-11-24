@@ -38,6 +38,13 @@ jobs:
           if ($LASTEXITCODE) { throw "NSIS extraction failed: $LASTEXITCODE" }
           & $sevenZip x -y -bd (Join-Path $dir '$PLUGINSDIR/app-64.7z') 'resources/server.asar' "-o$dir"
           if ($LASTEXITCODE) { throw "Payload extraction failed: $LASTEXITCODE" }
+      - name: Install the standalone verifier parser
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'olympus-l10n-parser'
+          npm install --prefix $dir --no-audit --no-fund --no-package-lock --ignore-scripts acorn@8.16.0
+          if ($LASTEXITCODE) { throw 'Acorn installation failed' }
+          "CHRONOS_L10N_ACORN=$(Join-Path $dir 'node_modules/acorn')" >> $env:GITHUB_ENV
       - name: Compare official chunks to Olympus LIVE references
         shell: pwsh
         run: node chronos/scripts/parity/verify-l10n.mjs --asar (Join-Path $env:RUNNER_TEMP 'olympus-l10n/resources/server.asar')

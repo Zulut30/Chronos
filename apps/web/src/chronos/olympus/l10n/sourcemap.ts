@@ -14,7 +14,7 @@ function encodeDelta(delta: number): string {
 
 // Only the first VLQ in each segment is a generated-column delta. Source, original position,
 // name and ignore-list information remain valid. Columns inside a changed string stay in it.
-function shiftLine(line: string, edits: Edit[]) {
+function shiftLine(line: string, edits: Pick<Edit, "start" | "end" | "length">[]) {
   let previous = 0, shiftedPrevious = 0, shift = 0, index = 0;
   return line.replace(/[A-Za-z0-9+/]+/g, (segment) => {
     let pos = 0, value = 0, place = 1, digit: number;
@@ -46,7 +46,7 @@ export function shiftMappings(mappings: string, code: string, edits: Edit[]): st
   const ends = /\r\n|[\r\n\u2028\u2029]/g;
   let nextLine = ends.exec(code);
   let line = 0, lineStart = 0;
-  let columns: Edit[] = [];
+  let columns: Pick<Edit, "start" | "end" | "length">[] = [];
   function flush() {
     const current = lines[line];
     if (columns.length && current) lines[line] = shiftLine(current, columns);
@@ -59,10 +59,21 @@ export function shiftMappings(mappings: string, code: string, edits: Edit[]): st
       lineStart = ends.lastIndex;
       nextLine = ends.exec(code);
     }
-    // Olympus dictionaries keep all embedded line breaks in the untouched leading/trailing
-    // whitespace. Do not silently mis-map a future dictionary with multiline replacements.
-    if (nextLine && nextLine.index < edit.end) throw new Error("Multiline Olympus source-map edit");
-    columns.push({ start: edit.start - lineStart, end: edit.end - lineStart, length: edit.length });
+    let start = edit.start;
+    // Reordered slots can contain multiline JS. Each translation preserves slot multiplicity.
+    const replacementLines = nextLine && nextLine.index < edit.end ? edit.text.split(/\r\n|[\r\n\u2028\u2029]/u) : undefined;
+    let i = 0;
+    while (nextLine && nextLine.index < edit.end) {
+      const replacement = replacementLines?.[i++];
+      if (replacement === undefined) throw new Error("Lost line in Olympus source map");
+      columns.push({ start: start - lineStart, end: nextLine.index - lineStart, length: replacement.length });
+      flush();
+      line++;
+      start = lineStart = ends.lastIndex;
+      nextLine = ends.exec(code);
+    }
+    if (replacementLines && i !== replacementLines.length - 1) throw new Error("Changed line count in Olympus source map");
+    columns.push({ start: start - lineStart, end: edit.end - lineStart, length: replacementLines?.[i]?.length ?? edit.length });
   }
   flush();
   return lines.join(";");

@@ -1,16 +1,19 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Vite build plugin: runs in Node at build time, never in the client.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { posix, resolve } from "node:path";
 import type { Plugin } from "vite-plus";
 
 import { shiftMappings } from "./sourcemap.ts";
-import { checkCoverage, loadTables, newCounts, tableFiles, translateChunk, type Counts } from "./translate.ts";
+import { checkCoverage, contextFile, loadTables, newCounts, remaining, tableFiles, tableNames, translateChunk, type Finding } from "./translate.ts";
+
+function assetText(source: string | Uint8Array) {
+  return typeof source === "string" ? source : new TextDecoder("utf-8", { fatal: true }).decode(source);
+}
 
 export function olympusL10n(): Plugin {
   let root: string;
   let tables: ReturnType<typeof loadTables>;
-  let expected: Counts;
   let runtime: string;
   let fingerprint: string;
 
@@ -25,17 +28,15 @@ export function olympusL10n(): Plugin {
     buildStart() {
       const data = resolve(root, "../../chronos/l10n");
       const source = resolve(root, "src/chronos/olympus/l10n");
-      const dictionaryPaths = tableFiles.map((name) => resolve(data, name));
-      const expectedPath = resolve(data, "expected-4774.json");
+      const dictionaryPaths = [...tableFiles, contextFile].map((name) => resolve(data, name));
       const runtimePath = resolve(source, "runtime-translator.js");
-      for (const path of [...dictionaryPaths, expectedPath, runtimePath]) this.addWatchFile(path);
+      for (const path of [...dictionaryPaths, runtimePath]) this.addWatchFile(path);
       tables = loadTables(data);
-      expected = JSON.parse(readFileSync(expectedPath, "utf8"));
       runtime = readFileSync(runtimePath, "utf8");
       // generateBundle sees the final minifier spelling. Salt hashes earlier so dictionaries,
       // runtime or rule changes invalidate cached URLs even if upstream JS stays identical.
       const hash = createHash("sha256");
-      const rules = ["plugin.ts", "translate.ts", "sourcemap.ts"].map((name) => resolve(source, name));
+      const rules = ["plugin.ts", "translate.ts", "contexts.ts", "sourcemap.ts"].map((name) => resolve(source, name));
       for (const path of [...dictionaryPaths, runtimePath, ...rules]) {
         hash.update(readFileSync(path));
       }
@@ -47,18 +48,42 @@ export function olympusL10n(): Plugin {
     generateBundle: {
       order: "post",
       handler(options, bundle) {
-        const counts = newCounts();
+        const counts = newCounts(), findings: Finding[] = [];
+        const parse = (js: string) => this.parse(js);
         const mainId = resolve(root, "src/main.tsx").replaceAll("\\", "/");
         let runtimeHosts = 0;
         for (const chunk of Object.values(bundle)) {
-          if (chunk.type !== "chunk") continue;
-          const original = chunk.code;
-          const { code, keyedCode, passes } = translateChunk(original, tables, counts);
+          if (chunk.type === "asset" && !chunk.fileName.endsWith(".js")) continue;
+          const original = chunk.type === "chunk" ? chunk.code : assetText(chunk.source);
+          const { code, edits, unresolved } = translateChunk(original, chunk.fileName, tables, counts, parse);
+          findings.push(...(edits.length ? remaining(code, chunk.fileName, tables, parse) : unresolved));
+          if (chunk.type === "asset") {
+            if (edits.length) {
+              const url = /\/\/# sourceMappingURL=([^\r\n]+)\s*$/u.exec(code)?.[1];
+              const inline = url?.match(/^data:application\/json(?:;charset=[^;,]+)?;base64,/iu)?.[0];
+              if (url && inline) {
+                const map = JSON.parse(Buffer.from(url.slice(inline.length), "base64").toString("utf8"));
+                map.mappings = shiftMappings(map.mappings, original, edits);
+                const start = code.lastIndexOf(url);
+                const encoded = Buffer.from(JSON.stringify(map)).toString("base64");
+                chunk.source = code.slice(0, start) + inline + encoded + code.slice(start + url.length);
+              } else {
+                chunk.source = code;
+                const file = url ? posix.join(posix.dirname(chunk.fileName), url) : chunk.fileName + ".map";
+                const mapAsset = bundle[file];
+                if (mapAsset?.type === "asset") {
+                  const map = JSON.parse(assetText(mapAsset.source));
+                  map.mappings = shiftMappings(map.mappings, original, edits);
+                  mapAsset.source = JSON.stringify(map);
+                }
+              }
+            }
+            continue;
+          }
           let result = code;
-          if (code !== original && options.sourcemap && chunk.map) {
+          if (edits.length && options.sourcemap && chunk.map) {
             const map = chunk.map;
-            const keyedMappings = shiftMappings(map.mappings, original, passes[0]);
-            map.mappings = shiftMappings(keyedMappings, keyedCode, passes[1]);
+            map.mappings = shiftMappings(map.mappings, original, edits);
             chunk.map = map;
             const asset = bundle[chunk.sourcemapFileName ?? chunk.fileName + ".map"];
             if (asset?.type === "asset") asset.source = map.toString();
@@ -68,19 +93,20 @@ export function olympusL10n(): Plugin {
           }
           // Match the actual source module even if the dynamic entry is merged or renamed.
           if (chunk.moduleIds.some((id) => id.replaceAll("\\", "/") === mainId)) {
-            result += "\n" + runtime;
+            if (!result.endsWith("\n" + runtime)) result += "\n" + runtime;
             runtimeHosts++;
           }
           if (result !== original) chunk.code = result;
         }
         const strict = process.env.CHRONOS_L10N_STRICT === "1";
-        const totals = checkCoverage(counts, expected, strict, (message) => this.warn(message));
+        checkCoverage(findings, strict, (message) => this.warn(message));
+        const totals = tableNames.map((t) => t + "=" + Object.values(counts[t]).reduce((a, b) => a + b, 0)).join(", ");
         if (runtimeHosts !== 1) {
           const message = "[olympus-l10n] Expected one chunk containing src/main.tsx; found " + runtimeHosts;
           if (strict) this.error(message);
           this.warn(message);
         }
-        this.info("[olympus-l10n] " + totals);
+        this.info("[olympus-l10n] Remaining English occurrences: " + findings.length + "; replacements: " + totals);
       },
     },
   };
