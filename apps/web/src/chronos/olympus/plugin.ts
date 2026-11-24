@@ -72,7 +72,8 @@ export function olympusFeatures(): Plugin {
       const parent = normalize(importer ?? "");
       if (
         source === "./olympusRichMarkdown.ts" &&
-        parent.endsWith("/packages/shared/src/markdownPipeline.ts")
+        (parent.endsWith("/packages/shared/src/markdownPipeline.ts") ||
+          parent.endsWith("/packages/shared/src/markdownHast.ts"))
       ) {
         return bundled
           ? { id: rawPrefix + "markdown", external: true }

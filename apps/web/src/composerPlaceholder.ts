@@ -1,3 +1,3 @@
-// chronos(olympus): ThreadDetailsItemsMenu-nmodI3O-.js N03
-export const DEFAULT_COMPOSER_PLACEHOLDER =
-  "Спросите что угодно. @ контекст, # задачи, ! поиск, $ скиллы, / команды";
+import { msg } from "gt-react";
+
+export const DEFAULT_COMPOSER_PLACEHOLDER = msg("Ask anything. @ files, $ skills, / commands");
