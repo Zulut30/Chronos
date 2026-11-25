@@ -1,6 +1,9 @@
 // A project bound to a standalone tracker (Linear) in settings lists it beside its git host's.
 // References outside the project's own repositories (upstream and fork) may be read on the host,
 // but every write must pass through requireWritable.
+// chronos: Trello resolves a short link against the connected board accounts.
+import { resolveTrelloLink } from "../chronos/issue-trello/resolveLink.ts";
+import { TRELLO_LINK_SCOPE } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -82,7 +85,8 @@ interface ProjectTrackerBinding {
 }
 
 /** A project the registry has a tracker for, ready to serve reads and writes. */
-interface SupportedProject extends ProjectTrackerBinding {
+// chronos: share the resolved account and binding with board-less URL resolution.
+export interface SupportedProject extends ProjectTrackerBinding {
   readonly project: OrchestrationProjectShell;
   readonly api: IssueTrackerApi;
 }
@@ -551,7 +555,12 @@ const make = Effect.gen(function* () {
   });
 
   const detail: IssueService["Service"]["detail"] = (input) =>
-    requireProject(input).pipe(
+    // chronos: previews use the same canonical board resolution as MCP thread links.
+    input.tracker === "trello" && input.scope === TRELLO_LINK_SCOPE
+      ? resolveUrl("https://trello.com/c/" + encodeURIComponent(input.key), input.projectId).pipe(
+          Effect.flatMap((resolved) => resolved.issue ? Effect.succeed(resolved.issue) : Effect.fail(readOnly("detail"))),
+        )
+      : requireProject(input).pipe(
       Effect.flatMap((project) =>
         project.api
           .getIssue({
@@ -632,6 +641,8 @@ const make = Effect.gen(function* () {
   const create: IssueService["Service"]["create"] = (input) =>
     requireWritable(input, "create").pipe(
       Effect.flatMap((project) =>
+        // chronos: refuse unsupported deadlines before sending a partial create.
+        input.due !== undefined && !project.api.capabilities.due ? Effect.fail(unsupported("create", "deadlines")) :
         project.api.create === undefined || !project.api.capabilities.create
           ? Effect.fail(unsupported("create", "filing issues"))
           : project.api
@@ -639,6 +650,8 @@ const make = Effect.gen(function* () {
                 cwd: project.project.workspaceRoot,
                 host: project.host,
                 scope: project.scope,
+                // chronos: keep other trackers’ create payloads unchanged.
+                ...(input.due === undefined ? {} : { due: input.due }),
                 title: input.title,
                 body: input.body,
                 labels: input.labels,
@@ -675,7 +688,9 @@ const make = Effect.gen(function* () {
       Effect.flatMap((project) => {
         const { capabilities } = project.api;
         const wantsWords = input.title !== undefined || input.body !== undefined;
-        if (!wantsWords && input.labels === undefined && input.assignees === undefined) {
+        // chronos: a deadline alone is a valid edit.
+        if (input.due !== undefined && !capabilities.due) return Effect.fail(unsupported("update", "deadlines"));
+        if (!wantsWords && input.labels === undefined && input.assignees === undefined && input.due === undefined) {
           return Effect.fail(
             new IssueOperationError({ operation: "update", detail: "Nothing to change." }),
           );
@@ -693,6 +708,8 @@ const make = Effect.gen(function* () {
             host: project.host,
             scope: project.scope,
             key: input.key,
+            // chronos: null removes a deadline.
+            ...(input.due === undefined ? {} : { due: input.due }),
             title: input.title,
             body: input.body,
             labels: input.labels,
@@ -804,6 +821,11 @@ const make = Effect.gen(function* () {
       const onHost = supported.filter((project) => project.tracker === tracker);
       const onAuthority = onHost.filter((project) => project.host === authority);
       const onTracker = onAuthority.length > 0 ? onAuthority : onHost;
+      // chronos: a Trello short link has no scope until an account has read the card.
+      if (tracker === "trello" && link.scope === TRELLO_LINK_SCOPE)
+        return yield* resolveTrelloLink(onTracker, link.key, preferredProjectId).pipe(
+          Effect.catchTag("IssueTrackerError", (e) => Effect.fail(toIssueError("resolveUrl")(e))),
+        );
       const preferFirst = (projects: ReadonlyArray<SupportedProject>) =>
         projects.find((project) => project.project.id === preferredProjectId) ?? projects[0];
       const scope = link.scope.toLowerCase();

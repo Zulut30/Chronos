@@ -408,6 +408,9 @@ function IssueEventText({
   );
 }
 
+// chronos: native card metadata outside the editable description.
+import { TrelloCardFields } from "../../chronos/issue-trello/TrelloCardFields";
+
 export function IssueDetailPanel({
   environmentId,
   reference,
@@ -820,6 +823,8 @@ export function IssueDetailPanel({
                 threadRef={threadRef}
               />
             )}
+            {/* chronos: keep attachment links and the deadline out of the description editor. */}
+            {detail.tracker === "trello" && <TrelloCardFields detail={detail} />}
             {detail.reactions !== undefined ? (
               <IssueReactionBar
                 reactions={detail.reactions}

@@ -5,6 +5,9 @@ import {
   pullRequestCandidateForIssueLink,
 } from "../lib/pullRequestNavigation";
 import { isAtomCommandInterrupted } from "@t3tools/client-runtime/state/runtime";
+// chronos: resolve a Trello short link before constructing the native route.
+import { issueEnvironment } from "../state/issues";
+import { TRELLO_LINK_SCOPE } from "@t3tools/contracts";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { useProjects, useThreadShell } from "../state/entities";
 import { tryOpenWebLink } from "../lib/openExternalUrl";
@@ -29,6 +32,7 @@ export function useNavigateToPullRequest(options?: { readonly replace?: boolean 
     reportFailure: false,
     reportDefect: false,
   });
+  const readCard = useAtomQueryRunner(issueEnvironment.detail, { reportFailure: false });
   const readTrackerConnections = useAtomQueryRunner(issueTrackerEnvironment.connections, {
     reportFailure: false,
     reportDefect: false,
@@ -78,13 +82,20 @@ export function useNavigateToPullRequest(options?: { readonly replace?: boolean 
         // A dropped connection says nothing about what the link names; the browser knows.
         if (isAtomCommandInterrupted(preview)) return tryOpenWebLink(url, "pull-request");
       }
+      // chronos: native writes and thread links use the actual Trello board.
+      let ref = issue.ref;
+      if (ref.tracker === "trello" && ref.scope === TRELLO_LINK_SCOPE) {
+        const result = await readCard({ environmentId, input: ref });
+        if (result._tag !== "Success") return tryOpenWebLink(url, "pull-request");
+        ref = result.value;
+      }
       const issueParams = {
         environmentId,
-        projectId: issue.ref.projectId,
-        tracker: issue.ref.tracker,
-        ...(issue.ref.host === undefined ? {} : { host: issue.ref.host }),
-        scope: issue.ref.scope,
-        issueKey: issue.ref.key,
+        projectId: ref.projectId,
+        tracker: ref.tracker,
+        ...(ref.host === undefined ? {} : { host: ref.host }),
+        scope: ref.scope,
+        issueKey: ref.key,
       };
       if (replace) navigation.dispatch(StackActions.replace("Issue", issueParams));
       else navigation.dispatch(StackActions.push("Issue", issueParams));

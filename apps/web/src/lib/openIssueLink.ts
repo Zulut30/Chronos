@@ -1,3 +1,7 @@
+// chronos: open Trello cards under the board and account resolved by the server.
+import { TRELLO_LINK_SCOPE, type IssueRef } from "@t3tools/contracts";
+import { issueEnvironment } from "../state/issues";
+import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import type {
   EnvironmentId,
   IssueTrackerConnectionList,
@@ -32,6 +36,7 @@ export function useOpenIssueLink(
   const allProjects = useProjects();
   const serverConfigs = useServerConfigs();
   const navigate = useNavigate();
+  const readCard = useAtomQueryRunner(issueEnvironment.detail);
   return (event, targetUrl, targetEnvironmentId, trackers) => {
     if (event.metaKey || event.ctrlKey) return false;
     const resolvedPanelRef = panelRef ?? threadRef;
@@ -47,6 +52,8 @@ export function useOpenIssueLink(
     if (target === null) return false;
     event.preventDefault();
     event.stopPropagation();
+    // chronos: use the canonical ref for navigation after board discovery.
+    const reveal = (target: { ref: IssueRef }) => {
     const surface = {
       projectId: target.ref.projectId,
       tracker: target.ref.tracker,
@@ -84,6 +91,13 @@ export function useOpenIssueLink(
       ...(resolvedPanelRef.environmentId === environmentId ? {} : { environmentId }),
       ...surface,
     });
+    return true;
+    };
+    if (target.ref.tracker === "trello" && target.ref.scope === TRELLO_LINK_SCOPE) {
+      void readCard({ environmentId, input: target.ref }).then((result) => {
+        if (result._tag === "Success") reveal({ ref: result.value });
+      });
+    } else reveal(target);
     return true;
   };
 }

@@ -1,6 +1,6 @@
 import type { IssueState, IssueTrackerKind } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
-import { CircleCheckIcon, CircleDotIcon, CircleSlashIcon, TicketIcon } from "lucide-react";
+import { Columns3Icon, CircleCheckIcon, CircleDotIcon, CircleSlashIcon, TicketIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import { LinearIcon, type Icon } from "~/components/Icons";
@@ -13,6 +13,8 @@ export const IssueGlyph = { issue: CircleDotIcon } as const;
 
 /** Name and mark per standalone tracker kind; one missing here falls back to its kind and a ticket. */
 const STANDALONE_TRACKERS: Partial<Record<string, { providerName: string; Icon: Icon }>> = {
+  // chronos: standalone Trello presentation.
+  trello: { providerName: "Trello", Icon: Columns3Icon },
   linear: { providerName: "Linear", Icon: LinearIcon },
 };
 

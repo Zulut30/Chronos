@@ -91,6 +91,22 @@ describe("resolveIssueLinkTarget", () => {
     expect(custom?.ref).toMatchObject({ projectId: "custom", host: "code.acme.test", key: "7" });
   });
 
+  // chronos: a short link is only a board lookup, never proof of a writable scope.
+  it("recognizes Trello card links only on the HTTPS public host and through a connected project", () => {
+    const kind = IssueTrackerKind.make("trello");
+    const trackers = { trackers: [{ tracker: kind, host: "trello.com", displayName: "Trello", scopeNoun: "board",
+      credential: { label: "API key:token", helpUrl: null }, connected: true, account: "jane", detail: null, scopes: [] }],
+      bindings: { [ProjectId.make("p2")]: { tracker: kind, scope: "board-one" } } };
+    const resolve = (url: string) => resolveIssueLinkTarget({ url, projects, trackers });
+    const url = "https://trello.com/c/A1b2C3d4";
+    expect(resolve(url + "/optional-slug#comment-1")?.ref).toEqual({
+      tracker: kind, host: "trello.com", key: "A1b2C3d4", projectId: "p2", scope: "@card",
+    });
+    expect(resolveIssueLinkTarget({ url, projects })).toBeNull();
+    for (const invalid of [url.replace("https", "http"), url.replace(".com", ".com.fake"), url.replace("/c/", "/b/"), url + "extra"])
+      expect(resolve(invalid)).toBeNull();
+  });
+
   it("reads a Linear link through the project bound to its team, else any bound to Linear", () => {
     const trackers = {
       trackers: [

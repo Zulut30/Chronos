@@ -2,6 +2,8 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type { IssueTrackerKind } from "@t3tools/contracts";
+// chronos: standalone Trello driver.
+import * as TrelloDriver from "../chronos/issue-trello/driver.ts";
 import * as LinearDriver from "@t3tools/issue-tracker-linear/server/driver";
 import {
   isStandaloneIssueTracker,
@@ -36,7 +38,8 @@ export function fromTrackers(
 }
 
 /** Trackers that are not a git host's own. Each signs requests with a credential from Settings. */
-const STANDALONE_TRACKERS = [LinearDriver.make];
+// chronos: register Trello alongside Linear.
+const STANDALONE_TRACKERS = [LinearDriver.make, TrelloDriver.make];
 
 const make = Effect.gen(function* () {
   const drivers = yield* BuiltInDrivers.SourceControlDrivers;

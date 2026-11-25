@@ -214,6 +214,9 @@ const make = Effect.gen(function* () {
           createdAt: detail.createdAt,
           updatedAt: detail.updatedAt,
           closedAt: detail.closedAt,
+          // chronos: keep attachments and deadlines distinct from editable text.
+          ...(detail.due === undefined ? {} : { due: detail.due }),
+          ...(detail.attachments === undefined ? {} : { attachments: detail.attachments }),
           body: detail.body,
           comments: detail.comments.map((comment) => ({
             id: comment.id,
@@ -236,6 +239,8 @@ const make = Effect.gen(function* () {
         const scope = yield* requireProjectScope(input.projectId, { scope: input.scope });
         const created = yield* issues.create({
           ...scope,
+          // chronos: forward an optional card deadline.
+          ...(input.due === undefined ? {} : { due: input.due }),
           title: input.title,
           body: input.body ?? "",
           labels: input.labels ?? [],
@@ -249,6 +254,15 @@ const make = Effect.gen(function* () {
         };
       }),
     ),
+    // chronos: edits use the same URL resolution and permissions as state changes.
+    update_issue: McpToolAccess.writesWithCapability((input) => Effect.gen(function* () {
+      const target = yield* resolveTarget(input);
+      const { title, body, labels, assignees, due } = input;
+      yield* issues.update({ ...refOf(target), ...(title === undefined ? {} : { title }),
+        ...(body === undefined ? {} : { body }), ...(labels === undefined ? {} : { labels }),
+        ...(assignees === undefined ? {} : { assignees }), ...(due === undefined ? {} : { due }) });
+      return identityOf(target);
+    })),
     comment_on_issue: McpToolAccess.writesWithCapability((input) =>
       Effect.gen(function* () {
         const target = yield* resolveTarget(input);

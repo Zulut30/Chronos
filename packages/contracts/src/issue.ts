@@ -1,3 +1,6 @@
+// chronos: optional card metadata for standalone trackers.
+import { issueCardDetailFields, issueDueField } from "./chronos/trello.ts";
+export { parseTrelloIssueUrl, TRELLO_HOST, TRELLO_LINK_SCOPE, issueCardDetailFields } from "./chronos/trello.ts";
 import * as Schema from "effect/Schema";
 import * as HttpServerRespondable from "effect/http/HttpServerRespondable";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -198,6 +201,8 @@ export type IssueLinkedPullRequest = typeof IssueLinkedPullRequest.Type;
  * service refuses a call outside these before it reaches the driver.
  */
 export const IssueCapabilities = Schema.Struct({
+  // chronos: trackers that accept a deadline on create/update.
+  due: Schema.optional(Schema.Boolean),
   create: Schema.Boolean,
   /** Title and body can be rewritten after filing. */
   edit: Schema.Boolean,
@@ -232,6 +237,8 @@ export const IssueViewerPermissions = Schema.Struct({
 export type IssueViewerPermissions = typeof IssueViewerPermissions.Type;
 
 export const IssueDetail = Schema.Struct({
+  // chronos: optional Trello card fields.
+  ...issueCardDetailFields,
   ...IssueSummary.fields,
   projectId: ProjectId,
   projectTitle: TrimmedNonEmptyString,
@@ -352,6 +359,8 @@ const IssueBody = Schema.String.check(Schema.isMaxLength(65_536));
 const CommentBody = Schema.String.check(Schema.isNonEmpty()).check(Schema.isMaxLength(65_536));
 
 export const IssueCreateInput = Schema.Struct({
+  // chronos: optional Trello card fields.
+  ...issueDueField,
   ...IssueScopeRef.fields,
   title: IssueTitle,
   /** May be empty: an issue with a title and nothing else is a legitimate one. */
@@ -380,6 +389,8 @@ export type IssueCommentInput = typeof IssueCommentInput.Type;
  * The service refuses a request with nothing present.
  */
 export const IssueUpdateInput = Schema.Struct({
+  // chronos: optional Trello card fields.
+  ...issueDueField,
   ...IssueRef.fields,
   title: Schema.optional(IssueTitle),
   body: Schema.optional(IssueBody),

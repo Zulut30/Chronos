@@ -82,6 +82,10 @@ export interface TrackerIssuePage {
 }
 
 export interface TrackerIssueDetail extends TrackerIssueSummary {
+  // chronos: board discovered from a card URL, plus separately editable card metadata.
+  readonly nativeScope?: string;
+  readonly due?: string | null | undefined;
+  readonly attachments?: ReadonlyArray<{ readonly name: string; readonly url: string }> | undefined;
   readonly body: string;
   readonly viewer: string | null;
   readonly viewerPermissions: IssueViewerPermissions;
@@ -148,6 +152,8 @@ export interface IssueTrackerApi {
   /** Only called when `capabilities.create` is true. */
   readonly create?: (
     input: IssueScopeTarget & {
+      // chronos: deadline for trackers that support it.
+      readonly due?: string | null | undefined;
       readonly title: string;
       readonly body: string;
       readonly labels: ReadonlyArray<string>;
@@ -166,6 +172,8 @@ export interface IssueTrackerApi {
    */
   readonly update?: (
     input: IssueTarget & {
+      // chronos: null clears a deadline.
+      readonly due?: string | null | undefined;
       readonly title?: string | undefined;
       readonly body?: string | undefined;
       readonly labels?: ReadonlyArray<string> | undefined;
