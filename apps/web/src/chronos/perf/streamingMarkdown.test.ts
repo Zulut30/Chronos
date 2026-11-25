@@ -6,7 +6,12 @@ afterEach(() => { vi.useRealTimers(); });
 
 it("paints short text immediately, coalesces long append bursts, and isolates message identities", () => {
   vi.useFakeTimers();
-  const registry = AtomRegistry.make({ scheduleTask: (task) => task() });
+  const registry = AtomRegistry.make({
+    scheduleTask(task) {
+      const timer = setTimeout(task, 0);
+      return () => clearTimeout(timer);
+    },
+  });
   const a = Atom.make<string | null>("a");
   const b = Atom.make<string | null>("another draft");
   const visible = streamingMarkdownAtom(a);
