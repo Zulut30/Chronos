@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 
 // Runs in the measured renderer. A frame is sampled only if the target thread owns its content.
-function install() {
-  const state = { tasks: [], samples: [] };
+function install(tracing) {
+  const state = { tasks: [] };
+  let switchIndex = 0;
   const observer = new PerformanceObserver((list) =>
     state.tasks.push(...list.getEntries().map((e) => e.duration)),
   );
@@ -75,9 +76,12 @@ function install() {
       el.scrollIntoView({ block: "nearest", behavior: "instant" });
       const activate = () => {
         const start = performance.now();
+        const mark = "chronos-switch-" + ++switchIndex;
+        if (tracing) performance.mark(mark + "-start");
         const needle = "MARK_" + id + "_";
         state.pending = (async () => {
           const first = await frames(() => hasText(needle) && location.href.includes(id), "first " + id);
+          if (tracing) performance.mark(mark + "-target");
           const ready = await frames(
             () => hasText(needle + "11_") && !!editor()?.isContentEditable,
             "ready " + id,
@@ -129,7 +133,7 @@ function install() {
 const pct = (xs, p) => xs.toSorted((a, b) => a - b)[Math.ceil(xs.length * p) - 1];
 
 export async function measureUi({ page, evaluate, targets, streamingId, navigate, wait, verifyStreaming }) {
-  await evaluate("(" + install.toString() + ")()");
+  await evaluate("(" + install.toString() + ")(" + Boolean(process.env.BENCH_UI_TRACE) + ")");
   assert.equal(await evaluate("document.visibilityState"), "visible");
   const summarize = (xs) => ({
     count: xs.length,
