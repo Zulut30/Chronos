@@ -65,6 +65,7 @@ import {
 } from "./useAvailableSettingsSearchItems";
 import { handleSettingsSectionKeyDown } from "./settingsSectionNavigation";
 import { workspaceAreaProps } from "../../lib/workspaceFocus";
+import { useOlympusSettingsNav } from "../../chronos/olympus/settingsNavigation";
 
 const SnapShotIcon = createLucideIcon("snap-shot", [
   [
@@ -140,6 +141,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const activePath = SETTINGS_DETAIL_PAGE_PARENTS[pathname] ?? pathname;
+  const navRef = useOlympusSettingsNav(activePath); // chronos: coordinate Olympus panels with the native selection.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.
@@ -260,6 +262,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
 
   return (
     <nav
+      ref={navRef}
       {...navArea}
       role="navigation"
       className={cn(
