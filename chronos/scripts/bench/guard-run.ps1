@@ -59,8 +59,25 @@ foreach ($round in $rounds) {
       } else {
         $benchArgs = @('chronos/scripts/bench/guard-runtime.mjs',$pkg,$scenario,$file)
       }
-      $log = & node @benchArgs 2>&1
-      $exit = $LASTEXITCODE
+      # Collect both pipes concurrently and bound each isolated CI process tree.
+      $launch = [Diagnostics.ProcessStartInfo]::new('node')
+      $launch.UseShellExecute = $false
+      $launch.CreateNoWindow = $true
+      $launch.RedirectStandardOutput = $true
+      $launch.RedirectStandardError = $true
+      foreach ($arg in $benchArgs) { $launch.ArgumentList.Add([string]$arg) }
+      $bench = [Diagnostics.Process]::Start($launch)
+      try {
+        $stdout = $bench.StandardOutput.ReadToEndAsync()
+        $stderr = $bench.StandardError.ReadToEndAsync()
+        $expired = !$bench.WaitForExit(480000)
+        if ($expired) { $bench.Kill($true); $bench.WaitForExit() }
+        $exit = if ($expired) { 124 } else { $bench.ExitCode }
+        $log = @($stdout.GetAwaiter().GetResult() -split '\r?\n') + @($stderr.GetAwaiter().GetResult() -split '\r?\n')
+        if ($expired) { $log += "Timeout after 8 minutes in $side round $round $scenario" }
+      } finally {
+        $bench.Dispose()
+      }
       $log | Write-Host
       if ($exit) {
         $log | Select-Object -Last 35 | Out-File "$file.failed" -Encoding utf8
