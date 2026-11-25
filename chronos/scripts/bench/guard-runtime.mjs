@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { featureIds, featureKey } from "../../../apps/web/src/chronos/olympus/featureFlags.ts";
+import { pathToFileURL } from "node:url";
 import { connectCdp, rpcClient } from "./client.mjs";
 import { createSandbox } from "./sandbox.mjs";
 
@@ -56,6 +56,13 @@ try {
     settings.providerInstances[scenario] = { driver: scenario, enabled: true, config: { binaryPath: binary } };
     settings.defaultModelSelection = { instanceId: scenario, model };
   }
+  if (idle) {
+    // Both packages see identical profile bytes. On builds with PC control this
+    // exercises policy restoration without allowing a target or invoking a tool.
+    const dir = join(sb.home, "pc-control");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "policy.json"), JSON.stringify({ enabled: scenario === "unused", all: false, apps: [], mode: "every" }));
+  }
   writeFileSync(settingsFile, JSON.stringify(settings));
   const debug = await sb.port();
   const app = idle
@@ -64,17 +71,30 @@ try {
   const stateFile = join(sb.userdata, "server-runtime.json");
   const state = await sb.wait("private server", () => existsSync(stateFile) && JSON.parse(readFileSync(stateFile)));
   assert.equal(state.origin, origin);
+  let pcControl;
   if (idle) {
     const pages = "http://127.0.0.1:" + debug + "/json/list";
     const page = await sb.wait("Chronos window", async () => (await (await fetch(pages)).json()).find(t => t.url.startsWith("t3code://app") && t.type === "page"));
     cdp = await connectCdp(page.webSocketDebuggerUrl);
-    const evaluate = async expression => (await cdp.call("Runtime.evaluate", { expression, returnByValue: true })).result.value;
-    const ready = () => evaluate("!!window.__TSR_ROUTER__?.navigate && document.readyState === 'complete'");
+    const evaluate = async expression => (await cdp.call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true })).result.value;
+    // Electron can discard the old JavaScript context between a CDP request and its reply.
+    const ready = async (condition = "true") => {
+      try {
+        return await evaluate("!!window.__TSR_ROUTER__?.navigate && document.readyState === 'complete' && (" + condition + ")");
+      } catch (error) {
+        if (/Inspected target navigated|[Ee]xecution context was destroyed|Cannot find context/.test(error.message)) return false;
+        throw error;
+      }
+    };
     await sb.wait("renderer ready", ready);
     if (scenario === "disabled") {
-      await evaluate(JSON.stringify(featureIds.map(featureKey)) + ".forEach(k => localStorage.setItem(k,'0'))");
-      await cdp.call("Page.reload");
-      await sb.wait("disabled modules after reload", async () => await ready() && await evaluate(JSON.stringify(featureIds) + ".every(id => globalThis.__chronosOlympusDisabled?.has(id))"));
+      const { featureIds, featureKey } = await import(pathToFileURL(resolve(distribution, "../featureFlags.mts")));
+      await evaluate(JSON.stringify(featureIds.map(featureKey)) + ".forEach(k => localStorage.setItem(k,'0')); setTimeout(() => location.reload(), 0); true");
+      await sb.wait("disabled modules after reload", () => ready(JSON.stringify(featureIds) + ".every(id => globalThis.__chronosOlympusDisabled?.has(id))"));
+    }
+    if (await evaluate("typeof window.chronosPC?.settings === 'function'")) {
+      pcControl = await evaluate("window.chronosPC.settings({op:'state'}).then(s => s.settings.enabled)");
+      assert.equal(pcControl, scenario === "unused", "PC control did not restore the expected idle policy");
     }
     await sleep(12000);
   } else {
@@ -98,6 +118,7 @@ try {
   const args = ["-NoProfile", "-File", join(import.meta.dirname, "guard-process.ps1"), "-RootPid", String(app.pid), "-ServerPid", String(state.pid)];
   if (binary) args.push("-AgentExe", binary);
   const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 45000 }));
+  if (idle) sample.pcControl = pcControl ?? "unavailable";
   writeFileSync(output, JSON.stringify(sample, null, 2) + "\n");
 } finally {
   rpc?.close();

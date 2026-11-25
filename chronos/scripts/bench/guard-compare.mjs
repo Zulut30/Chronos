@@ -3,12 +3,18 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export function compare(rule, before, after) {
-  if (![before, after].every(Number.isFinite)) return false;
+function limit(rule, before) {
+  if (!Number.isFinite(before)) return null;
   const allowance = Math.max(rule.delta, Math.abs(before) * (rule.relative ?? 0));
   return rule.direction === "min"
-    ? after >= Math.max(rule.min ?? -Infinity, before - allowance)
-    : after <= Math.min(rule.max ?? Infinity, before + allowance);
+    ? Math.max(rule.min ?? -Infinity, before - allowance)
+    : Math.min(rule.max ?? Infinity, before + allowance);
+}
+
+export function compare(rule, before, after) {
+  if (![before, after].every(Number.isFinite)) return false;
+  const threshold = limit(rule, before);
+  return rule.direction === "min" ? after >= threshold : after <= threshold;
 }
 
 export function evaluate(dir, budget) {
@@ -27,7 +33,7 @@ export function evaluate(dir, budget) {
   }
   return Object.entries(budget.rules).map(([metric, rule]) => {
     const before = value("base", metric), after = value("head", metric);
-    return { metric, unit: rule.unit, before, after, pass: compare(rule, before, after) };
+    return { metric, unit: rule.unit, before, after, threshold: limit(rule, before), direction: rule.direction ?? "max", pass: compare(rule, before, after) };
   });
 }
 
@@ -38,8 +44,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const rows = evaluate(dir, budget);
   const number = n => n === null ? "нет замера" : Number(n.toFixed(2));
   const report = ["## " + pair.head.ref + " · " + pair.base.sha.slice(0,10) + " → " + pair.head.sha.slice(0,10),
-    "", "| Метрика | Ед. | Было | Стало | Вердикт |", "|---|---|---:|---:|---|",
-    ...rows.map(r => [r.metric, r.unit, number(r.before), number(r.after), r.pass ? "PASS" : "FAIL"].join(" | ")).map(s => "| " + s + " |"), ""].join("\n");
+    "", "| Метрика | Ед. | Было | Стало | Граница | Вердикт |", "|---|---|---:|---:|---:|---|",
+    ...rows.map(r => [r.metric, r.unit, number(r.before), number(r.after), (r.direction === "min" ? "≥ " : "≤ ") + number(r.threshold), r.pass ? "PASS" : (r.before === null || r.after === null ? "MISSING" : "FAIL")].join(" | ")).map(s => "| " + s + " |"), ""].join("\n");
   console.log(report);
   writeFileSync(join(dir, "comparison.json"), JSON.stringify({ pair, rows }, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, report);

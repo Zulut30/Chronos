@@ -22,6 +22,7 @@ async function packageFor({ref, sha}) {
   do {
     const list = await runs();
     for (const run of list) {
+      assert.equal(run.head_sha, sha, "Desktop build SHA differs from the planned package");
       const { artifacts } = await api("/actions/runs/" + run.id + "/artifacts?per_page=100");
       if (artifacts.some(a => a.name === "chronos-win-x64" && !a.expired)) return run.id;
     }
