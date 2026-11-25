@@ -1,5 +1,6 @@
 import type { IssueState, IssueTrackerKind } from "@t3tools/contracts";
 import { sourceControlClients } from "@t3tools/client-runtime/source-control-clients";
+import { useGT } from "gt-react";
 import { CircleCheckIcon, CircleDotIcon, CircleSlashIcon, TicketIcon } from "lucide-react";
 
 import { cn } from "~/lib/utils";
@@ -30,30 +31,38 @@ export function issueTrackerPresentation(tracker: IssueTrackerKind | string) {
  * draft's grey, because work that stopped must not look like work that finished. The tracker's own state name is the label,
  * so a workflow tracker's "In Review" reads as itself.
  */
-export function issueStatePresentation(state: IssueState) {
+export function issueStatePresentation(state: IssueState, gt: ReturnType<typeof useGT>) {
+  // chronos: use the state translation for the standard names and preserve custom tracker states.
+  const label =
+    state.name === "Open"
+      ? gt("Open", { $context: "issue state" })
+      : state.name === "Closed"
+        ? gt("Closed", { $context: "issue state" })
+        : state.name;
   if (state.category === "open") {
     return {
       ...PULL_REQUEST_STATE_PRESENTATION.open,
-      label: state.name,
+      label,
       Icon: CircleDotIcon,
     };
   }
   if (state.closeReason !== undefined && state.closeReason !== "completed") {
     return {
       ...PULL_REQUEST_STATE_PRESENTATION.draft,
-      label: state.name,
+      label,
       Icon: CircleSlashIcon,
     };
   }
   return {
     ...PULL_REQUEST_STATE_PRESENTATION.merged,
-    label: state.name,
+    label,
     Icon: CircleCheckIcon,
   };
 }
 
 export function IssueStateGlyph({ state, className }: { state: IssueState; className?: string }) {
-  const presentation = issueStatePresentation(state);
+  const gt = useGT();
+  const presentation = issueStatePresentation(state, gt);
   return (
     <Tooltip>
       {/* The list row is itself a button, so the trigger stays a span. */}

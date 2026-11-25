@@ -39,6 +39,10 @@
     "Under pace": "Тратится медленнее равномерного",
     "Context compacts automatically when needed.": "Контекст сжимается автоматически, когда нужно."
   },
+  "issueStates": {
+    "6a717189b43e9f0e": ["Open", "Открыта"],
+    "f8700aef3eb2cf71": ["Closed", "Закрыта"]
+  },
   "settings4774": {
     "81d0d1e78b196630": [
       "General",

@@ -140,7 +140,7 @@ export function olympusCatalog(): Plugin {
       if (!fixes || !/^(?:\w+:'[^']+',)*\w+:'[^']+'$/u.test(fixes)) throw new Error("Unknown Olympus WORDS format");
       const words: Pairs = Object.fromEntries([...fixes.matchAll(/(\w+):'([^']+)'/gu)].map((m) => [m[1]!, m[2]!]));
       const tables = readJson<Record<"presentational" | "strict" | "label" | "broad", Pairs>>(dictPath);
-      const additions = readJson<{ messages: Pairs; threadDetails: Pairs; settings4774: NonNullable<Overrides["settings"]>; runtimeLabels: string[]; nativeFallback: string[] }>(additionsPath);
+      const additions = readJson<{ messages: Pairs; threadDetails: Pairs; settings4774: NonNullable<Overrides["settings"]>; issueStates: NonNullable<Overrides["settings"]>; runtimeLabels: string[]; nativeFallback: string[] }>(additionsPath);
       const pairs = {
         ...additions.messages, ...words, ...exact, ...tables.broad, ...tables.strict, ...tables.label, ...tables.presentational,
         // 24-thread-details used to replace these labels after the static translator ran.
@@ -157,7 +157,7 @@ export function olympusCatalog(): Plugin {
       const ru = readJson<Catalog>(file);
       const en = readJson<Catalog>(enPath);
       const changed = applyOlympusCatalog(en, ru, pairs, {
-        patterns, settings: additions.settings4774, fallback: additions.nativeFallback,
+        patterns, settings: { ...additions.settings4774, ...additions.issueStates }, fallback: additions.nativeFallback,
       });
       this.info("[olympus-l10n] GT Russian catalog overrides: " + changed);
       return JSON.stringify(ru);

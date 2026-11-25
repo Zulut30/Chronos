@@ -1142,7 +1142,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     thread.environmentId,
     leaseLiveStatus ? thread.issues : undefined,
   );
-  const issueStatus = issueState === null ? null : issueStatePresentation(issueState);
+  const issueStatus = issueState === null ? null : issueStatePresentation(issueState, gt);
   const issueLabel =
     issueCount === 1 && firstIssue
       ? issueStatus

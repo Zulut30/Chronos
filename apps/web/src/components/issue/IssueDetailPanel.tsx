@@ -475,7 +475,7 @@ export function IssueDetailPanel({
   const canReact = access.react;
   const otherStates = access.states;
   const tracker = issueTrackerPresentation(detail.tracker);
-  const currentState = issueStatePresentation(detail.state);
+  const currentState = issueStatePresentation(detail.state, gt);
 
   const host = reference.host === undefined ? {} : { host: reference.host };
   const openEventSource = (source: IssueEventReference) => {
@@ -576,14 +576,14 @@ export function IssueDetailPanel({
         </MenuTrigger>
         <MenuPopup align="end">
           {otherStates.map((state) => {
-            const presentation = issueStatePresentation(state);
+            const presentation = issueStatePresentation(state, gt);
             return (
               <MenuItem key={state.name} onClick={() => void moveTo(state.name)}>
                 <presentation.Icon
                   aria-hidden
                   className={cn("size-3.5 shrink-0", presentation.toneClassName)}
                 />
-                {state.name}
+                {presentation.label}
               </MenuItem>
             );
           })}

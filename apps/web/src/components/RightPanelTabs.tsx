@@ -809,6 +809,7 @@ function IssueSurfaceIcon({
   surface: Extract<RightPanelSurface, { kind: "issue" }>;
   environmentId: EnvironmentId | null;
 }) {
+  const gt = useGT();
   const resolvedEnvironmentId =
     (surface.environmentId as EnvironmentId | undefined) ?? environmentId;
   const detail = useEnvironmentQuery(
@@ -826,7 +827,7 @@ function IssueSurfaceIcon({
         }),
   ).data;
   if (detail === null) return <CircleDotIcon className="size-3 shrink-0" />;
-  const presentation = issueStatePresentation(detail.state);
+  const presentation = issueStatePresentation(detail.state, gt);
   return (
     <presentation.Icon
       role="img"
