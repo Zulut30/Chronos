@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   checks:
-    if: (inputs.bench_suite || 'full') == 'full'
+    if: (inputs.bench_suite || 'full') == 'full' || inputs.bench_suite == 'startup'
     name: Typecheck and tests
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -108,6 +108,11 @@ jobs:
       - name: Trello card link recognition
         working-directory: packages/client-runtime
         run: vp test run src/issueLinks.test.ts
+
+      - name: Check focus and commands at the lazy palette boundary
+        if: inputs.bench_suite == 'startup'
+        working-directory: apps/web
+        run: vp test run --project browser src/components/CommandPalette.browser.test.tsx src/components/CommandPalette.composition.browser.test.tsx
 
       - name: SSH source switching and ownership
         working-directory: packages/ssh
