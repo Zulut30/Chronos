@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 1,
+  "reducedMotion": true,
+  "viewport": {
+    "width": 1400,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "globals": [
+    "__olyBgTasks",
+    "__olyBudget",
+    "__olyBudgetEvents",
+    "__olyCore",
+    "__olyFiles",
+    "__olyIntegrations",
+    "__olyLangIcons",
+    "__olyMachines",
+    "__olyMcpManager",
+    "__olyMentions",
+    "__olyModelAccount",
+    "__olyNotifications",
+    "__olyOpenRouter",
+    "__olyPanelHost",
+    "__olyPanels",
+    "__olyPlanMode",
+    "__olyPlanUi",
+    "__olyPromptsSettings",
+    "__olyReferences",
+    "__olyRichText",
+    "__olyRuFixes",
+    "__olySmooth",
+    "__olySpeed",
+    "__olyStudio",
+    "__olyStudioShell",
+    "__olyTasks",
+    "__olyThreadDetails",
+    "__olyWrapModeText"
+  ],
+  "schemeChecks": {
+    "indexUrl": "/index.html",
+    "wasmDiscovery": {
+      "enabled": true,
+      "minCount": 1,
+      "checkMagic": true
+    }
+  },
+  "localServicePorts": [4517, 4518, 4519, 4520, 4521, 4522, 4523, 4524],
+  "englishScan": {
+    "excludeSelectors": [
+      "code",
+      "pre",
+      "kbd",
+      "samp",
+      "svg",
+      ".font-mono",
+      ".chat-markdown",
+      "[data-user-message-bubble]",
+      "[data-message-id]",
+      ".composer-tiptap",
+      "[contenteditable='true']",
+      "textarea",
+      "input",
+      "select",
+      ".xterm",
+      "[data-thread-item] .truncate:not(.text-secondary-label)",
+      "[data-slot='project-monogram']"
+    ],
+    "allowedGlobal": [
+      "No threads yet",
+      "Add project"
+    ]
+  },
+  "globalMaskSelectors": [
+    ".oly-budget-pill",
+    "[data-oly-tasks] small",
+    "[data-oly-tasks] span:last-child",
+    "[data-thread-details-card] [data-oly-td='usage']"
+  ],
+  "screens": [
+    {
+      "id": "home",
+      "title": "Главный экран (без проекта)",
+      "action": {
+        "type": "navigate",
+        "to": "/"
+      },
+      "waitFor": {
+        "allSelectors": [
+          "button.oly-plan",
+          "button[aria-label='День / ночь']",
+          "[data-oly-tasks]",
+          "button[aria-label='Студия']"
+        ],
+        "timeoutMs": 8000
+      },
+      "settleMs": 700,
+      "expect": [
+        { "text": "Над чем будем работать?", "label": "Заголовок пустого треда" },
+        { "selector": "[data-draft-project-trigger]", "label": "Переключатель проекта (Без проекта)" },
+        { "selector": "button.oly-plan", "label": "Кнопка режима ответа (Выполнение)" },
+        { "ariaLabel": "День / ночь", "label": "Кнопка «День / ночь»" },
+        { "selector": "[data-oly-tasks]", "label": "Кнопка «Задачи» в сайдбаре" },
+        { "ariaLabel": "Студия", "label": "Кнопка «Студия» в сайдбаре" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "settings-general",
+      "title": "Настройки → Общие",
+      "action": {
+        "type": "navigate",
+        "to": "/settings/general"
+      },
+      "waitFor": {
+        "allSelectors": [
+          "nav[data-workspace-area='settings-nav']",
+          "[data-oly-ik-nav]",
+          "[data-oly-mcp-nav]",
+          "[data-oly-prompts-nav]"
+        ],
+        "timeoutMs": 8000
+      },
+      "settleMs": 700,
+      "expect": [
+        { "selector": "nav[data-workspace-area='settings-nav']", "label": "Навигация настроек" },
+        { "text": "Уведомления", "label": "Секция «Уведомления»" },
+        { "text": "Боковая панель", "label": "Секция «Боковая панель»" },
+        { "selector": "[data-oly-ik-nav]", "label": "Пункт Olympus «API-ключи»" },
+        { "selector": "[data-oly-mcp-nav]", "label": "Пункт Olympus «Серверы MCP»" },
+        { "selector": "[data-oly-prompts-nav]", "label": "Пункт Olympus «Шаблоны промптов»" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "settings-appearance",
+      "title": "Настройки → Внешний вид",
+      "action": {
+        "type": "navigate",
+        "to": "/settings/appearance"
+      },
+      "waitFor": {
+        "text": "Цветовая схема",
+        "timeoutMs": 8000
+      },
+      "settleMs": 700,
+      "expect": [
+        { "text": "Цветовая схема", "label": "Пункт «Цветовая схема»" },
+        { "text": "Темы", "label": "Секция «Темы»" },
+        { "text": "Типографика", "label": "Секция «Типографика»" }
+      ],
+      "allowedEnglish": [
+        "T3 Code",
+        "T3 Chat",
+        "Inter Variable"
+      ]
+    },
+    {
+      "id": "settings-api-keys",
+      "title": "Настройки Olympus → API-ключи",
+      "setup": [
+        { "type": "navigate", "to": "/settings/general" }
+      ],
+      "setupWaitFor": {
+        "selector": "[data-oly-ik-nav] button",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "[data-oly-ik-nav] button"
+      },
+      "waitFor": {
+        "selector": ".oly-ik-panel",
+        "timeoutMs": 8000
+      },
+      "settleMs": 900,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyIntegrations" }
+      ],
+      "expect": [
+        { "selector": ".oly-ik-panel", "label": "Панель «API-ключи»" },
+        { "text": "API-ключи", "scope": ".oly-ik-panel", "label": "Заголовок «API-ключи»" },
+        { "text": "OpenRouter", "scope": ".oly-ik-panel", "label": "Секция OpenRouter" },
+        { "text": "MCP-сервер oly-web", "scope": ".oly-ik-panel", "label": "Секция MCP-сервер oly-web" }
+      ],
+      "expectOffline": [
+        { "selector": ".oly-ik-panel", "label": "Панель «API-ключи» (офлайн)" },
+        { "text": "API-ключи", "scope": ".oly-ik-panel", "label": "Заголовок «API-ключи»" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "settings-mcp",
+      "title": "Настройки Olympus → Серверы MCP",
+      "setup": [
+        { "type": "navigate", "to": "/settings/general" }
+      ],
+      "setupWaitFor": {
+        "selector": "[data-oly-mcp-nav] button",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "[data-oly-mcp-nav] button"
+      },
+      "waitFor": {
+        "selector": ".oly-mcp-pane",
+        "timeoutMs": 8000
+      },
+      "settleMs": 1200,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyMcpManager" }
+      ],
+      "expect": [
+        { "selector": ".oly-mcp-pane", "label": "Панель «Серверы MCP»" },
+        { "text": "Серверы MCP", "scope": ".oly-mcp-pane", "label": "Заголовок «Серверы MCP»" },
+        { "iframeSrcPrefix": "http://127.0.0.1:4523/", "label": "Iframe менеджера MCP" }
+      ],
+      "expectOffline": [
+        { "selector": ".oly-mcp-pane", "label": "Панель «Серверы MCP» (офлайн)" },
+        { "text": "Серверы MCP", "scope": ".oly-mcp-pane", "label": "Заголовок «Серверы MCP»" },
+        { "selector": ".oly-mcp-error", "label": "Сообщение о недоступности менеджера MCP" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "settings-prompts",
+      "title": "Настройки Olympus → Шаблоны промптов",
+      "setup": [
+        { "type": "navigate", "to": "/settings/general" }
+      ],
+      "setupWaitFor": {
+        "selector": "[data-oly-ps-nav-button]",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "[data-oly-ps-nav-button]"
+      },
+      "waitFor": {
+        "selector": ".oly-ps-pane",
+        "timeoutMs": 8000
+      },
+      "settleMs": 900,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyPromptsSettings" }
+      ],
+      "expect": [
+        { "selector": ".oly-ps-pane", "label": "Панель «Шаблоны промптов»" },
+        { "text": "Шаблоны промптов", "scope": ".oly-ps-pane", "label": "Заголовок «Шаблоны промптов»" },
+        { "text": "Ваши шаблоны", "scope": ".oly-ps-pane", "label": "Секция «Ваши шаблоны»" }
+      ],
+      "expectOffline": [
+        { "selector": ".oly-ps-pane", "label": "Панель «Шаблоны промптов» (офлайн)" },
+        { "text": "Шаблоны промптов", "scope": ".oly-ps-pane", "label": "Заголовок «Шаблоны промптов»" }
+      ],
+      "excludeEnglishSelectors": [
+        ".oly-ps-item"
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "settings-providers",
+      "title": "Настройки → Провайдеры",
+      "action": {
+        "type": "navigate",
+        "to": "/settings/providers"
+      },
+      "waitFor": {
+        "text": "Провайдеры",
+        "timeoutMs": 8000
+      },
+      "settleMs": 900,
+      "expect": [
+        { "selector": "nav[data-workspace-area='settings-nav']", "label": "Навигация настроек" },
+        { "text": "Провайдеры", "label": "Заголовок «Провайдеры»" },
+        { "text": "Codex", "label": "Провайдер Codex" }
+      ],
+      "excludeEnglishSelectors": [
+        "[data-slot='settings-row'] .font-mono"
+      ],
+      "allowedEnglish": [
+        "Not authenticated",
+        "· Sign in with Cursor or add CURSOR_API_KEY in provider settings.",
+        "Antigravity (Google)",
+        "Installed · Sign-in not checked",
+        "Antigravity (API key)",
+        "· Enter a Gemini API key in the Antigravity provider settings.",
+        "Muse Code",
+        { "pattern": "^GPT-[\\d.]+(?:[- ][A-Za-z0-9]+)+$" },
+        { "pattern": "^Claude [A-Za-z0-9. -]+$" },
+        { "pattern": "^Gemini [A-Za-z0-9. -]+$" }
+      ]
+    },
+    {
+      "id": "usage",
+      "title": "Статистика и лимиты (/usage)",
+      "action": {
+        "type": "navigate",
+        "to": "/usage"
+      },
+      "waitFor": {
+        "text": "Расход",
+        "timeoutMs": 8000
+      },
+      "settleMs": 1000,
+      "expect": [
+        { "text": "Расход", "label": "Заголовок «Расход»" },
+        { "text": "Все окружения", "label": "Фильтр окружений" },
+        { "text": "Все провайдеры", "label": "Фильтр провайдеров" }
+      ],
+      "maskSelectors": [
+        "[role='dialog'] .tabular-nums",
+        "[role='dialog'] span:has(> .tabular-nums)",
+        "[role='dialog'] [class*='@container/pool']",
+        "[role='dialog'] span.ms-auto"
+      ],
+      "allowedEnglish": [
+        "Gemini · 5-hour",
+        "Gemini · Weekly",
+        "Claude & GPT (shared) · 5-hour",
+        "Claude & GPT (shared) · Weekly",
+        { "pattern": "^[A-Za-z0-9 ._-]+: Could not read limits\\.$" }
+      ]
+    },
+    {
+      "id": "tasks",
+      "title": "Доска «Задачи» (из сайдбара)",
+      "setup": [
+        { "type": "navigate", "to": "/" }
+      ],
+      "setupWaitFor": {
+        "selector": "[data-oly-tasks]",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "[data-oly-tasks]"
+      },
+      "waitFor": {
+        "selector": ".oly-tk-dialog",
+        "timeoutMs": 8000
+      },
+      "settleMs": 1000,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyTasks" }
+      ],
+      "expect": [
+        { "selector": ".oly-tk-dialog[role='dialog'][aria-label='Задачи']", "label": "Диалог «Задачи»" },
+        { "text": "Все проекты", "scope": ".oly-tk-dialog", "label": "Пункт «Все проекты»" },
+        { "text": "Новая задача", "scope": ".oly-tk-dialog", "label": "Кнопка «Новая задача»" }
+      ],
+      "expectOffline": [
+        { "selector": ".oly-tk-dialog[role='dialog'][aria-label='Задачи']", "label": "Диалог «Задачи» (офлайн)" },
+        { "selector": ".oly-tk-empty", "label": "Сообщение о недоступности сервиса задач" }
+      ],
+      "excludeEnglishSelectors": [
+        ".oly-tk-card",
+        ".oly-tk-item"
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "studio",
+      "title": "Студия (кнопка в нижней панели сайдбара)",
+      "setup": [
+        { "type": "navigate", "to": "/" }
+      ],
+      "setupWaitFor": {
+        "selector": "button[aria-label='Студия']",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "button[aria-label='Студия']"
+      },
+      "waitFor": {
+        "selector": "dialog.oly-studio-dialog[open]",
+        "timeoutMs": 8000
+      },
+      "settleMs": 1400,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyStudioShell" }
+      ],
+      "expect": [
+        { "selector": "dialog.oly-studio-dialog[open]", "label": "Диалог «Студия»" },
+        { "text": "Студия", "scope": "dialog.oly-studio-dialog", "label": "Заголовок «Студия»" },
+        { "iframeSrcPrefix": "http://127.0.0.1:4520/", "label": "Iframe сервиса Студии" }
+      ],
+      "expectOffline": [
+        { "selector": "dialog.oly-studio-dialog[open]", "label": "Диалог «Студия» (офлайн)" },
+        { "text": "Студия не отвечает", "scope": "dialog.oly-studio-dialog", "label": "Заглушка офлайн-Студии" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "composer-mode-menu",
+      "title": "Меню режима ответа в композере (кнопка «Выполнение»)",
+      "setup": [
+        { "type": "navigate", "to": "/" }
+      ],
+      "setupWaitFor": {
+        "selector": "button.oly-plan",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "click",
+        "selector": "button.oly-plan"
+      },
+      "waitFor": {
+        "selector": ".oly-plan-menu",
+        "timeoutMs": 6000
+      },
+      "settleMs": 500,
+      "teardown": [
+        { "type": "closeOlympus", "global": "__olyPlanUi" }
+      ],
+      "expect": [
+        { "selector": ".oly-plan-menu", "label": "Меню режимов ответа" },
+        { "text": "Выполнение", "scope": ".oly-plan-menu", "label": "Пункт «Выполнение»" },
+        { "text": "Планирование", "scope": ".oly-plan-menu", "label": "Пункт «Планирование»" },
+        { "text": "Мозговой штурм", "scope": ".oly-plan-menu", "label": "Пункт «Мозговой штурм»" }
+      ],
+      "allowedEnglish": []
+    },
+    {
+      "id": "day-night",
+      "title": "Переключатель «День / ночь» (туда и обратно)",
+      "setup": [
+        { "type": "navigate", "to": "/" }
+      ],
+      "setupWaitFor": {
+        "selector": "button[aria-label='День / ночь']",
+        "timeoutMs": 8000
+      },
+      "action": {
+        "type": "toggleTheme",
+        "selector": "button[aria-label='День / ночь']"
+      },
+      "settleMs": 1100,
+      "expect": [
+        { "ariaLabel": "День / ночь", "label": "Кнопка «День / ночь»" },
+        { "text": "Над чем будем работать?", "label": "Контент главного экрана в переключённой теме" }
+      ],
+      "allowedEnglish": []
+    }
+  ]
+}

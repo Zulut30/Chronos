@@ -1,0 +1,98 @@
+# Smoke-проверка Chronos
+
+Набор автономных проверок живого окна Chronos по Chrome DevTools Protocol (CDP) и сравнения прогонов с эталоном.
+
+- **Без npm-зависимостей:** `smoke.mjs` использует встроенные `fetch` и `WebSocket` из Node.js 24+.
+- **Сравнение прогонов:** `compare.py` запускается через `python -I` и использует только стандартную библиотеку и Pillow.
+- **Приватность:** скриншоты и полные `report.json` содержат локальные данные пользователя (проекты, задачи, аккаунты). Храните результаты прогонов **вне репозитория**, например в `%USERPROFILE%\.t3\caches\chronos-parity\`.
+
+## Состав
+
+- `checks.json` — декларативный набор проверок (данные, без исполняемого кода): 28 глобальных объектов Olympus (`__oly*`), проверка привилегий схемы `t3code://` (`/index.html` и `/assets/*.wasm`), 12 экранов, ожидания элементов, допуски английских фраз и селекторы динамических масок.
+- `page-probes.js` — функции, выполняемые внутри страницы через `Runtime.evaluate` (читаются с диска, без передачи JS через аргументы оболочки).
+- `smoke.mjs` — раннер CDP: подключение или запуск Chronos, прогон всех проверок, сбор ошибок консоли/исключений и видимых английских фраз, снятие скриншотов `1400×900`, запись `report.json` и возврат окна на `/`.
+- `compare.py` — сравнение двух каталогов прогонов (эталон vs текущий): отличия по проверкам, новые ошибки, новые английские фразы, доля изменившихся пикселей с учётом масок и PNG-разница (`diff-<screen>.png`).
+
+## Запуск локально
+
+### 1. Подключение к уже открытому Chronos
+
+Chronos должен быть запущен с флагом `--remote-debugging-port=9333` (порт по умолчанию `9333`):
+
+```powershell
+node chronos/scripts/smoke/smoke.mjs `
+  --port 9333 `
+  --out "$env:USERPROFILE\.t3\caches\chronos-parity\runs\latest"
+```
+
+### 2. Автоматический запуск `Chronos.exe`
+
+```powershell
+node chronos/scripts/smoke/smoke.mjs `
+  --launch "$env:LOCALAPPDATA\Programs\chronos\Chronos.exe" `
+  --port 9333 `
+  --out "$env:USERPROFILE\.t3\caches\chronos-parity\runs\latest"
+```
+
+По умолчанию раннер закрывает **только тот процесс Chronos**, который сам запустил через `--launch` (если нужен открытый экземпляр — добавьте `--keep-open`). Уже запущенный Chronos (без `--launch`) никогда не закрывается, а окно в конце всегда возвращается на `/` и в исходную тему.
+
+### 3. Режим без локальных сервисов Olympus (CI / чистая машина)
+
+Если локальные сервисы Olympus на портах `4517–4524` не запущены:
+
+```powershell
+node chronos/scripts/smoke/smoke.mjs `
+  --launch "$env:LOCALAPPDATA\Programs\chronos\Chronos.exe" `
+  --port 9333 `
+  --allow-offline-services `
+  --no-screenshots `
+  --out "$env:TEMP\chronos-smoke-ci"
+```
+
+В этом режиме:
+- сетевые ошибки `ERR_CONNECTION_REFUSED` на `127.0.0.1:4517..4524` записываются в `ignoredNetworkErrors`, а не валят прогон;
+- любые `console.error`, необработанные исключения и ошибки схемы `t3code://` по-прежнему валят прогон;
+- на экранах сервисов (`settings-api-keys`, `settings-mcp`, `settings-prompts`, `tasks`, `studio`) допускается штатная офлайн-заглушка Olympus при условии, что панель/диалог смонтировались корректно;
+- если на свежей установке открылся экран `/welcome`, раннер автоматически нажимает «Начать без агента» (`Start without an agent`).
+
+### Полезные флаги `smoke.mjs`
+
+| Флаг | Описание |
+| --- | --- |
+| `--port <N>` | Порт CDP (по умолчанию `9333`). |
+| `--launch <path>` | Запустить `Chronos.exe` с `--remote-debugging-port=<N>` и дождаться `t3code://app`. |
+| `--launch-timeout <ms>` | Таймаут ожидания запуска и гидрации (по умолчанию `90000`). |
+| `--extra-arg <arg>` | Дополнительный аргумент запуска Chronos при `--launch` (можно повторять). |
+| `--keep-open` | Не закрывать запущенный через `--launch` экземпляр после завершения. |
+| `--out <dir>` | Каталог для `report.json` и скриншотов (по умолчанию временный каталог ОС). |
+| `--checks <file>` | Альтернативный файл `checks.json`. |
+| `--only <id1,id2>` | Прогнать только указанные экраны (глобальные объекты и схема проверяются всегда). |
+| `--no-screenshots` | Не сохранять PNG-скриншоты. |
+| `--allow-offline-services` | Режим без локальных сервисов `4517–4524`. |
+| `--strict-en` | Завершать прогон с кодом `1`, если найдены недопустимые английские фразы. |
+
+## Сравнение двух прогонов (`compare.py`)
+
+```powershell
+python -I chronos/scripts/smoke/compare.py `
+  "$env:USERPROFILE\.t3\caches\chronos-parity\baseline\4774" `
+  "$env:USERPROFILE\.t3\caches\chronos-parity\runs\latest" `
+  --out "$env:USERPROFILE\.t3\caches\chronos-parity\runs\latest\diff"
+```
+
+Флаги `compare.py`:
+- `--out <dir>` — каталог для `diff-report.json` и `diff-<screen>.png` (по умолчанию `<current>/diff-vs-baseline`).
+- `--checks <file>` — путь к `checks.json` для статических `pixelMasks` (подхватывается автоматически рядом со скриптом).
+- `--channel-threshold <int>` — порог отличия по RGB-каналу (по умолчанию `4`).
+- `--pixel-threshold <float>` — допустимая доля изменившихся немаскированных пикселей в процентах (по умолчанию `1.0`).
+- `--ignore-masks` — отключить маски динамических областей.
+- `--no-diff-images` — не сохранять PNG-разницы.
+- `--no-fail-on-en` — печатать новые английские фразы без возврата кода ошибки.
+- `--json` — вывести полный отчёт сравнения в JSON.
+
+## Маски и стабильность
+
+- Перед прогоном `smoke.mjs` включает `Emulation.setEmulatedMedia` с `prefers-reduced-motion: reduce`, а перед снятием скриншотов ставит на паузу и сбрасывает в `t=0` бесконечные CSS-анимации (`iterations === Infinity`, включая тёмные `oly-spin`, `oly-rise`, `oly-twinkle` и светлые `oly-glint`, `oly-breathe`). В `finally` анимации и медиа-эмуляция возвращаются в исходное состояние.
+- Во время прогона `smoke.mjs` измеряет `getBoundingClientRect()` для селекторов из `globalMaskSelectors` и `screen.maskSelectors` в `checks.json` (индикатор бюджета/лимитов, счётчик задач, блок лимитов в карточке треда, шкалы и счётчики лимитов на `/usage`) и сохраняет их в `report.json` (`dynamicMasks`).
+- При сравнении `compare.py` объединяет `dynamicMasks` обоих прогонов со статическими `pixelMasks` из `checks.json`. На `diff-<screen>.png` маскированные области подсвечиваются голубоватой рамкой, а реальные отличия — ярко-красным.
+- Если окно Chronos свёрнуто или перекрыто (`document.visibilityState === "hidden"`), `smoke.mjs` принудительно прокачивает кадры через мини-захват `Page.captureScreenshot`, чтобы `requestAnimationFrame` отрабатывал в модулях Olympus и в runtime-переводчике.
