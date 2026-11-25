@@ -1552,6 +1552,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             compact={metaLineEmpty}
             title={thread.title}
           >
+            {() => (<>
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
               {props.project ? (
@@ -1719,6 +1720,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {titleLineIcons}
             </div>
             {metaLine}
+            </>)}
           </SidebarCardContents>
         </TooltipTrigger>
         {detailsTooltip}
