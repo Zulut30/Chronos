@@ -12,12 +12,16 @@ app.setPath("userData", path.join(root,"profile"));
 const mode=process.env.CHRONOS_RENDER_FLAGS;
 if(mode==="size") app.commandLine.appendSwitch("js-flags","--optimize-for-size");
 if(mode==="spare") app.commandLine.appendSwitch("disable-features","SpareRendererForSitePerProcess");
-const watchdog=setTimeout(()=>app.exit(2),30000);
+let stage="startup";
+const watchdog=setTimeout(()=>{fs.writeFileSync(path.join(root,"error.txt"),"Renderer timeout during "+stage);app.exit(2)},20000);
 app.whenReady().then(async()=>{
   const win=new BrowserWindow({show:false,width:900,height:640,skipTaskbar:true,
-    webPreferences:{backgroundThrottling:false,webviewTag:true,sandbox:true}});
+    webPreferences:{offscreen:true,backgroundThrottling:false,webviewTag:true,sandbox:true}});
+  win.webContents.on("paint",()=>{});
+  win.webContents.setFrameRate(60);
   const fixture=path.join(root,"page.html");
   fs.writeFileSync(fixture,'<!doctype html><meta charset="utf-8"><input id="draft"><main></main>');
+  stage="host load";
   await win.loadFile(fixture);
   const wc=win.webContents, js=code=>wc.executeJavaScript(code);
   const metrics=()=> {
@@ -27,6 +31,7 @@ app.whenReady().then(async()=>{
       rssMiB:processes.reduce((n,p)=>n+p.memory.workingSetSize,0)/1024};
   };
   const url=JSON.stringify(pathToFileURL(fixture).href);
+  stage="guest attachment";
   await js(`Promise.all([0,1].map(i=>new Promise(resolve=>{
     const guest=document.createElement("webview");guest.id="g"+i;guest.src=${url};
     guest.addEventListener("dom-ready",resolve,{once:true});document.body.append(guest);
@@ -34,6 +39,7 @@ app.whenReady().then(async()=>{
   await js('document.querySelector("#g1").style.visibility="hidden";true');
   const guestId=await js('document.querySelector("#g1").getWebContentsId()');
   await webContents.fromId(guestId).executeJavaScript('draft.value="unsaved";true');
+  stage="animation frames";
   const frames=await js(`new Promise(resolve=>{
     let last, index=0;const samples=[];
     function frame(now){

@@ -123,6 +123,7 @@ try {
   const debugPort = await port();
   const browser = start(chrome, ["--headless=new","--no-first-run","--no-default-browser-check","--disable-background-networking",
     "--disable-extensions","--disable-component-update","--disable-sync","--renderer-process-limit=1",
+    ...(process.env.BENCH_V8_SIZE === "1" ? ["--js-flags=--optimize-for-size"] : []),
     "--disable-features=SpareRendererForSitePerProcess","--remote-debugging-port=" + debugPort,"--user-data-dir="+profile,
     "--proxy-server=127.0.0.1:9","--proxy-bypass-list=<-loopback>;127.0.0.1:"+listen,"about:blank"], env);
   const endpoint = await wait("private CDP", async () => {
@@ -185,9 +186,24 @@ try {
   }
   const databaseBefore = databaseSample();
   const before = await renderer(false), diskBefore = disk(), begin = await probe("start");
+  if (process.env.BENCH_FRAME_TIMES === "1") {
+    await page("Runtime.evaluate", { expression: `window.benchFrames=[]; requestAnimationFrame(function frame(now){
+      if(!window.benchFrames)return; window.benchFrames.push(now);requestAnimationFrame(frame);
+    })` });
+  }
   writeFileSync(join(root, "go"), "");
   await wait("terminal events", () => { rpc.check(); return complete.size === n; }, 120000);
   const end = await probe("end"), after = await renderer(true);
+  let frameP95Ms;
+  if (process.env.BENCH_FRAME_TIMES === "1") {
+    const sample = await page("Runtime.evaluate", {expression:`(()=>{
+      const times=window.benchFrames;window.benchFrames=null;
+      const gaps=times.slice(1).map((t,i)=>t-times[i]).sort((a,b)=>a-b);
+      return gaps[Math.ceil(gaps.length*0.95)-1];
+    })()`,returnByValue:true});
+    frameP95Ms = sample.result.value;
+    assert(frameP95Ms > 0);
+  }
   assert.equal(end.pid, server.pid);
   assert.deepEqual(after.pids.sort(), before.pids.sort());
   await sleep(1300); // allow the final one-second trace batch to reach disk
@@ -207,7 +223,7 @@ try {
     lagSamples:end.count, serverCpuPct:(end.cpu-begin.cpu)/elapsed/10, serverRssMiB:end.rss/1048576,
     rendererCpuPct:(after.cpu-before.cpu)*100000/(after.time-before.time), rendererRssMiB:after.rss/1048576,
     dbGrowthKiB:(diskAfter.db-diskBefore.db)/1024, traceGrowthKiB:(diskAfter.trace-diskBefore.trace)/1024,
-    databaseBefore, databaseAfter:databaseSample(),
+    databaseBefore, databaseAfter:databaseSample(), frameP95Ms, optimizeForSize:process.env.BENCH_V8_SIZE === "1",
     completed:complete.size, rendererCount:after.pids.length, verifiedTexts:n, visibleFinal:true };
   writeFileSync(resolve(output), JSON.stringify(result,null,2)+"\n");
   console.log(result);

@@ -23,7 +23,7 @@ try {
     delete env.ELECTRON_RUN_AS_NODE;
     try {execFileSync(path.join(tmp,"Chronos.exe"),["--user-data-dir="+path.join(root,"profile")],
       {env,cwd:root,windowsHide:true,timeout:35000,stdio:"pipe"})}
-    catch(error){throw Error(fs.existsSync(path.join(root,"error.txt"))?fs.readFileSync(path.join(root,"error.txt"),"utf8"):String(error.stderr??error))}
+    catch(error){throw Error(fs.existsSync(path.join(root,"error.txt"))?fs.readFileSync(path.join(root,"error.txt"),"utf8"):String(error)+" status="+error.status+" stderr="+String(error.stderr??""))}
     console.log(fs.readFileSync(path.join(root,"result.json"),"utf8"));
   }
 } finally {
