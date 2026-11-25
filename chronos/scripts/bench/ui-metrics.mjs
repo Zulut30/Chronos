@@ -32,6 +32,13 @@ function install() {
   };
   window.uiBench = {
     hasText,
+    async openSettings() {
+      const started = performance.now();
+      void window.__TSR_ROUTER__.navigate({ to: "/settings/general" });
+      return (await frames(() => location.href.includes("/settings/general") &&
+        !!document.querySelector("nav[data-workspace-area=settings-nav]") &&
+        !!document.querySelector("[data-oly-prompts-nav]"), "general settings")) - started;
+    },
     armSwitch(id) {
       const el = row(id);
       if (!el) throw Error("Missing sidebar target " + id);

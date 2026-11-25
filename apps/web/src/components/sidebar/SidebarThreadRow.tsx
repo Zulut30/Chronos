@@ -1,3 +1,4 @@
+import { SidebarCardContents } from "~/chronos/perf/SidebarCardContents";
 import { useAtomMount } from "@effect/atom-react";
 import { asLaunchingThread } from "@t3tools/client-runtime/state/thread-inbox";
 import { ThreadHoverCard, ThreadHoverCardPopup } from "../ThreadHoverCard";
@@ -583,6 +584,7 @@ function TopStatusIcon(props: { icon: keyof typeof TOP_STATUS_ICONS; className: 
 }
 
 type SidebarThreadRowProps = {
+  windowCard?: boolean;
   thread: SidebarThreadSummary;
   // "folder" is a one-line row inside a boring sidebar project folder;
   // "folder-multiline" adds the card's environment and PR line under it.
@@ -1545,11 +1547,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             />
           }
         >
-          <div
-            className={cn(
-              "relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty && "h-auto",
-            )}
+          <SidebarCardContents
+            renderContents={!props.windowCard || leaseLiveStatus || isRenaming || snoozeMenuOpen}
+            compact={metaLineEmpty}
+            title={thread.title}
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
@@ -1718,7 +1719,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {titleLineIcons}
             </div>
             {metaLine}
-          </div>
+          </SidebarCardContents>
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>

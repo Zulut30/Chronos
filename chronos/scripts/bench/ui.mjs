@@ -160,7 +160,26 @@ try {
         speedTurns: ids.filter(id => turns.some(t => t.thread === id && t.status === "completed" && t.usage?.outputTokens === 500)).length,
       };
     })()`);
-    const result = {mode,n,rowCount,frames,interval,olympus,rendererCount:pids.length,rendererRssMiB:rss/1048576,
+    const placeholders = await evaluate("document.querySelectorAll('[data-sidebar-card-placeholder]').length");
+    // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
+    const farId = await evaluate(`(() => {
+      const rows = document.querySelectorAll("[data-thread-item] [data-sidebar-row]");
+      const row = rows[rows.length - 1];
+      row.scrollIntoView({ block:"center", behavior:"instant" });
+      row.focus();
+      return row.closest("[data-thread-item]").getAttribute("data-thread-item").slice(-36);
+    })()`);
+    await wait("offscreen card", () => evaluate(`!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`));
+    await page("Input.dispatchKeyEvent",{type:"keyDown",key:"Enter",code:"Enter",windowsVirtualKeyCode:13});
+    await page("Input.dispatchKeyEvent",{type:"keyUp",key:"Enter",code:"Enter",windowsVirtualKeyCode:13});
+    await wait("offscreen activation",()=>evaluate("location.href.includes("+JSON.stringify(farId)+")"));
+    const settingsMs = [];
+    for (let i = 0; i < 3; i++) {
+      settingsMs.push(await evaluate("uiBench.openSettings()"));
+      await navigate(targets[0]);
+      await wait("history after settings",()=>evaluate("uiBench.hasText("+JSON.stringify("MARK_"+targets[0]+"_11_")+")"));
+    }
+    const result = {mode,n,rowCount,frames,interval,olympus,placeholders,settingsMs,rendererCount:pids.length,rendererRssMiB:rss/1048576,
       heapMiB:after.JSHeapUsedSize/1048576,layoutMs:(after.LayoutDuration-before.LayoutDuration)*1000,
       scriptMs:(after.ScriptDuration-before.ScriptDuration)*1000,rendererAgentSubscriptions:ids.filter(id=>detailIds.has(id)).length,
       verifiedHistories:n+2,...sample};
