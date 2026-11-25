@@ -34,6 +34,7 @@ Options:
   --no-screenshots           Skip writing PNG screenshots (functional checks only)
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
+  --profile <full|clean>     Clean skips provider-dependent checks (default: full)
   --strict-en                Fail if unexpected English phrases are detected
   -h, --help                 Show this help message`);
 }
@@ -51,6 +52,7 @@ function parseArgs(argv) {
     screenshots: true,
     allowOfflineServices: false,
     strictEn: false,
+    profile: "full",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -96,6 +98,9 @@ function parseArgs(argv) {
       opts.screenshots = false;
     } else if (arg === "--allow-offline-services") {
       opts.allowOfflineServices = true;
+    } else if (arg === "--profile") {
+      opts.profile = argv[++i];
+      if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
     } else if (arg === "--strict-en") {
       opts.strictEn = true;
     } else {
@@ -299,7 +304,7 @@ function classifyEvents(events, localServicePorts, allowOfflineServices) {
         allowOfflineServices &&
         entry.source === "network" &&
         isLocalServiceUrl(url) &&
-        /ERR_CONNECTION_REFUSED|Failed to load resource/i.test(text);
+        /ERR_CONNECTION_REFUSED/i.test(text);
       if (isOfflineSvc) {
         ignoredNetworkErrors.push({ kind: "log.network", text, url });
       } else {
@@ -372,6 +377,11 @@ function extractVersionFromUserAgent(ua) {
 async function run() {
   const opts = parseArgs(process.argv.slice(2));
   const checks = JSON.parse(readFileSync(opts.checksPath, "utf8"));
+  function skipReason(requires) {
+    if (requires === "provider" && opts.profile === "clean") return "No agent provider assumed in clean profile";
+    if (requires === "services" && opts.allowOfflineServices) return "Local Olympus services optional (--allow-offline-services)";
+    return null;
+  }
   mkdirSync(opts.outDir, { recursive: true });
 
   let launchedChild = null;
@@ -453,6 +463,7 @@ async function run() {
       },
       options: {
         port: opts.port,
+        profile: opts.profile,
         launched: Boolean(opts.launch),
         screenshots: opts.screenshots,
         allowOfflineServices: opts.allowOfflineServices,
@@ -481,7 +492,6 @@ async function run() {
     const screens = (checks.screens || []).filter((s) => !opts.only || opts.only.has(s.id));
     for (const screen of screens) {
       const screenStart = Date.now();
-      client.clearEvents();
 
       const screenReport = {
         id: screen.id,
@@ -490,7 +500,7 @@ async function run() {
         durationMs: 0,
         pathname: null,
         theme: null,
-        offlineFallback: false,
+        skippedAssertions: [],
         screenshot: null,
         assertions: [],
         failedAssertions: [],
@@ -502,6 +512,25 @@ async function run() {
         extra: null,
       };
 
+      const reason = skipReason(screen.requires);
+      if (reason) {
+        report.screens.push({ ...screenReport, ok: null, skipped: reason });
+        console.log(`[SKIP] screen/${screen.id}: ${reason}`);
+        continue;
+      }
+      const expect = [];
+      for (const assertion of screen.expect || []) {
+        const reason = skipReason(assertion.requires);
+        if (reason) {
+          screenReport.skippedAssertions.push({ label: assertion.label, reason });
+          console.log(`[SKIP] screen/${screen.id} / ${assertion.label}: ${reason}`);
+        } else {
+          expect.push(assertion);
+        }
+      }
+      if (opts.allowOfflineServices) expect.push(...(screen.expectOffline || []));
+      const allowedEnglish = [...(screen.allowedEnglish || []),
+        ...(opts.profile === "clean" ? screen.cleanAllowedEnglish || [] : [])];
       try {
         // Optional setup actions.
         if (Array.isArray(screen.setup)) {
@@ -544,12 +573,10 @@ async function run() {
           toggled = await client.probe("getThemeState");
 
           const inspected = await client.probe("inspectScreen", {
-            expect: screen.expect,
-            expectOffline: screen.expectOffline,
-            allowOfflineServices: opts.allowOfflineServices,
+            expect,
             englishScan: checks.englishScan,
             excludeEnglishSelectors: screen.excludeEnglishSelectors,
-            allowedEnglish: screen.allowedEnglish,
+            allowedEnglish,
             maskSelectors: mergedMaskSelectors,
           });
 
@@ -610,22 +637,30 @@ async function run() {
             if (!actRes.ok) throw new Error(`Action failed: ${actRes.detail}`);
           }
 
+          if (screen.ensureDraft) {
+            const deadline = Date.now() + 8000;
+            while (!(await client.probe("ensureDraft"))) {
+              if (Date.now() >= deadline) throw new Error("Could not find a draft or Start without a project");
+              await client.pumpFrames(1, 200);
+            }
+          }
           const readyRes = await waitUntilReady(client, screen.waitFor);
+          if (opts.allowOfflineServices && screen.expectOffline?.length) {
+            const offlineReady = await waitUntilReady(client, { assertions: screen.expectOffline });
+            if (!offlineReady.ready) throw new Error(offlineReady.detail);
+          }
           await settleScreen(client, screen.settleMs ?? 700);
 
           const inspected = await client.probe("inspectScreen", {
-            expect: screen.expect,
-            expectOffline: screen.expectOffline,
-            allowOfflineServices: opts.allowOfflineServices,
+            expect,
             englishScan: checks.englishScan,
             excludeEnglishSelectors: screen.excludeEnglishSelectors,
-            allowedEnglish: screen.allowedEnglish,
+            allowedEnglish,
             maskSelectors: mergedMaskSelectors,
           });
 
           screenReport.pathname = inspected.pathname;
           screenReport.theme = inspected.theme;
-          screenReport.offlineFallback = Boolean(inspected.offlineFallback);
           screenReport.assertions = inspected.assertions;
           screenReport.failedAssertions = inspected.failedAssertions;
           screenReport.englishPhrases = inspected.englishPhrases;
@@ -683,9 +718,9 @@ async function run() {
       screenReport.durationMs = Date.now() - screenStart;
       report.screens.push(screenReport);
       const statusTag = screenReport.ok ? "PASS" : "FAIL";
-      const offlineTag = screenReport.offlineFallback ? " [offline-fallback]" : "";
+      client.clearEvents();
       console.log(
-        `[${statusTag}] screen/${screen.id}${offlineTag} (${screenReport.durationMs}ms, assertions=${screenReport.assertions.length - screenReport.failedAssertions.length}/${screenReport.assertions.length}, errors=${screenReport.errors.length}, en=${screenReport.englishPhrases.length})`,
+        `[${statusTag}] screen/${screen.id} (${screenReport.durationMs}ms, assertions=${screenReport.assertions.length - screenReport.failedAssertions.length}/${screenReport.assertions.length}, errors=${screenReport.errors.length}, en=${screenReport.englishPhrases.length})`,
       );
       if (!screenReport.ok) {
         for (const f of screenReport.failedAssertions) {
@@ -698,6 +733,7 @@ async function run() {
     }
 
     const screensPassed = report.screens.filter((s) => s.ok).length;
+    const skippedChecks = report.screens.filter((s) => s.skipped).length;
     const totalChecks = 2 + report.screens.length;
     const passedChecks =
       (report.checks.globals.ok ? 1 : 0) + (report.checks.scheme.ok ? 1 : 0) + screensPassed;
@@ -710,7 +746,8 @@ async function run() {
     report.summary = {
       totalChecks,
       passedChecks,
-      failedChecks: totalChecks - passedChecks,
+      skippedChecks,
+      failedChecks: totalChecks - passedChecks - skippedChecks,
       globalsOk: report.checks.globals.ok,
       schemeOk: report.checks.scheme.ok,
       screensPassed,
@@ -732,7 +769,7 @@ async function run() {
       `[${report.checks.scheme.ok ? "PASS" : "FAIL"}] scheme: index=${report.checks.scheme.index.status}, wasm=${report.checks.scheme.wasm.map((w) => `${w.url}:${w.status}`).join(", ") || "none"}`,
     );
     console.log(
-      `Summary: ${report.summary.passedChecks}/${report.summary.totalChecks} checks passed, errors=${report.summary.totalErrors}, unexpected_en=${report.summary.unexpectedEnglishPhrases.length}`,
+      `Summary: ${report.summary.passedChecks}/${report.summary.totalChecks} checks passed, skipped=${skippedChecks}, errors=${report.summary.totalErrors}, unexpected_en=${report.summary.unexpectedEnglishPhrases.length}`,
     );
     console.log(`Report saved to: ${join(opts.outDir, "report.json")}`);
 

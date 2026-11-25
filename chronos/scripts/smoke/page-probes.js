@@ -379,6 +379,18 @@
       return { wasWelcome: true, clicked: true, clickedText: (target.innerText || "").trim() };
     }
 
+    case "ensureDraft": {
+      const start = [...document.querySelectorAll("button")].find((button) =>
+        isElementVisible(button) && !button.disabled &&
+        /^(?:(?:или )?начать без проекта|(?:or )?start without a project)$/i.test(button.innerText.trim())
+      );
+      if (start) {
+        start.click();
+        return true;
+      }
+      return isElementVisible(document.querySelector("[data-slot=composer-host]"));
+    }
+
     case "performAction": {
       const spec = arg || {};
       if (spec.type === "navigate") {
@@ -455,6 +467,10 @@
 
     case "checkReady": {
       const w = arg || {};
+      for (const assertion of w.assertions || []) {
+        const result = evaluateAssertion(assertion);
+        if (!result.ok) return { ready: false, detail: result.detail };
+      }
       if (w.selector) {
         const ok = [...document.querySelectorAll(w.selector)].some(isElementVisible);
         if (!ok) return { ready: false, detail: `waiting for selector ${w.selector}` };
@@ -478,22 +494,7 @@
     case "inspectScreen": {
       const cfg = arg || {};
       const expectList = Array.isArray(cfg.expect) ? cfg.expect : [];
-      const offlineList = Array.isArray(cfg.expectOffline) ? cfg.expectOffline : null;
-
-      let assertions = expectList.map(evaluateAssertion);
-      let offlineFallback = false;
-      if (
-        !assertions.every((a) => a.ok) &&
-        cfg.allowOfflineServices &&
-        offlineList &&
-        offlineList.length > 0
-      ) {
-        const offlineAssertions = offlineList.map(evaluateAssertion);
-        if (offlineAssertions.every((a) => a.ok)) {
-          assertions = offlineAssertions;
-          offlineFallback = true;
-        }
-      }
+      const assertions = expectList.map(evaluateAssertion);
 
       const failedAssertions = assertions.filter((a) => !a.ok);
 
@@ -567,7 +568,7 @@
 
       return {
         ok: failedAssertions.length === 0,
-        offlineFallback,
+
         pathname: globalThis.__TSR_ROUTER__?.state?.location?.pathname ?? null,
         theme: {
           dark: document.documentElement.classList.contains("dark"),

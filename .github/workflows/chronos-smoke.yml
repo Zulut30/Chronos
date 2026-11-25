@@ -104,6 +104,8 @@ jobs:
             --port 9333 `
             --launch-timeout 120000 `
             --extra-arg "--disable-gpu" `
+            --profile clean `
+            --strict-en `
             --allow-offline-services `
             --no-screenshots `
             --out $outDir
@@ -116,7 +118,7 @@ jobs:
               "## Chronos smoke report",
               "",
               "- **App version:** ``$($rep.app.version)``",
-              "- **Result:** $(if ($rep.ok) { 'PASS' } else { 'FAIL' }) ($($rep.summary.passedChecks)/$($rep.summary.totalChecks) checks)",
+              "- **Result:** $(if ($rep.ok) { 'PASS' } else { 'FAIL' }) ($($rep.summary.passedChecks)/$($rep.summary.totalChecks) checks passed, $($rep.summary.skippedChecks) skipped)",
               "- **Globals:** $($rep.checks.globals.presentCount)/$($rep.checks.globals.expectedCount)",
               "- **Scheme:** index=$($rep.checks.scheme.index.status), wasm=$($rep.checks.scheme.discoveredCount)",
               "- **Errors:** $($rep.summary.totalErrors)",

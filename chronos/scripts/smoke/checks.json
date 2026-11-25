@@ -79,6 +79,7 @@
   "screens": [
     {
       "id": "home",
+      "ensureDraft": true,
       "title": "Главный экран (без проекта)",
       "action": {
         "type": "navigate",
@@ -86,7 +87,7 @@
       },
       "waitFor": {
         "allSelectors": [
-          "button.oly-plan",
+          "[data-slot=composer-host]",
           "button[aria-label='День / ночь']",
           "[data-oly-tasks]",
           "button[aria-label='Студия']"
@@ -97,7 +98,7 @@
       "expect": [
         { "text": "Над чем будем работать?", "label": "Заголовок пустого треда" },
         { "selector": "[data-draft-project-trigger]", "label": "Переключатель проекта (Без проекта)" },
-        { "selector": "button.oly-plan", "label": "Кнопка режима ответа (Выполнение)" },
+        { "requires": "provider", "selector": "button.oly-plan", "label": "Кнопка режима ответа (Выполнение)" },
         { "ariaLabel": "День / ночь", "label": "Кнопка «День / ночь»" },
         { "selector": "[data-oly-tasks]", "label": "Кнопка «Задачи» в сайдбаре" },
         { "ariaLabel": "Студия", "label": "Кнопка «Студия» в сайдбаре" }
@@ -179,12 +180,8 @@
       "expect": [
         { "selector": ".oly-ik-panel", "label": "Панель «API-ключи»" },
         { "text": "API-ключи", "scope": ".oly-ik-panel", "label": "Заголовок «API-ключи»" },
-        { "text": "OpenRouter", "scope": ".oly-ik-panel", "label": "Секция OpenRouter" },
-        { "text": "MCP-сервер oly-web", "scope": ".oly-ik-panel", "label": "Секция MCP-сервер oly-web" }
-      ],
-      "expectOffline": [
-        { "selector": ".oly-ik-panel", "label": "Панель «API-ключи» (офлайн)" },
-        { "text": "API-ключи", "scope": ".oly-ik-panel", "label": "Заголовок «API-ключи»" }
+        { "requires": "services", "text": "OpenRouter", "scope": ".oly-ik-panel", "label": "Секция OpenRouter" },
+        { "requires": "services", "text": "MCP-сервер oly-web", "scope": ".oly-ik-panel", "label": "Секция MCP-сервер oly-web" }
       ],
       "allowedEnglish": []
     },
@@ -213,12 +210,13 @@
       "expect": [
         { "selector": ".oly-mcp-pane", "label": "Панель «Серверы MCP»" },
         { "text": "Серверы MCP", "scope": ".oly-mcp-pane", "label": "Заголовок «Серверы MCP»" },
-        { "iframeSrcPrefix": "http://127.0.0.1:4523/", "label": "Iframe менеджера MCP" }
+        { "requires": "services", "iframeSrcPrefix": "http://127.0.0.1:4523/", "label": "Iframe менеджера MCP" }
       ],
       "expectOffline": [
-        { "selector": ".oly-mcp-pane", "label": "Панель «Серверы MCP» (офлайн)" },
-        { "text": "Серверы MCP", "scope": ".oly-mcp-pane", "label": "Заголовок «Серверы MCP»" },
-        { "selector": ".oly-mcp-error", "label": "Сообщение о недоступности менеджера MCP" }
+        { "anyOf": [
+          { "selector": "iframe[src^='http://127.0.0.1:4523/']", "scope": ".oly-mcp-pane" },
+          { "selector": ".oly-mcp-error", "scope": ".oly-mcp-pane" }
+        ], "label": "Содержимое панели или сообщение о недоступности" }
       ],
       "allowedEnglish": []
     },
@@ -247,11 +245,7 @@
       "expect": [
         { "selector": ".oly-ps-pane", "label": "Панель «Шаблоны промптов»" },
         { "text": "Шаблоны промптов", "scope": ".oly-ps-pane", "label": "Заголовок «Шаблоны промптов»" },
-        { "text": "Ваши шаблоны", "scope": ".oly-ps-pane", "label": "Секция «Ваши шаблоны»" }
-      ],
-      "expectOffline": [
-        { "selector": ".oly-ps-pane", "label": "Панель «Шаблоны промптов» (офлайн)" },
-        { "text": "Шаблоны промптов", "scope": ".oly-ps-pane", "label": "Заголовок «Шаблоны промптов»" }
+        { "requires": "services", "text": "Ваши шаблоны", "scope": ".oly-ps-pane", "label": "Секция «Ваши шаблоны»" }
       ],
       "excludeEnglishSelectors": [
         ".oly-ps-item"
@@ -277,6 +271,13 @@
       ],
       "excludeEnglishSelectors": [
         "[data-slot='settings-row'] .font-mono"
+      ],
+      "cleanAllowedEnglish": [
+        "Could not start Codex CLI (`codex`). Check Settings → Providers → Codex → Binary path on the server. Installing ChatGPT or Codex desktop may not add codex to PATH.",
+        "No models reported for this provider yet.",
+        "Not found",
+        "· Claude Agent CLI (`claude`) was not found on PATH.",
+        "· Could not start Codex CLI (`codex`). Check Settings → Providers → Codex → Binary path on the server. Installing ChatGPT or Codex desktop may not add codex to PATH."
       ],
       "allowedEnglish": [
         "Not authenticated",
@@ -346,12 +347,14 @@
       ],
       "expect": [
         { "selector": ".oly-tk-dialog[role='dialog'][aria-label='Задачи']", "label": "Диалог «Задачи»" },
-        { "text": "Все проекты", "scope": ".oly-tk-dialog", "label": "Пункт «Все проекты»" },
-        { "text": "Новая задача", "scope": ".oly-tk-dialog", "label": "Кнопка «Новая задача»" }
+        { "requires": "services", "text": "Все проекты", "scope": ".oly-tk-dialog", "label": "Пункт «Все проекты»" },
+        { "requires": "services", "text": "Новая задача", "scope": ".oly-tk-dialog", "label": "Кнопка «Новая задача»" }
       ],
       "expectOffline": [
-        { "selector": ".oly-tk-dialog[role='dialog'][aria-label='Задачи']", "label": "Диалог «Задачи» (офлайн)" },
-        { "selector": ".oly-tk-empty", "label": "Сообщение о недоступности сервиса задач" }
+        { "anyOf": [
+          { "text": "Все проекты", "scope": ".oly-tk-dialog" },
+          { "text": "Сервис задач не запущен", "scope": ".oly-tk-dialog" }
+        ], "label": "Содержимое панели или сообщение о недоступности" }
       ],
       "excludeEnglishSelectors": [
         ".oly-tk-card",
@@ -384,16 +387,19 @@
       "expect": [
         { "selector": "dialog.oly-studio-dialog[open]", "label": "Диалог «Студия»" },
         { "text": "Студия", "scope": "dialog.oly-studio-dialog", "label": "Заголовок «Студия»" },
-        { "iframeSrcPrefix": "http://127.0.0.1:4520/", "label": "Iframe сервиса Студии" }
+        { "requires": "services", "iframeSrcPrefix": "http://127.0.0.1:4520/", "label": "Iframe сервиса Студии" }
       ],
       "expectOffline": [
-        { "selector": "dialog.oly-studio-dialog[open]", "label": "Диалог «Студия» (офлайн)" },
-        { "text": "Студия не отвечает", "scope": "dialog.oly-studio-dialog", "label": "Заглушка офлайн-Студии" }
+        { "anyOf": [
+          { "selector": "iframe[src^='http://127.0.0.1:4520/']", "scope": "dialog.oly-studio-dialog" },
+          { "selector": ".studio-state button", "scope": "dialog.oly-studio-dialog" }
+        ], "label": "Содержимое панели или сообщение о недоступности" }
       ],
       "allowedEnglish": []
     },
     {
       "id": "composer-mode-menu",
+      "requires": "provider",
       "title": "Меню режима ответа в композере (кнопка «Выполнение»)",
       "setup": [
         { "type": "navigate", "to": "/" }
