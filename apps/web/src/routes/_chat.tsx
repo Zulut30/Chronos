@@ -1,6 +1,6 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
-import { PcIndicator } from "../chronos/pc-control/Control"; // chronos: global activity and consent
+import { PcIndicator } from "../chronos/pc-control/PcIndicator"; // chronos: global activity and consent
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { GlobalVoiceInputIndicator } from "../components/chat/GlobalVoiceInputIndicator";
 import { isAppModalPage } from "../components/sidebar/mainAppLocation";
