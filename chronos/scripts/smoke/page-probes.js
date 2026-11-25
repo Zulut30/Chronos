@@ -367,7 +367,8 @@
       );
       const target =
         buttons.find((b) => /Начать без агента|Start without an agent/i.test(b.innerText || "")) ||
-        buttons.find((b) => /Пропустить|Skip/i.test(b.innerText || ""));
+        buttons.find((b) => /Пропустить|Skip/i.test(b.innerText || "")) ||
+        (arg?.readyProvider && buttons.find((b) => /^(?:Начать|Запустить|Start)$/i.test(b.innerText.trim())));
       if (!target) {
         return {
           wasWelcome: true,

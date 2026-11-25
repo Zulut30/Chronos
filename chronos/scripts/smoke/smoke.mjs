@@ -35,6 +35,7 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
   --strict-en                Fail if unexpected English phrases are detected
   -h, --help                 Show this help message`);
@@ -54,6 +55,7 @@ function parseArgs(argv) {
     allowOfflineServices: false,
     strictEn: false,
     requireProvider: false,
+    verifyChatSettings: false,
     profile: "full",
   };
 
@@ -103,6 +105,8 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--verify-chat-settings") {
+      opts.verifyChatSettings = true;
     } else if (arg === "--require-provider") {
       opts.requireProvider = true;
     } else if (arg === "--strict-en") {
@@ -401,10 +405,10 @@ async function waitForAppHydrated(client, timeoutMs = 45_000) {
   throw new Error(`Chronos page did not hydrate within ${timeoutMs}ms: ${JSON.stringify(last)}`);
 }
 
-async function maybeDismissOnboarding(client) {
+async function maybeDismissOnboarding(client, readyProvider) {
   const info = await client.probe("appInfo");
   if (info.pathname !== "/welcome") return { dismissed: false };
-  const res = await client.probe("dismissOnboarding");
+  const res = await client.probe("dismissOnboarding", { readyProvider });
   if (!res?.clicked) {
     return { dismissed: false, detail: res };
   }
@@ -417,6 +421,38 @@ async function maybeDismissOnboarding(client) {
     }
   }
   return { dismissed: false, detail: "Still on /welcome after clicking skip button" };
+}
+
+async function verifyChatSettings(client) {
+  const rows = ["#olympus-88-rich-text", "#olympus-40-files"];
+  const globals = ["__olyRichText", "__olyFiles"];
+  async function openSettings(checked) {
+    await client.probe("performAction", { type: "navigate", to: "/settings/appearance" });
+    const ready = await waitUntilReady(client, {
+      allSelectors: rows.map((id) => id + ` [role=switch][aria-checked=${checked}]`),
+    });
+    if (!ready.ready) throw new Error(ready.detail);
+  }
+  async function clickSwitches() {
+    for (const id of rows) {
+      const action = await client.probe("performAction", { type: "click", selector: id + " [role=switch]" });
+      if (!action.ok) throw new Error(action.detail);
+    }
+  }
+  for (const enabled of [true, false]) {
+    await openSettings(enabled);
+    await clickSwitches();
+    await openSettings(!enabled);
+    const before = await client.probe("checkGlobals", { expected: globals });
+    if (before.presentCount !== (enabled ? 2 : 0)) throw new Error("Module changed before reload");
+    await client.send("Page.reload");
+    await waitForAppHydrated(client);
+    await openSettings(!enabled);
+    const after = await client.probe("checkGlobals", { expected: [...globals, "__olyCore", "__olyReferences"] });
+    if (JSON.stringify(after.missing) !== JSON.stringify(enabled ? globals : [])) {
+      throw new Error("Unexpected modules after reload: " + JSON.stringify(after.missing));
+    }
+  }
 }
 
 function extractVersionFromUserAgent(ua) {
@@ -491,7 +527,7 @@ async function run() {
     }
 
     let appInfo = await waitForAppHydrated(client, opts.launch ? opts.launchTimeoutMs : 20_000);
-    const onboarding = await maybeDismissOnboarding(client);
+    const onboarding = await maybeDismissOnboarding(client, opts.requireProvider);
     if (onboarding.dismissed) {
       await settleScreen(client, 800);
       appInfo = await client.probe("appInfo");
@@ -516,6 +552,7 @@ async function run() {
       options: {
         port: opts.port,
         profile: opts.profile,
+        requireProvider: opts.requireProvider,
         launched: Boolean(opts.launch),
         screenshots: opts.screenshots,
         allowOfflineServices: opts.allowOfflineServices,
@@ -694,7 +731,13 @@ async function run() {
           if (screen.ensureDraft) {
             const deadline = Date.now() + 8000;
             while (!(await client.probe("ensureDraft"))) {
-              if (Date.now() >= deadline) throw new Error("Could not find a draft or Start without a project");
+              // On a fresh desktop the initial shell can hydrate before its welcome redirect.
+              const welcome = await maybeDismissOnboarding(client, opts.requireProvider);
+              if (welcome.dismissed) report.options.onboardingDismissed = true;
+              if (Date.now() >= deadline && !welcome.dismissed) {
+                const info = await client.probe("appInfo");
+                throw new Error("Could not open a draft on " + info.pathname + ": " + JSON.stringify(welcome.detail ?? {}));
+              }
               await client.pumpFrames(1, 200);
             }
           }
@@ -813,6 +856,17 @@ async function run() {
       unexpectedEnglishPhrases: allUnexpectedEnglish,
     };
     report.ok = report.summary.failedChecks === 0;
+    if (opts.verifyChatSettings) {
+      try {
+        await verifyChatSettings(client);
+        report.chatSettings = { ok: true };
+        console.log("[PASS] chat settings: switched off, reloaded, re-enabled and reloaded");
+      } catch (error) {
+        report.chatSettings = { ok: false, error: String(error) };
+        report.ok = false;
+        console.log("[FAIL] chat settings: " + error);
+      }
+    }
 
     writeFileSync(join(opts.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 

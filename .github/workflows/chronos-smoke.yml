@@ -138,6 +138,7 @@ jobs:
             '--profile', 'clean',
             '--strict-en',
             '--no-screenshots',
+            '--verify-chat-settings',
             '--out', $outDir
           )
           if ($env:REQUIRE_PROVIDER -eq 'true') { $smokeArgs += '--require-provider' }
