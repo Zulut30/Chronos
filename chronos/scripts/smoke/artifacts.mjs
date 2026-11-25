@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import path from "node:path";
+import {pathToFileURL} from "node:url";
+import {setTimeout as delay} from "node:timers/promises";
+import {writeFileSync} from "node:fs";
+
+async function waitFor(label,test) {
+  const end=Date.now()+25000;
+  let last;
+  do {
+    try {const result=await test();if (result) return result;} catch(e) {last=e;}
+    await delay(200);
+  } while(Date.now()<end);
+  throw Error(label+" timed out"+(last ? ": "+last.message : ""));
+}
+export async function verifyArtifacts(client, opts) {
+  if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated Windows CI install");
+  const services=path.join(path.dirname(opts.launch),"resources","chronos-services");
+  const {openArtifacts}=await import(pathToFileURL(path.join(services,"artifacts","store.mjs")));
+  const {showArtifact}=await import(pathToFileURL(path.join(services,"artifacts","gallery.mjs")));
+  const store=openArtifacts(process.env.CHRONOS_HOME);
+  async function evaluate(expression) {
+    const r=await client.send("Runtime.evaluate",{expression,returnByValue:true,awaitPromise:true});
+    if(r.exceptionDetails) throw Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+    return r.result.value;
+  }
+  try {
+    const input={source:path.join(process.env.RUNNER_TEMP,"artifact-smoke.html"),title:"Проверка артефакта",label:"Проверка",icon:"🗂",description:"Тест приложения",capabilities:["theme","db"],
+      files:{"index.html":`<!doctype html><html lang="ru"><meta charset="utf-8"><title>Проверка артефакта</title><body>Готово<script>
+      requestAnimationFrame(async () => {
+        const value={node:typeof require,mode:chronos.theme.get().mode,files:typeof chronos.files,host:location.hostname,alias:typeof claude.db.get};
+        const row={collection:"probe",key:"frame"};
+        const prior=await chronos.db.get(row);
+        await chronos.db.set({...row,value:{...value,opens:(prior?.opens || 0)+1}});
+      });
+      </script></html>`}};
+    const {id}=store.publish(input);
+    await client.probe("performAction",{type:"navigate",to:"/"});
+    await waitFor("gallery link",()=>evaluate(`Boolean(document.querySelector('button[aria-label="Артефакты"]'))`));
+    await evaluate(`document.querySelector('button[aria-label="Артефакты"]').click()`);
+    await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('dialog iframe[src*="/artifacts.html"],webview[src*="/artifacts.html"]'))`));
+    await showArtifact(id);
+    const row=await waitFor("isolated page wrote to MCP database",()=>store.documents(id,"get",{collection:"probe",key:"frame"}));
+    assert.equal(row.host,id);
+    assert.equal(row.node,"undefined");
+    assert.equal(row.files,"undefined");
+    assert.equal(row.alias,"function");
+    assert.ok(["light","dark"].includes(row.mode));
+    await evaluate(`[...document.querySelectorAll("button")].find(b=>b.textContent==="Установить как приложение").click()`);
+    await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
+    writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
+    console.log("PASS: gallery, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
+  } finally {store.close();}
+}

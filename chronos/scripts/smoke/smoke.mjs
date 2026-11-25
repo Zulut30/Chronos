@@ -901,6 +901,10 @@ async function run() {
     );
     console.log(`Report saved to: ${join(opts.outDir, "report.json")}`);
 
+    if (report.ok && process.env.CHRONOS_VERIFY_ARTIFACTS === "1") {
+      const {verifyArtifacts} = await import("./artifacts.mjs");
+      await verifyArtifacts(client,opts);
+    }
     process.exitCode = report.ok ? 0 : 1;
   } finally {
     if (client) {

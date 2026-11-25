@@ -124,6 +124,7 @@ jobs:
           CHRONOS_HOME: ${{ runner.temp }}\chronos-home
           REQUIRE_PROVIDER: ${{ inputs.require_provider }}
           REQUIRE_SERVICES: ${{ inputs.require_services }}
+          CHRONOS_VERIFY_ARTIFACTS: ${{ inputs.require_services && '1' || '0' }}
         run: |
           $ErrorActionPreference = 'Stop'
           $outDir = Join-Path $env:RUNNER_TEMP 'chronos-smoke-report'
@@ -161,6 +162,15 @@ jobs:
             ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           }
           exit $exitCode
+
+      - name: Open the installed artifact from its Windows shortcut
+        if: inputs.require_services
+        shell: pwsh
+        env:
+          CHRONOS_HOME: ${{ runner.temp }}\chronos-home
+        run: |
+          $id = Get-Content -Raw -LiteralPath (Join-Path $env:RUNNER_TEMP 'chronos-smoke-report/artifact-id.txt')
+          ./chronos/scripts/smoke/artifact-shortcut.ps1 -Id $id
 
       - name: Upload smoke report
         if: always()
