@@ -34,8 +34,9 @@ const targets = [crypto.randomUUID(), crypto.randomUUID()];
 const ids = Array.from({ length: n }, () => crypto.randomUUID());
 const stateFile = join(userdata, "server-runtime.json");
 let rpc, cdp, evaluate;
-try {
+async function benchmark() {
   let server;
+  const launched = Date.now();
   if (mode === "desktop") {
     start(
       exe,
@@ -100,6 +101,31 @@ try {
     mobile: false,
   });
   await page("Page.bringToFront");
+  if (action === "startup") {
+    assert.equal(mode, "desktop");
+    const surface = await wait("interactive startup surface", () => evaluate(`(() => {
+      if (!window.__TSR_ROUTER__ || !performance.getEntriesByName("first-contentful-paint").length) return false;
+      if (document.querySelector("[data-slot=composer-host] [contenteditable=true]")) return "composer";
+      const route = window.__TSR_ROUTER__.state.location.pathname;
+      const buttons = [...document.querySelectorAll("button")].filter(b => !b.disabled && b.getClientRects().length);
+      if (route === "/welcome" && buttons.some(b => /^(Начать|Запустить|Start|Пропустить|Skip)( |$)/i.test(b.innerText.trim()))) return "welcome";
+      if (buttons.some(b => /^(Добавить проект|Add project)$/i.test(b.innerText.trim()))) return "project";
+      return false;
+    })()`));
+    const startup = await evaluate(`new Promise(resolve => requestAnimationFrame(() => {
+      const paint = performance.getEntriesByName("first-contentful-paint")[0];
+      const scripts = performance.getEntriesByType("resource").filter(r => /\\.m?js($|[?#])/.test(r.name));
+      resolve({ route: window.__TSR_ROUTER__.state.location.pathname,
+        readyAt: performance.timeOrigin + performance.now(),
+        paintedAt: paint && performance.timeOrigin + paint.startTime,
+        scripts: scripts.map(r => ({ name: new URL(r.name).pathname.split("/").pop(), bytes: r.decodedBodySize })) });
+    }))`);
+    const result = { route: startup.route, surface, firstPaintMs: startup.paintedAt - launched,
+      readyMs: startup.readyAt - launched, scripts: startup.scripts };
+    assert(result.firstPaintMs > 0 && result.readyMs >= result.firstPaintMs);
+    writeFileSync(output, JSON.stringify(result, null, 2));
+    return;
+  }
   await page("Performance.enable");
   await page("Network.enable");
   const detailIds = new Set();
@@ -330,6 +356,7 @@ try {
     let concurrentApproval;
     if (n && mode === "desktop") {
       const busy = ids.filter((id) => !existsSync(join(root, id + ".txt"))).length;
+      if (rows === 1000) assert.equal(busy, n, "Large-sidebar RSS requires all agents still streaming");
       assert(busy >= 4, "Need at least four busy background agents for the approval check");
       const { verifyApproval } = await import("./ui-history.mjs");
       concurrentApproval = { busy, ...(await verifyApproval({ rpc, evaluate, wait, launch })) };
@@ -386,16 +413,21 @@ try {
       "document.querySelectorAll('[data-sidebar-card-placeholder]').length",
     );
     // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
-    const farId = await evaluate(`(() => {
-      const rows = document.querySelectorAll("[data-thread-item] [data-sidebar-row]");
-      const row = rows[rows.length - 1];
-      row.scrollIntoView({ block:"center", behavior:"instant" });
-      row.focus();
-      return row.closest("[data-thread-item]").getAttribute("data-thread-item").slice(-36);
-    })()`);
-    await wait("offscreen card", () =>
-      evaluate(`!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`),
-    );
+    const farId = await evaluate("uiBench.revealDistantFixture()");
+    try {
+      await wait("offscreen card", () =>
+        evaluate("uiBench.focusRevealedCard(" + JSON.stringify(farId) + ")"),
+      );
+    } catch (error) {
+      const state = await evaluate(`(() => {
+        const row = document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-row]');
+        const box = row?.getBoundingClientRect();
+        return { exists: !!row, rect: box?.toJSON(), placeholder: !!row?.querySelector("[data-sidebar-card-placeholder]"),
+          viewport: row?.closest('[data-slot="scroll-area-viewport"]')?.getBoundingClientRect().toJSON(),
+          focused: row === document.activeElement };
+      })()`);
+      throw Error("Offscreen fixture " + farId + ": " + JSON.stringify(state), { cause: error });
+    }
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
       key: "Enter",
@@ -433,6 +465,24 @@ try {
           below125ms: gaps.filter((t) => t < 125).length,
         }
       : null;
+    let tooltipVerified;
+    if (rows === 1000 && n === 16) {
+      const selector = '[data-thread-item$="' + targets[1] + '"] [data-sidebar-row]';
+      await page("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+      await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: "center", behavior: "instant" })`);
+      const point = await wait("visible hover target", () => evaluate(`(() => {
+        const row = document.querySelector(${JSON.stringify(selector)});
+        const box = row.getBoundingClientRect();
+        const x = box.left + 12, y = box.top + box.height / 2;
+        return row.contains(document.elementFromPoint(x, y)) && { x, y };
+      })()`));
+      await page("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+      await wait("thread details after revealing its row", () => evaluate(`
+        [...document.querySelectorAll("[data-slot=tooltip-popup]")].some(popup =>
+          popup.getClientRects().length && popup.textContent.includes(${JSON.stringify("Bench " + targets[1])}))
+      `), 6000);
+      tooltipVerified = true;
+    }
     const result = {
       mode,
       n,
@@ -445,6 +495,7 @@ try {
       history,
       cadence,
       concurrentApproval,
+      tooltipVerified,
       rendererCount: pids.length,
       rendererRssMiB: rss / 1048576,
       heapMiB: after.JSHeapUsedSize / 1048576,
@@ -466,6 +517,9 @@ try {
       assert.equal(olympus.speedSamples, n, "Olympus lost a model throughput sample");
     }
   }
+}
+try {
+  await benchmark();
 } catch (error) {
   if (evaluate)
     console.error(

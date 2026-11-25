@@ -586,8 +586,6 @@ function redactExitCredentials(exit: Exit.Exit<unknown, unknown>): Exit.Exit<unk
 class LocalFileSpan implements Tracer.Span {
   readonly _tag = "Span";
   readonly name: string;
-  readonly spanId: string;
-  readonly traceId: string;
   readonly parent: Option.Option<Tracer.AnySpan>;
   readonly annotations: Tracer.Span["annotations"];
   readonly links: Array<Tracer.SpanLink>;
@@ -611,8 +609,6 @@ class LocalFileSpan implements Tracer.Span {
     this.push = push;
     this.keepLocalSpan = keepLocalSpan;
     this.name = delegate.name;
-    this.spanId = delegate.spanId;
-    this.traceId = delegate.traceId;
     this.parent = options.parent;
     this.annotations = options.annotations;
     this.links = [...options.links];
@@ -624,6 +620,14 @@ class LocalFileSpan implements Tracer.Span {
     };
     this.attributes = new Map();
     this.events = [];
+  }
+
+  get spanId(): string {
+    return this.delegate.spanId;
+  }
+
+  get traceId(): string {
+    return this.delegate.traceId;
   }
 
   end(endTime: bigint, exit: Exit.Exit<unknown, unknown>): void {

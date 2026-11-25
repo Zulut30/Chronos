@@ -12,6 +12,11 @@ on:
         description: "Also measure a 1,000-thread sidebar without active agents"
         type: boolean
         default: false
+      bench_suite:
+        description: "Focused same-VM package comparison (three alternating passes)"
+        type: choice
+        default: full
+        options: [full, scroll, wheel, startup, renderer, server]
   push:
     branches:
       - main
@@ -22,11 +27,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: chronos-checks-${{ github.ref }}-${{ inputs.ui_builds || 'checks' }}
+  group: chronos-checks-${{ github.ref }}-${{ inputs.ui_builds || 'checks' }}-${{ inputs.bench_suite || 'full' }}
   cancel-in-progress: true
 
 jobs:
   checks:
+    if: (inputs.bench_suite || 'full') == 'full'
     name: Typecheck and tests
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -97,9 +103,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev pkg-config
 
-      - name: Shared release and theme regression tests
+      - name: Shared release, theme, markdown and tracing regressions
         working-directory: packages/shared
-        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts src/observability.test.ts
 
       - name: Shell reducer and positional index
         working-directory: packages/client-runtime
@@ -129,6 +135,7 @@ jobs:
         run: vp test run
 
   server:
+    if: (inputs.bench_suite || 'full') == 'full'
     name: Server integration regressions
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -186,6 +193,7 @@ jobs:
         with:
           node-version: "24"
       - name: Compare Windows packages on the same machine
+        if: (inputs.bench_suite || 'full') == 'full'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -215,6 +223,14 @@ jobs:
             }
           }
           if ($errors.Count) { throw ($errors -join ", ") }
+      - name: Compare focused workloads on the same Windows VM
+        if: inputs.bench_suite != '' && inputs.bench_suite != 'full'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILDS: ${{ inputs.ui_builds }}
+          SUITE: ${{ inputs.bench_suite }}
+        run: ./chronos/scripts/bench/compare.ps1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
