@@ -1,7 +1,8 @@
 import { Toolbar } from "@base-ui/react/toolbar";
 import { type ProviderInstanceId } from "@t3tools/contracts";
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { msg, T, useMessages } from "gt-react";
+import { msg, T, useLocale, useMessages } from "gt-react";
+import { providerStatusMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: translate known server diagnostics.
 import { StarIcon } from "lucide-react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -16,6 +17,7 @@ import {
 function describeUnavailableInstance(
   entry: ProviderInstanceEntry,
   resolve: MessageResolver,
+  locale: string,
 ): string {
   const label = entry.displayName;
   // An unavailable instance (a driver this build lacks or the policy leaves out) says why instead.
@@ -25,8 +27,9 @@ function describeUnavailableInstance(
   if (entry.status === "ready" && entry.isAvailable) {
     return label;
   }
-  const message = entry.snapshot.message?.trim();
-  if (message) {
+  const diagnostic = entry.snapshot.message?.trim();
+  if (diagnostic) {
+    const message = providerStatusMessage(diagnostic, locale);
     return resolve(
       entry.status === "error"
         ? msg("{label}: Unavailable. {message}", { label, message })
@@ -58,6 +61,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   getDisabledInstanceTooltip?: (entry: ProviderInstanceEntry) => string;
 }) {
   const m = useMessages();
+  const locale = useLocale();
   const handleSelect = (instanceId: ProviderInstanceId | "favorites") => {
     props.onSelectInstance(instanceId);
   };
@@ -154,7 +158,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
             const showInstanceBadge = shouldShowInstanceBadge(entry, props.instanceEntries);
 
             const tooltip = isUnavailable
-              ? describeUnavailableInstance(entry, m)
+              ? describeUnavailableInstance(entry, m, locale)
               : isContextDisabled
                 ? (props.getDisabledInstanceTooltip?.(entry) ?? entry.displayName)
                 : entry.displayName;

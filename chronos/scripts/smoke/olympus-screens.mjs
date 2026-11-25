@@ -107,6 +107,20 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   await press("ArrowUp", 38);
   await wait({ selector: "[data-oly-mcp-nav] button:focus" });
 
+  // Select each injected panel through the native search, including consecutive results on the same route.
+  const settingsSearch = "nav[data-workspace-area=settings-nav] input[role=combobox]";
+  for (const [name, result, pane, navButton] of [
+    ["API-ключи", "olympus-api-keys", ".oly-ik-panel", "[data-oly-ik-nav] button"],
+    ["Серверы MCP", "olympus-mcp", ".oly-mcp-pane", "[data-oly-mcp-nav] button"],
+    ["Шаблоны промптов", "olympus-prompts", ".oly-ps-pane", "[data-oly-ps-nav-button]"],
+  ]) {
+    await focus(settingsSearch);
+    await client.send("Input.insertText", { text: name });
+    await wait({ selector: `#settings-search-result-${result}[aria-selected=true]` });
+    await press("Enter", 13);
+    await wait({ allSelectors: [pane, `${navButton}[aria-current=page]`] });
+  }
+
   await act({ type: "navigate", to: "/" });
   await focus("[data-oly-tasks]");
   await act({ type: "click", selector: "[data-oly-tasks]" });

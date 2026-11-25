@@ -1,12 +1,22 @@
 const effort = new Map([
+  ["None", "Нет"], ["Minimal", "Минимальный"], ["Ultra", "Ультра"],
   ["Low", "Низкий"], ["Medium", "Средний"], ["High", "Высокий"],
   ["Extra High", "Очень высокий"], ["Max", "Максимальный"],
 ]);
 
+const speed = new Map([["Fast", "Быстрый"], ["Ultrafast", "Сверхбыстрый"]]);
+
 // A provider detail contains only traits; its first segment can itself be the effort.
 export function effortDetail(label: string, locale: string): string {
   if (!locale.startsWith("ru")) return label;
-  return label.split(" · ").map((part) => effort.get(part) ?? part).join(" · ");
+  return label.split(" · ").map((part) => {
+    if (part === "Standard") return "Стандартный";
+    // buildTraitsTriggerDisplay appends the active speed to the reasoning level.
+    const split = part.lastIndexOf(" ");
+    const level = effort.get(part.slice(0, split));
+    const tier = speed.get(part.slice(split + 1));
+    return level && tier ? `${level} · ${tier}` : effort.get(part) ?? speed.get(part) ?? part;
+  }).join(" · ");
 }
 
 export function effortLabel(label: string, locale: string): string {
@@ -15,6 +25,16 @@ export function effortLabel(label: string, locale: string): string {
   return parts.map((part, index) =>
     index === 0 && parts.length > 1 ? part : effort.get(part) ?? part,
   ).join(" · ");
+}
+
+const healthMessages = new Map([
+  ["Sign in with Cursor or add CURSOR_API_KEY in provider settings.", "Войдите в Cursor или добавьте CURSOR_API_KEY в настройках провайдера."],
+  ["Antigravity is installed. Google account access is not checked yet.", "Antigravity установлен. Доступ к аккаунту Google ещё не проверен."],
+  ["Enter a Gemini API key in the Antigravity provider settings.", "Введите API-ключ Gemini в настройках провайдера Antigravity."],
+]);
+
+export function providerStatusMessage(message: string, locale: string): string {
+  return locale.startsWith("ru") ? healthMessages.get(message) ?? message : message;
 }
 
 const notices = new Map([

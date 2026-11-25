@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { effortDetail, effortLabel, usageNotice } from "../../apps/web/src/chronos/olympus/l10n/providerCopy.ts";
+import { effortDetail, effortLabel, providerStatusMessage, usageNotice } from "../../apps/web/src/chronos/olympus/l10n/providerCopy.ts";
 
 import { groupProbeArgs } from "../../apps/server/src/chronos/codexProcessGroup.ts";
 
@@ -16,6 +16,19 @@ test("localizes Codex effort independently of the model name", () => {
   assert.equal(effortDetail("Medium", "ru"), "Средний");
   assert.equal(effortDetail("Max · 1M", "ru-RU"), "Максимальный · 1M");
   assert.equal(effortDetail("Medium · 1M", "en"), "Medium · 1M");
+  assert.equal(effortDetail("High · Standard", "ru"), "Высокий · Стандартный");
+  assert.equal(effortDetail("Extra High Fast · Daybreak Blue", "ru"), "Очень высокий · Быстрый · Daybreak Blue");
+  assert.equal(effortDetail("Ultra Ultrafast · 1M", "ru"), "Ультра · Сверхбыстрый · 1M");
+  assert.equal(effortDetail("Custom Fast · Standard", "en"), "Custom Fast · Standard");
+  assert.equal(effortDetail("Custom Fast", "ru"), "Custom Fast");
+});
+test("localizes only exact, known provider health messages in Russian", () => {
+  const cursor = "Sign in with Cursor or add CURSOR_API_KEY in provider settings.";
+  assert.match(providerStatusMessage(cursor, "ru-RU"), /Войдите.*CURSOR_API_KEY/);
+  assert.equal(providerStatusMessage(cursor, "en"), cursor);
+  assert.equal(providerStatusMessage("Custom: " + cursor, "ru"), "Custom: " + cursor);
+  assert.match(providerStatusMessage("Antigravity is installed. Google account access is not checked yet.", "ru"), /ещё не проверен/);
+  assert.match(providerStatusMessage("Enter a Gemini API key in the Antigravity provider settings.", "ru"), /Введите API-ключ Gemini/);
 });
 test("localizes provider notices without changing account names or diagnostics", () => {
   assert.equal(usageNotice("Work: Codex: Could not read limits.", "ru"), "Work: Codex: Не удалось получить лимиты.");

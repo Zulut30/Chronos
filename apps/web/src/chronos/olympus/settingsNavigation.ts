@@ -1,9 +1,8 @@
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
+import { settingsPanels } from "./settingsPanels";
 
-const apiKeys = "[data-oly-ik-nav] button";
-const mcp = "[data-oly-mcp-nav] button";
-const prompts = "[data-oly-ps-nav-button]";
+const [{ selector: apiKeys }, { selector: mcp }, { selector: prompts }] = settingsPanels;
 export const settingsSectionButtons = `[data-settings-section], ${apiKeys}, ${mcp}, ${prompts}`;
 
 function visiblePanelButton(nav: HTMLElement) {
@@ -13,9 +12,38 @@ function visiblePanelButton(nav: HTMLElement) {
   return nav.nextElementSibling?.hasAttribute("data-oly-ik-open") ? apiKeys : null;
 }
 
-export function useOlympusSettingsNav(activePath: string) {
+export function useOlympusSettingsNav(activePath: string, hash: string) {
   const ref = useRef<HTMLElement>(null);
   const router = useRouter();
+  const pendingPanel = useRef<string | null>(null);
+
+  // The modules close on URL changes. Consume the search anchor before opening its panel.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- activate the module's DOM button after the router settles.
+  useEffect(() => {
+    const nav = ref.current;
+    if (!nav) return;
+    const panel = activePath === "/settings/providers" && settingsPanels.find((p) => p.id === hash.replace(/^#/, ""));
+    if (panel) {
+      pendingPanel.current = panel.selector;
+      void router.navigate({ hash: "", replace: true, resetScroll: false, hashScrollIntoView: false });
+      return;
+    }
+    const selector = pendingPanel.current;
+    pendingPanel.current = null;
+    if (!selector || hash || activePath !== "/settings/providers") return;
+    // Clearing the query remounts the native nav first, then Olympus injects its buttons.
+    const openPanel = () => {
+      const button = nav.querySelector<HTMLButtonElement>(selector);
+      if (!button) return;
+      observer.disconnect();
+      button.focus({ preventScroll: true });
+      button.click();
+    };
+    const observer = new MutationObserver(openPanel);
+    observer.observe(nav, { subtree: true, childList: true });
+    openPanel();
+    return () => observer.disconnect();
+  }, [activePath, hash, router]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Olympus mounts and marks its buttons outside React.
   useEffect(() => {
