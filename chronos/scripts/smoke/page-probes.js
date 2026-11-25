@@ -432,7 +432,17 @@
     case "olympusColors": {
       const root = document.documentElement;
       const style = getComputedStyle(root);
-      const token = (name) => style.getPropertyValue(name).trim().toLowerCase();
+      // Published palettes are normalized to OKLCH. Sample in sRGB to compare rendered colors.
+      const pixel = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+      const token = (name) => {
+        const value = style.getPropertyValue(name).trim();
+        if (!value || !CSS.supports("color", value)) return null;
+        pixel.clearRect(0, 0, 1, 1);
+        pixel.fillStyle = value;
+        pixel.fillRect(0, 0, 1, 1);
+        const [r, g, b] = pixel.getImageData(0, 0, 1, 1).data;
+        return "#" + [r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("");
+      };
       const code = document.querySelector("[data-message-role=assistant] .chat-markdown :not(pre) > code");
       return {
         themeId: root.dataset.themeId, dark: root.classList.contains("dark"),
