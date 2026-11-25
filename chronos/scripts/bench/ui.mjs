@@ -386,16 +386,17 @@ try {
       "document.querySelectorAll('[data-sidebar-card-placeholder]').length",
     );
     // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
-    const farId = await evaluate(`(() => {
-      const rows = document.querySelectorAll("[data-thread-item] [data-sidebar-row]");
-      const row = rows[rows.length - 1];
-      row.scrollIntoView({ block:"center", behavior:"instant" });
-      row.focus();
-      return row.closest("[data-thread-item]").getAttribute("data-thread-item").slice(-36);
-    })()`);
-    await wait("offscreen card", () =>
-      evaluate(`!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`),
-    );
+    const farId = await evaluate("uiBench.revealOffscreenCard()");
+    try {
+      await wait("offscreen card", async () => {
+        const card = await evaluate("uiBench.offscreenState()");
+        return card.connected && card.visible && !card.placeholder;
+      });
+    } catch (error) {
+      console.error("Offscreen card at failure", farId, await evaluate("uiBench.offscreenState()"));
+      throw error;
+    }
+    assert(await evaluate("uiBench.focusRevealedCard()"), "Revealed card did not receive keyboard focus");
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
       key: "Enter",

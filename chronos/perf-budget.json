@@ -4,6 +4,7 @@
   "calibration": {
     "main": "45c3dbfe1422b17ea96f9343be9fa7a0e0c12cfd",
     "windowsRun": "45648111151",
+    "storageControlRun": "45652389790",
     "reference": "median of successful main samples; details in parity/perf-guard.md"
   },
   "providers": {
@@ -379,11 +380,13 @@
     "storage.dbGrowthKiB": {
       "unit": "KiB",
       "delta": 16384,
+      "reference": 6789.105,
       "max": 53248
     },
     "storage.traceGrowthKiB": {
       "unit": "KiB",
       "delta": 160,
+      "reference": 293.327,
       "max": 1024
     }
   }

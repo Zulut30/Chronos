@@ -52,8 +52,39 @@ function install(tracing) {
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + Math.min(r.height, 50) / 2 };
   };
+  let offscreen;
   window.uiBench = {
     hasText,
+    revealOffscreenCard() {
+      const rows = [...document.querySelectorAll("[data-thread-item] [data-sidebar-row]")];
+      const viewport = scroller(rows[0]);
+      const bounds = viewport.getBoundingClientRect();
+      const placeholder = "[data-sidebar-card-placeholder]";
+      const windowed = viewport.querySelector(placeholder) !== null;
+      const target = rows.findLast(row => {
+        if (!viewport.contains(row) || (windowed && !row.querySelector(placeholder))) return false;
+        const box = row.closest("[data-thread-item]").getBoundingClientRect();
+        return box.bottom <= bounds.top || box.top >= bounds.bottom;
+      });
+      if (!target) throw Error("No offscreen sidebar card for the reachability check");
+      const item = target.closest("[data-thread-item]");
+      offscreen = { target, item, viewport };
+      item.scrollIntoView({ block: "center", behavior: "instant" });
+      return item.dataset.threadItem.slice(-36);
+    },
+    offscreenState() {
+      const { target, item, viewport } = offscreen;
+      const card = item.getBoundingClientRect(), bounds = viewport.getBoundingClientRect();
+      return {
+        connected: target.isConnected, placeholder: !!target.querySelector("[data-sidebar-card-placeholder]"),
+        top: card.top, bottom: card.bottom, viewportTop: bounds.top, viewportBottom: bounds.bottom,
+        visible: card.bottom > bounds.top && card.top < bounds.bottom,
+      };
+    },
+    focusRevealedCard() {
+      offscreen.target.focus({ preventScroll: true });
+      return document.activeElement === offscreen.target;
+    },
     topOfTimeline() {
       scroller(timeline()).scrollTop = 0;
     },
