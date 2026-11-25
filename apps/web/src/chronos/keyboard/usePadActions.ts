@@ -27,6 +27,14 @@ function visible<T extends HTMLElement>(selector: string): T[] {
     );
   });
 }
+
+async function openPadDraft(project: ScopedProjectRef | null, open: NewThreadHandler, target?: string) {
+  if (!project) throw new Error("Выберите проект для нового треда.");
+  if (!target) return open(project);
+  const { openModelDraft } = await import("./openModelDraft");
+  return openModelDraft(project, open, target);
+}
+
 export function usePadActions(
   project: () => ScopedProjectRef | null,
   open: NewThreadHandler,
@@ -71,17 +79,9 @@ export function usePadActions(
     }
     if (visible('[aria-modal="true"],[role="alertdialog"]').length) return;
     switch (a.id) {
-      case "draft": {
-        const targetProject = project();
-        if (!targetProject) throw new Error("Выберите проект для нового треда.");
-        if (a.arg) {
-          const { openModelDraft } = await import("./openModelDraft");
-          await openModelDraft(targetProject, open, a.arg);
-        } else {
-          await open(targetProject);
-        }
+      case "draft":
+        await openPadDraft(project(), open, a.arg);
         break;
-      }
       case "next":
       case "previous":
         navigate(a.id);
