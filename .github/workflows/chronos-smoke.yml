@@ -164,12 +164,14 @@ jobs:
           exit $exitCode
 
       - name: Verify installed desktop control and measure the CLI
+        if: ${{ !cancelled() && env.CHRONOS_EXE != '' }}
         shell: pwsh
         run: |
           $tools = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/chronos-pc'
           ./chronos/scripts/smoke/pc-desktop.ps1 $tools
 
       - name: Verify installed web control with a local form
+        if: ${{ !cancelled() && env.CHRONOS_EXE != '' }}
         shell: pwsh
         run: |
           $tools = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/chronos-pc'

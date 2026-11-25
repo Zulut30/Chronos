@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const http = require("node:http");
-const { spawn } = require("node:child_process");
+const { spawn, execFileSync } = require("node:child_process");
 const { mkdtemp, readFile, rm } = require("node:fs/promises");
 const { randomUUID } = require("node:crypto");
 const path = require("node:path");
@@ -93,6 +93,23 @@ async function smoke(tools) {
     });
     await request({ op: "open", kind: "web", target: "http://example.invalid" }, false);
     const { session } = await request({ op: "open", kind: "web", target });
+    if (process.platform === "win32") {
+      const pidFile = path.join(dir, "sessions", session, "socket", session + ".pid");
+      const daemon = (await readFile(pidFile, "utf8")).trim();
+      assert.match(daemon, /^[1-9]\d*$/);
+      const measurement = execFileSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-File",
+          path.join(__dirname, "pc-browser-memory.ps1"),
+          daemon,
+          path.resolve(tools, "agent-browser.exe"),
+        ],
+        { encoding: "utf8" },
+      );
+      console.log(measurement.trim());
+    }
     for (const [name, op, value] of [
       ["City", "fill", "Warsaw"],
       ["Code", "fill", "agent-value-must-be-ignored"],
@@ -130,6 +147,11 @@ async function smoke(tools) {
           ref: editor.ref,
           value: "Chronos CLI end to end",
         });
+        assert.equal(
+          seen.size,
+          3,
+          "the first ordinary edit in a new private note needs no confirmation in this mode",
+        );
         await request({ op: "save", session: note.session });
         assert.equal((await readFile(note.document, "utf8")).trimEnd(), "Chronos CLI end to end");
         await request({ op: "close", session: note.session });

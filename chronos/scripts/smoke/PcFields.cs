@@ -13,6 +13,7 @@ class PcFields {
         check.Click += delegate { File.WriteAllText(args[0], first.Text + "/" + second.Text); };
         panel.Controls.AddRange(new Control[] { first, second, check });
         form.Controls.Add(panel);
+        form.Shown += delegate { File.WriteAllText(args[0] + ".ready", "shown"); };
         Application.Run(form);
     }
 }

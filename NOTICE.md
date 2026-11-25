@@ -18,7 +18,7 @@ Claude, Codex, Cursor, OpenRouter, Excalidraw, WordPress и другие наз�
 
 ## Управление ПК
 
-В комплект входят нативные инструменты [agent-desktop 1.3.1](https://github.com/vercel-labs/agent-desktop/tree/v1.3.1) и [agent-browser 0.44.0](https://github.com/vercel-labs/agent-browser/tree/v0.44.0) от Vercel Labs, оба под Apache License 2.0. Полные тексты лицензий поставляются рядом с программами в `resources/chronos-pc`. Chromium поставляется отдельно.
+В комплект входят нативные инструменты [agent-desktop 1.3.1](https://github.com/vercel-labs/agent-desktop/tree/v1.3.1) и [agent-browser 0.44.0](https://github.com/vercel-labs/agent-browser/tree/v0.44.0) от Vercel Labs, оба под Apache License 2.0. Полные тексты лицензий поставляются рядом с программами в `resources/chronos-pc`. Windows-помощник использует стандартную библиотеку Go (BSD-3-Clause), текст лицензии используемого компилятора включён в `resources/chronos-pc/go.LICENSE`. Chromium поставляется отдельно.
 
 ## Студия Excalidraw и менеджер MCP
 

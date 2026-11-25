@@ -70,6 +70,13 @@ try {
   $fieldPid = (& $private $deskName launch $fixture $receipt | ConvertFrom-Json).pid
   if (-not $fieldPid) { throw 'Fixture launch failed' }
   try {
+    # The CLR can report input-idle before Application.Run has shown the fixture form.
+    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    while (-not (Test-Path -LiteralPath ($receipt + '.ready'))) {
+      if (-not (Get-Process -Id $fieldPid -ErrorAction SilentlyContinue)) { throw 'Fixture exited before Form.Shown' }
+      if ([DateTime]::UtcNow -ge $deadline) { throw 'Fixture did not signal Form.Shown' }
+      Start-Sleep -Milliseconds 50
+    }
     foreach ($name in 'First','Second') {
       $fields = Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i')
       $ref = (Nodes $fields.tree | Where-Object name -eq $name | Select-Object -First 1).ref_id

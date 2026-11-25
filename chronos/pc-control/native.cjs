@@ -76,7 +76,11 @@ function ownWindow(helper, desk, exe, session, opts) {
     };
     const fail = () => {
       cleanup();
-      reject(new Error("Не удалось открыть приложение в фоне."));
+      reject(
+        new Error(
+          "Не удалось открыть отдельное окно. Для уже работающей программы используйте attach.",
+        ),
+      );
     };
     child.once("error", fail);
     child.once("exit", fail);

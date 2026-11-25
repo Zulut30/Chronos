@@ -69,6 +69,8 @@ try {
     path.join(out, platform === "win" ? "agent-browser.exe" : "agent-browser"),
   );
   if (platform === "win") {
+    const goRoot = execFileSync("go", ["env", "GOROOT"], { encoding: "utf8" }).trim();
+    await copyFile(path.join(goRoot, "LICENSE"), path.join(out, "go.LICENSE"));
     execFileSync(
       "go",
       [

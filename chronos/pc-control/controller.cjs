@@ -140,7 +140,7 @@ function createController({
       changed();
     });
   }
-  async function release(s) {
+  async function release(s, reportFailure = false) {
     if (s.released) return;
     s.released = true;
     clearTimeout(s.timer);
@@ -148,8 +148,13 @@ function createController({
     if (s.kind === "web" && s.opened) {
       try {
         await native(s, "close", {}, AbortSignal.timeout(8000));
-      } catch {
-        /* native idle deadline remains in force */
+      } catch (error) {
+        if (reportFailure) {
+          sessions.set(s.id, s);
+          s.released = false;
+          throw error;
+        }
+        // The native daemon has its own idle deadline after an emergency stop.
       }
     }
     if (s.owner) s.owner.stdin.end();
@@ -226,10 +231,21 @@ function createController({
       const navigation =
         s.kind === "web" && op === "open" && new URL(q.target).href !== s.target + "/";
       if (op === "save" && !s.document) throw new Error("Нет открытого временного документа.");
+      // A first plain-text edit in a new, empty, privately owned system Notepad document
+      // has no submit handler or previous contents. Treat all other writes as ambiguous.
+      const firstNoteText =
+        op === "fill" &&
+        s.document &&
+        !s.noteEdited &&
+        field.secure === false &&
+        field.role === "textfield" &&
+        field.actions?.includes("SetValue") &&
+        typeof q.value === "string" &&
+        /^[\p{L}\p{M}\s.,!?-]+$/u.test(q.value);
       const risk =
         op === "save" ||
         navigation ||
-        op === "fill" ||
+        (op === "fill" && !firstNoteText) ||
         op === "click" ||
         (op === "close" && s.kind === "desktop" && s.private);
       const protectedField =
@@ -242,6 +258,7 @@ function createController({
         (protectedField ||
           q.value === undefined ||
           /парол|password|passcode|pin|cvv|карт|card|iban/i.test(field.name));
+      if (firstNoteText) value = q.value;
       if (risk || settings.mode === "every" || (settings.mode === "risk" && opening)) {
         const supplied = await approve(
           {
@@ -267,7 +284,7 @@ function createController({
         return { session: s.id, ...(s.document ? { document: s.document } : {}) };
       }
       if (op === "close") {
-        await release(s);
+        await release(s, true);
         return {};
       }
       if (op === "windows") {
@@ -295,6 +312,7 @@ function createController({
         (await native(s, "field", { ref: q.ref }, signal))
       )
         throw new Error("Поле изменилось. Сделайте новый снимок.");
+      if (op === "fill" && s.document) s.noteEdited = true;
       await native(s, op, { ref: q.ref, value }, signal);
       return {};
     } catch (error) {
