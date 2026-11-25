@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
+import { DatabaseSync } from "node:sqlite";
 import assert from "node:assert/strict";
 import { connectCdp, rpcClient } from "./client.mjs";
 
@@ -69,6 +70,20 @@ async function post(path, body, headers = {}) {
 function disk() {
   const sum = (dir, regex) => readdirSync(dir).filter(f => regex.test(f)).reduce((v,f) => v + statSync(join(dir,f)).size, 0);
   return { db: sum(userdata, /^statev2\.sqlite(?:-wal|-shm)?$/), trace: sum(join(userdata, "logs"), /^server\.trace\.ndjson(?:\.\d+)?$/) };
+}
+// Read a short, consistent snapshot outside the timed interval. No checkpoint:
+// a checkpoint here would change the physical high-water mark being measured.
+function databaseSample() {
+  const file = join(userdata, "statev2.sqlite");
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    db.exec("PRAGMA busy_timeout=5000; BEGIN");
+    const scalar = (query) => Object.values(db.prepare(query).get())[0];
+    const sizes = Object.fromEntries(["","-wal","-shm"].map(ext => [ext || "main", existsSync(file+ext) ? statSync(file+ext).size : 0]));
+    return { sizes, pageSize:scalar("PRAGMA page_size"), pages:scalar("PRAGMA page_count"),
+      freePages:scalar("PRAGMA freelist_count"),
+      events:db.prepare("SELECT event_type, count(*) AS rows, sum(length(CAST(payload_json AS BLOB))) AS bytes FROM orchestration_events GROUP BY event_type ORDER BY event_type").all() };
+  } finally { db.close(); }
 }
 function stop(p) {
   if (!p.pid || p.exitCode !== null) return;
@@ -168,6 +183,7 @@ try {
     writeFileSync(marker, "");
     return await wait("server probe "+name, () => existsSync(marker+".json") && json(marker+".json"), 6000);
   }
+  const databaseBefore = databaseSample();
   const before = await renderer(false), diskBefore = disk(), begin = await probe("start");
   writeFileSync(join(root, "go"), "");
   await wait("terminal events", () => { rpc.check(); return complete.size === n; }, 120000);
@@ -191,6 +207,7 @@ try {
     lagSamples:end.count, serverCpuPct:(end.cpu-begin.cpu)/elapsed/10, serverRssMiB:end.rss/1048576,
     rendererCpuPct:(after.cpu-before.cpu)*100000/(after.time-before.time), rendererRssMiB:after.rss/1048576,
     dbGrowthKiB:(diskAfter.db-diskBefore.db)/1024, traceGrowthKiB:(diskAfter.trace-diskBefore.trace)/1024,
+    databaseBefore, databaseAfter:databaseSample(),
     completed:complete.size, rendererCount:after.pids.length, verifiedTexts:n, visibleFinal:true };
   writeFileSync(resolve(output), JSON.stringify(result,null,2)+"\n");
   console.log(result);
