@@ -96,7 +96,7 @@ try {
       pcControl = await evaluate("window.chronosPC.settings({op:'state'}).then(s => s.settings.enabled)");
       assert.equal(pcControl, scenario === "unused", "PC control did not restore the expected idle policy");
     }
-    await sleep(12000);
+    await sleep(30000);
   } else {
     assert.equal(state.pid, app.pid);
     const bearer = sb.run(exe, [entry, "auth", "session", "issue", "--token-only", "--label", "guard"], { ...env, ELECTRON_RUN_AS_NODE: "1" }).trim();
@@ -117,7 +117,7 @@ try {
   }
   const args = ["-NoProfile", "-File", join(import.meta.dirname, "guard-process.ps1"), "-RootPid", String(app.pid), "-ServerPid", String(state.pid)];
   if (binary) args.push("-AgentExe", binary);
-  const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 45000 }));
+  const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
   if (idle) sample.pcControl = pcControl ?? "unavailable";
   writeFileSync(output, JSON.stringify(sample, null, 2) + "\n");
 } finally {

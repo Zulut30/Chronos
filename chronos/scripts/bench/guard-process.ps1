@@ -20,7 +20,9 @@ function Sample {
 }
 $first = @(Sample)
 $clock = [Diagnostics.Stopwatch]::StartNew()
-Start-Sleep -Seconds 12
+# The desktop server has periodic work. Capture a full interval on both sides
+# instead of letting a single short initialization burst dominate CPU.
+Start-Sleep -Seconds $(if ($AgentExe) { 12 } else { 45 })
 $last = @(Sample)
 $seconds = $clock.Elapsed.TotalSeconds
 $result = @{}
