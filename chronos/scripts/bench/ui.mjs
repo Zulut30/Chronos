@@ -388,14 +388,12 @@ try {
     // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
     const farId = await evaluate("uiBench.revealOffscreenCard()");
     try {
-      await wait("offscreen card", async () => {
-        const card = await evaluate("uiBench.offscreenState()");
-        return card.connected && card.visible && !card.placeholder;
-      });
+      await wait("offscreen card", () => evaluate("uiBench.advanceToOffscreenCard()"));
     } catch (error) {
       console.error("Offscreen card at failure", farId, await evaluate("uiBench.offscreenState()"));
       throw error;
     }
+    const offscreenCard = await evaluate("uiBench.offscreenState()");
     assert(await evaluate("uiBench.focusRevealedCard()"), "Revealed card did not receive keyboard focus");
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
@@ -442,6 +440,7 @@ try {
       interval,
       olympus,
       placeholders,
+      offscreenCard,
       settingsMs,
       history,
       cadence,

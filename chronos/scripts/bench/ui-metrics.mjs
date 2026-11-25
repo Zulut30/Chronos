@@ -68,18 +68,30 @@ function install(tracing) {
       });
       if (!target) throw Error("No offscreen sidebar card for the reachability check");
       const item = target.closest("[data-thread-item]");
-      offscreen = { target, item, viewport };
-      item.scrollIntoView({ block: "center", behavior: "instant" });
+      offscreen = { target, item, viewport, steps: 0 };
+      // Realize virtualized cards one viewport at a time using the sidebar itself.
       return item.dataset.threadItem.slice(-36);
     },
     offscreenState() {
       const { target, item, viewport } = offscreen;
       const card = item.getBoundingClientRect(), bounds = viewport.getBoundingClientRect();
       return {
+        steps: offscreen.steps, scrollTop: viewport.scrollTop, scrollHeight: viewport.scrollHeight,
         connected: target.isConnected, placeholder: !!target.querySelector("[data-sidebar-card-placeholder]"),
         top: card.top, bottom: card.bottom, viewportTop: bounds.top, viewportBottom: bounds.bottom,
         visible: card.bottom > bounds.top && card.top < bounds.bottom,
       };
+    },
+    advanceToOffscreenCard() {
+      const info = this.offscreenState();
+      if (!info.connected) throw Error("Offscreen target unmounted");
+      if (info.visible) return !info.placeholder;
+      const { viewport } = offscreen;
+      const distance = (info.top + info.bottom - info.viewportTop - info.viewportBottom) / 2;
+      const page = Math.max(1, Math.floor(viewport.clientHeight * 0.8));
+      offscreen.steps++;
+      viewport.scrollBy({ top: Math.max(-page, Math.min(distance, page)), behavior: "instant" });
+      return false;
     },
     focusRevealedCard() {
       offscreen.target.focus({ preventScroll: true });
