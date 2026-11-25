@@ -4,7 +4,7 @@ import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { orchestrationEnvironment } from "~/state/orchestration";
 import { useRenderedAppearance } from "~/hooks/useTheme";
-import { useThreadProjection } from "~/state/entities";
+import { useFindProjection } from "~/chronos/perf/useFindProjection";
 import { useEnvironmentQuery } from "~/state/query";
 import { useDebouncedValue } from "~/state/queries";
 import type { ThemeAppearance } from "~/themePalette";
@@ -13,7 +13,6 @@ import {
   CLOSED_THREAD_FIND,
   closeThreadFind,
   setThreadFindQuery,
-  useThreadFindOpen,
   useThreadFindStore,
   type ThreadFindLocalSelection,
   type ThreadFindState,
@@ -32,14 +31,12 @@ export function useThreadFind({
   progressive?: boolean;
   skills?: readonly InlineSkill[];
 }) {
-  // Read here rather than passed in: a streamed delta re-renders only the find
-  // provider, which refreshes open results from it.
-  const content = useThreadProjection(enabled ? thread : null)?.projection;
+  // chronos: detached find bars do not observe streaming content.
+  const { isOpen, content } = useFindProjection(thread, enabled);
   const lastContentRef = useRef(content);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshAfterSearchRef = useRef(false);
   const threadKey = thread ? scopedThreadKey(thread) : null;
-  const isOpen = useThreadFindOpen(thread, enabled);
   const stored = useThreadFindStore();
   const state = isOpen ? stored : CLOSED_THREAD_FIND;
   const theme = useRenderedAppearance();
