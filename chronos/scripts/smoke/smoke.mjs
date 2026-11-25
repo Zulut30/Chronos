@@ -676,6 +676,10 @@ async function run() {
           for (const step of screen.setup) {
             const actRes = await client.probe("performAction", step);
             if (!actRes.ok) throw new Error(`Setup failed: ${actRes.detail}`);
+            if (step.waitFor) {
+              const ready = await waitUntilReady(client, step.waitFor);
+              if (!ready.ready) throw new Error(`After ${actRes.detail}: ${ready.detail}`);
+            }
           }
           if (screen.setupWaitFor) {
             const setupReady = await waitUntilReady(client, screen.setupWaitFor);

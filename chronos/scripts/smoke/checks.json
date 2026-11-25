@@ -229,6 +229,30 @@
       "allowedEnglish": []
     },
     {
+      "id": "settings-panel-navigation",
+      "title": "Переключение между MCP, API-ключами и общими настройками",
+      "setup": [
+        { "type": "navigate", "to": "/settings/general", "waitFor": { "allSelectors": ["[data-oly-mcp-nav] button", "[data-oly-ik-nav] button"] } },
+        { "type": "click", "selector": "[data-oly-mcp-nav] button", "waitFor": { "assertions": [
+          { "activeSettingsSection": "[data-oly-mcp-nav] button" },
+          { "text": "Серверы MCP", "scope": ".oly-mcp-pane h2" }
+        ] } },
+        { "type": "click", "selector": "[data-oly-ik-nav] button", "waitFor": { "assertions": [
+          { "activeSettingsSection": "[data-oly-ik-nav] button" },
+          { "selector": ".oly-ik-panel" }
+        ] } },
+        { "type": "click", "selector": "[data-oly-mcp-nav] button", "waitFor": { "assertions": [
+          { "activeSettingsSection": "[data-oly-mcp-nav] button" },
+          { "text": "Серверы MCP", "scope": ".oly-mcp-pane h2" }
+        ] } }
+      ],
+      "action": { "type": "click", "selector": "[data-settings-section='/settings/general']" },
+      "expect": [
+        { "activeSettingsSection": "[data-settings-section='/settings/general']" },
+        { "text": "Уведомления", "scope": "[data-workspace-area='settings']" }
+      ]
+    },
+    {
       "id": "settings-prompts",
       "title": "Настройки Olympus → Шаблоны промптов",
       "setup": [

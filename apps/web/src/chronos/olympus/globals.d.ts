@@ -4,6 +4,8 @@ import type { ComposerPromptSegment } from "../../composer-editor-mentions";
 import type { OlympusPanelHost } from "./PanelHost";
 
 declare global {
+  var __olyIntegrations: { close(): void } | undefined;
+  var __olyMcpManager: { close(): void } | undefined;
   var __olyPlanMode: (
     fallback: ProviderInteractionMode,
     threadId: string,

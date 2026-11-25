@@ -130,6 +130,14 @@
       };
     }
 
+    if (spec.activeSettingsSection) {
+      const nav = document.querySelector('nav[data-workspace-area="settings-nav"]');
+      const active = [...(nav?.querySelectorAll('button:is([data-active="true"],[aria-current="page"])') || [])];
+      const ok = active.length === 1 && active[0].matches(spec.activeSettingsSection) &&
+        active[0].matches('[data-active="true"][aria-current="page"]');
+      return { ok, label: "Активный раздел настроек", detail: `active: ${active.map(b => b.textContent.trim()).join(", ")}` };
+    }
+
     if (spec.selector) {
       const nodes = [...(scopeEl || document).querySelectorAll(spec.selector)];
       const wantVisible = spec.visible !== false;

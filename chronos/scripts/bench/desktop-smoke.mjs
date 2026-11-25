@@ -14,7 +14,7 @@ export async function runFullSmoke(port, output, env) {
   if (result.error) throw result.error;
   const { summary } = JSON.parse(readFileSync(resolve(output, "report.json"), "utf8"));
   assert.equal(result.status, 0);
-  assert.equal(summary.totalChecks, 14);
-  assert.equal(summary.passedChecks, 14);
+  assert.equal(summary.totalChecks, 15);
+  assert.equal(summary.passedChecks, 15);
   assert.equal(summary.totalErrors, 0);
 }
