@@ -17,5 +17,10 @@ test("independent clients preserve history and reject stale writes", t => {
   assert.equal(a.read(id,1).files["index.html"].toString(), "one");
   assert.equal(a.read(id).files["index.html"].toString(), "two");
   assert.equal(a.history(id).length, 2);
+  assert.throws(() => a.restore(id,1,1), /conflict/);
+  assert.equal(a.restore(id,1,2).version,3);
+  assert.equal(b.read(id).files["index.html"].toString(),"one");
+  assert.equal(b.read(id,2).files["index.html"].toString(),"two");
+  assert.equal(b.list()[0].title,input.title);
   assert.throws(() => a.publish({ ...input, files: { ...input.files, "../x": "bad" } }), /name/);
 });

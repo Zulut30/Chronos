@@ -1,4 +1,4 @@
-﻿import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -57,7 +57,17 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
           .map(file => [file.name, Buffer.from(file.content)])) };
     },
     history: id => db.prepare("SELECT version,json_extract(metadata,'$.label') AS label FROM versions WHERE id=? ORDER BY version DESC").all(id),
-    list: () => db.prepare("SELECT id,source,pinned FROM artifacts ORDER BY pinned DESC,source").all(),
+    list: () => db.prepare(`SELECT a.id,a.source,a.pinned,v.version,
+      json_extract(v.metadata,'$.title') AS title, json_extract(v.metadata,'$.description') AS description,
+      json_extract(v.metadata,'$.icon') AS icon FROM artifacts a JOIN versions v ON v.id=a.id
+      WHERE v.version=(SELECT max(version) FROM versions WHERE id=a.id)
+      ORDER BY pinned DESC,title COLLATE NOCASE,a.id`).all(),
+    restore(id, version, expectedVersion) {
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw Error("Expected current version");
+      const snapshot = this.read(id, version);
+      const { source } = db.prepare("SELECT source FROM artifacts WHERE id=?").get(id);
+      return publish({ ...snapshot, source, expectedVersion, label: `Восстановлена версия ${version}` });
+    },
     pin: (id, pinned) => db.prepare("UPDATE artifacts SET pinned=? WHERE id=?").run(pinned ? 1 : 0,id).changes,
     close: () => db.close(),
   };
