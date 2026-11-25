@@ -69,6 +69,11 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       return publish({ ...snapshot, source, expectedVersion, label: `Восстановлена версия ${version}` });
     },
     pin: (id, pinned) => db.prepare("UPDATE artifacts SET pinned=? WHERE id=?").run(pinned ? 1 : 0,id).changes,
+    remove(id, expectedVersion) {
+      const result = db.prepare("DELETE FROM artifacts WHERE id=? AND (SELECT max(version) FROM versions WHERE id=?)=?").run(id,id,expectedVersion);
+      if (!result.changes) throw Error("Версия изменилась. Обновите список");
+      return { deleted: true };
+    },
     close: () => db.close(),
   };
 }

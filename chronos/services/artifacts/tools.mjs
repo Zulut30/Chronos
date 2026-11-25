@@ -1,5 +1,5 @@
 let opened;
-async function store() {
+export async function artifactStore() {
   const { openArtifacts } = await import("./store.mjs");
   return opened ??= openArtifacts(process.env.CHRONOS_SERVICES_DATA || process.env.CHRONOS_HOME);
 }
@@ -13,20 +13,26 @@ export const artifactTools = [
   tool("publish", "Publish a local HTML file map. Re-read and merge on version conflict.",
     { source: string, title: string, description: string, icon: string, label: string,
       expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: string } },
-    ["source","title","description","icon","label","files"], async input => (await store()).publish(input)),
+    ["source","title","description","icon","label","files"], async input => (await artifactStore()).publish(input)),
   tool("restore", "Восстановить сохранённую версию новой публикацией.",
     { id: string, version: { type: "integer", minimum: 1 }, expectedVersion: { type: "integer", minimum: 1 } },
-    ["id","version","expectedVersion"], async ({id,version,expectedVersion}) => (await store()).restore(id,version,expectedVersion)),
-  tool("list", "List artifacts in this local profile.", {}, [], async () => (await store()).list()),
-  tool("history", "List saved versions.", { id: string }, ["id"], async ({id}) => (await store()).history(id)),
+    ["id","version","expectedVersion"], async ({id,version,expectedVersion}) => (await artifactStore()).restore(id,version,expectedVersion)),
+  ...["open","delete"].map(action => tool(action, action === "open" ? "Показать артефакт в Chronos." : "Запросить у пользователя подтверждение удаления в Chronos.",
+    {id:string}, ["id"], async ({id}) => {
+      if (!(await artifactStore()).history(id).length) throw Error("Артефакт не найден");
+      const {showArtifact} = await import("./gallery.mjs");
+      return showArtifact(id, action === "delete");
+    })),
+  tool("list", "List artifacts in this local profile.", {}, [], async () => (await artifactStore()).list()),
+  tool("history", "List saved versions.", { id: string }, ["id"], async ({id}) => (await artifactStore()).history(id)),
   tool("pin", "Set sidebar pin preference.", { id: string, pinned: {type:"boolean"} }, ["id","pinned"],
     async ({id,pinned}) => {
       if (typeof pinned !== "boolean") throw Error("Expected boolean");
-      return (await store()).pin(id,pinned);
+      return (await artifactStore()).pin(id,pinned);
     }),
   tool("read", "Read a version and its UTF-8 source files.", {id:string,version:{type:"integer"}}, ["id"],
     async ({id,version}) => {
-      const data = (await store()).read(id,version);
+      const data = (await artifactStore()).read(id,version);
       return {...data,files:Object.fromEntries(Object.entries(data.files).map(([name,bytes]) => [name,bytes.toString("utf8")]))};
     }),
 ];

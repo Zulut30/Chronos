@@ -1,0 +1,4 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Просмотр артефакта</title><style>body{margin:0}iframe{display:block;width:100vw;height:100vh;border:0}</style><iframe sandbox title="Страница артефакта"></iframe><script type="module">
+const id = new URL(location.href).searchParams.get("id");
+document.querySelector("iframe").src = "/api/artifact-snapshot?id=" + encodeURIComponent(id);
+</script></html>

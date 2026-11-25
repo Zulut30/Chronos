@@ -15,6 +15,8 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { openArtifactGallery } from "~/chronos/artifacts/gallery"; // chronos: Studio gallery
+import { PanelsTopLeftIcon } from "lucide-react";
 import { ChronosSidebarMark } from "~/chronos/brand/ChronosSidebarMark";
 import {
   resolveEnvironmentIdentificationPillLabel,
@@ -274,6 +276,8 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             label={gt("Settings")}
             onClick={handleSettingsClick}
           />
+          {/* chronos: open the artifact gallery through the Studio panel. */}
+          <SidebarUtilityItem icon={<PanelsTopLeftIcon />} label="Артефакты" onClick={() => void openArtifactGallery()} />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
