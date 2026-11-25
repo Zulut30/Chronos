@@ -1705,7 +1705,8 @@ describe("archive launch script", () => {
 const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
-const [version, ...args] = process.argv.slice(2);
+const [archiveVersion, ...args] = process.argv.slice(2);
+const version = archiveVersion.split(".chronos.")[0];
 const flag = (name) => args[args.indexOf(name) + 1];
 const probe = (port) =>
   new Promise((resolve) => {
@@ -1762,6 +1763,9 @@ const canBind = (port) =>
       process.kill(runtime.pid, 0);
       return process.stdout.write(runtime.pid + " " + runtime.port);
     } catch {}
+  } else if (helper === "chronos-matches-base" && archiveVersion !== version) {
+    const runtime = JSON.parse(fs.readFileSync(a, "utf8"));
+    if (String(runtime.pid) === b && runtime.serverVersion === c && version === c) return;
   } else if (helper === "keep-server") {
     try {
       const runtime = JSON.parse(fs.readFileSync(a, "utf8"));
@@ -1877,6 +1881,22 @@ const canBind = (port) =>
         assert.equal(pidAfterOlderClient, newerPid);
         assert.equal(yield* readServerVersion, "0.1.6");
       }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+  it.live.skipIf(windowsHost)("switches owned same-base SSH distributions in both directions", () =>
+    Effect.gen(function* () {
+      const upstream = "0.1.12-nightly.20261124.5209";
+      const fork = upstream + ".chronos.6";
+      const { connect, readServerVersion } = yield* prepareLaunch([upstream, fork]);
+      const officialPid = yield* connect(upstream);
+      const forkPid = yield* connect(fork);
+      assert.notEqual(forkPid, officialPid);
+      assert.equal(yield* readServerVersion, upstream);
+      assert.equal(yield* connect(fork), forkPid);
+      const restored = yield* connect(upstream);
+      assert.notEqual(restored, forkPid);
+      assert.equal(yield* connect(upstream), restored);
+    }).pipe(Effect.provide(NodeServices.layer)),
   );
 
   // An NFS home can carry a ~/.t3 symlink whose target exists only on another host.

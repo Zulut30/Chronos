@@ -170,6 +170,16 @@ jobs:
           node scripts/build-cli-archive.ts --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" \
             --version "$VERSION" --resource-monitor-dir "$RUNNER_TEMP/monitor" --output-dir release-cli
           node scripts/smoke-cli-archive.ts --archive "release-cli/t3-${VERSION}-${{ matrix.key }}.tar.gz" --expect-version "$UPSTREAM"
+      - name: Exercise SSH archive installation and compare Linux CLIs
+        if: matrix.key == 'linux-x64'
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          UPSTREAM: ${{ needs.version.outputs.upstream }}
+        run: |
+          set -euo pipefail
+          node chronos/scripts/bench/ssh-cli.mjs "$UPSTREAM" "$VERSION" release-cli/*.tar.gz "$RUNNER_TEMP/ssh-cli.json"
+          cat "$RUNNER_TEMP/ssh-cli.json" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: chronos-cli-${{ matrix.key }}

@@ -166,6 +166,22 @@ const keepServer = Command.make("keep-server", {
   ),
 );
 
+// chronos: a distribution switch may replace an owned server only on the selected protocol baseline.
+const matchesBase = Command.make("chronos-matches-base", {
+  runtimeFile: Argument.String("runtime-file"),
+  pid: Argument.Int("pid"),
+  version: Argument.String("version"),
+}).pipe(
+  Command.withHandler(({ runtimeFile, pid, version }) =>
+    Effect.sync(() => {
+      const runtime = Option.getOrUndefined(decodeRunningServer(NodeFS.readFileSync(runtimeFile, "utf8")));
+      if (runtime?.pid !== pid || runtime.serverVersion !== version || packageJson.version !== version) {
+        process.exitCode = 1;
+      }
+    }),
+  ),
+);
+
 const updateRemaining = Command.make("update-remaining", {
   markerFile: Argument.String("marker-file"),
 }).pipe(
@@ -203,5 +219,6 @@ export const sshHelperCommand = Command.make("__ssh-helper").pipe(
     updateRemaining,
     homeOwned,
     keepServer,
+    matchesBase,
   ]),
 );
