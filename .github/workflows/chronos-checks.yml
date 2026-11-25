@@ -69,6 +69,10 @@ jobs:
         working-directory: packages/shared
         run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts
 
+      - name: Shell reducer and positional index
+        working-directory: packages/client-runtime
+        run: vp test run src/chronos/threadPositions.test.ts src/state/shellReducer.test.ts src/state/threadShell.test.ts
+
       - name: Web unit tests
         working-directory: apps/web
         run: vp test run --project unit
@@ -102,6 +106,10 @@ jobs:
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
         run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts
+      - name: Chronos performance regressions
+        working-directory: apps/server
+        run: vp test run src/chronos/perf src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts
+
       - name: OpenCode and OpenRouter usage records
         working-directory: packages/provider-opencode
         run: vp test run src/server/usage.test.ts
