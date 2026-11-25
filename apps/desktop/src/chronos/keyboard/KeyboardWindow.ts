@@ -1,7 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off -- The Electron window owns the optional native input session.
-import { existsSync } from "node:fs";
-import { createRequire } from "node:module";
-import * as path from "node:path";
+import * as NodeFS from "node:fs";
+import * as NodeModule from "node:module";
+import * as NodePath from "node:path";
 import { dialog, shell, type BrowserWindow } from "electron";
 import { isChronosVersion } from "@t3tools/shared/cliRelease";
 
@@ -27,15 +27,17 @@ export function installKeyboardWindow(
   function load(): Request {
     if (request) return request;
     const dir = host.isPackaged
-      ? path.join(host.resourcesPath, "chronos-keyboard")
-      : path.join(host.rootDir, "chronos", "keyboard");
-    const requireLocal = createRequire(path.join(dir, "desktop.cjs"));
+      ? NodePath.join(host.resourcesPath, "chronos-keyboard")
+      : NodePath.join(host.rootDir, "chronos", "keyboard");
+    const requireLocal = NodeModule.createRequire(
+      NodePath.join(dir, "desktop.cjs"),
+    );
     const modelPath = host.isPackaged
       ? "./profile.cjs"
       : "../skills/chronos-keyboard/scripts/profile.cjs";
     const binary = host.isPackaged
-      ? path.join(dir, "chronos-keyboard.exe")
-      : path.join(
+      ? NodePath.join(dir, "chronos-keyboard.exe")
+      : NodePath.join(
           host.rootDir,
           "native",
           "keyboard-input",
@@ -65,14 +67,20 @@ export function installKeyboardWindow(
       return load()(op, payload);
     },
   );
-  // Fresh profiles have no settings file, child, timers or hot-plug subscription.
-  if (
-    existsSync(path.join(host.baseDir, "userdata", "keyboard", "settings.json"))
-  ) {
-    try {
+  // Keep the broker unloaded on startup when the user has previously switched it off.
+  const settings = NodePath.join(
+    host.baseDir,
+    "userdata",
+    "keyboard",
+    "settings.json",
+  );
+  try {
+    if (
+      NodeFS.existsSync(settings) &&
+      JSON.parse(NodeFS.readFileSync(settings, "utf8")).enabled === true
+    )
       load();
-    } catch {
-      /* Opening the panel surfaces a damaged profile. */
-    }
+  } catch {
+    // Opening the panel reports a damaged profile.
   }
 }

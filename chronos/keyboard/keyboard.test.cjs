@@ -97,6 +97,8 @@ test("child lifetime follows switch, selected path, focus and removal; stale out
   s.sync(false, pad, true);
   s.sync(true, null, true);
   s.sync(true, pad, false);
+  s.sync(true, pad, true, false);
+  assert.equal(s.status(), "absent");
   assert.equal(children.length, 0);
   s.sync(true, pad, true);
   s.sync(true, pad, true);

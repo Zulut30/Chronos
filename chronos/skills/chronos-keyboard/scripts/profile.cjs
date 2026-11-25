@@ -50,7 +50,9 @@ function profileId(id) {
 }
 function action(value) {
   check(
-    plain(value) && Object.hasOwn(actions, value.id),
+    plain(value) &&
+      typeof value.id === "string" &&
+      Object.hasOwn(actions, value.id),
     "Неизвестное действие.",
   );
   const id = value.id;

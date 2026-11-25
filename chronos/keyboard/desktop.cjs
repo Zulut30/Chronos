@@ -30,11 +30,11 @@ exports.attach = function attach({
   let editing = false,
     learning = null,
     last = null,
-    statusError = "",
     busy = false,
     timer = null,
     closed = false;
-  let found = [];
+  let found = null;
+  let scanEpoch = 0;
   const notify = (type, data) => {
     if (!closed && trusted())
       win.webContents.send("chronos:keyboard-event", { type, data });
@@ -92,16 +92,33 @@ exports.attach = function attach({
     },
     (state) => notify("status", state),
   );
-  const sync = () => listener.sync(config.enabled, config.device, focused());
+  const sync = () =>
+    listener.sync(
+      config.enabled,
+      config.device,
+      focused(),
+      found?.includes(config.device) === true,
+    );
+  function onFocus() {
+    if (!config.enabled || !focused()) return;
+    if (found !== null) {
+      sync();
+      return;
+    }
+    void devices().catch((error) => notify("error", error.message));
+  }
   function changeDevices() {
+    found = null;
+    scanEpoch++;
     clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
       if (closed || !config.enabled || !focused()) return;
       // Re-enumerate the collections together; Windows may replace some handles on replug.
       listener.stop("waiting");
-      sync();
-      notify("devices", null);
+      void devices()
+        .then(() => notify("devices", null))
+        .catch((error) => notify("error", error.message));
     }, 300);
   }
   const message = 0x219;
@@ -111,7 +128,7 @@ exports.attach = function attach({
       win.hookWindowMessage(message, (wp) => {
         if (wp.readUInt32LE() === 7) changeDevices();
       });
-      win.on("focus", sync);
+      win.on("focus", onFocus);
       win.on("blur", blur);
       hooked = true;
     } else if (!config.enabled && hooked) unhook();
@@ -119,7 +136,7 @@ exports.attach = function attach({
   function unhook() {
     clearTimeout(timer);
     timer = null;
-    win.removeListener("focus", sync);
+    win.removeListener("focus", onFocus);
     win.removeListener("blur", blur);
     if (hooked && !win.isDestroyed()) win.unhookWindowMessage(message);
     hooked = false;
@@ -137,14 +154,15 @@ exports.attach = function attach({
     if (details.isMainFrame && !details.isSameDocument) resetDocument();
   });
   win.webContents.on("render-process-gone", resetDocument);
-  win.webContents.on("did-finish-load", sync);
+  win.webContents.on("did-finish-load", onFocus);
   win.once("closed", () => {
     closed = true;
     unhook();
     listener.stop();
   });
   async function devices() {
-    found = config.enabled
+    const epoch = ++scanEpoch;
+    const result = config.enabled
       ? (
           await promisify(execFile)(binary, ["list"], {
             windowsHide: true,
@@ -155,12 +173,16 @@ exports.attach = function attach({
           .split(/\s+/)
           .filter((s) => /^[a-f0-9]{64}$/.test(s))
       : [];
+    if (!closed && epoch === scanEpoch) {
+      found = result;
+      sync();
+    }
   }
   function snapshot() {
     return {
       enabled: config.enabled,
       device: config.device,
-      devices: found,
+      devices: found ?? [],
       profiles: db.names(),
       current,
       revision: revision(current),
@@ -168,7 +190,6 @@ exports.attach = function attach({
       status: listener.status(),
       last,
       learning,
-      error: statusError,
     };
   }
   async function save(p, base) {
@@ -228,7 +249,6 @@ exports.attach = function attach({
     check(!busy, "Дождитесь завершения предыдущего действия.");
     busy = true;
     try {
-      statusError = "";
       switch (op) {
         case "open":
         case "refresh":
@@ -237,14 +257,14 @@ exports.attach = function attach({
         case "enable":
         case "device":
         case "activate": {
-          let next = { ...config };
+          const next = { ...config };
           if (op === "enable") {
             check(typeof payload === "boolean", "Некорректное состояние.");
             next.enabled = payload;
           }
           if (op === "device") {
             await devices();
-            check(found.includes(payload), "Устройство отключено.");
+            check(found?.includes(payload), "Устройство отключено.");
             next.device = payload;
           }
           if (op === "activate") {
@@ -305,6 +325,6 @@ exports.attach = function attach({
     }
   }
   hook();
-  sync();
+  onFocus();
   return request;
 };

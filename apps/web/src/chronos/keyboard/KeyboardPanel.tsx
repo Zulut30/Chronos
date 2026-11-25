@@ -48,8 +48,10 @@ export function KeyboardPanel() {
   const [slot, pick] = useState("key5");
   const [msg, notice] = useState("");
   const [name, setName] = useState("");
-  const [action, setAction] = useState("");
-  const [arg, setArg] = useState("");
+  const [edit, setEdit] = useState<{ id: string; arg: string } | null>(null);
+  const saved = s?.current.bindings[slot]?.action;
+  const action = edit?.id ?? saved?.id ?? "";
+  const arg = edit?.arg ?? saved?.arg ?? "";
   const [busy, lock] = useState(false);
   const [proposal, preview] = useState<{
     profile: KeyboardProfile;
@@ -85,13 +87,7 @@ export function KeyboardPanel() {
         notice(e.type === "error" ? e.data : "Сигнал сохранён.");
         receive();
       }
-      if (e.type === "devices")
-        void api
-          .request("refresh")
-          .then((v) => {
-            if (alive) set(v);
-          })
-          .catch(report);
+      if (e.type === "devices") receive();
     });
     void api
       .request("open")
@@ -113,10 +109,7 @@ export function KeyboardPanel() {
       const next = await api.request(op, payload);
       set(next);
       preview(null);
-      if (op === "activate" || op === "create") {
-        setAction("");
-        setArg("");
-      }
+      if (op === "activate" || op === "create" || op === "save") setEdit(null);
       if (op === "save") notice("Назначения сохранены.");
     } catch (err) {
       report(err);
@@ -127,8 +120,7 @@ export function KeyboardPanel() {
   function selectSlot(next: string) {
     if (s?.learning) void run("cancel");
     pick(next);
-    setAction(s?.current.bindings[next]?.action?.id ?? "");
-    setArg(s?.current.bindings[next]?.action?.arg ?? "");
+    setEdit(null);
   }
   function position(id: string, text: string) {
     const selected = slot === id;
@@ -302,8 +294,7 @@ export function KeyboardPanel() {
                       className={field}
                       value={action}
                       onChange={(e) => {
-                        setAction(e.target.value);
-                        setArg("");
+                        setEdit({ id: e.target.value, arg: "" });
                       }}
                     >
                       <option value="">Без действия</option>
@@ -326,7 +317,9 @@ export function KeyboardPanel() {
                             : "Модель или провайдер, например Claude"
                       }
                       value={arg}
-                      onChange={(e) => setArg(e.target.value)}
+                      onChange={(e) =>
+                        setEdit({ id: action, arg: e.target.value })
+                      }
                     />
                   )}
                   <Button

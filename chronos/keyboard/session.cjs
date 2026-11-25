@@ -21,9 +21,13 @@ function session(start, onSignal, onState) {
     }
     if (status !== next) state(next);
   }
-  function sync(enabled, device, focused) {
+  function sync(enabled, device, focused, present = true) {
     if (!enabled || !device || !focused) {
       stop(enabled ? "waiting" : "off");
+      return;
+    }
+    if (!present) {
+      stop("absent");
       return;
     }
     if (key === device && child) return;

@@ -424,21 +424,28 @@ async function maybeDismissOnboarding(client, readyProvider) {
 }
 
 async function verifyKeyboardSettings(client) {
-  const navigate = await client.probe("performAction", {type:"navigate",to:"/settings/keyboards"});
+  const action = (input) => client.probe("performAction", input);
+  const navigate = await action({ type: "navigate", to: "/settings/keyboards" });
   if (!navigate.ok) throw new Error(navigate.detail);
   const toggle = "#keyboards input[type=checkbox]:enabled";
-  const grid = Array.from({length:9},(_,i) => '#keyboards button[aria-label="Клавиша '+(i+1)+'"]');
-  const knobs = ["Верхняя","Нижняя"].flatMap(k=>["Влево","Нажать","Вправо"].map(
-    m=>'#keyboards button[aria-label="'+k+' ручка · '+m+'"]'));
-  for (const checked of [false, true, false]) {
-    const ready = await waitUntilReady(client,{allSelectors:[...grid,...knobs,toggle+(checked ? ":checked" : ":not(:checked)")]});
-    if(!ready.ready) throw new Error("Keyboard settings: "+JSON.stringify(ready));
-    if(!checked && client.keyboardToggled) break;
-    const action = await client.probe("performAction",{type:"click",selector:toggle});
-    if(!action.ok) throw new Error(action.detail);
-    client.keyboardToggled=true;
+  const positions = [
+    ...Array.from({length: 9}, (_, i) => "Клавиша " + (i + 1)),
+    ...["Верхняя", "Нижняя"].flatMap(knob =>
+      ["Влево", "Нажать", "Вправо"].map(move => knob + " ручка · " + move)),
+  ].map(name => '#keyboards button[aria-label="' + name + '"]');
+  const waitForSwitch = async (checked) => {
+    const allSelectors = [...positions, toggle + (checked ? ":checked" : ":not(:checked)")];
+    const result = await waitUntilReady(client, {allSelectors});
+    if (!result.ready) throw new Error("Keyboard settings: " + JSON.stringify(result));
+  };
+  await waitForSwitch(false);
+  for (const checked of [true, false]) {
+    const click = await action({type: "click", selector: toggle});
+    if (!click.ok) throw new Error(click.detail);
+    await waitForSwitch(checked);
   }
 }
+
 async function verifyChatSettings(client) {
   const rows = ["#olympus-88-rich-text", "#olympus-40-files"];
   const globals = ["__olyRichText", "__olyFiles"];
