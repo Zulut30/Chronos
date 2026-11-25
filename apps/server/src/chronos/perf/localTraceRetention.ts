@@ -1,11 +1,13 @@
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
-import type * as Tracer from "effect/Tracer";
+import type { LocalFileTracerOptions } from "@t3tools/shared/observability";
 
-export function makeLocalTraceRetention() {
+type Retain = NonNullable<LocalFileTracerOptions["keepLocalSpan"]>;
+
+export function makeLocalTraceRetention(): Retain {
   let successes = 0;
-  return (span: Pick<Tracer.Span, "status" | "events">) => {
+  return (span) => {
     if (span.status._tag === "Ended" && span.status.exit._tag === "Failure") return true;
     for (const [, , attributes] of span.events) {
       const level = attributes["effect.logLevel"];
