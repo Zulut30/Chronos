@@ -190,4 +190,19 @@ export function chronosUpstreamVersion(version: string): string {
   const match = CHRONOS_VERSION_PATTERN.exec(version);
   return match?.[1] ?? version;
 }
+export function chronosSshArchiveOptions(version: string, env: Readonly<Record<string, string | undefined>>) {
+  const fork = isChronosVersion(version) && env.CHRONOS_SSH_CLI_SOURCE === "chronos";
+  const mirror = env[CLI_RELEASE_BASE_URL_ENV]?.trim();
+  const releaseBaseUrl = mirror || (fork ? CHRONOS_RELEASES_URL + "/download" : undefined);
+  return {
+    archiveVersion: fork ? version : chronosUpstreamVersion(version),
+    ...(releaseBaseUrl ? { releaseBaseUrl } : {}),
+  };
+}
+
+/** SSH archives include the fork revision in their cache key and use Chronos release tags. */
+export function sshArchiveReleaseUrl(version: string, baseUrl?: string): string {
+  const url = cliReleaseDownloadBaseUrl(version, baseUrl);
+  return isChronosVersion(version) ? url.replace(/\/v([^/]+)$/u, "/chronos-v$1") : url;
+}
 // --- chronos: end ---

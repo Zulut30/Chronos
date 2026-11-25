@@ -125,6 +125,59 @@ jobs:
       - name: Typecheck
         run: vp run --filter @t3tools/contracts --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
+  cli:
+    name: SSH CLI ${{ matrix.key }}
+    needs: [version, bundle]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { key: linux-x64, runner: ubuntu-24.04, platform: linux, arch: x64 }
+          - { key: linux-arm64, runner: ubuntu-24.04-arm, platform: linux, arch: arm64 }
+          - { key: darwin-arm64, runner: macos-26, platform: mac, arch: arm64 }
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=t3... --filter=@t3tools/scripts...
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: js-bundle
+          path: apps
+      - name: Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf libsecret-1-dev
+      - name: Build native runner and archive
+        shell: bash
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          UPSTREAM: ${{ needs.version.outputs.upstream }}
+        run: |
+          set -euo pipefail
+          node scripts/update-release-package-versions.ts "$UPSTREAM"
+          cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml
+          monitor="$RUNNER_TEMP/monitor/${{ matrix.key }}"
+          mkdir -p "$monitor"
+          cp native/resource-monitor/target/release/t3-resource-monitor "$monitor/"
+          node apps/server/scripts/cli.ts build-exe --verbose
+          node scripts/build-cli-archive.ts --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" \
+            --version "$VERSION" --resource-monitor-dir "$RUNNER_TEMP/monitor" --output-dir release-cli
+          node scripts/smoke-cli-archive.ts --archive "release-cli/t3-${VERSION}-${{ matrix.key }}.tar.gz" --expect-version "$UPSTREAM"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: chronos-cli-${{ matrix.key }}
+          path: release-cli/*.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
   desktop:
     name: Build ${{ matrix.label }}
     needs: [version, bundle]
@@ -353,7 +406,7 @@ jobs:
           cp "Chronos-${VERSION}-x64.exe" Chronos-Setup-x64.exe
           cp "Chronos-${VERSION}-arm64.dmg" Chronos-mac-arm64.dmg
           cp "Chronos-${VERSION}-x64.dmg" Chronos-mac-x64.dmg
-          sha256sum Chronos-Setup-x64.exe Chronos-mac-{arm64,x64}.dmg > SHA256SUMS
+          sha256sum Chronos-Setup-x64.exe Chronos-mac-{arm64,x64}.dmg "t3-${VERSION}-"{linux-x64,linux-arm64,darwin-arm64}.tar.gz > SHA256SUMS
 
       - name: Publish release
         env:
@@ -378,7 +431,7 @@ jobs:
             "---" \
             "" \
             "Built from the T3 Code ${UPSTREAM} source. Chronos is an unofficial fork, not affiliated with T3 Tools, Inc. Installers are unsigned (SmartScreen: More info → Run anyway; macOS: right-click → Open). Checksums: \`SHA256SUMS\`. Installs side by side with T3 Code; data lives in \`~/.chronos\`.")
-          gh release create "$TAG" release-assets/Chronos-* release-assets/nightly*.yml release-assets/SHA256SUMS \
+          gh release create "$TAG" release-assets/Chronos-* release-assets/nightly*.yml release-assets/t3-*.tar.gz release-assets/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "Chronos ${VERSION}" \

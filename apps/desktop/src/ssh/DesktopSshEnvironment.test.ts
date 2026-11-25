@@ -1,6 +1,7 @@
 import * as NodePath from "@effect/platform-node/NodePath";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it } from "@effect/vitest";
+import { buildRemoteT3RunnerScript } from "@t3tools/ssh/tunnel";
 import { CLI_RELEASE_BASE_URL_ENV } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -39,6 +40,20 @@ describe("resolveDesktopSshCliRunner", () => {
         {},
       );
       assert.deepStrictEqual(runner, { archiveVersion: "0.1.12-nightly.20261124.5209" });
+    }),
+  );
+
+  it.effect("selects a fork archive and switches back to the upstream runtime", () =>
+    Effect.gen(function* () {
+      const upstream = "0.1.12-nightly.20261124.5209";
+      const version = upstream + ".chronos.6";
+      const environment = { ...(yield* packagedEnvironment), appVersion: version };
+      const runner = resolveDesktopSshCliRunner(environment, { CHRONOS_SSH_CLI_SOURCE: "chronos" });
+      assert.equal(runner.archiveVersion, version);
+      assert.include(buildRemoteT3RunnerScript(runner), "Chronos/releases/download/chronos-v" + version);
+      const official = resolveDesktopSshCliRunner(environment, { CHRONOS_SSH_CLI_SOURCE: "upstream" });
+      assert.equal(official.archiveVersion, upstream);
+      assert.include(buildRemoteT3RunnerScript(official), "t3code/releases/download/v" + upstream);
     }),
   );
 

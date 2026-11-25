@@ -3,7 +3,7 @@ import type {
   DesktopSshEnvironmentBootstrap,
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
-import { CLI_RELEASE_BASE_URL_ENV, chronosUpstreamVersion } from "@t3tools/shared/cliRelease";
+import { chronosSshArchiveOptions } from "@t3tools/shared/cliRelease";
 import * as NetService from "@t3tools/shared/Net";
 import * as SshAuth from "@t3tools/ssh/auth";
 import { resolveSshTarget } from "@t3tools/ssh/command";
@@ -90,12 +90,8 @@ export const resolveDesktopSshCliRunner = (
       nodeEngineRange: serverPackageJson.engines.node,
     };
   }
-  const releaseBaseUrl = env[CLI_RELEASE_BASE_URL_ENV]?.trim() || undefined;
-  return {
-    // chronos: SSH hosts download the official upstream CLI archive.
-    archiveVersion: chronosUpstreamVersion(environment.appVersion),
-    ...(releaseBaseUrl === undefined ? {} : { releaseBaseUrl }),
-  };
+  // chronos: select a versioned, independently cached SSH runtime.
+  return chronosSshArchiveOptions(environment.appVersion, env);
 };
 
 // Remote servers record this ID as their owner, so it has to outlive restarts,

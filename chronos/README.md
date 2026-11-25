@@ -219,6 +219,8 @@ T3). Оставлены только workflow Chronos:
 
 `apps/desktop/src/chronos/services/Sidecars.ts` проверяет владельца каждого порта и запускает один `chronos/services/host.mjs` по первому свободному порту. Хост исполняет семь HTTP-сервисов в отдельных Node Worker. Менеджер повторяет проверку при выходе воркера или хоста.
 
+Для SSH десктоп выбирает источник через `CHRONOS_SSH_CLI_SOURCE`. Значение `chronos` выбирает архив текущей ревизии Chronos, `upstream` или отсутствие переменной — прежний официальный CLI. После изменения перезапустите десктоп и переподключите управляемое окружение. Встраивание: `DesktopSshEnvironment.ts`, `packages/shared/src/cliRelease.ts`, `packages/ssh/src/tunnel.ts`, сборка и SHA256SUMS в `chronos-desktop.yml`.
+
 ## Скиллы
 
 Исходники скиллов в `chronos/skills/`:
