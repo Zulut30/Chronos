@@ -32,12 +32,16 @@ export function olympusL10n(): Plugin {
       const runtimePath = resolve(source, "runtime-translator.js");
       for (const path of [...dictionaryPaths, runtimePath]) this.addWatchFile(path);
       tables = loadTables(data);
+      const englishCatalog = resolve(root, "src/i18n/translations/en.json");
+      this.addWatchFile(englishCatalog);
+      const messages: Record<string, unknown> = JSON.parse(readFileSync(englishCatalog, "utf8"));
+      tables.catalogSources = new Set(Object.values(messages).filter((s): s is string => typeof s === "string"));
       runtime = readFileSync(runtimePath, "utf8");
       // generateBundle sees the final minifier spelling. Salt hashes earlier so dictionaries,
       // runtime or rule changes invalidate cached URLs even if upstream JS stays identical.
       const hash = createHash("sha256");
       const rules = ["plugin.ts", "translate.ts", "contexts.ts", "sourcemap.ts"].map((name) => resolve(source, name));
-      for (const path of [...dictionaryPaths, runtimePath, ...rules]) {
+      for (const path of [...dictionaryPaths, englishCatalog, runtimePath, ...rules]) {
         hash.update(readFileSync(path));
       }
       fingerprint = hash.digest("hex");
@@ -54,6 +58,10 @@ export function olympusL10n(): Plugin {
         let runtimeHosts = 0;
         for (const chunk of Object.values(bundle)) {
           if (chunk.type === "asset" && !chunk.fileName.endsWith(".js")) continue;
+          // Catalogs contain IDs and rich message arrays in every language. The Russian
+          // JSON has already been processed by olympusCatalog before bundling.
+          if (chunk.type === "chunk" && chunk.moduleIds.length > 0 &&
+              chunk.moduleIds.every((id) => /\/i18n\/translations\/[^/]+\.json$/u.test(id.replaceAll("\\", "/")))) continue;
           const original = chunk.type === "chunk" ? chunk.code : assetText(chunk.source);
           const { code, edits, unresolved } = translateChunk(original, chunk.fileName, tables, counts, parse);
           findings.push(...(edits.length ? remaining(code, chunk.fileName, tables, parse) : unresolved));

@@ -1,8 +1,7 @@
 import type { ProviderInteractionMode } from "@t3tools/contracts";
-import type { ComponentProps, ComponentType } from "react";
 import type { ComposerPromptSegment } from "../../composer-editor-mentions";
-import type { RightPanelSurfaceContent } from "../../components/chat/RightPanelSurfaceContent";
-import type { RightPanelSurface } from "../../rightPanelStore";
+
+import type { OlympusPanelHost } from "./PanelHost";
 
 declare global {
   var __olyPlanMode: (
@@ -23,12 +22,5 @@ declare global {
         ): void;
       }
     | undefined;
-  var __olyPanelHost:
-    | ComponentType<
-        ComponentProps<typeof RightPanelSurfaceContent> & {
-          __hj: typeof RightPanelSurfaceContent;
-          __surfaces: readonly RightPanelSurface[];
-        }
-      >
-    | undefined;
+  var __olyPanelHost: OlympusPanelHost | undefined;
 }

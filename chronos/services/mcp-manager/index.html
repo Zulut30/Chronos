@@ -1,0 +1,59 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Серверы MCP</title><link rel="stylesheet" href="/style.css"><script>(()=>{const p=new URLSearchParams(location.hash.slice(1)),t=p.get('theme'),r=document.documentElement,d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.classList.toggle('dark',d);r.classList.toggle('oly',p.get('olympus')==='1');r.classList.toggle('embedded',!!p.get('embedded'))})()</script></head><body>
+<header class="page-head"><div><h1>Серверы MCP</h1><p>Инструменты и данные, к которым подключаются агенты</p></div><button id="close" class="btn ghost icon" type="button" aria-label="Закрыть менеджер" title="Закрыть (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></header>
+<main>
+<div class="scope">
+ <div class="agent-tabs" role="tablist" aria-label="Агент"><button type="button" role="tab" aria-selected="true" data-agent="codex">Codex</button><button type="button" role="tab" aria-selected="false" data-agent="claude">Claude</button></div>
+ <div class="where">
+  <label class="field"><span>Устройство</span><select id="machine" class="input"></select></label>
+  <label class="field grow"><span>Где хранятся настройки</span><select id="location" class="input"></select></label>
+ </div>
+ <p id="path" class="path" hidden></p>
+</div>
+<section class="card" aria-labelledby="list-title">
+ <div class="card-head">
+  <h2 id="list-title">Серверы <span id="count" class="count"></span></h2>
+  <div class="tools">
+   <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="search" class="input" type="search" placeholder="Поиск" aria-label="Поиск сервера" aria-keyshortcuts="/" autocomplete="off"></label>
+   <div class="filter" role="radiogroup" aria-label="Показывать">
+    <button type="button" role="radio" aria-checked="true" data-filter="all">Все</button><button type="button" role="radio" aria-checked="false" data-filter="on">Вкл.</button><button type="button" role="radio" aria-checked="false" data-filter="off">Выкл.</button>
+   </div>
+   <button id="refresh" class="btn ghost icon" type="button" aria-label="Обновить список" title="Обновить список"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+   <button id="add" class="btn primary" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Добавить</button>
+  </div>
+ </div>
+ <div id="notice" class="notice" role="status" aria-live="polite" hidden><span id="notice-text"></span><button id="notice-action" class="link" type="button" hidden></button><button id="notice-close" class="btn ghost icon sm" type="button" aria-label="Скрыть сообщение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+ <ul id="list" class="list" aria-label="Список серверов MCP" aria-busy="true"></ul>
+</section>
+<p class="note">Изменения подхватят новые сессии агента — уже открытые чаты не перезапускаются. Выключенный сервер сохраняет все настройки. Серверы из плагинов и облачные подключения настраиваются в самих плагинах.</p>
+</main>
+<dialog id="editor" aria-labelledby="editor-title"><form id="form" novalidate>
+ <h2 id="editor-title">Новый сервер MCP</h2>
+ <p id="editor-target" class="sub"></p>
+ <label class="field"><span>Название</span><input name="name" class="input" required maxlength="128" placeholder="например, filesystem" autocomplete="off" spellcheck="false" aria-describedby="name-hint"><small id="name-hint" class="hint">Латинские буквы, цифры, «-» и «_». Так сервер будет виден агенту.</small></label>
+ <fieldset class="field"><legend>Как подключаться</legend>
+  <div class="seg" role="radiogroup">
+   <label><input type="radio" name="transport" value="stdio" checked><span><b>Запустить программу</b><small>команда на этом устройстве</small></span></label>
+   <label><input type="radio" name="transport" value="http"><span><b>Подключиться по адресу</b><small>сервер в сети, URL</small></span></label>
+  </div>
+ </fieldset>
+ <div id="stdio-fields">
+  <label class="field"><span>Команда запуска</span><input name="command" class="input mono" placeholder="npx -y @modelcontextprotocol/server-memory" autocomplete="off" spellcheck="false" aria-describedby="command-hint"><small id="command-hint" class="hint">Вставьте строку из инструкции сервера целиком. Пути с пробелами — в кавычках.</small></label>
+  <div id="parsed" class="parsed" hidden></div>
+  <div class="field"><span id="env-title">Переменные окружения <small class="opt">ключи API и т. п., необязательно</small></span><div id="env-rows" class="pairs" aria-labelledby="env-title"></div><button type="button" class="link add-pair" data-pairs="env">+ Добавить переменную</button></div>
+ </div>
+ <div id="http-fields" hidden>
+  <label class="field"><span>Адрес сервера</span><input name="url" class="input mono" type="url" placeholder="https://example.com/mcp" autocomplete="off" spellcheck="false"></label>
+  <div class="field"><span id="headers-title">Заголовки HTTP <small class="opt">например, Authorization, необязательно</small></span><div id="headers-rows" class="pairs" aria-labelledby="headers-title"></div><button type="button" class="link add-pair" data-pairs="headers">+ Добавить заголовок</button></div>
+ </div>
+ <details><summary>Для опытных: дополнительные поля конфигурации</summary><label class="field"><span>Объект JSON, будет добавлен к настройкам сервера</span><textarea name="extra" class="input mono" rows="3" spellcheck="false" placeholder='{"startup_timeout_sec": 20}'></textarea></label></details>
+ <p id="form-error" class="form-error" role="alert"></p>
+ <footer><small class="hint">Перед изменением сохраняется резервная копия.</small><button type="button" id="cancel" class="btn">Отмена</button><button type="submit" id="submit" class="btn primary">Добавить</button></footer>
+</form></dialog>
+<dialog id="remove" aria-labelledby="remove-title"><form method="dialog">
+ <h2 id="remove-title">Удалить сервер?</h2>
+ <p id="remove-text"></p>
+ <p class="hint">Перед удалением сохранится резервная копия настроек. Если сервер нужен позже — просто выключите его переключателем.</p>
+ <p id="remove-error" class="form-error" role="alert"></p>
+ <footer><button type="button" id="remove-cancel" class="btn" autofocus>Отмена</button><button type="button" id="remove-confirm" class="btn danger-solid">Удалить</button></footer>
+</form></dialog>
+<script src="/app.js"></script></body></html>

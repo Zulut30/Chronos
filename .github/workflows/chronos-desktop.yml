@@ -141,13 +141,14 @@ jobs:
             arch: x64
             rust_target: x86_64-pc-windows-msvc
           - label: macOS arm64
-            runner: macos-15
+            runner: macos-26
             platform: mac
             target: dmg
             arch: arm64
             rust_target: aarch64-apple-darwin
           - label: macOS x64
-            runner: macos-15
+            # The upstream cache generator executes the packaged x64 Electron before signing.
+            runner: macos-26-intel
             platform: mac
             target: dmg
             arch: x64
@@ -165,13 +166,6 @@ jobs:
         uses: ./.github/actions/setup-ci-deps
         with:
           install-args: --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
-
-      - name: Ensure Rosetta for macOS x64 bytecode generation
-        if: matrix.platform == 'mac' && matrix.arch == 'x64'
-        run: |
-          if [[ "$(uname -m)" == "arm64" ]] && ! /usr/bin/arch -x86_64 /usr/bin/true; then
-            sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-          fi
 
       - name: Cache resource monitor
         id: resource_monitor_cache
@@ -242,6 +236,24 @@ jobs:
             args+=(--wsl-runtime "$GITHUB_WORKSPACE"/wsl-runtime/t3-*-linux-${{ matrix.arch }}.tar.gz)
           fi
           vp run dist:desktop:artifact "${args[@]}"
+
+      - name: Verify bundled Olympus services in the distributable
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage=$(mktemp -d)
+          if [[ "${{ matrix.platform }}" == "win" ]]; then
+            7z e -y "-o$stage" release/*.exe '-ir!app-*.7z' >/dev/null
+            7z x -y "-o$stage" "$stage"/app-*.7z 'resources/chronos-services/*' >/dev/null
+            resources="$stage/resources/chronos-services"
+          else
+            unzip -q release/*.zip '*/Contents/Resources/chronos-services/*' -d "$stage"
+            resources=$(find "$stage" -type d -name chronos-services -print -quit)
+          fi
+          test -d "$resources"
+          test -z "$(find "$resources" -name '*.test.mjs' -print -quit)"
+          diff -qr -x '*.test.mjs' chronos/services "$resources"
+          CHRONOS_TEST_RESOURCES="$resources" node --test chronos/scripts/smoke/services.test.mjs
 
       - name: Collect release assets
         run: |

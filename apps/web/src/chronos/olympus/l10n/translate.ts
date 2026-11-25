@@ -28,7 +28,7 @@ export type Rule = [string | true | null, ...[number, string][]];
 export type Rules = Record<Table, Record<string, Rule[]>>;
 type Recipe = { key: string; output: string[]; order: number[]; same: [number, number][] };
 type Group = { key: string; recipes: Recipe[] };
-type Dictionary = { index: Record<Table, Map<string, Group>>; rules: Rules; outputs: Set<string> };
+type Dictionary = { index: Record<Table, Map<string, Group>>; rules: Rules; outputs: Set<string>; catalogSources?: ReadonlySet<string> };
 
 function parts(key: string) { return key.split(/\$\{[^`{}]*\}/u); }
 export function templateShape(key: string) { return JSON.stringify(parts(key)); }
@@ -98,6 +98,7 @@ export type Finding = { file: string; offset: number; table: Table; key: string;
 export function inspectChunk(code: string, file: string, dict: Dictionary, parse: Parse) {
   const edits: (Edit & { table: Table; key: string })[] = [], unresolved: Finding[] = [];
   visitStrings(code, parse, (site) => {
+    if (site.catalogArgument && !site.slots.length && dict.catalogSources?.has(site.parts[0]!)) return;
     const hit = candidate(site, dict);
     if (!hit) return dict.outputs.has(JSON.stringify(site.parts));
     const { group, table } = hit;

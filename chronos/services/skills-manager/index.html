@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Скиллы</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <h1>Скиллы</h1><span class="total" id="total"></span>
+    <label class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="sr">Найти скилл</span><input id="filter" class="input" placeholder="Найти скилл по имени или описанию" title="Поиск: Ctrl K или /" autocomplete="off" spellcheck="false"><kbd>Ctrl K</kbd></label>
+    <span class="grow"></span>
+    <button class="btn ghost icon" id="refresh" title="Перечитать списки скиллов" aria-label="Обновить"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+    <button class="btn" id="add" title="Найти и установить скилл из каталога skills.sh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="lbl">Из skills.sh</span></button>
+    <button class="btn primary" id="create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Новый скилл</span></button>
+    <button class="btn ghost icon close" id="closeApp" title="Закрыть (Esc)" aria-label="Закрыть менеджер"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </header>
+  <nav id="nav" aria-label="Расположения скиллов"></nav>
+  <main id="main"><div class="empty">Загрузка…</div></main>
+  <aside id="detail" hidden aria-label="Выбранный скилл"></aside>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const q=new URLSearchParams(location.hash.slice(1)),R=document.documentElement;
+if(q.get('theme')==='dark')R.classList.add('dark');if(q.get('olympus')==='1')R.classList.add('olympus');
+for(const k of ['bg','fg','muted','border','panel','accent','primary','primary-fg','radius']){const v=q.get(k);if(v)R.style.setProperty('--t3-'+k,v)}
+const api=async(p,body)=>{const r=await fetch(p,body?{method:'POST',headers:{'content-type':'application/json','x-oly':'1'},body:JSON.stringify(body)}:{});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=s=>document.querySelector(s);
+const LSG=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},LSS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const NAME_RE=/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const plural=(n,a,b,c)=>{const m10=n%10,m100=n%100;return n+' '+(m10===1&&m100!==11?a:m10>=2&&m10<=4&&(m100<10||m100>=20)?b:c)};
+const fmtDate=ms=>ms?new Date(ms).toLocaleString('ru-RU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+const fmtDay=ms=>ms?new Date(ms).toLocaleDateString('ru-RU',{day:'numeric',month:'short',...(new Date(ms).getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{})}):'';
+const fmtSize=b=>b<1024?b+' Б':b<1048576?(b/1024).toFixed(1).replace('.',',')+' КБ':(b/1048576).toFixed(1).replace('.',',')+' МБ';
+const sv=d=>'<svg viewBox="0 0 24 24" aria-hidden="true">'+d+'</svg>';
+const I={
+ all:sv('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'),
+ star:sv('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>'),
+ starOn:'<svg viewBox="0 0 24 24" aria-hidden="true" class="fill"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+ ssh:sv('<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/>'),
+ proj:sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+ pc:sv('<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>'),
+ x:sv('<path d="M18 6 6 18M6 6l12 12"/>'),
+ back:sv('<path d="M15 6l-6 6 6 6"/>'),
+ chev:sv('<path d="m9 6 6 6-6 6"/>'),
+ sync:sv('<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 21v-5h5M21 3v5h-5"/>'),
+ down:sv('<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'),
+ copy:sv('<rect x="8" y="8" width="13" height="13" rx="1"/><path d="M16 8V5a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h3"/>'),
+ folder:sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+ trash:sv('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+ check:sv('<path d="M20 6 9 17l-5-5"/>'),
+ doc:sv('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>'),
+ empty:sv('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'),
+ edit:sv('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+ eye:sv('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+ save:sv('<path d="M5 3h11l3 3v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/>'),
+ warn:sv('<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>')};
+const AGENT={claude:'Claude',codex:'Codex',agents:'.agents'};
+
+let LOCS=[],view='overview',LIST={},HASH={},HERR={},HOSTS={},UP=null,upBusy=false,SEL=new Set();
+let skillMode=LSG('oly-skills-layout-v4','list'),skillState='all',skillAgent='all',onlyFavorites=false;
+let favorites=new Set(LSG('oly-skills-favorites',[]));
+let navOpen=LSG('oly-skills-nav-open',{}),DET=null,SK={};
+const busyLoc=new Set();
+function toast(msg,err){const d=document.createElement('div');if(err)d.className='err';d.textContent=msg;$('#toast').appendChild(d);setTimeout(()=>d.remove(),err?8000:4000)}
+const locById=id=>LOCS.find(l=>l.id===id);
+const hostsOf=()=>[...new Set(LOCS.filter(l=>l.kind==='ssh').map(l=>l.host))];
+const shortLabel=l=>l.kind==='local'&&!l.project?l.label:l.label.split(' · ').pop();
+const gkey=l=>l.kind==='ssh'?l.host:l.project||'Этот компьютер';
+const placeOf=l=>l.kind==='ssh'?'Сервер '+l.host:l.project?'Проект '+l.project:'Этот компьютер';
+
+/* ---------- data ---------- */
+async function loadLocal(l){busyLoc.add(l.id);try{LIST[l.id]=await api('/api/skills?loc='+encodeURIComponent(l.id))}catch(e){LIST[l.id]={skills:[],exists:false,error:e.message}}busyLoc.delete(l.id);paint();
+ api('/api/hashes?loc='+encodeURIComponent(l.id)).then(h=>{HASH[l.id]=h;delete HERR[l.id];paint()}).catch(e=>{HERR[l.id]=e.message;paint()})}
+async function loadHost(h,force){HOSTS[h]={s:'load'};paint();
+ try{const data=await api('/api/host?host='+encodeURIComponent(h)+(force?'&refresh=1':''));for(const id in data)LIST[id]=data[id];HOSTS[h]={s:'ok'};
+  const keep=LSG('oly-skills-hosts',[]);if(!keep.includes(h))LSS('oly-skills-hosts',keep.concat(h));paint();
+  for(const l of LOCS.filter(x=>x.host===h&&LIST[x.id]&&LIST[x.id].exists)){try{HASH[l.id]=await api('/api/hashes?loc='+encodeURIComponent(l.id)+(force?'&refresh=1':''));force=false}catch(e){HERR[l.id]=e.message}paint()}}
+ catch(e){HOSTS[h]={s:'err',e:e.message};paint();if(view!=='overview')toast(e.message,true)}}
+async function loadLocs(refresh){LOCS=await api('/api/locations'+(refresh?'?refresh=1':''));
+ await Promise.all(LOCS.filter(l=>l.kind==='local'&&l.exists!==false).map(loadLocal));
+ for(const h of LSG('oly-skills-hosts',[]))if(hostsOf().includes(h))loadHost(h,refresh)}
+async function refreshLocs(ids){for(const k in SK)if(ids.some(id=>k.startsWith(id+'|')))delete SK[k];const hosts=new Set();for(const id of ids){const l=locById(id);if(!l)continue;if(l.kind==='ssh')hosts.add(l.host);else await loadLocal(l)}for(const h of hosts)await loadHost(h,true)}
+const hashOf=(id,name,off)=>HASH[id]&&HASH[id][(off?'!':'')+name];
+
+/* ---------- index of skills across locations ---------- */
+let IDX=null,CACHE=false;
+function index(){if(CACHE&&IDX)return IDX;const map=new Map();
+ for(const l of LOCS){const d=LIST[l.id];if(!d||!d.skills)continue;
+  for(const s of d.skills){let e=map.get(s.name);if(!e){e={name:s.name,desc:s.description,cells:{}};map.set(s.name,e)}if(!e.desc)e.desc=s.description;
+   const prev=e.cells[l.id];if(!prev||prev.disabled&&!s.disabled)e.cells[l.id]={disabled:s.disabled,mtime:s.mtime}}}
+ for(const e of map.values()){const cnt={},newest={};for(const id in e.cells){const c=e.cells[id];c.hash=hashOf(id,e.name,c.disabled);if(c.hash){cnt[c.hash]=(cnt[c.hash]||0)+1;newest[c.hash]=Math.max(newest[c.hash]||0,c.mtime||0)}}
+  e.versions=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]||newest[b]-newest[a]);for(const id in e.cells){const c=e.cells[id];c.v=c.hash?e.versions.indexOf(c.hash):(HERR[id]?'?':0)}}
+ if(CACHE)IDX=map;return map}
+function columns(){return LOCS.filter(l=>{const d=LIST[l.id];return d&&d.exists&&(l.kind!=='local'||!l.project||d.skills.length)})}
+const locOrder=id=>{const i=LOCS.findIndex(l=>l.id===id);return i<0?1e9:i};
+const enabledIn=e=>Object.keys(e.cells).filter(id=>!e.cells[id].disabled);
+function upState(e){const up=UP&&UP[e.name];if(!up)return UP&&up===null?'none':'';if(!up.hash)return '';if(!sameSkill(up,e))return 'namesake';return Object.values(e.cells).some(c=>c.hash&&c.hash!==up.hash)?'stale':'ok'}
+
+/* ---------- nav ---------- */
+const countOf=l=>{const d=LIST[l.id];return d&&d.skills?d.skills.filter(s=>!s.disabled).length:null};
+function navItem(v,icon,label,n,cur,extra){return `<button class="loc${extra||''}" data-view="${esc(v)}" aria-current="${cur}"><span class="ic">${icon}</span><span class="lbl">${esc(label)}</span><span class="n">${n==null?'':n}</span></button>`}
+function navHtml(){const idx=index(),fav=[...favorites].filter(n=>idx.has(n)).length;
+ let h=navItem('overview',I.all,'Все скиллы',idx.size||'',view==='overview'&&!onlyFavorites)+navItem('fav',I.star,'Избранное',fav||'',view==='overview'&&onlyFavorites);
+ const g={};for(const l of LOCS)(g[l.group]=g[l.group]||[]).push(l);
+ for(const[group,ls]of Object.entries(g)){h+=`<div class="group">${esc(group)}</div>`;
+  if(!ls.some(l=>l.project||l.host)){for(const l of ls){const n=countOf(l),d=LIST[l.id];h+=navItem(l.id,I.pc,shortLabel(l),n,view===l.id,(d&&!d.exists)||(l.exists===false&&!n)?' dim':'')}continue}
+  const subs=new Map();for(const l of ls){const d=LIST[l.id];if(l.project&&l.exists===false&&!(d&&d.skills.length))continue;const k=l.project||l.host;if(!subs.has(k))subs.set(k,[]);subs.get(k).push(l)}
+  if(!subs.size){h+='<div class="note">Папок со скиллами в проектах пока нет. Установите скилл в проект через «Копировать в…».</div>';continue}
+  for(const[k,arr]of subs){const host=arr[0].host,hs=host&&HOSTS[host],open=navOpen[k]??arr.some(l=>l.id===view);
+   const total=arr.reduce((s,l)=>s+(countOf(l)||0),0),loaded=!host||hs&&hs.s==='ok';
+   const st=host?`<span class="st" data-s="${hs?hs.s:''}" title="${esc(hs&&hs.e?hs.e:hs&&hs.s==='ok'?'Подключено':hs&&hs.s==='load'?'Подключение…':'Не загружено — раскройте, чтобы подключиться по SSH')}"></span>`:'';
+   h+=`<div class="sub" data-open="${open}"><button class="subh" data-sub="${esc(k)}" data-host="${esc(host||'')}" aria-expanded="${open}"><span class="tw">${I.chev}</span><span class="ic">${host?I.ssh:I.proj}</span><span class="lbl">${esc(k)}</span>${arr[0].t3?'<span class="tag">T3</span>':''}${st}<span class="n">${loaded&&total?total:''}</span></button>`;
+   if(open)h+='<div class="subl">'+arr.map(l=>{const n=countOf(l),d=LIST[l.id];return navItem(l.id,'',l.short||shortLabel(l),n,view===l.id,(d&&!d.exists)||(l.exists===false&&!n)?' dim':'')}).join('')+'</div>';
+   h+='</div>'}}
+ $('#nav').innerHTML=h}
+
+/* ---------- views ---------- */
+let paintQ=false;function paint(){if(paintQ)return;paintQ=true;requestAnimationFrame(()=>{paintQ=false;IDX=null;CACHE=true;try{$('#total').textContent=index().size||'';navHtml();if(!document.querySelector('.overlay[data-modal]'))render()}finally{CACHE=false;IDX=null}})}
+function setView(v){if(v==='fav'){view='overview';onlyFavorites=true}else{view=v;onlyFavorites=false}SEL.clear();
+ const l=locById(view);if(l&&l.kind==='ssh'&&!(HOSTS[l.host]&&HOSTS[l.host].s==='ok'))loadHost(l.host);$('#main').scrollTop=0;paint()}
+function render(){const m=$('#main'),sc=m.scrollTop;if(view==='overview'){if(skillMode==='matrix')renderMatrix();else renderList()}else renderLoc();m.scrollTop=sc;renderDetail()}
+const match=(name,desc)=>{const f=$('#filter').value.trim().toLowerCase();return !f||f.split(/\s+/).every(t=>(name+' '+(desc||'')).toLowerCase().includes(t))};
+function skillPass(name,cells,versions=0){
+ if(onlyFavorites&&!favorites.has(name))return false;
+ const entries=Object.entries(cells).filter(([id])=>skillAgent==='all'||locById(id)?.agent===skillAgent||id.toLowerCase().includes(skillAgent));
+ if(!entries.length)return false;
+ if(skillState==='enabled'&&!entries.some(([,c])=>!c.disabled))return false;
+ if(skillState==='disabled'&&!entries.some(([,c])=>c.disabled))return false;
+ if(skillState==='different'&&versions<2)return false;
+ return true}
+const seg=(name,opts,cur,label)=>`<div class="seg" role="group" aria-label="${esc(label)}">${opts.map(([v,l])=>`<button data-seg="${name}" data-v="${v}" aria-pressed="${cur===v}">${l}</button>`).join('')}</div>`;
+function head(title,count,sub,extra){
+ const filters=seg('state',[['all','Все'],['enabled','Включённые'],['disabled','Отключённые'],['different','Разные версии']],skillState,'Состояние')+
+  (view==='overview'?`<label class="sel"><span class="sr">Агент</span><select class="input" data-skill-filter="agent">${[['all','Все агенты'],['claude','Claude'],['codex','Codex'],['agents','Общие (.agents)']].map(([v,l])=>`<option value="${v}"${skillAgent===v?' selected':''}>${l}</option>`).join('')}</select>${I.chev}</label>`:'')+
+  '<span class="grow"></span>'+(view==='overview'?seg('layout',[['list','Список'],['matrix','Сравнение копий']],skillMode,'Вид'):'');
+ return `<div class="bar"><div class="bar-h"><h2>${esc(title)}</h2><span class="cnt">${count}</span><span class="grow"></span>${extra||''}</div>${sub||''}<div class="bar-f">${SEL.size?bulkHtml():filters}</div></div>`}
+function bulkHtml(){const n=`<span class="selc">Выбрано: ${SEL.size}</span>`;
+ if(view==='overview')return n+`<button class="btn sm" data-act="bcopy-o">${I.copy}Копировать в…</button><button class="btn sm" data-act="bsync">${I.sync}Синхронизировать</button><span class="grow"></span><button class="btn ghost sm" data-act="unsel">Снять выбор</button>`;
+ const cur=locById(view),sel=(LIST[view]?.skills||[]).filter(s=>SEL.has(s.name+'|'+(s.disabled?1:0)));
+ return n+`<button class="btn sm" data-act="bcopy">${I.copy}Копировать в…</button>${sel.some(s=>!s.disabled)?'<button class="btn sm" data-act="boff">Отключить</button>':''}${sel.some(s=>s.disabled)?'<button class="btn sm" data-act="bon">Включить</button>':''}<button class="btn sm danger" data-act="bdel">${I.trash}Удалить</button><span class="grow"></span><button class="btn ghost sm" data-act="unsel">Снять выбор</button>`}
+const upBtn=()=>`<button class="btn ghost sm" data-act="upcheck"${upBusy?' disabled':''} title="Сравнить установленные скиллы с каталогом skills.sh">${I.down}${upBusy?'Проверяю…':'Проверить обновления'}</button>`;
+function hostsNote(){const hs=hostsOf().filter(h=>!HOSTS[h]||HOSTS[h].s==='err');if(!hs.length)return '';
+ return `<div class="note-line">${I.ssh}<span>${hs.length===1?'Сервер':'Серверы'} ${hs.map(esc).join(', ')} ${hs.length===1?'не загружен':'не загружены'} — их скиллы не показаны.</span><button class="btn ghost sm" data-act="allhosts">Подключить</button></div>`}
+function chips(e){const by={};for(const id of Object.keys(e.cells).sort((a,b)=>locOrder(a)-locOrder(b))){const l=locById(id);if(!l)continue;const a=AGENT[l.agent]||l.short||'?';(by[a]=by[a]||[]).push({l,c:e.cells[id]})}
+ return Object.entries(by).map(([a,arr])=>{const off=arr.every(x=>x.c.disabled),diff=arr.some(x=>x.c.v&&x.c.v!=='?');
+  return `<span class="chip${off?' off':''}${diff?' diff':''}" title="${esc(arr.map(x=>x.l.label+(x.c.disabled?' · отключён':'')).join('\n'))}">${esc(a)}${arr.length>1?`<b>${arr.length}</b>`:''}</span>`}).join('')}
+function badges(e){const vn=e.versions.length,u=upState(e);let h='';
+ if(vn>1)h+=`<span class="badge warn" title="Копии отличаются содержимым">${plural(vn,'версия','версии','версий')}</span>`;
+ if(u==='stale')h+='<span class="badge acc" title="В skills.sh есть более новая версия">обновление</span>';else if(u==='ok')h+='<span class="badge ok" title="Совпадает с каталогом skills.sh">skills.sh</span>';
+ return h}
+const isCur=n=>DET&&DET.name===n;
+function emptyHtml(t,p,btn){return `<div class="empty"><span class="tile">${I.empty}</span><b>${t}</b>${p?`<p>${p}</p>`:''}${btn||''}</div>`}
+
+function renderList(){const idx=index(),all=[...idx.values()];
+ const rows=all.filter(e=>match(e.name,e.desc)&&skillPass(e.name,e.cells,e.versions.length)).sort((a,b)=>Number(favorites.has(b.name))-Number(favorites.has(a.name))||a.name.localeCompare(b.name));
+ for(const n of[...SEL])if(!idx.has(n))SEL.delete(n);
+ const allSel=rows.length&&rows.every(e=>SEL.has(e.name));
+ let h=head(onlyFavorites?'Избранное':'Все скиллы',rows.length===all.length?rows.length:rows.length+' из '+all.length,hostsNote(),upBtn());
+ if(!LOCS.length||!all.length&&[...busyLoc].length){$('#main').innerHTML=h+'<div class="list">'+skel(6)+'</div>';return}
+ if(!rows.length){$('#main').innerHTML=h+emptyHtml(all.length?(onlyFavorites&&!favorites.size?'В избранном пока пусто':'Ничего не найдено'):'Скиллов пока нет',all.length?(onlyFavorites&&!favorites.size?'Отметьте скилл звёздочкой, и он появится здесь.':'Измените запрос или фильтры.'):'Создайте скилл или установите его из skills.sh.');return}
+ h+=`<div class="list" role="listbox" aria-label="Скиллы"><div class="lhead"><input type="checkbox" class="ck" data-selall="o"${allSel?' checked':''} aria-label="Выбрать все"><span>Скилл</span><span class="grow"></span><span class="lh-places">Где установлен</span><span class="favh"></span></div>`+rows.map(e=>{const on=enabledIn(e).length;
+  return `<div class="row${on?'':' off'}${isCur(e.name)?' cur':''}" data-open="${esc(e.name)}" role="option" aria-selected="${isCur(e.name)}" data-sel="${SEL.has(e.name)}"><input type="checkbox" class="ck" data-sel="${esc(e.name)}"${SEL.has(e.name)?' checked':''} aria-label="Выбрать ${esc(e.name)}"><div class="txt"><div class="name"><span>${esc(e.name)}</span>${on?'':'<span class="badge off">отключён</span>'}${badges(e)}</div><div class="desc">${esc(e.desc||'Описание отсутствует')}</div></div><div class="places">${chips(e)}</div><button class="fav" data-favorite="${esc(e.name)}" aria-pressed="${favorites.has(e.name)}" aria-label="${favorites.has(e.name)?'Убрать из избранного':'В избранное'}" title="${favorites.has(e.name)?'Убрать из избранного':'В избранное'}">${favorites.has(e.name)?I.starOn:I.star}</button></div>`}).join('')+'</div>';
+ $('#main').innerHTML=h}
+const skel=n=>Array.from({length:n},()=>'<div class="row skel" aria-hidden="true"><i style="width:15px;height:15px"></i><div class="txt"><i style="width:30%"></i><i style="width:62%;margin-top:7px"></i></div></div>').join('');
+
+function renderMatrix(){const cols=columns(),idx=index();const all=[...idx.values()].sort((a,b)=>a.name.localeCompare(b.name));const rows=all.filter(e=>match(e.name,e.desc)&&skillPass(e.name,e.cells,e.versions.length));
+ for(const n of[...SEL])if(!idx.has(n))SEL.delete(n);
+ let h=head('Сравнение копий',rows.length,'<p class="lead">Где установлен каждый скилл. Точки одного цвета — одинаковое содержимое, другой цвет — отличающаяся копия.</p>'+hostsNote(),upBtn());
+ if(!cols.length){$('#main').innerHTML=h+'<div class="list">'+skel(6)+'</div>';return}
+ const groups=[];for(const l of cols){const k=gkey(l);const g=groups[groups.length-1];if(g&&g.k===k)g.n++;else groups.push({k,n:1,l})}
+ const allSel=rows.length&&rows.every(e=>SEL.has(e.name));
+ h+='<div class="mwrap"><table class="matrix"><thead><tr><th class="sk" rowspan="2"><label class="skh"><input type="checkbox" class="ck" data-selall="o"'+(allSel?' checked':'')+'> Скилл</label></th>'+
+  groups.map(g=>`<th class="gl" colspan="${g.n}" title="${esc(g.l.kind==='ssh'?'Сервер '+g.k:g.k)}">${esc(g.k)}</th>`).join('')+'<th rowspan="2" class="stc"></th></tr><tr>'+
+  cols.map((l,i)=>`<th class="${i&&gkey(cols[i-1])!==gkey(l)?'gsep':''}" title="${esc(l.label)}">${esc(l.short||shortLabel(l))}</th>`).join('')+'</tr></thead><tbody>';
+ if(!rows.length)h+=`<tr><td class="sk" colspan="${cols.length+2}">${emptyHtml(all.length?'Ничего не найдено':'Скиллов пока нет','')}</td></tr>`;
+ for(const e of rows){const vn=e.versions.length;
+  h+=`<tr data-sel="${SEL.has(e.name)}" class="${isCur(e.name)?'cur':''}"><td class="sk"><div class="skc"><input type="checkbox" class="ck" data-sel="${esc(e.name)}"${SEL.has(e.name)?' checked':''}><button class="mname" data-open="${esc(e.name)}" title="${esc(e.desc||'')}">${esc(e.name)}</button></div></td>`+
+   cols.map((l,i)=>{const c=e.cells[l.id];const sep=i&&gkey(cols[i-1])!==gkey(l)?' gsep':'';if(!c)return `<td class="c${sep}"></td>`;
+    const t=l.label+(c.disabled?' · отключён':'')+(vn>1&&c.v!=='?'?' · версия '+(c.v+1):'')+(c.mtime?' · '+fmtDate(c.mtime):'');
+    return `<td class="c${sep}"><span class="dot${c.disabled?' off':''}" data-v="${c.v}" title="${esc(t)}"></span></td>`}).join('')+`<td class="st">${badges(e)}</td></tr>`}
+ h+='</tbody></table></div><div class="legend"><span><i class="dot"></i>установлен</span><span><i class="dot off"></i>отключён</span><span><i class="dot" data-v="1"></i>другая версия</span></div>';
+ $('#main').innerHTML=h}
+
+function renderLoc(){const cur=locById(view);if(!cur){view='overview';return renderList()}const d=LIST[cur.id],hs=cur.host&&HOSTS[cur.host];
+ const where=`<div class="where"><span class="crumbs">${esc(placeOf(cur))}</span><code>${esc(cur.kind==='ssh'?cur.host+':'+cur.path:cur.path)}</code></div>`;
+ const extra=cur.kind==='local'?`<button class="btn ghost sm" data-act="reveal">${I.folder}Открыть папку</button>`:`<button class="btn ghost sm" data-host-reload="${esc(cur.host)}">${I.sync}Обновить</button>`;
+ if(!d){$('#main').innerHTML=head(shortLabel(cur),'',where,extra)+(hs&&hs.s==='err'?emptyHtml('Нет связи с '+esc(cur.host),esc(hs.e),`<button class="btn" data-host-reload="${esc(cur.host)}">Повторить</button>`):'<div class="list">'+skel(4)+'</div>');return}
+ const skills=d.skills||[],key=s=>s.name+'|'+(s.disabled?1:0),idx=index();
+ const list=skills.filter(s=>match(s.name,s.description)&&skillPass(s.name,{[cur.id]:s},idx.get(s.name)?.versions.length||0)).sort((a,b)=>a.name.localeCompare(b.name));
+ for(const k of[...SEL])if(!skills.some(s=>key(s)===k))SEL.delete(k);
+ const off=skills.filter(s=>s.disabled).length;
+ let h=head(shortLabel(cur),plural(skills.length-off,'скилл','скилла','скиллов')+(off?' · '+off+' откл.':''),where,extra);
+ if(!list.length){$('#main').innerHTML=h+emptyHtml(!d.exists?'Папки пока нет':skills.length?'Ничего не найдено':'Скиллов нет',!d.exists?'Она появится при установке первого скилла.':skills.length?'Измените запрос или фильтры.':'Скопируйте сюда скилл из другого места или создайте новый.');return}
+ const allSel=list.every(s=>SEL.has(key(s)));
+ h+=`<div class="list" role="listbox" aria-label="Скиллы"><div class="lhead"><input type="checkbox" class="ck" data-selall="l"${allSel?' checked':''} aria-label="Выбрать все"><span>Скилл</span><span class="grow"></span><span>Включён</span></div>`+list.map(s=>{const k=key(s),e=idx.get(s.name);
+  return `<div class="row${s.disabled?' off':''}${isCur(s.name)&&DET.loc===cur.id?' cur':''}" data-open="${esc(s.name)}" data-oloc="${esc(cur.id)}" role="option" data-sel="${SEL.has(k)}"><input type="checkbox" class="ck" data-sel="${esc(k)}"${SEL.has(k)?' checked':''} aria-label="Выбрать ${esc(s.name)}"><div class="txt"><div class="name"><span>${esc(s.name)}</span>${s.link?'<span class="badge">ссылка</span>':''}${e&&e.versions.length>1?`<span class="badge warn">${plural(e.versions.length,'версия','версии','версий')}</span>`:''}</div><div class="desc">${esc(s.description||'Описание отсутствует')}</div></div><span class="mt">${esc(fmtDay(s.mtime))}</span><button class="sw" role="switch" aria-checked="${!s.disabled}" data-sw="${esc(s.name)}" aria-label="${s.disabled?'Включить':'Отключить'} ${esc(s.name)}" title="${s.disabled?'Отключён — агент его не видит. Нажмите, чтобы включить':'Включён. Нажмите, чтобы отключить'}"></button></div>`}).join('')+'</div>';
+ $('#main').innerHTML=h}
+
+/* ---------- detail pane ---------- */
+const pname=l=>l.project?l.project+' · '+(l.short||shortLabel(l)):l.host?l.host+' · '+(l.short||shortLabel(l)):l.label;
+const PC_IDS=()=>LOCS.filter(l=>l.kind==='local'&&!l.project).map(l=>l.id);
+function openDetail(name,loc){if(DET&&DET.name===name&&(!loc||DET.loc===loc))return;
+ guard(()=>{DET={name,loc:loc||null,tab:DET?.tab||'r',mode:DET?.mode||'view',file:'SKILL.md'};paint();requestAnimationFrame(()=>{$('#detail .dh')?.focus({preventScroll:true})})})}
+function closeDetail(){guard(()=>{DET=null;paint()})}
+function renderDetail(){const a=$('#detail'),app=$('#app');const e=DET&&index().get(DET.name);
+ if(!e){if(DET&&!busyLoc.size&&LOCS.length)DET=null;a.hidden=true;app.classList.remove('has-detail','editing');return}
+ const ids=Object.keys(e.cells).sort((x,y)=>locOrder(x)-locOrder(y));
+ if(!DET.loc||!e.cells[DET.loc]){DET.loc=ids.find(x=>!e.cells[x].disabled&&locById(x)?.kind==='local')||ids.find(x=>!e.cells[x].disabled)||ids[0];DET.file='SKILL.md'}
+ const loc=locById(DET.loc),cell=e.cells[DET.loc],on=enabledIn(e).length,vn=e.versions.length,u=upState(e),fav=favorites.has(e.name),edit=DET.mode==='edit';
+ const ta=ED&&ED.ta,taFocus=!!ta&&document.activeElement===ta,taSel=ta?[ta.selectionStart,ta.selectionEnd,ta.scrollTop]:null;
+ const sc=a.dataset.mode===DET.mode&&a.dataset.name===e.name?a.querySelector('.dbody')?.scrollTop||0:0;a.hidden=false;app.classList.add('has-detail');app.classList.toggle('editing',edit);a.dataset.mode=DET.mode;a.dataset.name=e.name;
+ const dirty=edDirty()&&ED.name===e.name;
+ const head=`<div class="dh" tabindex="-1"><button class="btn ghost sm back" data-dact="close" aria-label="Назад к списку (Esc)" title="Назад к списку (Esc)">${I.back}Назад<kbd>Esc</kbd></button><h3 title="${esc(e.name)}">${esc(e.name)}</h3><button class="fav" data-favorite="${esc(e.name)}" aria-pressed="${fav}" aria-label="${fav?'Убрать из избранного':'В избранное'}" title="${fav?'Убрать из избранного':'В избранное'}">${fav?I.starOn:I.star}</button><button class="btn ghost icon closeb" data-dact="close" aria-label="Закрыть панель" title="Закрыть (Esc)">${I.x}</button></div>
+ <div class="dmode"><div class="seg" role="group" aria-label="Режим панели"><button data-mode="view" aria-pressed="${!edit}">${I.eye}Просмотр</button><button data-mode="edit" aria-pressed="${edit}" class="${dirty?'dirty':''}" title="${dirty?'Есть несохранённые правки':'Править SKILL.md и другие файлы скилла'}">${I.edit}Редактировать</button></div></div>`;
+ if(edit){a.innerHTML=head+editHtml(e,cell,ids);edOpen();edMount();const fl=a.querySelector('.edfiles'),fc=fl&&fl.querySelector('[aria-current=true]');if(fc&&(fc.offsetTop<fl.scrollTop||fc.offsetTop+fc.offsetHeight>fl.scrollTop+fl.clientHeight))fl.scrollTop=fc.offsetTop-fl.clientHeight/2;
+  if(taFocus&&ED.ta){ED.ta.focus({preventScroll:true});try{ED.ta.setSelectionRange(taSel[0],taSel[1])}catch{}ED.ta.scrollTop=taSel[2]}
+  a.querySelector('.dbody').scrollTop=sc;return}
+ const pc=PC_IDS(),pcMiss=pc.length&&pc.some(id=>!e.cells[id]||e.cells[id].disabled);
+ const acts=`<button class="btn sm" data-dact="copy">${I.copy}Копировать в…</button>`+(pcMiss?`<button class="btn sm" data-dact="everywhere" title="Скопировать и включить в ${esc(pc.map(id=>locById(id).label).join(', '))}">${I.pc}Включить везде на ПК</button>`:'')+(vn>1?`<button class="btn sm" data-dact="sync">${I.sync}Синхронизировать</button>`:'')+(u==='stale'?`<button class="btn sm primary" data-dact="update">${I.down}Обновить из skills.sh</button>`:'')+(loc&&loc.kind==='local'?`<button class="btn ghost sm" data-dact="reveal">${I.folder}Папка</button>`:'');
+ const state=on?`<span class="badge ok">${on===ids.length?'Включён':'Включён в '+on+' из '+ids.length}</span>`:'<span class="badge off">Отключён везде</span>';
+ const upTxt=u==='stale'?'<span class="badge acc">есть обновление в skills.sh</span>':u==='ok'?'<span class="badge ok">как в skills.sh</span>':u==='namesake'?'<span class="badge" title="В skills.sh есть другой скилл с таким же именем">тёзка в skills.sh</span>':u==='none'?'<span class="badge">не из skills.sh</span>':'';
+ const places=ids.map(id=>{const c=e.cells[id],l=locById(id);if(!l)return '';const vt=vn>1&&c.v!=='?'?'версия '+(c.v+1):'';
+  return `<div class="place${c.disabled?' off':''}${id===DET.loc?' cur':''}"><button class="pl" data-preview="${esc(id)}" title="Показать SKILL.md из этого места"><span class="dot${c.disabled?' off':''}" data-v="${c.v}"></span><span class="pt"><span class="pn">${esc(pname(l))}</span><span class="pm">${esc([c.disabled?'отключён':'',vt,c.mtime?'изменён '+fmtDay(c.mtime):''].filter(Boolean).join(' · '))}</span></span></button>`+
+   `<button class="sw sm" role="switch" aria-checked="${!c.disabled}" data-psw="${esc(id)}" aria-label="${c.disabled?'Включить':'Отключить'}: ${esc(l.label)}" title="${c.disabled?'Включить здесь':'Отключить здесь'}${id===DET.loc?' (Space)':''}"></button>`+
+   `<button class="btn ghost icon sm danger" data-pdel="${esc(id)}" aria-label="Удалить из ${esc(l.label)}" title="Удалить отсюда (в корзину)">${I.trash}</button></div>`}).join('');
+ const pending=dirty?`<div class="edinfo warn">${I.warn}<span>Есть несохранённые правки в <code>${esc(ED.path)}</code>.</span><button class="btn sm" data-mode="edit">Вернуться к правке</button></div>`:'';
+ a.innerHTML=head+`<div class="dbody">${pending}<p class="ddesc">${esc(e.desc||'Описание отсутствует')}</p><div class="dbadges">${state}${vn>1?`<span class="badge warn">${plural(vn,'версия','версии','версий')}</span>`:''}${upTxt}</div><div class="dacts">${acts}</div>
+ <div class="dsec"><h4>Где установлен <span>${ids.length}</span><span class="grow"></span><span class="khint" title="Включить или отключить скилл в выделенном месте"><kbd>Space</kbd> вкл/выкл</span></h4><div class="places-list">${places}</div></div>
+ <div class="dsec"><h4>SKILL.md <span>${esc(loc?loc.label:'')}</span><span class="grow"></span><span class="tabs" role="tablist"><button role="tab" data-tab="r" aria-selected="${DET.tab==='r'}">Оформление</button><button role="tab" data-tab="s" aria-selected="${DET.tab==='s'}">Исходник</button></span></h4><div class="preview" id="preview"></div></div></div>`;
+ fillPreview(e,cell);a.querySelector('.dbody').scrollTop=sc}
+function loadSK(ck,loc,name,off){if(SK[ck]!==undefined)return;SK[ck]=null;
+ api(`/api/skill?loc=${encodeURIComponent(loc)}&name=${encodeURIComponent(name)}${off?'&disabled=1':''}`).then(r=>{SK[ck]=r}).catch(err=>{SK[ck]={err:err.message}}).then(()=>{if(DET&&DET.name===name&&DET.loc===loc)paint()})}
+function fillPreview(e,cell){const box=$('#preview');if(!box||!DET)return;const off=!!(cell&&cell.disabled),ck=DET.loc+'|'+e.name+'|'+(off?1:0),r=SK[ck];
+ if(r&&r.err){box.innerHTML=`<div class="empty sm">${esc(r.err)}</div>`;return}
+ if(r){const mdText=String(r.markdown||'');if(DET.tab==='s'){box.innerHTML='<pre class="md">'+esc(mdText)+'</pre>';return}const{fm,body}=splitFm(mdText),files=r.files||[],total=files.reduce((s,f)=>s+f.size,0);
+  box.innerHTML=(fm?'<dl class="fm">'+fm.filter(([k])=>k!=='name'&&k!=='description').map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')+'</dl>':'').replace('<dl class="fm"></dl>','')+'<div class="mdv">'+md(body)+'</div>'+
+   (files.length?`<details class="files"><summary>Файлы скилла: ${files.length} · ${fmtSize(total)}</summary>${files.map(f=>`<div><span>${esc(f.path)}</span><span>${fmtSize(f.size)}</span></div>`).join('')}</details>`:'');return}
+ box.innerHTML='<div class="pskel"><i style="width:55%"></i><i></i><i style="width:80%"></i><i style="width:70%"></i></div>';
+ loadSK(ck,DET.loc,e.name,off)}
+
+/* ---------- editor ---------- */
+let ED=null,draftT=0,spaceBusy=false;const DRAFT='oly-skills-draft-v1';
+const BIN_RE=/\.(png|jpe?g|gif|webp|bmp|ico|icns|pdf|zip|gz|tgz|bz2|xz|7z|rar|jar|exe|dll|so|dylib|node|pyc|class|o|a|wasm|woff2?|ttf|otf|eot|mp[34]|m4a|wav|ogg|flac|mov|avi|webm|bin|dat|db|sqlite3?)$/i;
+const edKey=()=>DET?DET.loc+'|'+DET.name+'|'+(DET.file||'SKILL.md'):'';
+const edDirty=()=>!!(ED&&ED.orig!=null&&ED.text!==ED.orig);
+const nl=s=>String(s??'').replace(/\r\n?/g,'\n');
+const cellOf=(loc,name)=>index().get(name)?.cells[loc];
+const fileUrl=(loc,name,off,p)=>`/api/file?loc=${encodeURIComponent(loc)}&name=${encodeURIComponent(name)}${off?'&disabled=1':''}&path=${encodeURIComponent(p)}`;
+const fmtTime=ms=>new Date(ms).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+function editHtml(e,cell,ids){const off=!!(cell&&cell.disabled),ck=DET.loc+'|'+e.name+'|'+(off?1:0),r=SK[ck];if(r===undefined)loadSK(ck,DET.loc,e.name,off);
+ const cur=DET.file||'SKILL.md',files=r&&r.files?[...r.files].sort((x,y)=>(y.path==='SKILL.md')-(x.path==='SKILL.md')||x.path.localeCompare(y.path)):[{path:'SKILL.md',size:0}];
+ if(!files.some(f=>f.path===cur))files.unshift({path:cur,size:0});
+ const vn=e.versions.length,others=ids.length-1;
+ const opts=ids.map(id=>{const c=e.cells[id],l=locById(id);return l?`<option value="${esc(id)}"${id===DET.loc?' selected':''}>${esc(pname(l))}${c.disabled?' · отключён':''}${vn>1&&c.v!=='?'?' · версия '+(c.v+1):''}</option>`:''}).join('');
+ const list=files.map(f=>{const i=f.path.lastIndexOf('/'),dir=i<0?'':f.path.slice(0,i+1),base=f.path.slice(i+1),bin=BIN_RE.test(f.path),cu=f.path===cur;
+  return `<button class="edf${bin?' bin':''}${cu&&edDirty()&&ED.key===edKey()?' dirty':''}" data-edfile="${esc(f.path)}" aria-current="${cu}" title="${esc(f.path)}${bin?' — двоичный файл, только просмотр':''}"><span class="fp"><span class="fd">${esc(dir)}</span>${esc(base)}</span><span class="fs">${f.size?fmtSize(f.size):''}</span></button>`}).join('');
+ return `<div class="dbody ed"><div class="edcopy"><span class="edl">Копия</span><label class="sel"><span class="sr">Какую копию править</span><select class="input" data-edloc>${opts}</select>${I.chev}</label></div>${others?`<p class="edhint">Правка меняет только эту копию. ${others===1?'Вторую':'Остальные '+others} можно обновить через «Синхронизировать».</p>`:''}
+ <div class="edfh"><span>Файлы</span><span class="n">${r&&r.files?r.files.length:''}</span></div><div class="edfiles" role="list" aria-label="Файлы скилла">${list}</div>
+ <div class="edbar"></div><div class="edmsg" id="edmsg"></div><div id="edslot"></div></div>`}
+function edOpen(){const k=edKey();if(!k||ED&&ED.key===k)return;
+ const me=ED={key:k,loc:DET.loc,name:DET.name,path:DET.file||'SKILL.md',status:'loading',orig:null,text:'',eol:'\n',ta:null,disk:undefined,note:'',err:''};
+ const c=cellOf(me.loc,me.name);
+ api(fileUrl(me.loc,me.name,c&&c.disabled,me.path)).then(r=>{if(ED!==me)return;
+  if(r.binary){me.status='binary';me.size=r.size}else if(r.truncated||r.text==null){me.status='big';me.size=r.size}
+  else{me.eol=/\r\n/.test(r.text)?'\r\n':'\n';me.orig=nl(r.text);me.text=me.orig;me.status='ready';
+   const d=LSG(DRAFT,null);if(d&&d.key===me.key&&typeof d.text==='string'&&typeof d.orig==='string'&&d.text!==d.orig){me.text=d.text;me.note='draft:'+(d.at||0);if(d.orig!==me.orig){me.disk=me.orig;me.orig=d.orig;me.status='conflict'}}}
+  if(me.ta)me.ta.value=me.text;paint()}).catch(err=>{if(ED!==me)return;me.status='loaderr';me.err=err.message;paint()})}
+function edMount(){const slot=$('#edslot');if(!slot||!ED)return;
+ if(!ED.ta){const ta=document.createElement('textarea'),me=ED;ta.className='edta';ta.spellcheck=false;ta.setAttribute('autocomplete','off');ta.setAttribute('aria-label','Текст файла '+me.path);ta.value=me.text;
+  ta.addEventListener('input',()=>{if(ED!==me)return;me.text=ta.value;if(me.status==='saved')me.status='ready';edStatus();edDraft()});me.ta=ta}
+ slot.replaceWith(ED.ta);edStatus()}
+function edStatus(){const bar=$('#detail .edbar'),msg=$('#edmsg');if(!bar||!ED)return;const me=ED,d=edDirty(),s=me.status;
+ const st=s==='loading'?['load','Загрузка…']:s==='saving'?['load','Сохраняю…']:s==='conflict'?['err','Конфликт с диском']:s==='error'?['err','Не сохранено']:d?['dirty','Не сохранено']:s==='saved'?['ok','Сохранено в '+fmtTime(me.savedAt)]:['binary','big','loaderr'].includes(s)?['','Только просмотр']:['','Без изменений'];
+ const can=me.orig!=null&&d&&['ready','saved','error'].includes(s),sig=[s,d,can,st[1],me.note,me.err].join('|');
+ const ta=me.ta;if(ta){ta.hidden=!['ready','saved','saving','error','conflict'].includes(s);ta.readOnly=s==='saving'}
+ document.querySelector('#detail [data-mode=edit]')?.classList.toggle('dirty',d);
+ document.querySelectorAll('#detail .edf').forEach(b=>b.classList.toggle('dirty',d&&b.getAttribute('aria-current')==='true'));
+ if(bar.dataset.sig===sig)return;bar.dataset.sig=sig;
+ bar.innerHTML=`<code class="edpath" title="${esc(me.path)}">${esc(me.path)}</code><span class="edst" data-s="${st[0]}"${s==='saved'&&me.backup?` title="Прежняя версия скилла сохранена в корзине"`:''}>${esc(st[1])}</span><span class="grow"></span>`+
+  (d&&s!=='saving'&&s!=='conflict'?'<button class="btn ghost sm" data-ed="revert" title="Вернуть текст, как он сохранён на диске">Отменить правки</button>':'')+
+  (me.orig==null&&s!=='loading'?'':`<button class="btn primary sm" data-ed="save"${can?'':' disabled'} title="Сохранить (Ctrl+S). Прежняя версия скилла уйдёт в корзину">${I.save}Сохранить<kbd>Ctrl S</kbd></button>`);
+ const l=locById(me.loc);let m='';
+ if(s==='loading')m='<div class="pskel"><i style="width:55%"></i><i></i><i style="width:80%"></i><i style="width:70%"></i></div>';
+ else if(s==='conflict')m=`<div class="edwarn err" role="alert">${I.warn}<div class="t"><b>Файл изменился на диске</b><p>${me.disk==null?'Файла больше нет на диске или его не удалось прочитать.':'Его изменили после того, как вы открыли его здесь: агент, синхронизация или другой редактор.'} Ваши правки целы — выберите, что оставить.</p><div class="a"><button class="btn sm" data-ed="diff">Сравнить</button>${me.disk==null?'':'<button class="btn sm" data-ed="reload">Взять с диска</button>'}<button class="btn sm danger-outline" data-ed="force">Перезаписать моей версией</button></div></div></div>`;
+ else if(s==='error')m=`<div class="edwarn err" role="alert">${I.warn}<div class="t"><b>Не удалось сохранить</b><p>${esc(me.err)}</p><div class="a"><button class="btn sm" data-ed="save">Повторить</button></div></div></div>`;
+ else if(s==='binary')m=`<div class="edinfo">${I.doc}<span>Двоичный файл (${fmtSize(me.size||0)}) — правка здесь недоступна.</span>${l&&l.kind==='local'?'<button class="btn sm" data-dact="reveal">Открыть папку</button>':''}</div>`;
+ else if(s==='big')m=`<div class="edinfo">${I.doc}<span>Файл больше 512 КБ (${fmtSize(me.size||0)}) — откройте его во внешнем редакторе.</span>${l&&l.kind==='local'?'<button class="btn sm" data-dact="reveal">Открыть папку</button>':''}</div>`;
+ else if(s==='loaderr')m=`<div class="edwarn err" role="alert">${I.warn}<div class="t"><b>Не удалось открыть файл</b><p>${esc(me.err)}</p><div class="a"><button class="btn sm" data-ed="retry">Повторить</button></div></div></div>`;
+ else if(d&&me.note.startsWith('draft:'))m=`<div class="edinfo">${I.save}<span>Восстановлен несохранённый черновик${+me.note.slice(6)?' от '+esc(fmtDate(+me.note.slice(6))):''}.</span><button class="btn sm" data-ed="dropdraft">Отбросить</button></div>`;
+ msg.innerHTML=m}
+function edDraft(){clearTimeout(draftT);draftT=setTimeout(edDraftNow,400)}
+function edDraftNow(){clearTimeout(draftT);if(ED&&edDirty())LSS(DRAFT,{key:ED.key,orig:ED.orig,text:ED.text,at:Date.now()});else if(ED&&LSG(DRAFT,null)?.key===ED.key)edDropDraft()}
+function edDropDraft(){clearTimeout(draftT);try{localStorage.removeItem(DRAFT)}catch{}}
+function edSetText(t){const me=ED;me.orig=me.text=t;me.status='ready';me.disk=undefined;me.note='';me.err='';if(me.ta)me.ta.value=t;edDropDraft();edStatus()}
+async function edSave(force){const me=ED;if(!me||me.orig==null||me.status==='saving')return false;if(!edDirty()&&!force)return true;
+ const c=cellOf(me.loc,me.name);if(!c){toast('Эта копия скилла больше не найдена',true);return false}
+ const prev=me.status;me.status='saving';edStatus();
+ try{if(!force){let cur=null;try{cur=await api(fileUrl(me.loc,me.name,c.disabled,me.path))}catch(err){if(!/не найден/i.test(err.message))throw err}
+   const disk=cur&&cur.text!=null?nl(cur.text):null;if(disk!==me.orig){me.status='conflict';me.disk=disk;edStatus();return false}}
+  const text=me.text,content=me.eol==='\r\n'?text.replace(/\n/g,'\r\n'):text;
+  const r=await api('/api/write',{loc:me.loc,name:me.name,disabled:!!c.disabled,path:me.path,content});
+  me.orig=text;me.status='saved';me.savedAt=Date.now();me.disk=undefined;me.note='';me.err='';me.backup=r.backup||'';
+  if(LSG(DRAFT,null)?.key===me.key)edDropDraft();edStatus();
+  toast('Сохранено: '+me.name+' / '+me.path+(r.backup?' — прежняя версия в корзине':''));refreshLocs([me.loc]);return true}
+ catch(err){me.status=prev==='conflict'&&!force?'conflict':'error';me.err=err.message;if(me.status==='conflict')toast(err.message,true);edStatus();return false}}
+async function edCheckDisk(){const me=ED;if(!me||me.orig==null||!['ready','saved'].includes(me.status)||!DET||DET.mode!=='edit')return;const c=cellOf(me.loc,me.name);if(!c)return;
+ let cur=null;try{cur=await api(fileUrl(me.loc,me.name,c.disabled,me.path))}catch{}
+ if(ED!==me||!['ready','saved'].includes(me.status))return;const disk=cur&&cur.text!=null?nl(cur.text):null;if(disk===me.orig)return;
+ if(!edDirty()&&disk!=null){edSetText(disk);toast('«'+me.path+'» изменился на диске — показана новая версия')}else{me.status='conflict';me.disk=disk;edStatus()}}
+function guard(next){if(!edDirty())return next();const me=ED;
+ const o=dialog('Сохранить изменения?',`<p>В файле <code>${esc(me.path)}</code> скилла «${esc(me.name)}» есть несохранённые правки.</p><p class="src">${esc(locById(me.loc)?.label||me.loc)}</p>`,'<button class="btn ghost danger" id="gdrop">Не сохранять</button><span class="grow"></span><button class="btn" data-close>Отмена</button><button class="btn primary" id="gsave">Сохранить</button>');
+ o.querySelector('#gdrop').onclick=()=>{if(LSG(DRAFT,null)?.key===me.key)edDropDraft();if(ED===me)ED=null;closeDlg(o);next()};
+ o.querySelector('#gsave').onclick=async()=>{closeDlg(o);if(await edSave())next()}}
+function edAction(a){const me=ED;if(!me)return;
+ if(a==='save')return edSave();if(a==='force')return edSave(true);
+ if(a==='revert'){edSetText(me.orig);return me.ta&&me.ta.focus()}
+ if(a==='reload'){if(me.disk!=null)edSetText(me.disk);return}
+ if(a==='diff')return diffDialog();
+ if(a==='retry'||a==='dropdraft'){if(a==='dropdraft')edDropDraft();ED=null;return paint()}}
+function diffLines(a,b){const A=a.split('\n'),B=b.split('\n');let p=0;while(p<A.length&&p<B.length&&A[p]===B[p])p++;let s=0;while(s<A.length-p&&s<B.length-p&&A[A.length-1-s]===B[B.length-1-s])s++;
+ const a2=A.slice(p,A.length-s),b2=B.slice(p,B.length-s),n=a2.length,m=b2.length,out=A.slice(0,p).map(x=>[' ',x]);
+ if(n*m>4e6){out.push(...a2.map(x=>['-',x]),...b2.map(x=>['+',x]))}
+ else{const W=m+1,T=new Uint32Array((n+1)*W);for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)T[i*W+j]=a2[i]===b2[j]?T[(i+1)*W+j+1]+1:Math.max(T[(i+1)*W+j],T[i*W+j+1]);
+  let i=0,j=0;while(i<n&&j<m){if(a2[i]===b2[j]){out.push([' ',a2[i]]);i++;j++}else if(T[(i+1)*W+j]>=T[i*W+j+1])out.push(['-',a2[i++]]);else out.push(['+',b2[j++]])}
+  while(i<n)out.push(['-',a2[i++]]);while(j<m)out.push(['+',b2[j++]])}
+ out.push(...A.slice(A.length-s).map(x=>[' ',x]));return out}
+function diffDialog(){const me=ED;if(!me)return;const ops=diffLines(me.disk??'',me.text);let h='',run=[];
+ const flush=last=>{if(run.length>8){h+=run.slice(0,3).join('')+`<div class="dl gap">… ${plural(run.length-(last?3:6),'строка','строки','строк')} без изменений</div>`+(last?'':run.slice(-3).join(''))}else h+=run.join('');run=[]};
+ for(const[t,x]of ops){const line=`<div class="dl${t==='-'?' del':t==='+'?' add':''}"><i>${t==='-'?'−':t==='+'?'+':''}</i><span>${esc(x)||' '}</span></div>`;if(t===' ')run.push(line);else{flush(false);h+=line}}flush(true);
+ const add=ops.filter(x=>x[0]==='+').length,del=ops.filter(x=>x[0]==='-').length;
+ const o=dialog('Сравнение «'+me.path+'»',`<p class="hint" style="margin-top:0"><span class="dl-k del">− на диске</span> <span class="dl-k add">+ ваша версия</span> · изменено строк: ${add+del}</p><div class="diff">${h||'<div class="empty sm">Текст совпадает</div>'}</div>`,`<button class="btn" data-close>Закрыть</button><span class="grow"></span>${me.disk==null?'':'<button class="btn" id="dreload">Взять с диска</button>'}<button class="btn primary" id="dforce">Перезаписать моей версией</button>`,true);
+ o.querySelector('#dreload')?.addEventListener('click',()=>{closeDlg(o);if(ED===me)edAction('reload')});
+ o.querySelector('#dforce').onclick=()=>{closeDlg(o);if(ED===me)edSave(true)}}
+
+/* «Включить везде на ПК»: Claude Code + Codex + общие .agents этого компьютера */
+function everywhereDialog(name){const e=index().get(name),pc=PC_IDS();if(!e)return;if(!pc.length)return toast('Папки агентов на этом компьютере не найдены',true);
+ const ids=Object.keys(e.cells).sort((a,b)=>locOrder(a)-locOrder(b)),vn=e.versions.length;
+ const def=(DET&&DET.name===name&&e.cells[DET.loc]&&!e.cells[DET.loc].disabled&&DET.loc)||ids.filter(id=>!e.cells[id].disabled).sort((a,b)=>(e.cells[b].mtime||0)-(e.cells[a].mtime||0))[0]||ids[0];
+ const vlab=c=>vn>1&&c.v!=='?'?' · версия '+(c.v+1):'';
+ const o=dialog('Включить везде на ПК',`<p class="hint" style="margin-top:0"><b class="hl">${esc(name)}</b> станет доступен всем агентам этого компьютера: ${pc.map(id=>esc(locById(id).label)).join(', ')}. Чего не хватает — скопируется из образца, отключённые копии включатся.</p>
+  <div class="tgroup">Образец</div><div class="targets">${ids.map(id=>{const c=e.cells[id],l=locById(id);return `<label><input type="radio" name="src" value="${esc(id)}"${id===def?' checked':''}> ${esc(l.label)}<span class="meta"><span class="dot${c.disabled?' off':''}" data-v="${c.v}"></span>${esc((c.disabled?'отключён':'')+vlab(c)+(c.mtime?' · '+fmtDay(c.mtime):'')).replace(/^ · /,'')}</span></label>`}).join('')}</div>
+  <div class="tgroup">Что будет сделано</div><div class="box" id="eplan"></div><label class="opt" id="eow" hidden><input type="checkbox" id="ow"> Заменить отличающиеся копии образцом (прежние уйдут в корзину)</label>`,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Включить везде</button>');
+ const ok=o.querySelector('#ok');
+ const plan=()=>{const src=o.querySelector('input[name=src]:checked').value,sc=e.cells[src],ow=o.querySelector('#ow').checked;
+  return{src,sc,steps:pc.map(id=>{const c=e.cells[id];
+   if(id===src)return{id,act:c.disabled?'enable':'none',txt:c.disabled?'образец — будет включён':'образец — уже включён'};
+   if(!c)return{id,act:'copy',txt:'будет скопирован из образца'};
+   const differ=!!(c.hash&&sc.hash&&c.hash!==sc.hash);
+   if(c.disabled)return{id,differ,act:differ&&ow?'enable+replace':'enable',txt:differ?(ow?'будет включён и заменён образцом':'будет включён — останется своя версия'):'будет включён'};
+   if(differ&&ow)return{id,differ,act:'replace',txt:'будет заменён образцом'};
+   return{id,differ,act:'none',txt:differ?'уже включён — своя версия':c.hash&&sc.hash?'уже включён, совпадает с образцом':'уже включён'}})}};
+ const fill=()=>{const p=plan();o.querySelector('#eplan').innerHTML=p.steps.map(x=>`<div class="res"><span class="ri${x.act==='none'?' idle':''}">${x.act==='none'?I.check:x.act==='copy'?I.copy:x.act==='replace'?I.sync:I.check}</span><div class="txt"><div class="name">${esc(locById(x.id).label)}</div><div class="rs">${esc(x.txt)}</div></div></div>`).join('');
+  o.querySelector('#eow').hidden=!p.steps.some(x=>x.differ);ok.disabled=p.steps.every(x=>x.act==='none')};
+ fill();o.querySelectorAll('input[name=src]').forEach(r=>r.onchange=fill);o.querySelector('#ow').onchange=fill;
+ ok.onclick=()=>runBtn(ok,'Включаю…',async()=>{const{src,sc,steps}=plan(),res={},note=(id,good,t)=>{res[id]={ok:good,t}};
+  const cp=steps.filter(x=>x.act==='copy').map(x=>x.id);
+  if(cp.length){try{const r=await api('/api/copy',{from:src,name,to:cp,overwrite:false,disabled:!!sc.disabled});for(const x of r.results)note(x.id,x.ok,x.ok?'скопирован и включён':x.error)}catch(err){cp.forEach(id=>note(id,false,err.message))}}
+  for(const x of steps.filter(x=>x.id!==src&&x.act.startsWith('enable'))){try{await api('/api/toggle',{loc:x.id,name,enable:true});note(x.id,true,'включён')}catch(err){note(x.id,false,err.message)}}
+  const rp=steps.filter(x=>(x.act==='replace'||x.act==='enable+replace')&&(!res[x.id]||res[x.id].ok)).map(x=>x.id);
+  if(rp.length){try{const r=await api('/api/copy',{from:src,name,to:rp,overwrite:true,disabled:!!sc.disabled});for(const x of r.results)note(x.id,x.ok,x.ok?(res[x.id]?'включён и заменён образцом':'заменён образцом'):x.error)}catch(err){rp.forEach(id=>note(id,false,err.message))}}
+  if(steps.some(x=>x.id===src&&x.act==='enable')){try{await api('/api/toggle',{loc:src,name,enable:true});note(src,true,'включён (образец)')}catch(err){note(src,false,err.message)}}
+  for(const x of steps)if(!res[x.id])note(x.id,true,'уже был включён');
+  const bad=steps.filter(x=>!res[x.id].ok).length;
+  o.querySelector('.dh h3').textContent=bad?'Есть ошибки':'Готово';
+  o.querySelector('.body').innerHTML=`<p class="hint" style="margin-top:0">${bad?`Не получилось в ${plural(bad,'месте','местах','местах')} — подробности ниже.`:'<b class="hl">'+esc(name)+'</b> доступен Claude Code, Codex и агентам с общей папкой .agents.'}</p><div class="box">`+steps.map(x=>{const r=res[x.id];return `<div class="res"><span class="ri ${r.ok?'ok':'bad'}">${r.ok?I.check:I.x}</span><div class="txt"><div class="name">${esc(locById(x.id).label)}</div><div class="rs${r.ok?'':' err-text'}">${esc(r.t)}</div></div></div>`}).join('')+'</div>';
+  o.querySelector('footer').innerHTML='<button class="btn primary" data-close>Готово</button>';o.querySelector('footer .primary').focus();
+  toast(bad?'Включено не везде: ошибок '+bad:'«'+name+'» включён везде на ПК',!!bad);await refreshLocs(pc)})}
+function dialog(title,bodyHtml,footHtml,wide){const o=document.createElement('div');o.className='overlay';o.dataset.modal='';o.innerHTML=`<div class="dialog${wide?' wide':''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="dh"><h3>${esc(title)}</h3><span class="grow"></span><span class="dh-extra"></span><button class="btn ghost icon" data-close title="Закрыть" aria-label="Закрыть">${I.x}</button></div><div class="body">${bodyHtml}</div>${footHtml?'<footer>'+footHtml+'</footer>':''}</div>`;
+ o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-close]'))closeDlg(o)});document.body.appendChild(o);setTimeout(()=>{const f=o.querySelector('input:not([type=checkbox]):not([type=radio]),textarea')||o.querySelector('footer .primary');f&&document.activeElement===document.body&&f.focus()},0);return o}
+function closeDlg(o){o.remove();paint()}
+
+function targetsHtml(preselect,exclude,meta){const g={};for(const l of LOCS){if(exclude&&exclude.includes(l.id))continue;(g[l.group]=g[l.group]||[]).push(l)}
+ return Object.entries(g).map(([group,ls])=>`<div class="tgroup">${esc(group)}${ls.length>1&&ls.every(l=>l.kind==='local'&&!l.project)?'<button type="button" class="tall" data-tgall title="Claude Code + Codex + Общие (.agents)">Все на ПК</button>':''}</div><div class="targets">`+ls.map(l=>`<label><input type="checkbox" value="${esc(l.id)}"${preselect.includes(l.id)?' checked':''}> ${esc(l.label)}${l.t3?' <span class="badge">T3</span>':''}<span class="meta">${meta?meta(l):''}</span></label>`).join('')+'</div>').join('')}
+const OW='<label class="opt"><input type="checkbox" id="ow"> Заменять, если скилл уже есть (старая версия уйдёт в корзину)</label>';
+const picked=o=>[...o.querySelectorAll('.targets input:checked')].map(i=>i.value);
+function report(results,what){const ok=results.filter(r=>r.ok).length;if(ok)toast(`${what}: готово в ${plural(ok,'месте','местах','местах')}`);for(const r of results.filter(r=>!r.ok))toast((locById(r.id)?.label||r.id)+': '+r.error,true)}
+async function runBtn(btn,label,fn){const t=btn.textContent;btn.disabled=true;btn.textContent=label;try{await fn()}catch(err){toast(err.message,true);btn.disabled=false;btn.textContent=t}}
+
+
+function mdInline(s){const codes=[];s=s.replace(/`([^`]+)`/g,(_,c)=>{codes.push(c);return '\u0000'+(codes.length-1)+'\u0000'});s=esc(s)
+ .replace(/!\[([^\]]*)\]\([^)]*\)/g,'$1').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(_,t,u)=>/^(https?:|mailto:)/.test(u)?`<a href="${u}" target="_blank" rel="noopener noreferrer">${t}</a>`:`<span class="lnk" title="${u}">${t}</span>`)
+ .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^\w])__(.+?)__(?!\w)/g,'$1<strong>$2</strong>').replace(/(^|[^*\w])\*(?!\s)(.+?)\*(?!\w)/g,'$1<em>$2</em>').replace(/(^|[^\w])_(?!\s)(.+?)_(?!\w)/g,'$1<em>$2</em>').replace(/~~(.+?)~~/g,'<del>$1</del>')
+ .replace(/^\[ \] /,'☐ ').replace(/^\[[xX]\] /,'☑ ');
+ return s.replace(/\u0000(\d+)\u0000/g,(_,n)=>'<code>'+esc(codes[n])+'</code>')}
+function md(src){const L=src.replace(/\r\n?/g,'\n').split('\n');let h='',i=0;
+ const isBlock=l=>/^\s*(```|~~~|#{1,6}\s|>|([-*+]|\d+[.)])\s)/.test(l)||/^\s*([-*_])(\s*\1){2,}\s*$/.test(l);
+ while(i<L.length){const l=L[i];
+  let m=/^(\s*)(```|~~~)(.*)$/.exec(l);if(m){const fence=m[2];const buf=[];i++;while(i<L.length&&!L[i].trim().startsWith(fence))buf.push(L[i++]);i++;h+='<pre><code>'+esc(buf.join('\n'))+'</code></pre>';continue}
+  if(!l.trim()){i++;continue}
+  if((m=/^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(l))){h+=`<h${m[1].length}>${mdInline(m[2])}</h${m[1].length}>`;i++;continue}
+  if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)){h+='<hr>';i++;continue}
+  if(l.includes('|')&&i+1<L.length&&/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(L[i+1])){const cells=r=>r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+   const head=cells(l);i+=2;let t='<table><thead><tr>'+head.map(c=>'<th>'+mdInline(c)+'</th>').join('')+'</tr></thead><tbody>';
+   while(i<L.length&&L[i].includes('|')&&L[i].trim()){t+='<tr>'+cells(L[i]).map(c=>'<td>'+mdInline(c)+'</td>').join('')+'</tr>';i++}h+=t+'</tbody></table>';continue}
+  if(/^\s*>/.test(l)){const buf=[];while(i<L.length&&/^\s*>/.test(L[i]))buf.push(L[i++].replace(/^\s*>\s?/,''));h+='<blockquote>'+md(buf.join('\n'))+'</blockquote>';continue}
+  if(/^\s*([-*+]|\d+[.)])\s+/.test(l)){const items=[];
+   while(i<L.length){const x=L[i];const mm=/^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(x);if(mm){items.push({ind:mm[1].replace(/\t/g,'    ').length,ord:/\d/.test(mm[2]),text:mm[3]});i++;continue}
+    if(x.trim()&&/^\s{2,}/.test(x)&&items.length&&!/^\s*(```|~~~)/.test(x)){items[items.length-1].text+=' '+x.trim();i++;continue}break}
+   const st=[];for(const it of items){while(st.length&&it.ind<st[st.length-1].ind)h+='</li></'+st.pop().tag+'>';const top=st[st.length-1];
+    if(!top||it.ind>top.ind){const tag=it.ord?'ol':'ul';st.push({ind:it.ind,tag});h+='<'+tag+'><li>'+mdInline(it.text)}else h+='</li><li>'+mdInline(it.text)}
+   while(st.length)h+='</li></'+st.pop().tag+'>';continue}
+  const buf=[];while(i<L.length&&L[i].trim()&&!(buf.length&&isBlock(L[i])))buf.push(L[i++].trim());h+='<p>'+buf.map(mdInline).join('<br>')+'</p>'}
+ return h}
+function splitFm(text){const t=text.replace(/^﻿/,'').replace(/\r\n/g,'\n');const m=/^---\n([\s\S]*?)\n---\n?/.exec(t);if(!m)return{fm:null,body:t};
+ const fm=[];const lines=m[1].split('\n');for(let i=0;i<lines.length;i++){const kv=/^([A-Za-z_-]+):\s*(.*)$/.exec(lines[i]);if(!kv)continue;let v=kv[2].trim();
+  if(/^[>|][+-]?$/.test(v)||v===''){const p=[];while(i+1<lines.length&&(/^\s+\S/.test(lines[i+1])||!lines[i+1].trim())){i++;if(lines[i].trim())p.push(lines[i].trim())}v=p.join(' ')}fm.push([kv[1],v.replace(/^["']|["']$/g,'')])}
+ return{fm,body:t.slice(m[0].length)}}
+
+function copyDialog(fromId,items){const title=items.length===1?'Копировать «'+items[0].name+'» в…':'Копировать '+plural(items.length,'скилл','скилла','скиллов')+' в…';
+ const o=dialog(title,targetsHtml([],[fromId])+OW,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Копировать</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const to=picked(o);if(!to.length)return toast('Выберите, куда копировать',true);
+  runBtn(ok,'Копирую…',async()=>{const all=[];for(const it of items){const r=await api('/api/copy',{from:it.from||fromId,name:it.name,to,overwrite:o.querySelector('#ow').checked,disabled:!!it.disabled});all.push(...r.results.map(x=>({...x,error:x.error&&items.length>1?it.name+': '+x.error:x.error})))}
+   closeDlg(o);report(all,items.length===1?'Скопировано':'Скопировано');SEL.clear();await refreshLocs(to)})}}
+
+function deleteDialog(locId,items){const l=locById(locId);const one=items.length===1;
+ const o=dialog(one?'Удалить «'+items[0].name+'»?':'Удалить '+plural(items.length,'скилл','скилла','скиллов')+'?',`<p>${one?'Скилл будет перемещён':'Скиллы будут перемещены'} в корзину (${l.kind==='ssh'?'~/.skills-trash на сервере':'caches/skills-trash в каталоге данных'}), ${one?'его':'их'} можно вернуть вручную.</p>${one?'':'<p class="src">'+items.map(i=>esc(i.name)).join(', ')+'</p>'}`,'<button class="btn" data-close>Отмена</button><button class="btn solid-danger" id="ok">Удалить</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>runBtn(ok,'Удаляю…',async()=>{let n=0;for(const it of items){try{await api('/api/delete',{loc:locId,name:it.name,disabled:!!it.disabled});n++}catch(e){toast(it.name+': '+e.message,true)}}
+  closeDlg(o);if(n)toast('Удалено: '+(one?items[0].name:n));SEL.clear();await refreshLocs([locId])})}
+
+async function toggle(locId,items,enable){let n=0;for(const it of items){try{await api('/api/toggle',{loc:locId,name:it.name,enable});n++}catch(e){toast(it.name+': '+e.message,true)}}
+ if(n)toast((enable?'Включено: ':'Отключено: ')+(items.length===1?items[0].name:n)+(enable?'':' — агент перестанет его видеть, файлы перенесены в skills.disabled'));SEL.clear();await refreshLocs([locId])}
+
+function syncDialog(names){const idx=index();const list=names.map(n=>idx.get(n)).filter(Boolean);if(!list.length)return;
+ if(list.length===1){const e=list[0];const ids=Object.keys(e.cells);const newest=ids.filter(id=>!e.cells[id].disabled).sort((a,b)=>(e.cells[b].mtime||0)-(e.cells[a].mtime||0))[0]||ids[0];
+  const vlab=c=>c.v==='?'?'?':'версия '+(c.v+1);
+  const body=`<p class="hint" style="margin-top:0">Выберите копию-образец — она заменит остальные. Старые версии уйдут в корзину.</p><div class="tgroup">Образец</div><div class="targets">`+
+   ids.map(id=>{const c=e.cells[id],l=locById(id);return `<label><input type="radio" name="src" value="${esc(id)}"${id===newest?' checked':''}> ${esc(l.label)}<span class="meta"><span class="dot${c.disabled?' off':''}" data-v="${c.v}"></span>${vlab(c)}${c.mtime?' · '+fmtDate(c.mtime):''}${c.disabled?' · отключён':''}</span></label>`}).join('')+'</div>'+
+   `<div class="tgroup">Куда записать</div><div class="targets" id="stg"></div><details style="margin-top:10px"><summary class="hint" style="cursor:pointer">Добавить в другие расположения</summary>${targetsHtml([],ids)}</details>`;
+  const o=dialog('Синхронизировать «'+e.name+'»',body,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Синхронизировать</button>');
+  const fill=()=>{const src=o.querySelector('input[name=src]:checked').value,sh=e.cells[src].hash;o.querySelector('#stg').innerHTML=ids.filter(id=>id!==src&&!e.cells[id].disabled).map(id=>{const c=e.cells[id];return `<label><input type="checkbox" value="${esc(id)}"${!sh||c.hash!==sh?' checked':''}> ${esc(locById(id).label)}<span class="meta">${c.hash===sh?'уже совпадает':vlab(c)}</span></label>`}).join('')||'<div class="empty" style="padding:12px">Других копий нет</div>'};
+  fill();o.querySelectorAll('input[name=src]').forEach(r=>r.onchange=fill);
+  const ok=o.querySelector('#ok');ok.onclick=()=>{const src=o.querySelector('input[name=src]:checked').value,to=picked(o).filter(x=>x!==src);if(!to.length)return toast('Нечего синхронизировать',true);
+   runBtn(ok,'Синхронизирую…',async()=>{const r=await api('/api/copy',{from:src,name:e.name,to,overwrite:true,disabled:!!e.cells[src].disabled});closeDlg(o);report(r.results,'Синхронизировано «'+e.name+'»');await refreshLocs(to)})};return}
+ const plan=list.map(e=>{const ids=Object.keys(e.cells).filter(id=>!e.cells[id].disabled);const src=ids.sort((a,b)=>(e.cells[b].mtime||0)-(e.cells[a].mtime||0))[0];const sh=src&&e.cells[src].hash;return{e,src,to:ids.filter(id=>id!==src&&sh&&e.cells[id].hash&&e.cells[id].hash!==sh)}}).filter(p=>p.to.length);
+ if(!plan.length)return toast('У выбранных скиллов все копии одинаковые');
+ const o=dialog('Синхронизировать '+plural(plan.length,'скилл','скилла','скиллов'),'<p class="hint" style="margin-top:0">Образец — самая свежая копия каждого скилла; она заменит отличающиеся. Старые версии уйдут в корзину.</p><div class="box">'+plan.map(p=>`<div class="res"><div class="txt"><div class="name">${esc(p.e.name)}</div><div class="src">${esc(locById(p.src).label)} → ${p.to.map(id=>esc(locById(id).label)).join(', ')}</div></div></div>`).join('')+'</div>','<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Синхронизировать</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>runBtn(ok,'Синхронизирую…',async()=>{const all=[],ids=new Set();for(const p of plan){const r=await api('/api/copy',{from:p.src,name:p.e.name,to:p.to,overwrite:true});all.push(...r.results.map(x=>({...x,error:x.error&&p.e.name+': '+x.error})));p.to.forEach(x=>ids.add(x))}
+  closeDlg(o);report(all,'Синхронизировано');SEL.clear();await refreshLocs([...ids])})}
+
+const normD=s=>String(s||'').toLowerCase().replace(/[^a-zа-яё0-9]+/g,' ').trim().slice(0,80);
+const sameSkill=(up,e)=>up.via==='registry'||(normD(up.description)&&normD(up.description)===normD(e.desc))||Object.values(e.cells).some(c=>c.hash===up.hash);
+async function upCheck(){const names=[...index().keys()];if(!names.length)return;upBusy=true;paint();
+ try{UP=await api('/api/upstream',{names});const idx=index();const n=names.filter(nm=>UP[nm]&&UP[nm].hash&&sameSkill(UP[nm],idx.get(nm))).length;
+  const stale=names.filter(nm=>UP[nm]&&UP[nm].hash&&sameSkill(UP[nm],idx.get(nm))&&Object.values(idx.get(nm).cells).some(c=>c.hash&&c.hash!==UP[nm].hash)).length;
+  toast(n?`skills.sh: найдено ${plural(n,'скилл','скилла','скиллов')}, ${stale?'обновить можно '+stale:'всё актуально'}`:'В каталоге skills.sh совпадений нет')}
+ catch(e){toast(e.message,true)}upBusy=false;paint()}
+function updateDialog(name){const up=UP&&UP[name];const e=index().get(name);if(!up||!e)return;const ids=Object.keys(e.cells).filter(id=>!e.cells[id].disabled);
+ const o=dialog('Обновить «'+name+'» из skills.sh',`<p class="src" style="margin-top:0">${esc(up.source)} · ${up.via==='registry'?'установлен отсюда этим менеджером':'найден в каталоге по имени'}${up.installs?' · '+Number(up.installs).toLocaleString('ru-RU')+' установок':''}</p><p class="hint">Отмеченные копии будут заменены версией из skills.sh, текущие уйдут в корзину. Локальные правки в них пропадут.</p><div class="targets">`+
+  ids.map(id=>{const c=e.cells[id];return `<label><input type="checkbox" value="${esc(id)}"${c.hash!==up.hash?' checked':''}> ${esc(locById(id).label)}<span class="meta">${c.hash===up.hash?'уже актуален':c.mtime?'изменён '+fmtDate(c.mtime):''}</span></label>`}).join('')+'</div>',
+  '<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Обновить</button>');
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const to=picked(o);if(!to.length)return toast('Выберите копии для обновления',true);
+  runBtn(ok,'Обновляю…',async()=>{const r=await api('/api/install',{source:up.source,skillId:up.skillId,name,to,overwrite:true});closeDlg(o);report(r.results,'Обновлено «'+name+'»');await refreshLocs(to)})}}
+
+function template(name,desc){const title=name.replace(/[-_.]+/g,' ').replace(/^./,c=>c.toUpperCase());desc=String(desc||'').replace(/\s+/g,' ').trim()||`Use when … (опишите, в каких задачах агенту применять скилл «${name}»).`;
+ return `---\nname: ${name}\ndescription: ${/[:#]/.test(desc)?JSON.stringify(desc):desc}\n---\n\n# ${title}\n\n## Когда использовать\n\n- …\n\n## Порядок работы\n\n1. …\n2. …\n3. …\n\n## Проверка результата\n\n- …\n`}
+function createDialog(){const cur=locById(view);const pre=cur?[cur.id]:['local:user:claude'];
+ const o=dialog('Новый скилл',`<label class="field"><span>Имя (папка и name в SKILL.md): латиница, цифры, «-», «_», «.»</span><input class="input" id="cn" placeholder="my-skill" spellcheck="false"></label><div class="err-text" id="cerr"></div>
+  <label class="field"><span>Описание — когда агенту применять скилл</span><textarea class="input" id="cd" rows="2" placeholder="Use when …"></textarea></label>
+  <label class="field"><span>SKILL.md</span><textarea class="input" id="cm" rows="12" spellcheck="false" style="font:12.5px/1.5 ui-monospace,Consolas,monospace"></textarea></label>
+  <div class="tgroup">Куда создать</div>${targetsHtml(pre,null)}`,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="ok">Создать</button>',true);
+ const n=o.querySelector('#cn'),d=o.querySelector('#cd'),m=o.querySelector('#cm');let touched=false;
+ const upd=()=>{const nm=n.value.trim();o.querySelector('#cerr').textContent=nm&&!NAME_RE.test(nm)?'Недопустимое имя':(nm&&index().has(nm)?'Скилл с таким именем уже есть — будет создан только там, где его нет':'');if(!touched)m.value=template(nm||'my-skill',d.value)};
+ n.oninput=upd;d.oninput=upd;m.oninput=()=>{touched=true};upd();n.focus();
+ const ok=o.querySelector('#ok');ok.onclick=()=>{const nm=n.value.trim();if(!NAME_RE.test(nm))return toast('Укажите имя скилла',true);const to=picked(o);if(!to.length)return toast('Выберите, куда создать',true);
+  runBtn(ok,'Создаю…',async()=>{const r=await api('/api/create',{name:nm,description:d.value,markdown:m.value,to});closeDlg(o);report(r.results,'Создан «'+nm+'»');await refreshLocs(to)})}}
+
+function addDialog(){const o=dialog('Добавить из skills.sh','<div style="display:flex;gap:8px;margin-bottom:10px"><input class="input" id="sq" placeholder="Например: frontend, pdf, testing" style="flex:1"><button class="btn" id="sgo">Найти</button></div><div id="sres" class="empty">Поиск по каталогу skills.sh</div>');
+ const go=async()=>{const v=o.querySelector('#sq').value.trim();if(!v)return;const box=o.querySelector('#sres');box.className='empty';box.textContent='Ищу…';
+  try{const res=await api('/api/search?q='+encodeURIComponent(v));if(!res.length){box.textContent='Ничего не найдено';return}const idx=index();
+   box.className='box';box.innerHTML=res.map(s=>`<div class="res"><div class="txt"><div class="name"><span>${esc(s.name)}</span>${idx.has(s.skillId)?'<span class="badge ok">установлен</span>':''}</div><div class="src">${esc(s.source)} · ${Number(s.installs||0).toLocaleString('ru-RU')} установок</div></div><button class="btn" data-install="${esc(s.source)}|${esc(s.skillId)}">Установить…</button></div>`).join('')}
+  catch(err){box.textContent=err.message}};
+ o.querySelector('#sgo').onclick=go;o.querySelector('#sq').addEventListener('keydown',e=>{if(e.key==='Enter')go()});o.querySelector('#sq').focus();
+ o.addEventListener('click',e=>{const b=e.target.closest('[data-install]');if(!b)return;const[source,skillId]=b.dataset.install.split('|');const cur=locById(view);
+  const t=dialog('Установить «'+skillId+'»',`<p class="src" style="margin-top:0">${esc(source)}</p>`+targetsHtml(cur?[cur.id]:['local:user:claude'],null)+OW,'<button class="btn" data-close>Отмена</button><button class="btn primary" id="iok">Установить</button>');
+  const btn=t.querySelector('#iok');btn.onclick=()=>{const to=picked(t);if(!to.length)return toast('Выберите, куда установить',true);
+   runBtn(btn,'Устанавливаю…',async()=>{const r=await api('/api/install',{source,skillId,to,overwrite:t.querySelector('#ow').checked});closeDlg(t);report(r.results,'Установлено «'+skillId+'»');await refreshLocs(to)})}})}
+
+/* ---------- events ---------- */
+document.addEventListener('change',e=>{const c=e.target;if(c.closest('.overlay'))return;
+ if(c.dataset.skillFilter==='agent'){skillAgent=c.value;return render()}
+ if(c.dataset.edloc!=null&&DET){const v=c.value;return guard(()=>{DET.loc=v;DET.file='SKILL.md';paint()})}
+ if(c.type!=='checkbox')return;
+ if(c.dataset.selall){const rows=[...document.querySelectorAll('#main input[data-sel]')];for(const r of rows)c.checked?SEL.add(r.dataset.sel):SEL.delete(r.dataset.sel);return paint()}
+ if(c.dataset.sel!=null){c.checked?SEL.add(c.dataset.sel):SEL.delete(c.dataset.sel);paint()}});
+const reveal=(loc,name,off)=>api('/api/reveal',name?{loc,name,disabled:!!off}:{loc}).catch(e=>toast(e.message,true));
+document.addEventListener('click',async e=>{if(e.target.closest('.overlay'))return;
+ const t=e.target,b=t.closest('button,[data-act]');
+ if(t.closest('input[type=checkbox],select,label.sel'))return;
+ if(b&&b.dataset.favorite!=null){const n=b.dataset.favorite;favorites.has(n)?favorites.delete(n):favorites.add(n);LSS('oly-skills-favorites',[...favorites]);return paint()}
+ if(b&&b.dataset.view)return setView(b.dataset.view);
+ if(b&&b.dataset.sub!=null){const k=b.dataset.sub,open=b.getAttribute('aria-expanded')!=='true';navOpen[k]=open;LSS('oly-skills-nav-open',navOpen);const h=b.dataset.host;if(open&&h&&!HOSTS[h])loadHost(h);return paint()}
+ if(b&&b.dataset.hostReload)return loadHost(b.dataset.hostReload,true);
+ if(b&&b.dataset.seg){if(b.dataset.seg==='state')skillState=b.dataset.v;else{skillMode=b.dataset.v;LSS('oly-skills-layout-v4',skillMode)}return paint()}
+ if(b&&b.dataset.tab&&b.closest('#detail')){DET.tab=b.dataset.tab;return paint()}
+ if(b&&b.dataset.sw!=null){b.disabled=true;return toggle(view,[{name:b.dataset.sw}],b.getAttribute('aria-checked')!=='true')}
+ /* detail pane */
+ if(b&&b.closest('#detail')&&DET){const name=DET.name,e2=index().get(name);
+  if(b.dataset.dact==='close')return closeDetail();
+  if(!e2)return;
+  if(b.dataset.mode){if(DET.mode!==b.dataset.mode){DET.mode=b.dataset.mode;paint()}return}
+  if(b.dataset.ed)return edAction(b.dataset.ed);
+  if(b.dataset.edfile!=null){const p=b.dataset.edfile;if(p!==(DET.file||'SKILL.md'))guard(()=>{DET.file=p;paint()});return}
+  if(b.dataset.preview){const id=b.dataset.preview;if(id!==DET.loc)guard(()=>{DET.loc=id;DET.file='SKILL.md';paint()});return}
+  if(b.dataset.psw){const id=b.dataset.psw;b.disabled=true;return toggle(id,[{name}],b.getAttribute('aria-checked')!=='true')}
+  if(b.dataset.pdel){const id=b.dataset.pdel;return guard(()=>deleteDialog(id,[{name,disabled:e2.cells[id]?.disabled}]))}
+  const c=e2.cells[DET.loc];
+  if(b.dataset.dact==='everywhere')return everywhereDialog(name);
+  if(b.dataset.dact==='copy')return copyDialog(DET.loc,[{name,disabled:!!(c&&c.disabled)}]);
+  if(b.dataset.dact==='sync')return syncDialog([name]);
+  if(b.dataset.dact==='update')return updateDialog(name);
+  if(b.dataset.dact==='reveal')return reveal(DET.loc,name,c&&c.disabled);
+  return}
+ /* rows: click anywhere opens the skill */
+ const row=t.closest('[data-open]');if(row&&(!b||b===row||b.dataset.open!=null))return openDetail(row.dataset.open,row.dataset.oloc);
+ if(!b)return;const a=b.dataset.act,cur=locById(view);if(!a)return;
+ if(a==='unsel'){SEL.clear();return paint()}
+ if(a==='allhosts'){for(const h of hostsOf())if(!HOSTS[h]||HOSTS[h].s==='err')loadHost(h);return}
+ if(a==='upcheck')return upCheck();
+ if(a==='bsync')return syncDialog([...SEL]);
+ if(a==='bcopy-o'){const idx=index();const items=[...SEL].map(nm=>{const e2=idx.get(nm);const ids=Object.keys(e2.cells).sort((x,y)=>(e2.cells[x].v===0?0:1)-(e2.cells[y].v===0?0:1)||(locById(x).kind==='local'?0:1)-(locById(y).kind==='local'?0:1));return{name:nm,from:ids[0],disabled:e2.cells[ids[0]].disabled}});return copyDialog(null,items)}
+ if(!cur)return;
+ const selItems=()=>(LIST[cur.id]?.skills||[]).filter(s=>SEL.has(s.name+'|'+(s.disabled?1:0))).map(s=>({name:s.name,disabled:s.disabled}));
+ if(a==='reveal')return reveal(cur.id);
+ if(a==='bcopy')return copyDialog(cur.id,selItems());
+ if(a==='bdel')return deleteDialog(cur.id,selItems());
+ if(a==='boff')return toggle(cur.id,selItems().filter(x=>!x.disabled),false);
+ if(a==='bon')return toggle(cur.id,selItems().filter(x=>x.disabled),true);
+});
+let ft=0;$('#filter').addEventListener('input',()=>{clearTimeout(ft);ft=setTimeout(()=>{$('#main').scrollTop=0;render()},60)});
+$('#refresh').onclick=()=>{LIST={};HASH={};HERR={};UP=null;SK={};loadLocs(true).then(()=>{if(view!=='overview'){const l=locById(view);if(l&&l.kind==='ssh')loadHost(l.host,true)}}).catch(e=>toast(e.message,true))};
+$('#create').onclick=createDialog;$('#add').onclick=addDialog;
+const closeApp=()=>guard(()=>parent.postMessage({type:'oly-skills-close'},'*'));
+$('#closeApp').onclick=closeApp;
+document.addEventListener('click',e=>{const b=e.target.closest('[data-tgall]');if(!b)return;const ins=[...b.closest('.tgroup').nextElementSibling.querySelectorAll('input[type=checkbox]')];const all=ins.every(i=>i.checked);ins.forEach(i=>{i.checked=!all})});
+const typing=t=>!!(t&&t.closest&&t.closest('input,textarea,select,[contenteditable]:not([contenteditable=false])'));
+addEventListener('keydown',e=>{const tg=e.target&&e.target.closest?e.target:document.body,mod=e.ctrlKey||e.metaKey,ov=document.querySelector('.overlay'),key=(e.key||'').toLowerCase();
+ if(mod&&!e.altKey&&(e.code==='KeyS'||key==='s'||key==='ы')){e.preventDefault();if(!ov&&ED&&(DET?.mode==='edit'||edDirty()))edSave();return}
+ if(mod&&!e.altKey&&(e.code==='KeyK'||key==='k'||key==='л')){e.preventDefault();$('#filter').focus();$('#filter').select();return}
+ if(e.key==='Escape'){const o=[...document.querySelectorAll('.overlay')].pop();if(o)return closeDlg(o);
+  if(tg.closest('textarea.edta')){tg.blur();$('#detail .dh')?.focus({preventScroll:true});return}
+  if(document.activeElement===$('#filter')&&$('#filter').value){$('#filter').value='';return render()}if(DET)return closeDetail();closeApp();return}
+ if(ov||mod||e.altKey)return;const ty=typing(tg);
+ if(!ty&&(e.key==='/'||e.code==='Slash'&&!e.shiftKey)){e.preventDefault();$('#filter').focus();$('#filter').select();return}
+ if(ty&&tg.id!=='filter'&&tg.type!=='checkbox')return;
+ if(!ty&&(e.key===' '||e.code==='Space')&&DET&&!(tg.closest('button,a,summary,label')&&!tg.closest('.pl,.mname'))){
+  const e2=index().get(DET.name),c=e2&&e2.cells[DET.loc];if(!c)return;e.preventDefault();if(spaceBusy||e.repeat)return;spaceBusy=true;
+  toggle(DET.loc,[{name:DET.name}],!!c.disabled).finally(()=>{spaceBusy=false});return}
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+  const rows=[...document.querySelectorAll('#main [data-open]')];if(!rows.length)return;e.preventDefault();
+  let i=rows.findIndex(r=>r.dataset.open===DET?.name&&(!r.dataset.oloc||r.dataset.oloc===DET?.loc));i=i<0?(e.key==='ArrowDown'?0:rows.length-1):Math.max(0,Math.min(rows.length-1,i+(e.key==='ArrowDown'?1:-1)));
+  const r=rows[i];if(r.dataset.open===DET?.name&&(!r.dataset.oloc||r.dataset.oloc===DET?.loc))return;
+  guard(()=>{DET={name:r.dataset.open,loc:r.dataset.oloc||null,tab:DET?.tab||'r',mode:DET?.mode||'view',file:'SKILL.md'};paint();requestAnimationFrame(()=>document.querySelector('#main .cur')?.scrollIntoView({block:'nearest'}))})}});
+addEventListener('focus',()=>{edCheckDisk()});
+addEventListener('beforeunload',e=>{if(edDirty()){edDraftNow();e.preventDefault();e.returnValue=''}});
+addEventListener('pagehide',()=>{if(edDirty())edDraftNow()});
+function restoreDraft(){const d=LSG(DRAFT,null);if(!d||typeof d.key!=='string'||DET)return;const[loc,name,...rest]=d.key.split('|'),file=rest.join('|');
+ if(!index().get(name)?.cells[loc])return;DET={name,loc,tab:'r',mode:'edit',file:file||'SKILL.md'};paint()}
+loadLocs().then(()=>{paint();restoreDraft()}).catch(e=>{$('#main').innerHTML=emptyHtml('Менеджер не отвечает',esc(e.message))});
+</script>
+</body>
+</html>

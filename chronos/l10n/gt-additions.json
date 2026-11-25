@@ -1,0 +1,96 @@
+{
+  "messages": {
+    "Issue trackers": "Трекеры задач",
+    "Could not load issue trackers": "Не удалось загрузить трекеры задач",
+    "Workflow runs": "Запуски воркфлоу",
+    "Step of the workflow run": "Шаг запущенного воркфлоу",
+    "No workflow runs yet": "Пока ни один воркфлоу не запускался",
+    "Could not load workflow runs": "Не удалось загрузить список запусков",
+    "Loading workflow runs…": "Загружаем список запусков…",
+    "Connect an environment to see its workflow runs.": "Подключите окружение, чтобы увидеть историю запусков воркфлоу.",
+    "Update this server before starting multiple models.": "Чтобы запустить несколько моделей одновременно, обновите сервер."
+  },
+  "threadDetails": {
+    "Usage limits": "Лимиты",
+    "Lineage": "Связанные треды",
+    "Lineage · {runningCount} running": "Связанные треды · {runningCount} в работе",
+    "{left}% left": "осталось {left}%",
+    "Initialize Git": "Создать репозиторий Git",
+    "Initializing...": "Создание репозитория…",
+    "Disconnect agent session": "Отключить сессию агента",
+    "Ahead of pace": "Тратится быстрее равномерного",
+    "On pace": "Тратится равномерно",
+    "Under pace": "Тратится медленнее равномерного",
+    "Context compacts automatically when needed.": "Контекст сжимается автоматически, когда нужно."
+  },
+  "settings4774": {
+    "81d0d1e78b196630": [
+      "General",
+      "Общие"
+    ],
+    "fa19046edd6cfbd4": [
+      "Appearance",
+      "Внешний вид"
+    ],
+    "2a546119bf3879ee": [
+      "Archive",
+      "Архив"
+    ],
+    "f41ea186c275b56e": [
+      "About",
+      "О программе"
+    ],
+    "bdf39fd139a04325": [
+      "Working section",
+      "Раздел Working"
+    ],
+    "7eed14b9c7fd7661": [
+      "System default",
+      "Как в системе"
+    ],
+    "51497bd401292062": [
+      "Hold",
+      "Удержание"
+    ],
+    "1de0df2b8a4fb96e": [
+      "Sharing & access",
+      "Общий доступ"
+    ],
+    "a1f05362e8741905": [
+      "Appearance",
+      "Внешний вид"
+    ],
+    "f2bf529f85e05494": [
+      "Sharing & access",
+      "Общий доступ"
+    ],
+    "81c5624fe6591187": [
+      "System default",
+      "Как в системе"
+    ],
+    "45928549c050a1b4": [
+      "Hold",
+      "Удержание"
+    ],
+    "0a59e086514a62a9": [
+      "Source control & issues",
+      "Контроль версий"
+    ],
+    "4ec62c39ca3192bf": [
+      "Source control & issues",
+      "Контроль версий"
+    ]
+  },
+  "runtimeLabels": [
+    "Shadow home path",
+    "Compact idle threads",
+    "Add provider"
+  ],
+  "nativeFallback": [
+    "Not authenticated",
+    "Not authenticated · {method}",
+    "Installed · Sign-in not checked",
+    "Disabled",
+    "Worktrees"
+  ]
+}
