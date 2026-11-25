@@ -742,6 +742,9 @@ function IssueRoute({ params }: { readonly params: IssueParams }) {
                         ) : undefined
                       }
                     />
+                    {/* chronos: Trello deadline and linked attachments. */}
+                    {detail.due && <Text selectable>{new Date(detail.due).toLocaleString()}</Text>}
+                    {detail.attachments?.map((a, i) => <Text key={i} accessibilityRole="link" onPress={() => void tryOpenExternalUrl(a.url)}>{a.name || a.url}</Text>)}
                     {detail.linkedPullRequests.length > 0 ? (
                       <LinkedPullRequests params={params} links={detail.linkedPullRequests} />
                     ) : null}

@@ -209,6 +209,40 @@ const makeHarness = Effect.fn("makeIssuesToolkitHarness")(function* (
   return { links, call };
 });
 
+// chronos: exercise the real tracker and bindings through the same MCP harness as Linear.
+import { fixture as trelloFixture, target as trelloTarget, card as trelloCard } from "../../../chronos/issue-trello/trelloFixture.ts";
+
+describe("Trello issue toolkit", () => {
+  it.effect("resolves short links, links the canonical board and sends scoped writes through REST", () => Effect.gen(function* () {
+    const fake = trelloFixture();
+    const api = yield* fake.tracker;
+    const issueLayer = IssueService.layer.pipe(Layer.provide(Layer.mergeAll(
+      projectLayer,
+      Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
+      Layer.mock(IssueTrackerBindings.IssueTrackerBindingsRepository)({
+        list: () => Effect.succeed(new Map([[PROJECT_ID, { tracker: api.kind, scope: "other", additionalScopes: [trelloTarget.scope] }]])),
+      }),
+      Layer.succeed(IssueTrackerRegistry.IssueTrackerRegistry, IssueTrackerRegistry.fromTrackers([api])),
+    )));
+    const harness = yield* makeHarness([], issueLayer);
+    const url = "https://trello.com/c/" + trelloTarget.key;
+    expect(yield* harness.call("read_issue", { url })).toMatchObject({
+      scope: trelloTarget.scope, key: trelloTarget.key, writable: true, due: trelloCard.due,
+      attachments: [{ name: "Design", url: "https://example.org/design" }],
+    });
+    expect(yield* harness.call("read_issue", { key: trelloTarget.key, scope: trelloTarget.scope })).toMatchObject({ title: trelloCard.name });
+    yield* harness.call("link_issue", { url });
+    expect((yield* Ref.get(harness.links))[0]?.ref).toMatchObject({ scope: trelloTarget.scope, key: trelloTarget.key });
+    yield* harness.call("create_issue", { scope: trelloTarget.scope, title: "New", labels: ["Bug"], assignees: ["jane"] });
+    yield* harness.call("update_issue", { url, title: "Updated", due: null });
+    yield* harness.call("comment_on_issue", { url, body: "OK" });
+    expect(fake.requests.filter((r) => r.method !== "GET").map((r) => r.body)).toEqual([
+      { idList: "list1", name: "New", desc: "", idLabels: ["label1"], idMembers: ["member1"] },
+      { name: "Updated", due: null }, { text: "OK" },
+    ]);
+  }));
+});
+
 describe("issue toolkit handlers", () => {
   it.effect("returns a Linear issue by URL with one issue read left before the rate limit", () =>
     Effect.gen(function* () {

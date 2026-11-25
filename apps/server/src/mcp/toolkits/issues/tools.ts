@@ -1,4 +1,6 @@
 import {
+  // chronos: native deadlines and card attachments in agent reads/writes.
+  IssueUpdateInput, issueCardDetailFields,
   IssueCapabilities,
   IssueListState,
   IssueOperationError,
@@ -38,6 +40,8 @@ const dependencies = [
  * here is a checkout of that repository, read-only when none is.
  */
 export const IssueTargetInput = Schema.Struct({
+  // chronos: Trello short keys carry no board prefix; agents can pass the listed scope.
+  scope: Schema.optional(TrimmedNonEmptyString.annotate({ description: "Bound scope from list_issues when addressing a key, such as a Trello board ID." })),
   url: Schema.optional(
     TrimmedNonEmptyString.annotate({
       description: "The issue's web URL. Preferred when you have it.",
@@ -164,6 +168,7 @@ export const ListIssuesResult = Schema.Struct({
 export type ListIssuesResult = typeof ListIssuesResult.Type;
 
 export const ReadIssueResult = Schema.Struct({
+  ...issueCardDetailFields,
   ...IssueIdentity,
   displayKey: Schema.String,
   title: Schema.String,
@@ -289,6 +294,8 @@ const CreateIssueTool = Tool.make("create_issue", {
         description: "A bound team or repository, such as OPS. Defaults to the project's first.",
       }),
     ),
+    // chronos: optional deadline on trackers that advertise it.
+    due: IssueUpdateInput.fields.due,
     title: TrimmedNonEmptyString.check(Schema.isMaxLength(1024)),
     body: Schema.optional(Schema.String.check(Schema.isMaxLength(65_536))),
     labels: Schema.optional(Schema.Array(TrimmedNonEmptyString).check(Schema.isMaxLength(50))),
@@ -303,6 +310,13 @@ const CreateIssueTool = Tool.make("create_issue", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, false)
   .annotate(Tool.OpenWorld, true);
+
+// chronos: expose the existing issue update service to agents.
+const UpdateIssueTool = Tool.make("update_issue", {
+  description: "Edit the supplied issue fields. Labels and assignees replace their entire sets. On trackers with due support, pass an ISO timestamp or null to clear the deadline.",
+  parameters: Schema.Struct({ ...IssueTargetInput.fields, ...IssueUpdateInput.mapFields(({ title, body, labels, assignees, due }) => ({ title, body, labels, assignees, due })).fields }),
+  success: IssueWriteResult, failure: IssueToolError, dependencies,
+}).annotate(Tool.Title, "Update issue").annotate(Tool.Readonly, false).annotate(Tool.Destructive, false).annotate(Tool.Idempotent, true).annotate(Tool.OpenWorld, true);
 
 const CommentOnIssueTool = Tool.make("comment_on_issue", {
   description: "Post a comment on an issue.",
@@ -382,6 +396,7 @@ export const IssuesToolkit = Toolkit.make(
   ListIssuesTool,
   ReadIssueTool,
   CreateIssueTool,
+  UpdateIssueTool,
   CommentOnIssueTool,
   SetIssueStateTool,
   LinkIssueTool,

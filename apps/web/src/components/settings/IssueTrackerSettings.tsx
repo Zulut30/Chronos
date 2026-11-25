@@ -23,6 +23,9 @@ import { useEnvironmentQuery } from "../../state/query";
 import { issueTrackerEnvironment } from "../../state/issueTrackers";
 import { useProjects, useServerConfigs } from "../../state/entities";
 import { useAtomCommand } from "../../state/use-atom-command";
+// chronos: Trello has a two-part credential.
+import { TrelloCredentials, useTrelloCopy } from "../../chronos/issue-trello/TrelloSettings";
+import { Columns3Icon } from "lucide-react";
 import { LinearIcon } from "../Icons";
 import { cn } from "~/lib/utils";
 
@@ -41,6 +44,8 @@ type TrackerIcon = ElementType<{ className?: string }>;
 /** Web art per tracker kind; the server supplies everything else about a tracker. */
 const TRACKER_ICONS: Partial<Record<string, TrackerIcon>> = {
   linear: LinearIcon,
+  // chronos: Trello board glyph.
+  trello: Columns3Icon,
 };
 
 /**
@@ -125,6 +130,9 @@ function TrackerRow({
 }) {
   const gt = useGT();
   const messages = useMessages();
+  // chronos: localize the Trello descriptor and credential hint.
+  const t = useTrelloCopy();
+  const isTrello = tracker.tracker === "trello";
   const Icon = TRACKER_ICONS[tracker.tracker];
   const canEdit = useAtomValue(issueTrackerEnvironment.connect.permissionAtom(environmentId));
   const connect = useAtomCommand(issueTrackerEnvironment.connect, {
@@ -152,7 +160,8 @@ function TrackerRow({
 
   const inputId = `issue-tracker-${tracker.tracker}-${tracker.accountId ?? ""}-${environmentId}`;
   const usable = tracker.connected && tracker.account !== null;
-  const summary = issueTrackerSummary(tracker, bindings, messages);
+  const summary = isTrello && !tracker.connected ? t("Enter your API key and personal token.") :
+    isTrello && usable ? tracker.account : issueTrackerSummary(tracker, bindings, messages);
 
   return (
     <div className="first:rounded-t-xl last:rounded-b-xl transition-colors hover:bg-muted/20">
@@ -202,9 +211,10 @@ function TrackerRow({
           <fieldset disabled={!canEdit || busy} className="contents">
             <div className="px-3 pb-4 pt-1 sm:px-4">
               <SettingsRow
-                title={<label htmlFor={inputId}>{tracker.credential.label}</label>}
+                title={<label htmlFor={inputId}>{isTrello ? t("Trello credentials") : tracker.credential.label}</label>}
                 description={
                   <>
+                    {isTrello && <span className="block">{t("Open your Power-Up, select API Key, then generate a token with read and write access.")}</span>}
                     <T>Stored on the server.</T>
                     {tracker.credential.helpUrl ? (
                       <>
@@ -228,7 +238,7 @@ function TrackerRow({
                 }
                 control={
                   <div className="flex w-full min-w-0 items-center gap-2 @min-[32rem]/settings-row:w-56">
-                    <SecretInput
+                    {isTrello ? <TrelloCredentials id={inputId} submit={submit} /> : <SecretInput
                       id={inputId}
                       size="sm"
                       className="min-w-0 flex-1"
@@ -237,7 +247,7 @@ function TrackerRow({
                       onCommit={(next) => {
                         if (next.trim()) void submit(next.trim());
                       }}
-                    />
+                    />}
                     {tracker.connected ? (
                       <Button
                         type="button"
@@ -287,6 +297,8 @@ function ProjectBindings({
   readonly refreshFailed: boolean;
 }) {
   const gt = useGT();
+  // chronos: board picker copy.
+  const t = useTrelloCopy();
   const projects = useProjects().filter((project) => project.environmentId === environmentId);
   const bind = useAtomCommand(issueTrackerEnvironment.bindProject, {
     label: `bind project to ${tracker.displayName}`,
@@ -321,7 +333,7 @@ function ProjectBindings({
     <>
       <SettingsRow
         title={gt("Projects")}
-        description={gt(
+        description={tracker.tracker === "trello" ? t("Choose Trello boards for this project.") : gt(
           "Pick one or more {tracker} {scope}s for each project. Their issues list beside the repository's own, and agents file new issues in the first one unless asked for another.",
           { tracker: tracker.displayName, scope: tracker.scopeNoun },
         )}
@@ -394,6 +406,8 @@ function AddAccountRow({
   readonly onAdd: (token: string) => Promise<boolean>;
 }) {
   const gt = useGT();
+  // chronos: additional Trello accounts use the same credential form.
+  const t = useTrelloCopy();
   const [adding, setAdding] = useState(false);
   const inputId = `issue-tracker-${tracker.tracker}-add-account`;
   if (!adding) {
@@ -414,9 +428,13 @@ function AddAccountRow({
   }
   return (
     <SettingsRow
-      title={<label htmlFor={inputId}>{tracker.credential.label}</label>}
+      title={<label htmlFor={inputId}>{tracker.tracker === "trello" ? t("Trello credentials") : tracker.credential.label}</label>}
       description={gt("For the new {tracker} account.", { tracker: tracker.displayName })}
-      control={
+      control={tracker.tracker === "trello" ? <TrelloCredentials id={inputId} submit={async (value) => {
+        const added = await onAdd(value);
+        if (added) setAdding(false);
+        return added;
+      }} /> : (
         <SecretInput
           id={inputId}
           size="sm"
@@ -426,7 +444,7 @@ function AddAccountRow({
             if (next.trim()) void onAdd(next.trim()).then((added) => added && setAdding(false));
           }}
         />
-      }
+      )}
     />
   );
 }

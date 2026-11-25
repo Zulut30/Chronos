@@ -1,4 +1,15 @@
 {
+  "trello": {
+    "API key": "Ключ API",
+    "Personal token": "Личный токен",
+    "Connect Trello": "Подключить Trello",
+    "Open your Power-Up, select API Key, then generate a token with read and write access.": "Откройте свой Power-Up, выберите API Key и по ссылке Token выдайте доступ на чтение и запись.",
+    "Enter your API key and personal token.": "Введите ключ API и личный токен.",
+    "Choose Trello boards for this project.": "Выберите доски Trello для проекта.",
+    "Due date": "Срок",
+    "Attachments": "Вложения",
+    "Trello credentials": "Данные доступа Trello"
+  },
   "messages": {
     "Issues": "Задачи трекеров",
     "Issues breadcrumb": "Навигация по задачам трекеров",

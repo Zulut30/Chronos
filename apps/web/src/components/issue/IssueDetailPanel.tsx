@@ -408,6 +408,9 @@ function IssueEventText({
   );
 }
 
+// chronos: native card metadata outside the editable description.
+import { TrelloCardFields } from "../../chronos/issue-trello/TrelloCardFields";
+
 export function IssueDetailPanel({
   environmentId,
   reference,
@@ -510,7 +513,7 @@ export function IssueDetailPanel({
     }
   };
 
-  const save = async (patch: { title?: string; body?: string }) => {
+  const save = async (patch: { title?: string; body?: string; due?: string | null }) => {
     setSaving(true);
     const result = await update({ environmentId, input: { ...reference, ...patch } });
     setSaving(false);
@@ -523,10 +526,11 @@ export function IssueDetailPanel({
           m(msg("The tracker refused it.")),
         ),
       });
-      return;
+      return false;
     }
     refreshIssueLists(environmentId);
     setEditing(null);
+    return true;
   };
 
   const moveTo = async (state: string) => {
@@ -820,6 +824,8 @@ export function IssueDetailPanel({
                 threadRef={threadRef}
               />
             )}
+            {/* chronos: keep attachment links and the deadline out of the description editor. */}
+            {detail.tracker === "trello" && <TrelloCardFields detail={detail} editable={canEdit} busy={saving} onSave={(due) => save({ due })} />}
             {detail.reactions !== undefined ? (
               <IssueReactionBar
                 reactions={detail.reactions}

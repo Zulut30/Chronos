@@ -1260,7 +1260,8 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Issue trackers"),
     to: "/settings/source-control",
     scope: "environment-defaults",
-    searchTerms: [msg("linear jira issues tracker team api key connect bind project")],
+    // chronos: surface Trello settings in search.
+    searchTerms: [msg("linear jira issues tracker team api key connect bind project"), msg("Trello")],
   },
   {
     id: "source-control",

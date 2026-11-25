@@ -1,4 +1,6 @@
 import {
+  // chronos: board-less Trello card URLs.
+  parseTrelloIssueUrl, TRELLO_HOST,
   IssueTrackerKind,
   issueTrackerBindingScopes,
   type IssueRef,
@@ -63,7 +65,11 @@ function parseIssueLink(
 
 function parseStandaloneIssueLink(url: string) {
   try {
-    const link = parseLinearIssueUrl(new URL(url));
+    // chronos: the server discovers the board for a Trello short link.
+    const parsed = new URL(url);
+    const card = parseTrelloIssueUrl(parsed);
+    if (card) return { tracker: IssueTrackerKind.make("trello"), link: card };
+    const link = parseLinearIssueUrl(parsed);
     return link === null ? null : { tracker: LINEAR_KIND, link };
   } catch {
     return null;
@@ -77,7 +83,8 @@ export function isStandaloneIssueLink(url: string): boolean {
 
 /** A cheap pre-check, so text without such a link never asks for the bindings. */
 export function mayContainStandaloneIssueLink(text: string): boolean {
-  return text.includes(`${LINEAR_HOST}/`);
+  // chronos: Trello card previews also need connection metadata.
+  return text.includes(`${LINEAR_HOST}/`) || text.toLowerCase().includes(`${TRELLO_HOST}/c/`);
 }
 
 /**
@@ -100,7 +107,8 @@ function resolveStandaloneIssueLink<Project extends LinkProject>(
         (connection) =>
           connection.tracker === tracker &&
           connection.account !== null &&
-          connection.workspace?.toLowerCase() === link.workspace.toLowerCase(),
+          // chronos: Trello URLs identify a card globally, without a workspace slug.
+          (tracker === "trello" || connection.workspace?.toLowerCase() === link.workspace.toLowerCase()),
       )
       .map((connection) => connection.accountId ?? null),
   );
