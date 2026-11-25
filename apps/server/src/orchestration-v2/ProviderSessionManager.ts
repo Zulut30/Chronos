@@ -1,3 +1,5 @@
+// chronos: configurable safe idle shutdown for opted-in Claude runtimes.
+import { makeClaudeIdleUnload } from "../chronos/claudeIdleUnload.ts";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -340,6 +342,7 @@ interface LiveSessionEntry {
   >;
   readonly requestEventPermit: Semaphore.Semaphore;
   readonly scope: Scope.Closeable;
+  readonly chronosIdleSince?: number; // chronos: deadline belongs to this exact runtime.
   readonly idleGeneration: number;
   readonly busyTurns: ReadonlySet<string>;
   readonly idleFiber: Fiber.Fiber<void, never> | null;
@@ -1640,6 +1643,13 @@ export const layerWithOptions = (
           ),
         );
 
+      // chronos: serialize idle shutdown and the next open, including release record writes.
+      const claudeIdle = yield* makeClaudeIdleUnload(
+        sessions,
+        (id, use) => sessionOpen.withLock(id, use),
+        releaseEntry,
+      );
+
       const releaseIfStillIdle = Effect.fn("ProviderSessionManager.releaseIfStillIdle")(
         function* (input: {
           readonly providerSessionId: ProviderSessionId;
@@ -1765,6 +1775,9 @@ export const layerWithOptions = (
           return;
         }
 
+        // chronos: Claude uses one settings-aware clock and never expires a background pin.
+        if (entry.runtime.canUnloadIdleSession !== undefined)
+          return yield* claudeIdle.touch(entry.runtime);
         yield* cancelIdleFiber(entry.idleFiber);
         const generation = entry.idleGeneration + 1;
         const idleFiber = yield* Effect.sleep(Duration.millis(idleTimeoutFor(entry.runtime))).pipe(
@@ -3433,7 +3446,9 @@ export const layerWithOptions = (
             if (entry === undefined) {
               return Option.none<ProviderAdapter.ProviderAdapterV2SessionRuntime>();
             }
-            yield* touchActivity(providerSessionId);
+            // chronos: looking up a Claude handle is passive. Opens, turns and provider activity touch it.
+            if (entry.runtime.canUnloadIdleSession === undefined)
+              yield* touchActivity(providerSessionId);
             return Option.some(entry.exposedRuntime);
           },
           (effect, providerSessionId) =>

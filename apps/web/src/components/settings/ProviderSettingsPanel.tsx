@@ -110,6 +110,8 @@ import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSectio
 import { readCodexSetupMode } from "./CodexSetupSection.logic";
 import { providerClients } from "./providerDriverMeta";
 import { useSearchableSetting } from "./settingsSearch";
+// chronos: environment-wide Claude idle delay under Providers > Advanced.
+import { ClaudeIdleUnloadRow } from "../../chronos/idleUnload/ClaudeIdleUnloadRow";
 import { CompactIdleThreadsRow } from "./SettingsPanels";
 import {
   backgroundActivityOverrideSettings,
@@ -1237,6 +1239,14 @@ export function EnvironmentProviderSettings({
           }
         />
         <CompactIdleThreadsRow />
+        {/* chronos: older servers omit the field and the row. */}
+        <ClaudeIdleUnloadRow
+          minutes={settings.claudeIdleUnloadMinutes}
+          disabled={readOnly || !canWriteSettings}
+          onCommit={(minutes, options) =>
+            updateSettings({ claudeIdleUnloadMinutes: minutes }, options)
+          }
+        />
       </SettingsSection>
 
       {isAddInstanceDialogOpen && !readOnly ? (

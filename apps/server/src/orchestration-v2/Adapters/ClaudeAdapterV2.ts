@@ -192,6 +192,8 @@ import {
 import * as ServerConfig from "../../config.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ProcessRunner from "../../processRunner.ts";
+// chronos: identify additional jobs before releasing an idle query.
+import { captureIdleProcessGuard } from "../../chronos/claudeProcessGuard.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import { spawnAndCollect } from "@t3tools/provider-core/server/snapshotProbe";
@@ -779,6 +781,9 @@ export interface ClaudeAgentSdkQueryOpenInput {
 }
 
 export interface ClaudeAgentSdkQuerySession {
+  // chronos: absent for runners without process ownership information.
+  readonly idleProcessTreeSafe?: Effect.Effect<boolean>;
+  readonly awaitProcessExit?: Effect.Effect<void>; // chronos: serialize final shutdown with reopen.
   readonly messages: Stream.Stream<SDKMessage, ClaudeAgentSdkQueryRunnerError>;
   readonly offer: (
     message: SDKUserMessage,
@@ -1678,7 +1683,13 @@ export const layerQueryRunner: Layer.Layer<
           for (const row of rows) killClaudeDescendant(row);
         }),
       );
-      return { refresh: tracker.refresh, work, settle: tracker.settle, stop };
+      return {
+        refresh: tracker.refresh,
+        work,
+        settle: tracker.settle,
+        stop,
+        tracked: tracker.tracked,
+      }; // chronos: include reparented jobs in the idle check.
     };
 
     // The open span below is the tracing boundary for both attempts.
@@ -1921,7 +1932,30 @@ export const layerQueryRunner: Layer.Layer<
         ),
       );
 
+      // chronos: sample startup helpers before the first user prompt can run a tool.
+      const idleProcessTreeSafe = yield* captureIdleProcessGuard(
+        processRunner,
+        platform === "win32",
+        hostEnvironment.SystemRoot ?? hostEnvironment.windir ?? "C:\\Windows",
+        (spawnedProcess as { pid?: number } | undefined)?.pid,
+        () => Array.from(descendants?.tracked.values() ?? [], (row) => row.pid),
+        unit,
+      ).pipe(Effect.onInterrupt(() => closeClaudeQuery(queryRuntime).pipe(Effect.ignore)));
       return {
+        idleProcessTreeSafe,
+        awaitProcessExit: Effect.suspend(() =>
+          processExit === undefined
+            ? Effect.void
+            : Effect.promise(() => processExit!).pipe(
+                Effect.timeoutOrElse({
+                  duration: "5 seconds",
+                  orElse: () =>
+                    Effect.logWarning("chronos.claude.exit-still-pending", {
+                      providerSessionId: input.providerSessionId,
+                    }),
+                }),
+              ),
+        ),
         messages: Stream.fromAsyncIterable(
           claudeQueryMessages(queryRuntime),
           (cause) => cause,
@@ -6318,6 +6352,8 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
         const interruptedTurns = yield* Ref.make(new Set<OrchestrationV2ProviderTurn["id"]>());
         const steeredTurns = yield* Ref.make(new Set<OrchestrationV2ProviderTurn["id"]>());
         const queryContext = yield* Ref.make<ClaudeLiveQueryContext | null>(null);
+        // chronos: interactive MCP Apps send follow-up actions to the query that served the card.
+        const liveMcpApps = new WeakSet<ClaudeLiveQueryContext>();
         // Wake buffers replay result frames, so ledger growth is measured once on arrival.
         const resultLedgerUsage = new WeakMap<SDKMessage, ClaudeLedgerUsage>();
         const resultsReportingNewContextWindow = new WeakSet<SDKMessage>();
@@ -9252,6 +9288,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               contents,
             }).pipe(Effect.provideService(FileSystem.FileSystem, fileSystem));
             if (reference === undefined) return undefined;
+            liveMcpApps.add(liveQuery); // chronos: pin the live MCP transport.
             return {
               type: "structured_tool_use_result",
               value: {
@@ -13785,6 +13822,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 : Effect.void,
             ),
           );
+          // chronos: pair native resume with the idle-unloaded event by providerSessionId.
+          if (shouldResume)
+            yield* Effect.logInfo("chronos.claude.native-resumed", {
+              threadId: turnInput.threadId,
+              providerSessionId: input.providerSessionId,
+              nativeThreadId,
+            });
           // Mark only successful opens; retries must not resume sessions that failed to create.
           yield* Ref.update(openedNativeThreads, (current) => {
             if (current.has(nativeThreadId)) {
@@ -14753,6 +14797,8 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
             // the scope interrupts the stream fiber, so it may never mark its query closed.
             yield* Deferred.succeed(existing.closed, undefined);
             yield* existing.query.close.pipe(Effect.ignore);
+            // chronos: SDK close can return before the owned CLI actually exits.
+            if (existing.query.awaitProcessExit) yield* existing.query.awaitProcessExit;
           }
           yield* Effect.yieldNow;
           yield* queryRunner.assertComplete.pipe(
@@ -14846,6 +14892,33 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           getModelContextWindow: (selection) => claudeContextWindow(selection) ?? undefined,
           events: Stream.fromEffectRepeat(Queue.take(events)),
           backgroundTasksEndWithProcess: true,
+          // chronos: a live prompt, dialog, unsaved conversation or an untracked job pins this process.
+          canUnloadIdleSession: Effect.gen(function* () {
+            if (
+              (yield* Ref.get(activeTurn)) !== null ||
+              (yield* Ref.get(pendingRuntimeRequests)).size > 0
+            )
+              return false;
+            const live = yield* Ref.get(queryContext);
+            if (live === null) return true;
+            if (
+              liveMcpApps.has(live) ||
+              [...announcedMcpSignIns].some((key) =>
+                key.startsWith(mcpSignInKey(live.nativeThreadId, "")),
+              )
+            )
+              return false;
+            if (!live.query.idleProcessTreeSafe || !(yield* live.query.idleProcessTreeSafe))
+              return false;
+            return (
+              (yield* claudeTranscriptState(
+                clearedNativeSessions.get(live.nativeThreadId) ?? live.nativeThreadId,
+              ).pipe(Effect.orElseSucceed(() => "missing"))) === "conversation" &&
+              (yield* Ref.get(activeTurn)) === null &&
+              (yield* Ref.get(pendingRuntimeRequests)).size === 0 &&
+              (yield* Ref.get(queryContext)) === live
+            );
+          }),
           hasPendingBackgroundWork: Effect.gen(function* () {
             // A wakeup can be up to an hour out, past the idle timeout, and dies with the process.
             if (scheduledWakeupsByNativeThread.size > 0) {

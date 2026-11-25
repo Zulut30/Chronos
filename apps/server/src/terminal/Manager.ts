@@ -245,7 +245,10 @@ export class TerminalManager extends Context.Service<
       readonly terminalId?: string;
     }) => Effect.Effect<void>;
 
-    readonly hasActiveSubprocess: (input: { readonly threadId: string }) => Effect.Effect<boolean>;
+    readonly hasActiveSubprocess: (input: {
+      readonly threadId: string;
+      readonly includeOpenShells?: boolean;
+    }) => Effect.Effect<boolean>;
 
     readonly subscribe: (
       listener: (event: TerminalEvent) => Effect.Effect<void>,
@@ -3995,7 +3998,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
 
   const hasActiveSubprocess = Effect.fn("terminal.hasActiveSubprocess")(function* (input: {
     readonly threadId: string;
+    readonly includeOpenShells?: boolean; // chronos: conservative idle unload.
   }) {
+    // chronos: any open PTY pins idle unload, including managed terminals and interactive shells.
+    if (input.includeOpenShells)
+      return (yield* sessionsForThread(input.threadId)).some(
+        (s) => s.status === "running" || s.status === "starting",
+      );
     // Settling closes stopOnSettle sessions, so their work must not hold settlement back.
     const running = (yield* sessionsForThread(input.threadId)).filter(
       (session): session is TerminalSessionState & { pid: number } =>
