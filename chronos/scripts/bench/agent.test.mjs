@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
@@ -36,6 +36,26 @@ test("ACP emits distinct ordered markers after the start barrier and exits with 
   } finally {
     if (child.exitCode === null) child.kill();
     lines.close();
+    if (dirname(resolve(root)) === resolve(tmpdir()) && basename(root).startsWith("chronos-bench-test-")) {
+      await rm(root, { recursive: true, force: true, maxRetries: 3 });
+    }
+  }
+});
+
+test("code fixture reports independent turn tokens and cumulative ACP cost", async () => {
+  const root = await mkdtemp(join(tmpdir(), "chronos-bench-test-"));
+  try {
+    const frame = { id: 1, method: "session/prompt", params: {
+      prompt: "SEED_HISTORY SPEED_TOKENS_509 bench-" + crypto.randomUUID(),
+    } };
+    const child = spawnSync(process.execPath, [join(import.meta.dirname, "agent.mjs"), root, "1", "1", "code"], {
+      input: JSON.stringify(frame) + "\n", encoding: "utf8", timeout: 5000, windowsHide: true,
+    });
+    assert.equal(child.status, 0, child.stderr);
+    const frames = child.stdout.trim().split("\n").map(line => JSON.parse(line));
+    assert.deepEqual(frames.at(-1).result.usage, { totalTokens: 3009, inputTokens: 2500, outputTokens: 509 });
+    assert.deepEqual(frames.at(-2).params.update.cost, { amount: 0.42, currency: "USD" });
+  } finally {
     if (dirname(resolve(root)) === resolve(tmpdir()) && basename(root).startsWith("chronos-bench-test-")) {
       await rm(root, { recursive: true, force: true, maxRetries: 3 });
     }

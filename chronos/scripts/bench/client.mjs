@@ -52,8 +52,11 @@ export async function connectCdp(url) {
   const socket = await openSocket(url);
   let next = 0;
   const pending = new Map();
+  const listeners = new Set();
   socket.onmessage = ({ data }) => {
-    const { id, result, error } = JSON.parse(data);
+    const event = JSON.parse(data);
+    const { id, result, error } = event;
+    if (event.method) for (const listener of listeners) listener(event);
     const reply = pending.get(id);
     if (!reply) return;
     pending.delete(id);
@@ -61,6 +64,7 @@ export async function connectCdp(url) {
     error ? reply.reject(Error(error.message)) : reply.resolve(result);
   };
   return {
+    listen(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     call(method, params = {}, sessionId) {
       return new Promise((resolve, reject) => {
         const id = ++next;

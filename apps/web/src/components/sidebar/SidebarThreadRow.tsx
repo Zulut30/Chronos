@@ -1,3 +1,4 @@
+import { SidebarCardContents } from "~/chronos/perf/SidebarCardContents";
 import { useAtomMount } from "@effect/atom-react";
 import { asLaunchingThread } from "@t3tools/client-runtime/state/thread-inbox";
 import { ThreadHoverCard, ThreadHoverCardPopup } from "../ThreadHoverCard";
@@ -134,6 +135,7 @@ import { observeVisibleAnimation } from "~/lib/visibleAnimation";
 import { useThreadHasUnsentDraft } from "../../composerDraftStore";
 import { ThreadDetailsIssueRows } from "../chat/ThreadDetailsIssueRows";
 import { IssueGlyph, issueStatePresentation } from "../issue/issuePresentation";
+import { useThreadIntentPrefetch } from "./useThreadIntentPrefetch";
 
 // The fields thread rows show. Provider status pushes refresh `checkedAt`,
 // status and auth on every provider; leaving those out keeps each
@@ -582,6 +584,7 @@ function TopStatusIcon(props: { icon: keyof typeof TOP_STATUS_ICONS; className: 
 }
 
 type SidebarThreadRowProps = {
+  windowCard?: boolean;
   thread: SidebarThreadSummary;
   // "folder" is a one-line row inside a boring sidebar project folder;
   // "folder-multiline" adds the card's environment and PR line under it.
@@ -888,6 +891,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     />
   );
 
+  const intentPrefetch = useThreadIntentPrefetch(threadRef);
   const handleClick = (event: ReactMouseEvent) => {
     onThreadClick(event, threadRef);
   };
@@ -1332,6 +1336,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   inFolder && "ps-9",
                 )}
                 onClick={handleClick}
+                onPointerEnter={intentPrefetch.onPointerEnter}
+                onPointerLeave={intentPrefetch.onPointerLeave}
+                onPointerDown={intentPrefetch.onPointerDown}
                 onDoubleClick={handleDoubleClick}
                 onKeyDown={handleKeyDown}
                 onContextMenu={handleContextMenu}
@@ -1531,17 +1538,19 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               aria-busy={isRegeneratingTitle || undefined}
               className={rowSurfaceClassName}
               onClick={handleClick}
+              onPointerEnter={intentPrefetch.onPointerEnter}
+              onPointerLeave={intentPrefetch.onPointerLeave}
+              onPointerDown={intentPrefetch.onPointerDown}
               onDoubleClick={handleDoubleClick}
               onKeyDown={handleKeyDown}
               onContextMenu={handleContextMenu}
             />
           }
         >
-          <div
-            className={cn(
-              "relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty && "h-auto",
-            )}
+          <SidebarCardContents
+            renderContents={!props.windowCard || leaseLiveStatus || isRenaming || snoozeMenuOpen}
+            compact={metaLineEmpty}
+            title={thread.title}
           >
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
@@ -1710,7 +1719,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {titleLineIcons}
             </div>
             {metaLine}
-          </div>
+          </SidebarCardContents>
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>

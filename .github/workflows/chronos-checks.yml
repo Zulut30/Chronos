@@ -3,6 +3,15 @@ name: Chronos checks
 
 on:
   workflow_dispatch:
+    inputs:
+      ui_builds:
+        description: "Optional packaged UI benchmark: comma-separated Chronos desktop run IDs"
+        required: false
+        type: string
+      ui_large_sidebar:
+        description: "Also measure a 1,000-thread sidebar without active agents"
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -13,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: chronos-checks-${{ github.ref }}
+  group: chronos-checks-${{ github.ref }}-${{ inputs.ui_builds || 'checks' }}
   cancel-in-progress: true
 
 jobs:
@@ -83,6 +92,13 @@ jobs:
         working-directory: apps/web
         run: vp test run --project unit
 
+      - name: Backported thread navigation browser regressions
+        if: inputs.ui_builds != ''
+        working-directory: apps/web
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
+
       - name: Trello card link recognition
         working-directory: packages/client-runtime
         run: vp test run src/issueLinks.test.ts
@@ -135,3 +151,56 @@ jobs:
       - name: OpenCode and OpenRouter usage records
         working-directory: packages/provider-opencode
         run: vp test run src/server/usage.test.ts
+
+  packaged-ui:
+    if: inputs.ui_builds != ''
+    runs-on: windows-2025
+    timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            chronos/scripts/bench
+            chronos/scripts/smoke
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare Windows packages on the same machine
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILDS: ${{ inputs.ui_builds }}
+          LARGE_SIDEBAR: ${{ inputs.ui_large_sidebar }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $results = Join-Path $env:RUNNER_TEMP 'ui-results'
+          $errors = @()
+          foreach ($build in $env:BUILDS.Split(',')) {
+            if ($build -notmatch '^\d+$') { throw 'Expected a desktop run ID' }
+            $out = Join-Path $results $build
+            New-Item -ItemType Directory -Force $out | Out-Null
+            $dest = Join-Path $env:RUNNER_TEMP "ui-package-$build"
+            ./chronos/scripts/bench/unpack.ps1 -Run $build -Destination $dest
+            node chronos/scripts/bench/ui.mjs desktop "$dest/pkg" 0 "$out/smoke" smoke
+            if ($LASTEXITCODE) { $errors += "Smoke $build" }
+            foreach ($n in 0,8,16) {
+              node chronos/scripts/bench/ui.mjs desktop "$dest/pkg" $n "$out/$n.json"
+              if ($LASTEXITCODE) { $errors += "UI $build N=$n" }
+            }
+            if ($env:LARGE_SIDEBAR -eq 'true') {
+              $env:BENCH_UI_ROWS = '1000'
+              node chronos/scripts/bench/ui.mjs desktop "$dest/pkg" 0 "$out/1000-rows.json"
+              if ($LASTEXITCODE) { $errors += "UI $build 1000 rows" }
+              Remove-Item Env:BENCH_UI_ROWS
+            }
+          }
+          if ($errors.Count) { throw ($errors -join ", ") }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: packaged-ui
+          path: ${{ runner.temp }}/ui-results/
+          retention-days: 14
