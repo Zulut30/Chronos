@@ -1,3 +1,4 @@
+import { encodeSnapshot } from "./assets.mjs";
 import { documentMethods } from "./documents.mjs";
 import { capabilities } from "./policy.mjs";
 let opened;
@@ -15,7 +16,7 @@ export const artifactTools = [
   tool("publish", "Publish a local HTML file map. Re-read and merge on version conflict.",
     { source: string, title: string, description: string, icon: string, label: string,
       capabilities: {type:"array",items:{type:"string",enum:capabilities}},
-      expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: string } },
+      expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: {oneOf:[string,{type:"object",properties:{encoding:{const:"base64"},data:string},required:["encoding","data"],additionalProperties:false}]} } },
     ["source","title","description","icon","label","files"], async input => (await artifactStore()).publish(input)),
   tool("restore", "Восстановить сохранённую версию новой публикацией.",
     { id: string, version: { type: "integer", minimum: 1 }, expectedVersion: { type: "integer", minimum: 1 } },
@@ -44,9 +45,9 @@ export const artifactTools = [
       if (typeof pinned !== "boolean") throw Error("Expected boolean");
       return (await artifactStore()).pin(id,pinned);
     }),
-  tool("read", "Read a version and its UTF-8 source files.", {id:string,version:{type:"integer"}}, ["id"],
+  tool("read", "Read a version with UTF-8 sources and base64 binary assets.", {id:string,version:{type:"integer"}}, ["id"],
     async ({id,version}) => {
       const data = (await artifactStore()).read(id,version);
-      return {...data,files:Object.fromEntries(Object.entries(data.files).map(([name,bytes]) => [name,bytes.toString("utf8")]))};
+      return encodeSnapshot(data);
     }),
 ];

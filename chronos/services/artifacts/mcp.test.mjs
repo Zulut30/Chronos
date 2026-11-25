@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,4 +23,11 @@ test("MCP discovers tools lazily, publishes and reads", async () => {
   const {id} = await call("artifact_publish",{source:path.join(root,"index.html"),title:"Test page",
     description:"Test.",icon:"book",label:"First",files:{"index.html":"hello"}});
   assert.equal((await call("artifact_read",{id})).files["index.html"],"hello");
+  const binary = {encoding:"base64",data:"AP+A"};
+  const args = {source:path.join(root,"index.html"),title:"Test page",description:"Test.",icon:"book",label:"Assets",
+    files:{"index.html":"hello","image.png":binary,"doc.pdf":binary,"face.woff2":binary},expectedVersion:1};
+  await call("artifact_publish",args);
+  assert.deepEqual((await call("artifact_read",{id})).files,args.files);
+  await call("artifact_restore",{id,version:2,expectedVersion:2});
+  assert.deepEqual((await call("artifact_read",{id})).files,args.files);
 });

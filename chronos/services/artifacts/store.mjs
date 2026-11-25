@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 
 import { documentDatabase } from "./documents.mjs";
+import { decodeFiles } from "./assets.mjs";
 import { declared } from "./policy.mjs";
 
 export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homedir(), ".chronos")) {
@@ -24,15 +25,7 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
         ![description, label, icon].every(value => typeof value === "string" && value.trim()) ||
         /\s/u.test(icon)) throw Error("Invalid metadata");
     capabilities = declared(capabilities);
-    const entries = Object.entries(files);
-    if (!Object.hasOwn(files, "index.html") || entries.length > 255) throw Error("Invalid file map");
-    for (const [name, content] of entries) {
-      if (name.split("/").some(part => !part || part === "." || part === "..") || /[\\:#?%\x00-\x1f]/u.test(name))
-        throw Error("Invalid file name");
-      const html = /\.html?$/i.test(name);
-      if ((typeof content !== "string" && !(content instanceof Uint8Array)) ||
-          Buffer.byteLength(content) > (html ? 16 : 15) * 1024 ** 2) throw Error("Invalid file content");
-    }
+    const {decoded,binaryFiles} = decodeFiles(files);
     db.exec("BEGIN IMMEDIATE");
     try {
       const key = path.normalize(source);
@@ -41,9 +34,9 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       if (current !== expectedVersion) throw Error("Version conflict: read and merge");
       if (!current) db.prepare("INSERT INTO artifacts(id,source) VALUES (?,?)").run(id,key);
       const version = current + 1;
-      db.prepare("INSERT INTO versions VALUES (?,?,?)").run(id,version,JSON.stringify({title,description,icon,label,capabilities}));
+      db.prepare("INSERT INTO versions VALUES (?,?,?)").run(id,version,JSON.stringify({title,description,icon,label,capabilities,binaryFiles}));
       const insert = db.prepare("INSERT INTO files VALUES (?,?,?,?)");
-      for (const [name, content] of entries) insert.run(id, version, name, Buffer.from(content));
+      for (const [name, content] of decoded) insert.run(id, version, name, content);
       db.exec("COMMIT");
       return { id, version };
     } catch (error) {
@@ -77,9 +70,17 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       ORDER BY pinned DESC,title COLLATE NOCASE,a.id`).all(),
     restore(id, version, expectedVersion) {
       if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw Error("Expected current version");
-      const snapshot = this.read(id, version);
-      const { source } = db.prepare("SELECT source FROM artifacts WHERE id=?").get(id);
-      return publish({ ...snapshot, source, expectedVersion, label: `Восстановлена версия ${version}` });
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        if (head(id) !== expectedVersion) throw Error("Version conflict: read and merge");
+        const next = expectedVersion + 1;
+        const copied = db.prepare("INSERT INTO versions SELECT id,?,json_set(metadata,'$.label',?) FROM versions WHERE id=? AND version=?")
+          .run(next,`Восстановлена версия ${version}`,id,version);
+        if (!copied.changes) throw Error("Unknown version");
+        db.prepare("INSERT INTO files SELECT id,?,name,content FROM files WHERE id=? AND version=?").run(next,id,version);
+        db.exec("COMMIT");
+        return {id, version:next};
+      } catch (e) {db.exec("ROLLBACK");throw e;}
     },
     pin: (id, pinned) => db.prepare("UPDATE artifacts SET pinned=? WHERE id=?").run(pinned ? 1 : 0,id).changes,
     remove(id, expectedVersion) {
