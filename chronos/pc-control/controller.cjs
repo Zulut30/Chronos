@@ -2,7 +2,6 @@ const net = require("node:net");
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
-const { makeNative } = require("./native.cjs");
 
 const defaults = { enabled: false, all: false, apps: [], mode: "risk" };
 const operations = [
@@ -68,8 +67,12 @@ function createController({
   key,
   shortcut,
   notify,
-  native = makeNative(tools, path.join(dir, "sessions")),
+  native: adapter,
 }) {
+  function native(session, operation, request, signal) {
+    adapter ??= require("./native.cjs").makeNative(tools, path.join(dir, "sessions"));
+    return adapter(session, operation, request, signal);
+  }
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const settingsFile = path.join(dir, "policy.json");
   const logFile = path.join(dir, "history.json");
