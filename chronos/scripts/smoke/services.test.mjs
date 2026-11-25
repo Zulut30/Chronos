@@ -22,7 +22,7 @@ async function freePort() {
   const { port } = socket.address(); const closed = once(socket, 'close'); socket.close(); await closed;
   return port;
 }
-test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
+test('seven hosted HTTP modules and OpenRouter stdio', async () => {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'chronos-services-')));
   const home = path.join(tmp, 'home'), t3 = path.join(tmp, 'server'), data = path.join(tmp, 'service data');
   const project = path.join(tmp, 'example project'), downloads = path.join(home,'Downloads');
@@ -37,11 +37,13 @@ test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
     if ((key.startsWith('OLY_') && key!=='OLY_FILES_DEST') || /API_KEY$/.test(key)) delete env[key];
   }
   try {
+    fs.mkdirSync(path.join(t3,'logs','services'),{recursive:true});
     for (const [name, variable, health] of httpServices) {
       const port = await freePort(), base = 'http://127.0.0.1:' + port;
-      const proc = spawn(process.execPath,[path.join(resources,name,'server.mjs')],{
-        cwd:tmp,env:{...env,['OLY_'+variable+'_PORT']:String(port)},windowsHide:true,stdio:'ignore',
+      const proc = spawn(process.execPath,[path.join(resources,'host.mjs')],{
+        cwd:tmp,env:{...env,['OLY_'+variable+'_PORT']:String(port)},windowsHide:true,stdio:['ignore','ignore','ignore','ipc'],
       });
+      proc.send(name);
       const exited = once(proc,'exit');
       try {
         let ready=false;

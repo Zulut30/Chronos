@@ -221,6 +221,12 @@ T3). Оставлены только workflow Chronos:
 
 Для SSH десктоп выбирает источник через `CHRONOS_SSH_CLI_SOURCE`. Значение `chronos` выбирает архив текущей ревизии Chronos, `upstream` или отсутствие переменной — прежний официальный CLI. После изменения перезапустите десктоп и переподключите управляемое окружение. Встраивание: `DesktopSshEnvironment.ts`, `packages/shared/src/cliRelease.ts`, `packages/ssh/src/tunnel.ts`, сборка и SHA256SUMS в `chronos-desktop.yml`.
 
+В Windows-сборке `DesktopBackendConfiguration.ts` передаёт путь своего `resource-monitor` серверу. `KeepAwake.ts` удерживает запрос Windows через режим `--chronos-keep-awake` этого помощника, пока работает агент и действует штатная минутная отсрочка.
+
+В Windows `DesktopSnapShot.ts` оставляет запуск двух помощников SnapShot до первого запроса. Пулы `RegionSnapShot.ts` и `SnapShotAccessibilityProcess.ts` держат запасного помощника минуту после использования. Действующий захват владеет своим процессом независимо от этого таймера.
+
+`apps/server/src/persistence/Sqlite.ts` ограничивает размер повторно используемого WAL 32 МиБ. Методика и все замеры приведены в [отчёте](parity/perf-resources-2.md).
+
 ## Скиллы
 
 Исходники скиллов в `chronos/skills/`:
