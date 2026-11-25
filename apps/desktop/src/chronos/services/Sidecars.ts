@@ -56,26 +56,48 @@ interface Options {
   executable: string;
   env: NodeJS.ProcessEnv;
 }
-function launch(service: Service, options: Options, log: string): NodeChildProcess.ChildProcess {
-  const cwd = NodePath.join(options.resources, service.name);
-  const fd = NodeFS.openSync(log, "a", 0o600);
-  try {
-    const env = { ...options.env };
-    for (const key of Object.keys(env)) {
-      if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(key)) delete env[key];
-    }
-    return NodeChildProcess.spawn(options.executable, [NodePath.join(cwd, "server.mjs")], {
-      cwd, windowsHide: true, stdio: ["ignore", fd, fd],
+type OnExit = (reason: string) => void;
+type Launch = (service: Service, onExit: OnExit) => void;
+
+export function createServiceHost(options: Options) {
+  const env = { ...options.env };
+  for (const key of Object.keys(env)) {
+    if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(key)) delete env[key];
+  }
+  const workers = new Map<string, OnExit>();
+  let host: NodeChildProcess.ChildProcess | undefined;
+  function startHost() {
+    const proc = NodeChildProcess.spawn(options.executable, [NodePath.join(options.resources, "host.mjs")], {
+      cwd: options.resources, windowsHide: true, stdio: ["ignore", "ignore", "ignore", "ipc"],
       env: { ...env, ELECTRON_RUN_AS_NODE: "1", CHRONOS_T3_HOME: options.baseDir,
         CHRONOS_SERVICES_DATA: options.baseDir },
     });
-  } finally { NodeFS.closeSync(fd); }
+    proc.on("message", (message) => {
+      if (typeof message !== "string") return;
+      const stopped = workers.get(message);
+      workers.delete(message);
+      stopped?.("worker exit");
+    });
+    proc.on("error", () => { /* close follows spawn failure */ });
+    proc.once("close", (code, signal) => {
+      host = undefined;
+      const stopped = [...workers.values()];
+      workers.clear();
+      for (const notify of stopped) notify("host " + (signal ?? code));
+    });
+    return proc;
+  }
+  const launch: Launch = (service, onExit) => {
+    host ??= startHost();
+    const proc = host;
+    workers.set(service.name, onExit);
+    proc.send(service.name, (error) => { if (error) proc.kill(); });
+  };
+  return { launch, stop: () => host?.kill() };
 }
 
-const production = { probe, launch };
-export function supervise(service: Service, options: Options, deps = production) {
+export function supervise(service: Service, options: Options, deps: { probe: typeof probe; launch: Launch }) {
   const controller = new AbortController();
-  let child: ReturnType<typeof launch> | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let backoff = 1000;
   let lastStatus = "";
@@ -109,13 +131,9 @@ export function supervise(service: Service, options: Options, deps = production)
       }
       status("Starting bundled service");
       const started = Date.now();
-      const owned = deps.launch(service, options, log);
-      child = owned;
-      owned.once("error", () => status("Child process error"));
-      owned.once("close", (code, signal) => {
-        child = undefined;
+      deps.launch(service, (reason) => {
         if (controller.signal.aborted) return;
-        status("Service stopped (" + (signal ?? code) + "), retrying");
+        status("Service stopped (" + reason + "), retrying");
         if (Date.now() - started >= 30_000) backoff = 1000;
         retry();
       });
@@ -127,6 +145,5 @@ export function supervise(service: Service, options: Options, deps = production)
   return () => {
     controller.abort();
     clearTimeout(timer);
-    child?.kill();
   };
 }

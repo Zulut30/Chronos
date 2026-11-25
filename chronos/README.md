@@ -215,6 +215,10 @@ T3). Оставлены только workflow Chronos:
 
 [Методика стенда](scripts/bench/README.md) и [замеры](parity/perf-quick-wins.md).
 
+## Ресурсы параллельных сессий
+
+`apps/desktop/src/chronos/services/Sidecars.ts` проверяет владельца каждого порта и запускает один `chronos/services/host.mjs` по первому свободному порту. Хост исполняет семь HTTP-сервисов в отдельных Node Worker. Менеджер повторяет проверку при выходе воркера или хоста.
+
 ## Скиллы
 
 Исходники скиллов в `chronos/skills/`:

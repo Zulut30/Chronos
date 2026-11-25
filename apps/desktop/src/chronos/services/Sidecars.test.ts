@@ -1,5 +1,4 @@
 // @effect-diagnostics nodeBuiltinImport:off -- The test uses fake native child handles and a temporary service log directory.
-import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -17,12 +16,11 @@ afterEach(() => {
   NodeFS.rmSync(baseDir, { recursive: true, force: true });
 });
 function fixture() {
-  const child = new NodeChildProcess.ChildProcess();
-  const kill = vi.spyOn(child, "kill").mockReturnValue(true);
+  let exit: (reason: string) => void;
   const probe = vi.fn<() => Promise<"available" | "external" | "occupied">>().mockResolvedValue("available");
-  const launch = vi.fn(() => child);
+  const launch = vi.fn((_service: typeof service, onExit: typeof exit) => { exit = onExit; });
   const start = () => supervise(service, { baseDir, env: {}, executable: "electron", resources: "/resources" }, { probe, launch });
-  return { child, kill, probe, launch, start };
+  return { crash: () => exit("worker exit"), probe, launch, start };
 }
 
 describe("Chronos sidecars", () => {
@@ -35,23 +33,21 @@ describe("Chronos sidecars", () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(f.launch).toHaveBeenCalledOnce();
     stop();
-    expect(f.kill).toHaveBeenCalledOnce();
   });
 
   it("rechecks the port before restarting a crashed child and cancels retries at shutdown", async () => {
     const f = fixture();
     const stop = f.start();
     await vi.advanceTimersByTimeAsync(0);
-    f.child.emit("close", 1, null);
+    f.crash();
     await vi.advanceTimersByTimeAsync(999);
     expect(f.launch).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(f.launch).toHaveBeenCalledTimes(2);
-    f.child.emit("close", 1, null);
+    f.crash();
     stop();
     await vi.advanceTimersByTimeAsync(60_000);
     expect(f.probe).toHaveBeenCalledTimes(2);
-    expect(f.kill).not.toHaveBeenCalled();
   });
 
   it("does not spawn after shutdown during a pending probe", async () => {
