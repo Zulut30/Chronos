@@ -325,7 +325,8 @@
         "Claude & GPT (shared) · 5-hour",
         "Claude & GPT (shared) · Weekly",
         "resets now",
-        { "pattern": "^[A-Za-z0-9 ._-]+: Could not read limits\\.$" }
+        { "pattern": "^[A-Za-z0-9 ._-]+: Could not read limits\\.$" },
+        { "pattern": "^[A-Za-z0-9 ()._-]+: Sign in with [A-Za-z ]+ to see [A-Za-z ]+ limits\\.$" }
       ]
     },
     {
