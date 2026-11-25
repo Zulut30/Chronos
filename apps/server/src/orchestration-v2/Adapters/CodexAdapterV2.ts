@@ -57,7 +57,6 @@ import {
   dynamicToolTitle,
 } from "@t3tools/shared/toolActivity";
 import { getModelSelectionStringOptionValue, modelSelectionsEqual } from "@t3tools/shared/model";
-import { appendGeneratedImageEmbeds } from "@t3tools/shared/generatedImageMarkdown";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import { mcpToolResultOutput } from "@t3tools/shared/toolOutput";
 import { oauthCallbackUrl } from "@t3tools/shared/oauthCallback";
@@ -7176,6 +7175,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             const state = imageTurns.get(nativeTurnId);
             const firstImageItemId = state?.saved.keys().next().value;
             if (state === undefined || firstImageItemId === undefined) return;
+            // chronos: plain text turns never need the Markdown image processor.
+            const { appendGeneratedImageEmbeds } = yield* Effect.promise(
+              () => import("@t3tools/shared/generatedImageMarkdown"),
+            );
             const finalAnswer = state.answer;
             const text = appendGeneratedImageEmbeds(finalAnswer?.text ?? "", state.saved.values());
             if (text === (finalAnswer?.text ?? "")) {

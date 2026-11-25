@@ -20,7 +20,6 @@ import {
   ThreadId,
   TurnItemId,
 } from "@t3tools/contracts";
-import { chatMarkdownImageSources } from "@t3tools/shared/markdownPipeline";
 import { htmlRenderFromToolItem } from "@t3tools/shared/toolOutput";
 import * as Context from "effect/Context";
 import * as SecureRandom from "effect/crypto/SecureRandom";
@@ -758,6 +757,10 @@ const make = Effect.gen(function* () {
     const { share } = yield* authorize(session, "session");
     const mimeType = guestHostImageType(path);
     if (mimeType === null) return yield* unavailable;
+    // chronos: load the renderer-compatible Markdown parser only for guest image requests.
+    const { chatMarkdownImageSources } = yield* Effect.promise(
+      () => import("@t3tools/shared/markdownPipeline"),
+    );
     const sent = sentImageReplies.get(share.id)?.replies.values() ?? [];
     // Each sent reply is parsed once, on the first request that needs it.
     if (
