@@ -8,7 +8,7 @@ import { getCommandPaletteOpener } from "../commandPaletteStore";
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
 import { requestWorkspaceFocus } from "../lib/workspaceFocus";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
-import { PcIndicator } from "../chronos/pc-control/PcIndicator"; // chronos: consent inside the active modal focus scope
+import { PcIndicator } from "../chronos/pc-control/Control"; // chronos: consent inside the active modal focus scope
 import { GlobalVoiceInputIndicator } from "./chat/GlobalVoiceInputIndicator";
 import { Button } from "./ui/button";
 import { DialogBackdrop } from "./ui/dialog";
