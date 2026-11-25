@@ -32,6 +32,7 @@ Object.assign(env, { Path: [dirname(process.execPath), dirname(git), join(env.Sy
   GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0", DO_NOT_TRACK: "1", T3CODE_TELEMETRY_ENABLED: "false", CI: "1" });
 for (const dir of [userdata, work, fake, temp, profile, env.APPDATA, env.LOCALAPPDATA]) mkdirSync(dir, { recursive: true });
 const serverEnv = { ...env, ELECTRON_RUN_AS_NODE: "1", CHRONOS_BENCH_ROOT: root };
+if (process.env.BENCH_TRACE_LEVEL) serverEnv.T3CODE_TRACE_MIN_LEVEL = process.env.BENCH_TRACE_LEVEL;
 const run = (file, args, childEnv = env) => execFileSync(file, args, { env: childEnv, cwd: work,
   stdio: ["ignore","pipe","pipe"], encoding: "utf8", timeout: 30000, windowsHide: true });
 function start(file, args, childEnv) {
@@ -184,7 +185,8 @@ try {
   await wait("visible final marker", async () => (await here()).includes("MARK_"+ids[0]+"_"+(frames-1)+"_"));
   latency.sort((a,b) => a-b);
   const elapsed = end.time - begin.time;
-  const result = { n, frames, interval, serverVersion:state.serverVersion, sampleCount:latency.length,
+  const result = { n, frames, interval, traceLevel: serverEnv.T3CODE_TRACE_MIN_LEVEL ?? "default",
+    serverVersion:state.serverVersion, sampleCount:latency.length,
     elapsedMs:elapsed, eventP95Ms:latency[Math.ceil(latency.length*0.95)-1], lagP95Ms:Math.max(0,end.p95),
     lagSamples:end.count, serverCpuPct:(end.cpu-begin.cpu)/elapsed/10, serverRssMiB:end.rss/1048576,
     rendererCpuPct:(after.cpu-before.cpu)*100000/(after.time-before.time), rendererRssMiB:after.rss/1048576,
