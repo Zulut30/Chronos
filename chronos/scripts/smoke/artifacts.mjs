@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {execFileSync,spawn} from "node:child_process";
 import path from "node:path";
 import {pathToFileURL} from "node:url";
 import {setTimeout as delay} from "node:timers/promises";
@@ -13,7 +14,7 @@ async function waitFor(label,test) {
   } while(Date.now()<end);
   throw Error(label+" timed out"+(last ? ": "+last.message : ""));
 }
-export async function verifyArtifacts(client, opts) {
+export async function verifyArtifacts(client, opts, desktopPid) {
   if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated Windows CI install");
   const services=path.join(path.dirname(opts.launch),"resources","chronos-services");
   const {openArtifacts}=await import(pathToFileURL(path.join(services,"artifacts","store.mjs")));
@@ -27,12 +28,14 @@ export async function verifyArtifacts(client, opts) {
   try {
     const input={source:path.join(process.env.RUNNER_TEMP,"artifact-smoke.html"),title:"Проверка артефакта",label:"Проверка",icon:"🗂",description:"Тест приложения",capabilities:["theme","db"],
       files:{"index.html":`<!doctype html><html lang="ru"><meta charset="utf-8"><title>Проверка артефакта</title><body>Готово<script>
-      requestAnimationFrame(async () => {
-        const value={node:typeof require,mode:chronos.theme.get().mode,files:typeof chronos.files,host:location.hostname,alias:typeof claude.db.get};
+      new PerformanceObserver(async list => {
+        const frame=list.getEntries().find(e=>e.name==="first-contentful-paint");
+        if(!frame) return;
+        const value={firstPaintAt:performance.timeOrigin+frame.startTime,node:typeof require,mode:chronos.theme.get().mode,files:typeof chronos.files,host:location.hostname,alias:typeof claude.db.get};
         const row={collection:"probe",key:"frame"};
         const prior=await chronos.db.get(row);
         await chronos.db.set({...row,value:{...value,opens:(prior?.opens || 0)+1}});
-      });
+      }).observe({type:"paint",buffered:true});
       </script></html>`}};
     const {id}=store.publish(input);
     await client.probe("performAction",{type:"navigate",to:"/"});
@@ -88,6 +91,23 @@ export async function verifyArtifacts(client, opts) {
       const r=guest?.getBoundingClientRect();
       return !!r && r.width>100 && r.height>100 && r.right>0 && r.left<innerWidth && !document.querySelector('dialog[open] webview');
     })()`));
+    const footprint=()=>JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",
+      path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
+    const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});
+    await waitFor("panel first paint",()=>readFrame()?.opens>=2);
+    const baseline=footprint();
+    const start=Date.now();
+    const child=spawn(opts.launch,["--chronos-artifact="+id],{stdio:"ignore",windowsHide:true});
+    const exited=new Promise((resolve,reject)=>{child.once("error",reject);child.once("exit",resolve);});
+    const packageFrame=await waitFor("warm installed window first paint",()=>{
+      const frame=readFrame();return frame?.firstPaintAt>=start ? frame : null;
+    });
+    assert.equal(await exited,0);
+    await delay(1500);
+    const observed=footprint();
+    console.log("PACKAGED_WARM",JSON.stringify({firstPaintMs:Math.round(packageFrame.firstPaintAt-start),
+      privateBytes:observed.privateBytes-baseline.privateBytes,workingSet:observed.workingSet-baseline.workingSet,
+      before:baseline,after:observed}));
     writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
     console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
   } catch(error) {
