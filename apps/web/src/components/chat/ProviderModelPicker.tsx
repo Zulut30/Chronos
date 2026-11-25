@@ -6,7 +6,9 @@ import {
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
 import { RegistryContext } from "@effect/atom-react";
-import { T, useGT } from "gt-react";
+// chronos: localize provider labels before composing the tooltip.
+import { effortLabel } from "~/chronos/olympus/l10n/providerCopy";
+import { T, useGT, useLocale } from "gt-react";
 import {
   createContext,
   memo,
@@ -149,6 +151,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     if (isMenuOpen) refreshModelCatalog();
   }, [isMenuOpen]);
   const gt = useGT();
+  const locale = useLocale();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -274,13 +277,13 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
     : undefined;
   const triggerTooltipContent = [
     props.triggerLabel ?? allModelNames ?? triggerLabel,
-    props.triggerDetail,
+    props.triggerDetail && effortLabel(props.triggerDetail, locale),
     shortcutLabel,
   ]
     .filter(Boolean)
     .join(" · ");
 
-  const triggerText = props.triggerLabel ?? multipleLabel ?? triggerTitle;
+  const triggerText = effortLabel(props.triggerLabel ?? multipleLabel ?? triggerTitle, locale);
   const triggerTextProps = {
     className: cn(
       "min-w-0 flex-1 overflow-hidden truncate",

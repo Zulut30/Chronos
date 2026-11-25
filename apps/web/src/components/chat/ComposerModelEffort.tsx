@@ -11,7 +11,9 @@ import { msg, T, useGT, useMessages } from "gt-react";
 import { CheckIcon, ChevronRightIcon, ChevronUpIcon, WorkflowIcon } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, use, useRef, useState } from "react";
 
-import { m, type MessageResolver } from "~/i18n/messages";
+// chronos: translate provider-supplied effort words at display time.
+import { effortLabel } from "~/chronos/olympus/l10n/providerCopy";
+import { getActiveLocale, m, type MessageResolver } from "~/i18n/messages";
 import { cn } from "~/lib/utils";
 import {
   Menu,
@@ -160,7 +162,7 @@ export function describeComposerEffort(
       >
         {word ? (
           <span data-composer-control-label className="max-w-24 truncate">
-            {word}
+            {effortLabel(word, getActiveLocale())}
           </span>
         ) : glyph ? (
           <EffortGlyph count={glyph.count} filled={glyph.filled} size={size} />

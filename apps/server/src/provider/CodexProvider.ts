@@ -57,6 +57,8 @@ import {
   type CodexRateLimitSnapshot,
   type CodexResetCreditsSummary,
 } from "./codexUsageLimits.ts";
+// chronos: avoid spawning a POSIX process-group probe on Windows.
+import { groupProbeArgs } from "../chronos/codexProcessGroup.ts";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import packageJson from "../../package.json" with { type: "json" };
 const isCodexAppServerSpawnError = Schema.is(CodexErrors.CodexAppServerSpawnError);
@@ -686,9 +688,11 @@ const CODEX_STARTUP_WORK_GRACE = Duration.minutes(1);
 
 const codexProcessGroupIsBusy = Effect.fn("codexProcessGroupIsBusy")(
   function* (pid: number) {
+    const args = groupProbeArgs(yield* HostProcess.Platform, pid);
+    if (!args) return false;
     const { stdout } = yield* spawnAndCollect(
       "pgrep",
-      ChildProcess.make("pgrep", ["-g", `${pid}`]),
+      ChildProcess.make("pgrep", args),
     );
     return stdout.split("\n").some((line) => line.trim() !== "" && Number(line) !== pid);
   },

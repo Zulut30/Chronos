@@ -7,6 +7,7 @@ import {
   RunId,
   ThreadId,
   WS_METHODS,
+  type OrchestrationV2ThreadLaunchInput,
   type IssueDetail,
   type IssueRef,
   type ThreadIssueLink,
@@ -767,6 +768,51 @@ it("a rejected send leaves the timeline when a new draft was typed meanwhile", a
   await expect.element(page.getByText("Attachment 'sample.png' cannot be sent.")).toBeVisible();
   await expect.element(page.getByText("Failed prompt")).not.toBeInTheDocument();
   expect(editor.element().textContent).toContain("Next draft");
+});
+
+// chronos: exercise the Shift gesture and both worktree launch requests through the composer.
+it("Shift model selection launches the same task on two models", async () => {
+  using _environment = installFakeEnvironment([], { requiredWorktreeBootstrap: true });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const draftId = DraftId.make("draft-two-models");
+  useComposerDraftStore.getState().setProjectDraftThreadId(
+    scopeProjectRef(ENVIRONMENT_ID, PROJECT_ID), draftId,
+    { threadId: ThreadId.make("thread-two-models"), branch: "main" },
+  );
+  using launch = holdRpc<OrchestrationV2ThreadLaunchInput>(
+    ORCHESTRATION_V2_WS_METHODS.launchThread, Effect.interrupt,
+  );
+  const router = getRouter(createMemoryHistory({ initialEntries: [`/draft/${draftId}`] }));
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  await expect.element(page.getByText("render", { exact: true }).first()).toBeVisible();
+  const editor = page.getByTestId("composer-editor");
+  await expect.element(editor).toBeVisible();
+  const picker = document.querySelector<HTMLElement>("[data-chat-provider-model-picker]");
+  if (!picker) throw new Error("Missing model picker");
+  await userEvent.click(picker);
+  await page.getByRole("option", { name: /5\.4/ }).first().click();
+  if (!document.querySelector("[data-model-picker-content]")) await userEvent.click(picker);
+  await userEvent.keyboard("{Shift>}");
+  try {
+    await page.getByRole("option", { name: /5\.5/ }).first().click();
+  } finally {
+    await userEvent.keyboard("{/Shift}");
+  }
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(editor);
+  await userEvent.keyboard("Compare these changes{Enter}");
+  try {
+    await vi.waitFor(() => expect(launch.calls).toHaveLength(2));
+    expect(launch.calls.map((call) => call.modelSelection.model).sort()).toEqual(["gpt-5.4", "gpt-5.5"]);
+    expect(new Set(launch.calls.map((call) => call.threadId)).size).toBe(2);
+    for (const call of launch.calls) expect(call.initialMessage?.text).toBe("Compare these changes");
+  } finally {
+    launch.release();
+  }
 });
 
 it("Enter on an empty prompt resumes an interrupted thread", async () => {

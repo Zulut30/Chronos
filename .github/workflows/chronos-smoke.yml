@@ -31,6 +31,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  composer-browser:
+    if: inputs.require_provider
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=@t3tools/web...
+      - name: Exercise multi-model launch and resume in Chromium
+        working-directory: apps/web
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          vp test run --project browser src/components/ChatView.browser.test.tsx -t 'Shift model selection launches|Enter on an empty prompt resumes'
+
   smoke-windows:
     name: Functional smoke (Windows x64)
     runs-on: windows-latest
