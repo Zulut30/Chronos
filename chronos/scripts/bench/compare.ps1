@@ -39,6 +39,7 @@ foreach ($pass in 1..3) {
     New-Item -ItemType Directory -Force $out | Out-Null
     switch ($env:SUITE) {
       'idle' {
+        $env:BENCH_IDLE_MODULES = '1'
         foreach ($scenario in 'unused','disabled') {
           node "$PSScriptRoot/guard-runtime.mjs" $pkg $scenario "$out/$scenario.json"
           if ($LASTEXITCODE) { $errors += "Idle $build $scenario pass $pass" }
