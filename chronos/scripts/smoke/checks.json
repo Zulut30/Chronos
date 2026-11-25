@@ -324,6 +324,7 @@
         "Gemini · Weekly",
         "Claude & GPT (shared) · 5-hour",
         "Claude & GPT (shared) · Weekly",
+        "resets now",
         { "pattern": "^[A-Za-z0-9 ._-]+: Could not read limits\\.$" }
       ]
     },
