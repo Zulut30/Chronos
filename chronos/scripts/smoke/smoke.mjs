@@ -214,7 +214,7 @@ class CdpClient {
     };
   }
 
-  send(method, params = {}, timeoutMs = 30_000) {
+  send(method, params = {}, timeoutMs = 30_000, sessionId) {
     const id = ++this.nextId;
     return new Promise((resolveSend, rejectSend) => {
       const timer = setTimeout(() => {
@@ -222,7 +222,7 @@ class CdpClient {
         rejectSend(new Error(`CDP ${method} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       this.pending.set(id, { resolve: resolveSend, reject: rejectSend, timer, method });
-      this.ws.send(JSON.stringify({ id, method, params }));
+      this.ws.send(JSON.stringify({ id, method, params, sessionId }));
     });
   }
 
@@ -245,6 +245,53 @@ class CdpClient {
       throw new Error(`Page probe "${action}" threw: ${desc}`);
     }
     return res.result?.value;
+  }
+
+  // Read each visible iframe in its own document, including cross-process service panels.
+  async visibleLines(sessionId, contextId) {
+    const send = (method, params) => this.send(method, params, 30_000, sessionId);
+    const evaluate = async (expression, returnByValue) => {
+      const reply = await send("Runtime.evaluate", { expression, returnByValue, contextId });
+      if (reply.exceptionDetails) throw new Error(reply.exceptionDetails.text);
+      return reply.result;
+    };
+    const { value } = await evaluate(`(() => {
+      const lines = document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
+      const visible = el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
+        && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      for (const el of document.querySelectorAll("input:placeholder-shown,textarea:placeholder-shown")) {
+        if (visible(el) && el.placeholder) lines.push(el.placeholder);
+      }
+      const frames = [...document.querySelectorAll("iframe")].flatMap((el, i) => visible(el) ? [i] : []);
+      return { lines, frames };
+    })()`, true);
+    const lines = new Set(value.lines);
+    const frameTree = value.frames.length ? (await send("Page.getFrameTree", {})).frameTree : null;
+    for (const index of value.frames) {
+      const { objectId } = await evaluate(`document.querySelectorAll("iframe")[${index}]`, false);
+      const { node } = await send("DOM.describeNode", { objectId });
+      await send("Runtime.releaseObject", { objectId });
+      if (!node.frameId) throw new Error("Visible iframe has no document");
+      let childSession;
+      let childContext;
+      const belongsToPage = (tree) => tree.frame.id === node.frameId || tree.childFrames?.some(belongsToPage);
+      if (belongsToPage(frameTree)) {
+        const world = await send("Page.createIsolatedWorld", {
+          frameId: node.frameId, worldName: "chronos-smoke",
+        });
+        childContext = world.executionContextId;
+      } else {
+        ({ sessionId: childSession } = await send("Target.attachToTarget", {
+          targetId: node.frameId, flatten: true,
+        }));
+      }
+      try {
+        for (const line of await this.visibleLines(childSession ?? sessionId, childContext)) lines.add(line);
+      } finally {
+        if (childSession) await send("Target.detachFromTarget", { sessionId: childSession });
+      }
+    }
+    return [...lines];
   }
 
   // Pump compositor frames so requestAnimationFrame runs even when the Electron window is hidden/minimized.
@@ -423,6 +470,7 @@ async function run() {
 
     client = new CdpClient(pageTarget.webSocketDebuggerUrl);
     await client.connect();
+    await client.send("Target.setDiscoverTargets", { discover: true });
     await client.send("Runtime.enable");
     await client.send("Log.enable");
     await client.send("Page.enable");
@@ -450,7 +498,7 @@ async function run() {
       appInfo.version || extractVersionFromUserAgent(cdpVersion?.["User-Agent"]) || "unknown";
 
     const report = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       startedAt: new Date().toISOString(),
       finishedAt: null,
       app: {
@@ -581,6 +629,7 @@ async function run() {
             maskSelectors: mergedMaskSelectors,
           });
 
+          screenReport.visibleLines = await client.visibleLines();
           if (opts.screenshots) {
             if (checks.reducedMotion !== false) {
               await client.probe("freezeInfiniteAnimations");
@@ -672,6 +721,7 @@ async function run() {
             screenReport.extra = { waitWarning: readyRes.detail };
           }
 
+          screenReport.visibleLines = await client.visibleLines();
           if (opts.screenshots) {
             if (checks.reducedMotion !== false) {
               await client.probe("freezeInfiniteAnimations");

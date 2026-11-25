@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,28 @@ from PIL import Image, ImageChops, ImageDraw, ImageOps
 
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+# Keep the wording around changing values, including errors with embedded counters.
+_DURATION = r"\d+\s*(?:секунд[уы]?|секундой|минут[уы]?|час(?:а|ов)?|д(?:ень|ня|ней)|недел[ьюяиь]|сек|мин|нед|[смчднsmhdw])\.?"
+_RELATIVE = re.compile(rf"(?<!\w)(?:только что|just now|(?:{_DURATION}\s*)+(?:назад|ago))(?!\w)", re.I)
+_ELAPSED = re.compile(rf"(?<!\w)(?:{_DURATION}\s*)+(?!\w)", re.I)
+_CLOCK = re.compile(r"(?<!\d)\d{1,2}:\d{2}(?::\d{2})?(?!\d)")
+
+
+def russian_lines(screen: dict[str, Any] | None) -> dict[str, str] | None:
+    if not screen or not isinstance(screen.get("visibleLines"), list):
+        return None
+    result = {}
+    for line in screen["visibleLines"]:
+        key = _RELATIVE.sub(" ", " ".join(line.split()))
+        key = _ELAPSED.sub(" ", key)
+        key = _CLOCK.sub(" ", key)
+        key = re.sub(r"\d+(?:[.,]\d+)?", "#", key)
+        key = " ".join(key.split())
+        if re.search("[А-Яа-яЁё]", key):
+            result.setdefault(key, line)
+    return result
 
 
 def normalize_error(err: dict[str, Any]) -> str:
@@ -177,6 +200,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help="Optional checks.json for static pixelMasks (auto-detected beside compare.py if present)",
     )
+    parser.add_argument("--baseline-text", type=Path, help="Matching version rerun supplying visibleLines for a legacy baseline")
+    parser.add_argument("--strict-ru", action="store_true", help="Fail on changed Russian wording or missing text coverage")
     parser.add_argument(
         "--channel-threshold",
         type=int,
@@ -213,6 +238,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def main(argv: list[str]) -> int:
+    # Windows redirected output can use a legacy code page that cannot encode UI glyphs.
+    sys.stdout.reconfigure(errors="backslashreplace")
     args = parse_args(argv)
     base_dir = args.baseline.resolve()
     curr_dir = args.current.resolve()
@@ -238,6 +265,13 @@ def main(argv: list[str]) -> int:
 
     base = load_json(base_report_path)
     curr = load_json(curr_report_path)
+
+    supplemental = {}
+    if args.baseline_text:
+        extra = load_json(args.baseline_text)
+        if not extra.get("app", {}).get("version") or extra["app"]["version"] != base.get("app", {}).get("version"):
+            raise SystemExit("--baseline-text must have the same app version as the baseline")
+        supplemental = {s["id"]: s for s in extra["screens"]}
 
     # 1. Global checks diff (globals + scheme).
     global_diffs: list[dict[str, Any]] = []
@@ -293,6 +327,19 @@ def main(argv: list[str]) -> int:
         removed_en = sorted(b_en - c_en)
         new_en_total += len(new_en)
 
+        old_text = russian_lines(b_scr)
+        used_supplement = old_text is None and b_scr is not None and sid in supplemental
+        if used_supplement:
+            old_text = russian_lines(supplemental[sid])
+        new_text = russian_lines(c_scr)
+        wording = None
+        if old_text is not None and new_text is not None:
+            wording = {
+                "removed": [old_text[k] for k in sorted(old_text.keys() - new_text.keys())],
+                "added": [new_text[k] for k in sorted(new_text.keys() - old_text.keys())],
+                "baselineSource": "supplement" if used_supplement else "report",
+            }
+
         # Screenshot comparison.
         image_diff = None
         b_shot = (b_scr or {}).get("screenshot")
@@ -319,6 +366,7 @@ def main(argv: list[str]) -> int:
                 "resolvedErrors": resolved_errs,
                 "newEnglishPhrases": new_en,
                 "removedEnglishPhrases": removed_en,
+                "russianWording": wording,
                 "image": image_diff,
             }
         )
@@ -329,18 +377,25 @@ def main(argv: list[str]) -> int:
         elif not gd["currentOk"]:
             regressions.append(f"check/{gd['check']}: FAIL")
 
+    compared = [s["russianWording"] for s in screen_diffs if s["russianWording"] is not None]
+    missing_text = [s["id"] for s in screen_diffs if s["russianWording"] is None
+                    and not (base_screens.get(s["id"], {}).get("skipped") and curr_screens.get(s["id"], {}).get("skipped"))]
+    removed_ru = sum(len(w["removed"]) for w in compared)
+    added_ru = sum(len(w["added"]) for w in compared)
     ok = (
-        len(regressions) == 0
+        (not args.strict_ru or not (removed_ru or added_ru or missing_text))
+        and len(regressions) == 0
         and new_errors_total == 0
         and len(visual_failures) == 0
         and (args.no_fail_on_en or new_en_total == 0)
     )
 
     result = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "ok": ok,
         "baseline": {
             "dir": str(base_dir),
+            "textSupplement": str(args.baseline_text) if args.baseline_text else None,
             "version": (base.get("app") or {}).get("version"),
             "startedAt": base.get("startedAt"),
             "ok": base.get("ok"),
@@ -364,6 +419,8 @@ def main(argv: list[str]) -> int:
         "globalDiffs": global_diffs,
         "screens": screen_diffs,
         "summary": {
+            "russianWording": {"comparedScreens": len(compared), "missingScreens": missing_text,
+                               "removed": removed_ru, "added": added_ru},
             "regressions": regressions,
             "newErrors": new_errors_total,
             "newEnglishPhrases": new_en_total,
@@ -412,6 +469,20 @@ def main(argv: list[str]) -> int:
             f"new_en={new_en_total}, visual_failures={len(visual_failures)}, "
             f"max_diff={result['summary']['maxChangedPercent']:.4f}%)"
         )
+        if compared:
+            print(f"Изменившиеся русские формулировки (экранов {len(compared)}, исчезло {removed_ru}, появилось {added_ru})")
+        else:
+            print("Изменившиеся русские формулировки — нет сопоставимых экранов")
+        if missing_text:
+            print(f"  Нет текстов для сравнения: {', '.join(missing_text)}")
+        for screen in screen_diffs:
+            wording = screen["russianWording"]
+            if wording and (wording["removed"] or wording["added"]):
+                print(screen["id"])
+                for line in wording["removed"]:
+                    print(f"  - {line}")
+                for line in wording["added"]:
+                    print(f"  + {line}")
         print(f"Diff report: {diff_report_path}")
 
     return 0 if ok else 1
