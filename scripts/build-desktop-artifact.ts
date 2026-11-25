@@ -995,6 +995,8 @@ export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
   // Cursor walks from argv[1] to platform assets; helpers and native addons need real paths outside ASAR.
   "!**/node_modules/@cursor/sdk-*/**/*",
+  // chronos: native tools ship as external executables only.
+  "!apps/desktop/prod-resources/chronos-pc{,/**/*}",
   "!apps/desktop/prod-resources/cursor-sdk",
   "!apps/desktop/prod-resources/cursor-sdk/**/*",
   // The installed Claude CLI is supplied explicitly; exclude optional bundled executables, retaining SDK JavaScript.
@@ -2866,6 +2868,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       : { asarUnpack: ["**/node_modules/@transcribe-cpp/**/*.{dylib,so,so.*}"] }),
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
+      // chronos: platform-specific, SHA256-verified native automation tools.
+      ...(isChronosVersion(version) ? [{ from: "apps/desktop/prod-resources/chronos-pc", to: "chronos-pc" }] : []),
       // chronos: stage the runtime allowlist from the checkout outside the app archive.
       ...(isChronosVersion(version) ? [{
         from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),
@@ -3941,6 +3945,13 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
 
   // electron-builder is filtering out stageResourcesDir directory in the AppImage for production
   const stageProdResourcesDir = path.join(stageAppDir, "apps/desktop/prod-resources");
+  // chronos: verify upstream archives before electron-builder reads their contents.
+  if (isChronosVersion(appVersion)) {
+    yield* runCommand(ChildProcess.make(process.execPath, [
+      path.join(repoRoot, "chronos/pc-control/stage.mjs"), options.platform, options.arch,
+      path.join(stageProdResourcesDir, "chronos-pc"),
+    ], { cwd: repoRoot }), { label: "stage Chronos computer control tools", verbose: options.verbose });
+  }
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
 
   const configuredMacPasskeySigning =
@@ -4204,7 +4215,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       appVersion,
       // chronos: add exactly the declared service files to the upstream Windows budget.
       fileLimit: WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT + (isChronosVersion(appVersion)
-        ? yield* countPayloadFiles(path.join(repoRoot, "chronos/services"), ".test.mjs")
+        ? (yield* countPayloadFiles(path.join(repoRoot, "chronos/services"), ".test.mjs")) +
+          (yield* countPayloadFiles(path.join(stageProdResourcesDir, "chronos-pc")))
         : 0),
       expectWslRuntime: bundlesWslRuntime({
         platform: options.platform,

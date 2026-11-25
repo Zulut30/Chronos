@@ -8,6 +8,7 @@ import { getCommandPaletteOpener } from "../commandPaletteStore";
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
 import { requestWorkspaceFocus } from "../lib/workspaceFocus";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
+import { PcIndicator } from "../chronos/pc-control/Control"; // chronos: consent inside the active modal focus scope
 import { GlobalVoiceInputIndicator } from "./chat/GlobalVoiceInputIndicator";
 import { Button } from "./ui/button";
 import { DialogBackdrop } from "./ui/dialog";
@@ -128,6 +129,7 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
               className="absolute inset-x-0 top-0 hidden h-(--app-modal-titlebar-height) [-webkit-app-region:drag] max-sm:block"
             />
             {children}
+            <PcIndicator />
             <GlobalVoiceInputIndicator />
           </DialogPrimitive.Popup>
         </DialogPrimitive.Viewport>

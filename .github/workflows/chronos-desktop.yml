@@ -307,10 +307,13 @@ jobs:
           stage=$(mktemp -d)
           if [[ "${{ matrix.platform }}" == "win" ]]; then
             7z e -y "-o$stage" release/*.exe '-ir!app-*.7z' >/dev/null
-            7z x -y "-o$stage" "$stage"/app-*.7z 'resources/chronos-services/*' >/dev/null
+            7z x -y "-o$stage" "$stage"/app-*.7z 'resources/chronos-services/*' 'resources/chronos-pc/*' >/dev/null
             resources="$stage/resources/chronos-services"
+            for tool in agent-desktop.exe agent-browser.exe private-desktop.exe; do test -s "$stage/resources/chronos-pc/$tool"; done
           else
-            unzip -q release/*.zip '*/Contents/Resources/chronos-services/*' -d "$stage"
+            unzip -q release/*.zip '*/Contents/Resources/chronos-services/*' '*/Contents/Resources/chronos-pc/*' -d "$stage"
+            pc=$(find "$stage" -type d -name chronos-pc -print -quit)
+            for tool in agent-desktop agent-desktop-macos-helper agent-browser; do test -x "$pc/$tool"; done
             resources=$(find "$stage" -type d -name chronos-services -print -quit)
           fi
           test -d "$resources"

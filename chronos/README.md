@@ -247,6 +247,10 @@ T3). Оставлены только workflow Chronos:
 
 `apps/server/src/persistence/Sqlite.ts` ограничивает размер повторно используемого WAL 32 МиБ. Методика и все замеры приведены в [отчёте](parity/perf-resources-2.md).
 
+## Управление ПК
+
+Настройки и индикатор подключены в `SettingsPanels.tsx`, `routes/_chat.tsx` и `AppRouteModal.tsx`. Локальный backend получает путь к командному клиенту в `DesktopBackendConfiguration.ts`. Электронная оболочка подключает управление через `DesktopApp.ts`, защищённый IPC и `preload.ts`. Нативные инструменты упаковывает `scripts/build-desktop-artifact.ts`. [Возможности и проверка](parity/pc-control.md) · [Скилл для агента](skills/chronos-pc-control/SKILL.md).
+
 ## Скиллы
 
 В любом checkout начни с [chronos-router](skills/chronos-router/SKILL.md). Таблица в нём ведёт к инструкциям по задаче. Корневой AGENTS.md направляет туда и Antigravity, а CLAUDE.md импортирует правила для Claude Code. Канонический набор — каталог этой ветки [chronos/skills](skills). Все команды ниже запускаются из корня репозитория.
