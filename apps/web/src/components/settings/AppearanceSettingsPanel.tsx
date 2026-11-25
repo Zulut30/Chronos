@@ -34,6 +34,9 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
+// chronos: Olympus chat controls share this section and its advanced search targets.
+import { OlympusChatSettings } from "../../chronos/olympus/OlympusChatSettings";
+import { advancedOlympusIds } from "../../chronos/olympus/chatSettingsCatalog";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
@@ -410,8 +413,10 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
+        <OlympusChatSettings />
         <AdvancedSettings
           targetIds={[
+            ...advancedOlympusIds,
             searchableSetting("panel-animations").id,
             searchableSetting("environment-identification").id,
             // Environment identification's search result lands on this section.
@@ -541,6 +546,7 @@ export function AppearanceSettingsPanel() {
               />
             }
           />
+          <OlympusChatSettings advanced />
         </AdvancedSettings>
       </SettingsSection>
 

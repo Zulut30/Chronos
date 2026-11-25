@@ -170,3 +170,5 @@ pnpm-lock.yaml
 pnpm-workspace.yaml
 vite.config.ts
 ~~~
+
+Настраиваемые модули, зависимости, ключи localStorage и точки проверки описаны в [описи настроек чата](chat-settings.md).

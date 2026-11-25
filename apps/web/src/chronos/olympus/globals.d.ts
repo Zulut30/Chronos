@@ -23,5 +23,6 @@ declare global {
         ): void;
       }
     | undefined;
+  var __olyPanels: { state: { P: { follow: boolean } }; toggleFollow(): void } | undefined;
   var __olyPanelHost: OlympusPanelHost | undefined;
 }
