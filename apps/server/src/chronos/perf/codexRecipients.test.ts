@@ -30,10 +30,15 @@ it("targets root text, preserving child, background, unscoped and released subsc
   router.register(a, { threadId: "a", runId: "1", root: true });
   router.register(b, { threadId: "b", runId: "2", root: false });
   const event = (type: string, threadId: string, runId: string, kind = "assistant_message") =>
-    ({ driver: "codex", type, message: { threadId, runId }, turnItem: { threadId, runId, type: kind } }) as unknown as ProviderAdapterV2Event;
+    ({ driver: "codex", type, message: { threadId, runId }, node: { threadId, runId, kind }, turnItem: { threadId, runId, type: kind } }) as unknown as ProviderAdapterV2Event;
   const text = event("turn_item.updated", "a", "1");
   expect([...router.recipients(all, text)]).toEqual([a]);
-  for (const ambiguous of [event("message.updated", "b", "2"), event("message.updated", "b", "1"),
+  for (const definite of [event("node.updated", "a", "1", "tool_call"), event("turn_item.updated", "a", "1", "file_change")]) {
+    expect([...router.recipients(all, definite)]).toEqual([a]);
+  }
+  for (const ambiguous of [event("node.updated", "a", "1", "todo_list"),
+    event("turn_item.updated", "a", "1", "dynamic_tool"), event("turn_item.updated", "a", "1", "proposed_plan"),
+    event("message.updated", "b", "2"), event("message.updated", "b", "1"),
     event("turn_item.updated", "a", "1", "command_execution"), event("turn.terminal", "a", "1")]) {
     expect([...router.recipients(all, ambiguous)]).toEqual([a, b]);
   }

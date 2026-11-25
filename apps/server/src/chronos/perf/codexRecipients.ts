@@ -11,6 +11,21 @@ export const RunSubscriber = Context.Reference<Owner | undefined>("chronos/RunSu
   defaultValue: () => undefined,
 });
 
+// These rows can be adopted by a later root run in routeProviderEvent, even with an old runId.
+const adoptableItems = new Set(["proposed_plan", "todo_list", "command_execution", "dynamic_tool", "subagent"]);
+
+function runOwnedRow(event: ProviderAdapterV2Event) {
+  switch (event.type) {
+    case "message.updated": return event.message;
+    case "steer.updated": return event;
+    case "node.updated":
+      return event.node.kind === "plan" || event.node.kind === "todo_list" ? undefined : event.node;
+    case "turn_item.updated":
+      return adoptableItems.has(event.turnItem.type) ? undefined : event.turnItem;
+    default: return undefined;
+  }
+}
+
 // Only positive evidence of a top-level owner permits skipping other consumers.
 // Plan adoption, native lineage, terminal barriers and background handoffs stay with the run router.
 export function makeCodexRecipients<Q extends object>() {
@@ -33,11 +48,7 @@ export function makeCodexRecipients<Q extends object>() {
     },
     recipients(current: ReadonlyMap<number, Q>, event: ProviderAdapterV2Event): Iterable<Q> {
       if (current.size < 2 || event.driver !== "codex") return current.values();
-      const entity = event.type === "message.updated" ? event.message
-        : event.type === "steer.updated" ? event
-        : event.type === "turn_item.updated" &&
-          (event.turnItem.type === "assistant_message" || event.turnItem.type === "reasoning")
-          ? event.turnItem : undefined;
+      const entity = runOwnedRow(event);
       if (!entity?.runId) return current.values();
       let byRun = indexed.get(current);
       if (byRun === undefined) {
@@ -45,8 +56,8 @@ export function makeCodexRecipients<Q extends object>() {
         indexed.set(current, byRun);
       }
       const match = byRun?.get(entity.runId);
-      return match && match.owner.threadId === entity.threadId &&
-        (event.type === "steer.updated" || match.owner.root) ? match.queues : current.values();
+      if (match?.owner.threadId !== entity.threadId) return current.values();
+      return event.type === "steer.updated" || match.owner.root ? match.queues : current.values();
     },
   };
 }
