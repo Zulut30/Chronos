@@ -1,3 +1,5 @@
+// chronos: configurable safe idle shutdown for opted-in Claude runtimes.
+import { makeClaudeIdleUnload } from "../chronos/claudeIdleUnload.ts";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -1640,6 +1642,13 @@ export const layerWithOptions = (
           ),
         );
 
+      // chronos: serialize idle shutdown and the next open, including release record writes.
+      const claudeIdle = yield* makeClaudeIdleUnload(
+        Ref.get(sessions),
+        (id, use) => sessionOpen.withLock(id, use),
+        releaseEntry,
+      );
+
       const releaseIfStillIdle = Effect.fn("ProviderSessionManager.releaseIfStillIdle")(
         function* (input: {
           readonly providerSessionId: ProviderSessionId;
@@ -1765,6 +1774,16 @@ export const layerWithOptions = (
           return;
         }
 
+        // chronos: Claude uses one settings-aware clock and never expires a background pin.
+        if (entry.runtime.canUnloadIdleSession !== undefined) {
+          yield* claudeIdle.touch(entry.runtime);
+          return yield* Ref.update(sessions, (live) => {
+            const current = live.get(key);
+            return current?.runtime === entry.runtime
+              ? new Map(live).set(key, { ...current, idleGeneration: current.idleGeneration + 1 })
+              : live;
+          });
+        }
         yield* cancelIdleFiber(entry.idleFiber);
         const generation = entry.idleGeneration + 1;
         const idleFiber = yield* Effect.sleep(Duration.millis(idleTimeoutFor(entry.runtime))).pipe(

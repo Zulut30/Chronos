@@ -46,6 +46,8 @@ import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as McpSessionRegistry from "../mcp/McpSessionRegistry.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
+// chronos: test the idle process guard through the normal session manager.
+import { TerminalManager } from "../terminal/Manager.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import {
   CodexProviderCapabilitiesV2,
@@ -483,6 +485,7 @@ const makeProviderAdapter = Effect.fnUntraced(function* (
       readonly providerSessionId: ProviderSessionId;
       readonly initialProviderItemIdentityVersion?: 2;
     }) => Effect.Effect<void>;
+    readonly canUnloadIdleSession?: Effect.Effect<boolean>;
     readonly hasPendingBackgroundWork?: Effect.Effect<boolean>;
     readonly hasPendingBackgroundWorkForThread?: Effect.Effect<boolean>;
     readonly backgroundTasksEndWithProcess?: boolean;
@@ -596,6 +599,9 @@ const makeProviderAdapter = Effect.fnUntraced(function* (
           ...(options.backgroundTasksEndWithProcess === false
             ? {}
             : { backgroundTasksEndWithProcess: true as const }),
+          ...(options.canUnloadIdleSession === undefined
+            ? {}
+            : { canUnloadIdleSession: options.canUnloadIdleSession }),
           ...(options.hasPendingBackgroundWork === undefined
             ? {}
             : { hasPendingBackgroundWork: options.hasPendingBackgroundWork }),
@@ -673,6 +679,7 @@ function layerTest(input: {
     readonly armed: Ref.Ref<boolean>;
     readonly paused: Deferred.Deferred<void>;
   };
+  readonly canUnloadIdleSession?: Effect.Effect<boolean>;
   readonly hasPendingBackgroundWork?: Effect.Effect<boolean>;
   readonly hasPendingBackgroundWorkForThread?: Effect.Effect<boolean>;
   readonly backgroundTasksEndWithProcess?: boolean;
@@ -686,6 +693,7 @@ function layerTest(input: {
   readonly scopeCloseReached?: Deferred.Deferred<void>;
   readonly eventStreamsEnded?: Queue.Queue<ProviderSessionId>;
   readonly releaseRecorded?: Deferred.Deferred<void>;
+  readonly openTerminal?: Effect.Effect<boolean>;
   readonly serverSettingsLayer?: ReturnType<typeof ServerSettings.layerTest>;
   readonly projectServiceLayer?: Layer.Layer<ProjectService.ProjectService>;
   readonly installationGateLayer?: Layer.Layer<ProviderInstallationGate.ProviderInstallationGate>;
@@ -708,6 +716,9 @@ function layerTest(input: {
   const layerRegistry = Layer.unwrap(
     makeProviderAdapter(input.state, {
       failEventStream: input.failEventStream ?? false,
+      ...(input.canUnloadIdleSession === undefined
+        ? {}
+        : { canUnloadIdleSession: input.canUnloadIdleSession }),
       ...(input.normalizeThreadLoadModelSelection === undefined
         ? {}
         : { normalizeThreadLoadModelSelection: input.normalizeThreadLoadModelSelection }),
@@ -786,6 +797,9 @@ function layerTest(input: {
           layerConfiguredMcpRegistry,
           layerTestStores,
           input.installationGateLayer ?? ProviderInstallationGate.layer,
+          Layer.mock(TerminalManager)({
+            hasActiveSubprocess: () => input.openTerminal ?? Effect.succeed(false),
+          }),
           ...(input.serverSettingsLayer === undefined ? [] : [input.serverSettingsLayer]),
           ...(input.projectServiceLayer === undefined ? [] : [input.projectServiceLayer]),
         ),
@@ -2137,6 +2151,182 @@ it.effect.each([
         assert.isFalse(yield* manager.isLive(providerSessionId));
       }).pipe(Effect.provide(layerTest({ state, capabilities })));
     }),
+);
+
+// chronos: real projection store, manager, scoped close and test clock with a resumable adapter.
+it.effect.each([
+  { description: "default", minutes: undefined, wait: 10, closes: 1 },
+  { description: "custom", minutes: 3, wait: 3, closes: 1 },
+  { description: "disabled", minutes: 0, wait: 15, closes: 0 },
+])("Claude idle unload honors $description delay", ({ minutes, wait, closes }) =>
+  Effect.gen(function* () {
+    const state = yield* Ref.make(emptyState);
+    yield* Effect.gen(function* () {
+      const manager = yield* ProviderSessionManager.ProviderSessionManagerV2;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const eventSink = yield* EventSink.EventSinkV2;
+      const now = yield* DateTime.now;
+      const threadId = ThreadId.make("claude-idle-delay");
+      const providerSessionId = yield* idAllocator.allocate.providerSession({
+        providerInstanceId: modelSelection.instanceId,
+        threadId,
+      });
+      yield* eventSink.write({
+        events: [yield* makeThreadCreatedEvent({ idAllocator, threadId, now })],
+      });
+      const input = { threadId, providerSessionId, modelSelection, runtimePolicy };
+      const original = yield* manager.open(input);
+      const native = makeProviderThread({ idAllocator, threadId, providerSessionId, now });
+      yield* eventSink.write({
+        events: [
+          {
+            id: yield* idAllocator.allocate.event({ threadId }),
+            type: "provider-thread.updated",
+            threadId,
+            occurredAt: now,
+            payload: native,
+          },
+        ],
+      });
+      yield* TestClock.adjust(wait * 60_000 - 1);
+      assert.isTrue(yield* manager.isLive(providerSessionId));
+      yield* TestClock.adjust(1);
+      assert.equal((yield* Ref.get(state)).closeCount, closes);
+      if (closes) {
+        const records = yield* (yield* ProjectionStore.ProjectionStoreV2).getThreadProjection(
+          threadId,
+        );
+        const stopped = records.providerSessions.find((s) => s.id === providerSessionId);
+        assert.equal(stopped?.status, "stopped");
+        assert.isNull(stopped!.lastError);
+        const providerThread = records.providerThreads.find((thread) => thread.id === native.id)!;
+        assert.deepEqual(providerThread.nativeThreadRef, native.nativeThreadRef);
+        const reopened = yield* manager.open({
+          ...input,
+          resumeFromSession: stopped!,
+          initialNativeThreadId: providerThread.nativeThreadRef!.nativeId!,
+        });
+        assert.notStrictEqual(original, reopened);
+        const resumed = yield* reopened.resumeThread({ ...input, providerThread });
+        assert.deepEqual(resumed.nativeThreadRef, providerThread.nativeThreadRef);
+        assert.equal((yield* Ref.get(state)).resumeCount, 1);
+      }
+    }).pipe(
+      Effect.provide(
+        layerTest({
+          state,
+          canUnloadIdleSession: Effect.succeed(true),
+          serverSettingsLayer: ServerSettings.layerTest(
+            minutes === undefined ? {} : { claudeIdleUnloadMinutes: minutes },
+          ),
+        }),
+      ),
+    );
+  }),
+);
+
+it.effect(
+  "Claude idle unload preserves a pinned process and serializes a send across teardown",
+  () =>
+    Effect.gen(function* () {
+      const state = yield* Ref.make(emptyState);
+      const terminal = yield* Ref.make(true);
+      const background = yield* Ref.make(true);
+      const checking = yield* Deferred.make<void>();
+      const finishCheck = yield* Deferred.make<void>();
+      yield* Effect.gen(function* () {
+        const manager = yield* ProviderSessionManager.ProviderSessionManagerV2;
+        const idAllocator = yield* IdAllocator.IdAllocatorV2;
+        const eventSink = yield* EventSink.EventSinkV2;
+        const threadId = ThreadId.make("claude-idle-race");
+        const providerSessionId = yield* idAllocator.allocate.providerSession({
+          providerInstanceId: modelSelection.instanceId,
+          threadId,
+        });
+        yield* eventSink.write({
+          events: [
+            yield* makeThreadCreatedEvent({ idAllocator, threadId, now: yield* DateTime.now }),
+          ],
+        });
+        const input = { threadId, providerSessionId, modelSelection, runtimePolicy };
+        const original = yield* manager.open(input);
+        yield* TestClock.adjust("1 minute");
+        assert.isTrue(yield* manager.isLive(providerSessionId));
+        yield* Ref.set(terminal, false);
+        yield* TestClock.adjust("1 minute");
+        assert.isTrue(yield* manager.isLive(providerSessionId));
+        yield* Ref.set(background, false);
+        const tick = yield* TestClock.adjust("1 minute").pipe(Effect.forkScoped);
+        yield* Deferred.await(checking);
+        const send = yield* manager.open(input).pipe(Effect.forkChild({ startImmediately: true }));
+        yield* Deferred.succeed(finishCheck, undefined);
+        const reopened = yield* Fiber.join(send);
+        yield* Fiber.join(tick);
+        assert.notStrictEqual(original, reopened);
+        assert.isTrue(yield* manager.isLive(providerSessionId));
+        assert.equal((yield* Ref.get(state)).openCount, 2);
+        assert.equal((yield* Ref.get(state)).closeCount, 1);
+      }).pipe(
+        Effect.provide(
+          layerTest({
+            state,
+            maxIdlePinMs: 1,
+            serverSettingsLayer: ServerSettings.layerTest({ claudeIdleUnloadMinutes: 1 }),
+            openTerminal: Ref.get(terminal),
+            hasPendingBackgroundWork: Ref.get(background),
+            canUnloadIdleSession: Deferred.succeed(checking, undefined).pipe(
+              Effect.andThen(Deferred.await(finishCheck)),
+              Effect.as(true),
+            ),
+          }),
+        ),
+        Effect.scoped,
+      );
+    }),
+);
+
+it.effect("Claude idle unload leaves a runless pending approval answerable", () =>
+  Effect.gen(function* () {
+    const state = yield* Ref.make(emptyState);
+    yield* Effect.gen(function* () {
+      const manager = yield* ProviderSessionManager.ProviderSessionManagerV2;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const sink = yield* EventSink.EventSinkV2;
+      const threadId = ThreadId.make("idle-approval");
+      const now = yield* DateTime.now;
+      const providerSessionId = yield* idAllocator.allocate.providerSession({
+        threadId,
+        providerInstanceId: modelSelection.instanceId,
+      });
+      const providerThread = makeProviderThread({ idAllocator, threadId, providerSessionId, now });
+      const pending = yield* makePendingRuntimeRequestEvents({
+        idAllocator,
+        threadId,
+        providerSessionId,
+        providerThread,
+        now,
+      });
+      yield* sink.write({
+        events: [yield* makeThreadCreatedEvent({ idAllocator, threadId, now }), ...pending.events],
+      });
+      yield* manager.open({ threadId, providerSessionId, modelSelection, runtimePolicy });
+      yield* TestClock.adjust("3 minutes");
+      assert.isTrue(yield* manager.isLive(providerSessionId));
+      const { runtimeRequests } =
+        yield* (yield* ProjectionStore.ProjectionStoreV2).getThreadRecords(threadId, [
+          "runtimeRequests",
+        ]);
+      assert.equal(runtimeRequests.find((r) => r.id === pending.requestId)?.status, "pending");
+    }).pipe(
+      Effect.provide(
+        layerTest({
+          state,
+          canUnloadIdleSession: Effect.succeed(true),
+          serverSettingsLayer: ServerSettings.layerTest({ claudeIdleUnloadMinutes: 1 }),
+        }),
+      ),
+    );
+  }),
 );
 
 const idleReleaseAroundRun = (start: "compactThread" | "resumeTurn") =>

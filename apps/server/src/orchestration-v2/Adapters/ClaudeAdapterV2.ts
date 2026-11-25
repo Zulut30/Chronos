@@ -192,6 +192,8 @@ import {
 import * as ServerConfig from "../../config.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ProcessRunner from "../../processRunner.ts";
+// chronos: identify additional jobs before releasing an idle query.
+import { captureIdleProcessGuard } from "../../chronos/claudeProcessGuard.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import { spawnAndCollect } from "@t3tools/provider-core/server/snapshotProbe";
@@ -779,6 +781,8 @@ export interface ClaudeAgentSdkQueryOpenInput {
 }
 
 export interface ClaudeAgentSdkQuerySession {
+  // chronos: absent for runners without process ownership information.
+  readonly idleProcessTreeSafe?: Effect.Effect<boolean>;
   readonly messages: Stream.Stream<SDKMessage, ClaudeAgentSdkQueryRunnerError>;
   readonly offer: (
     message: SDKUserMessage,
@@ -1921,7 +1925,15 @@ export const layerQueryRunner: Layer.Layer<
         ),
       );
 
+      // chronos: sample startup helpers before the first user prompt can run a tool.
+      const idleProcessTreeSafe = yield* captureIdleProcessGuard(
+        processRunner,
+        platform === "win32",
+        hostEnvironment.SystemRoot ?? hostEnvironment.windir ?? "C:\\Windows",
+        (spawnedProcess as { pid?: number } | undefined)?.pid,
+      );
       return {
+        idleProcessTreeSafe,
         messages: Stream.fromAsyncIterable(
           claudeQueryMessages(queryRuntime),
           (cause) => cause,
@@ -13785,6 +13797,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                 : Effect.void,
             ),
           );
+          // chronos: pair native resume with the idle-unloaded event by providerSessionId.
+          if (shouldResume)
+            yield* Effect.logInfo("chronos.claude.native-resumed", {
+              threadId: turnInput.threadId,
+              providerSessionId: input.providerSessionId,
+              nativeThreadId,
+            });
           // Mark only successful opens; retries must not resume sessions that failed to create.
           yield* Ref.update(openedNativeThreads, (current) => {
             if (current.has(nativeThreadId)) {
@@ -14846,6 +14865,23 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
           getModelContextWindow: (selection) => claudeContextWindow(selection) ?? undefined,
           events: Stream.fromEffectRepeat(Queue.take(events)),
           backgroundTasksEndWithProcess: true,
+          // chronos: a live prompt, dialog, unsaved conversation or an untracked job pins this process.
+          canUnloadIdleSession: Effect.gen(function* () {
+            if (
+              (yield* Ref.get(activeTurn)) !== null ||
+              (yield* Ref.get(pendingRuntimeRequests)).size > 0
+            )
+              return false;
+            const live = yield* Ref.get(queryContext);
+            if (live === null) return true;
+            if (!live.query.idleProcessTreeSafe || !(yield* live.query.idleProcessTreeSafe))
+              return false;
+            return (
+              (yield* claudeTranscriptState(
+                clearedNativeSessions.get(live.nativeThreadId) ?? live.nativeThreadId,
+              ).pipe(Effect.orElseSucceed(() => "missing"))) === "conversation"
+            );
+          }),
           hasPendingBackgroundWork: Effect.gen(function* () {
             // A wakeup can be up to an hour out, past the idle timeout, and dies with the process.
             if (scheduledWakeupsByNativeThread.size > 0) {

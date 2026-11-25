@@ -155,6 +155,10 @@ T3). Оставлены только workflow Chronos:
 
 | Файл апстрима | Правка упаковки |
 | --- | --- |
+| `packages/contracts/src/settings.ts`, `apps/server/src/serverSettings.ts` | Минуты простоя Claude в настройках окружения и значение для старых профилей |
+| `packages/provider-core/src/server/ProviderAdapter.ts`, `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts` | Локальная проверка готовности к выгрузке, дерево процессов и нативное возобновление Claude |
+| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `apps/server/src/terminal/Manager.ts` | Таймер, блокировка открытия и проверка открытых терминалов. [Устройство и ручная проверка](parity/perf-idle-unload.md) |
+| `apps/web/src/components/settings/ProviderSettingsPanel.tsx` | Поле времени простоя в дополнительных настройках провайдеров |
 | `packages/shared/src/cliRelease.ts` | Блок `chronos: begin/end` (версии, appId, scheme, URLs); `cliReleaseChannelOf` читает версию апстрима |
 | `apps/desktop/src/app/DesktopConfig.ts` | Переменная окружения `CHRONOS_HOME` |
 | `apps/desktop/src/app/DesktopEnvironment.ts` | Имя продукта `Chronos`, заголовок окна, `~/.chronos` / `CHRONOS_HOME`, AUMID `io.github.zulut30.chronos` |

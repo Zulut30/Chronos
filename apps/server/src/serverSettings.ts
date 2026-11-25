@@ -1,5 +1,6 @@
 import {
   DEFAULT_SERVER_SETTINGS,
+  DEFAULT_CLAUDE_IDLE_UNLOAD_MINUTES, // chronos: advertise the timeout to compatible clients.
   ModelSelection,
   ProjectId,
   ProjectScript,
@@ -561,6 +562,11 @@ function resolveTextGenerationProvider(
   settings: ServerSettings,
   isDriverAllowed: DriverAllowed = anyDriver,
 ): ServerSettings {
+  // chronos: materialize only on the server, including profiles created before the setting.
+  settings =
+    settings.claudeIdleUnloadMinutes === undefined
+      ? { ...settings, claudeIdleUnloadMinutes: DEFAULT_CLAUDE_IDLE_UNLOAD_MINUTES }
+      : settings;
   const selection = settings.textGenerationModelSelection;
   return isModelSelectionProviderEnabled(settings, selection) &&
     selectionSupportsTextGeneration(settings, selection) &&
