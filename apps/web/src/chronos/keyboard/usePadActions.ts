@@ -3,18 +3,11 @@ import { useRouter } from "@tanstack/react-router";
 import type { KeyboardAction, ScopedProjectRef } from "@t3tools/contracts";
 import { threadRuntimeIsActive } from "@t3tools/client-runtime/state/shell";
 import { useComposerHandleContext } from "../../composerHandleContext";
-import { useComposerDraftStore } from "../../composerDraftStore";
 import { toastManager } from "../../components/ui/toast";
 import { isAppModalPage } from "../../components/sidebar/mainAppLocation";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { useStableCallback } from "../../hooks/useStableCallback";
 import type { NewThreadHandler } from "../../hooks/useHandleNewThread";
-import { appAtomRegistry } from "../../rpc/atomRegistry";
-import { environmentServerConfigsAtom } from "../../state/server";
-import {
-  deriveProviderInstanceEntries,
-  getDefaultProviderInstanceModel,
-} from "../../providerInstances";
 import { readThreadShells } from "../../state/entities";
 import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
@@ -33,48 +26,6 @@ function visible<T extends HTMLElement>(selector: string): T[] {
       r.left < innerWidth
     );
   });
-}
-async function draft(
-  project: ScopedProjectRef | null,
-  open: NewThreadHandler,
-  target = "",
-) {
-  if (!project) throw new Error("Выберите проект для нового треда.");
-  if (!target) {
-    await open(project);
-    return;
-  }
-  const providers =
-    appAtomRegistry.get(environmentServerConfigsAtom).get(project.environmentId)
-      ?.providers ?? [];
-  const entries = deriveProviderInstanceEntries(providers).filter(
-    (p) => p.enabled && p.isAvailable,
-  );
-  const wanted = target.toLowerCase();
-  const matches = entries.flatMap((p) => {
-    const provider =
-      [p.instanceId, p.displayName, p.driverKind].some(
-        (id) => id.toLowerCase() === wanted,
-      ) ||
-      (wanted === "claude" && p.driverKind === "claudeAgent");
-    const model = provider
-      ? getDefaultProviderInstanceModel(providers, p.instanceId)
-      : p.models.find((m) =>
-          [m.slug, m.name, p.instanceId + "/" + m.slug].some(
-            (s) => s.toLowerCase() === wanted,
-          ),
-        )?.slug;
-    return model ? [{ instanceId: p.instanceId, model }] : [];
-  });
-  if (matches.length !== 1)
-    throw new Error(
-      "Модель недоступна или неоднозначна. Укажите экземпляр провайдера и модель в виде экземпляр/модель.",
-    );
-  const result = await open(project);
-  if (result)
-    useComposerDraftStore
-      .getState()
-      .setModelSelection(result.draftId, matches[0]!, { replaceOptions: true });
 }
 export function usePadActions(
   project: () => ScopedProjectRef | null,
@@ -120,9 +71,17 @@ export function usePadActions(
     }
     if (visible('[aria-modal="true"],[role="alertdialog"]').length) return;
     switch (a.id) {
-      case "draft":
-        await draft(project(), open, a.arg);
+      case "draft": {
+        const targetProject = project();
+        if (!targetProject) throw new Error("Выберите проект для нового треда.");
+        if (a.arg) {
+          const { openModelDraft } = await import("./openModelDraft");
+          await openModelDraft(targetProject, open, a.arg);
+        } else {
+          await open(targetProject);
+        }
         break;
+      }
       case "next":
       case "previous":
         navigate(a.id);
