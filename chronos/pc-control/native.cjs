@@ -197,6 +197,12 @@ function makeNative(tools, stateDir) {
         }
         return;
       }
+      if (op === "windows") {
+        const result = await desktop(["list-windows", "--app", session.app]);
+        return result.data
+          .filter((w) => !session.pid || w.pid === session.pid)
+          .map((w) => ({ id: w.id, title: String(w.title ?? "").slice(0, 180) }));
+      }
       if (op === "snapshot") {
         const reply = await desktop([
           "snapshot",

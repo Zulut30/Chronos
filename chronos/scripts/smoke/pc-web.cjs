@@ -59,10 +59,19 @@ async function smoke(tools) {
     },
   });
   async function request(request, expect = true) {
-    const child = spawn(process.execPath, [path.resolve(tools, "bin/client.cjs")], {
-      env: { ...process.env, CHRONOS_PC_SOCKET: socket, CHRONOS_PC_CAPABILITY: key },
-      stdio: ["pipe", "pipe", "inherit"],
-    });
+    const child = spawn(
+      process.env.CHRONOS_EXE ?? process.execPath,
+      [path.resolve(tools, "bin/client.cjs")],
+      {
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: "1",
+          CHRONOS_PC_SOCKET: socket,
+          CHRONOS_PC_CAPABILITY: key,
+        },
+        stdio: ["pipe", "pipe", "inherit"],
+      },
+    );
     let text = "";
     child.stdout.on("data", (chunk) => {
       text += chunk;

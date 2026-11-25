@@ -37,6 +37,7 @@ const labels: Record<string, string> = {
   open: "Открыть",
   attach: "Подключиться",
   snapshot: "Снимок",
+  windows: "Список окон",
   save: "Сохранить временный документ",
   expand: "Раскрыть меню",
   click: "Нажать",
@@ -44,29 +45,32 @@ const labels: Record<string, string> = {
   close: "Завершить сессию",
   stop: "Аварийная остановка",
 };
+function subscribeToControl(setState: (state: State) => void) {
+  const api = window.chronosPC;
+  if (!api) return;
+  let generation = 0;
+  function refresh() {
+    generation = generation + 1;
+    const id = generation;
+    void api
+      ?.settings({ op: "state" })
+      .then((value) => {
+        if (id === generation) setState(value);
+      })
+      .catch(() => {});
+  }
+  const remove = api.subscribe(refresh);
+  refresh();
+  return () => {
+    generation = generation + 1;
+    remove();
+  };
+}
+
 function useControl() {
   const [state, setState] = useState<State>();
   const [error, setError] = useState("");
-  useEffect(() => {
-    const api = window.chronosPC;
-    if (!api) return;
-    let generation = 0;
-    function refresh() {
-      const id = ++generation;
-      void api
-        ?.settings({ op: "state" })
-        .then((value) => {
-          if (id === generation) setState(value);
-        })
-        .catch(() => {});
-    }
-    const remove = api.subscribe(refresh);
-    refresh();
-    return () => {
-      generation++;
-      remove();
-    };
-  }, []);
+  useEffect(() => subscribeToControl(setState), []);
   async function send(input: unknown) {
     try {
       await window.chronosPC?.settings(input);
@@ -240,7 +244,8 @@ export function PcSettings() {
       <div className="space-y-4 p-4 text-sm">
         <Editor key={JSON.stringify(state.settings)} settings={state.settings} send={send} />
         <p>
-          Аварийная остановка всех действий · <kbd>Ctrl / ⌘ + Alt + Shift + F12</kbd>
+          Аварийная остановка всех действий · <kbd>Ctrl / ⌘ + Alt + Shift + F12</kbd>. В Windows она
+          также закрывает окна, которые агент открыл на отдельном рабочем столе.
         </p>
         <Button
           variant="outline"

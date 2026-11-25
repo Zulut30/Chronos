@@ -5,7 +5,17 @@ const { randomUUID } = require("node:crypto");
 const { makeNative } = require("./native.cjs");
 
 const defaults = { enabled: false, all: false, apps: [], mode: "risk" };
-const operations = ["open", "attach", "snapshot", "save", "expand", "click", "fill", "close"];
+const operations = [
+  "open",
+  "attach",
+  "windows",
+  "snapshot",
+  "save",
+  "expand",
+  "click",
+  "fill",
+  "close",
+];
 const hotkey = "CommandOrControl+Alt+Shift+F12";
 function policy(input) {
   if (
@@ -260,7 +270,15 @@ function createController({
         await release(s);
         return {};
       }
+      if (op === "windows") {
+        if (s.kind !== "desktop") throw new Error("Список окон доступен только в приложении.");
+        const windows = await native(s, op, q, signal);
+        s.windows = new Set(windows.map((w) => w.id));
+        return { windows };
+      }
       if (op === "snapshot") {
+        if (q.window !== undefined && !s.windows?.has(q.window))
+          throw new Error("Выберите окно из списка этой сессии.");
         s.refs.clear();
         const fields = await native(s, op, q, signal);
         if (signal.aborted) throw new Error("Действие остановлено.");

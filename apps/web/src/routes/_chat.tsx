@@ -26,7 +26,7 @@ function ChatRouteLayout() {
         <Outlet />
       )}
       {modalOpen ? <Outlet /> : null}
-      <PcIndicator />
+      {!modalOpen && <PcIndicator />}
       <GlobalVoiceInputIndicator hidden={modalOpen} />
     </>
   );
