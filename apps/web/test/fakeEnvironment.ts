@@ -609,6 +609,8 @@ export function installFakeEnvironment(
   fixtures: ReadonlyArray<FakeThread>,
   options?: {
     readonly acceptCommands?: boolean;
+    // chronos: exercise fan-out against a capable server in browser smoke.
+    readonly requiredWorktreeBootstrap?: boolean;
     readonly keybindings?: ResolvedKeybindingsConfig;
     readonly extraProjects?: ReadonlyArray<Pick<OrchestrationProjectShell, "id" | "title">>;
     /** Commands left unanswered even when accepting, until `rejectPendingCommand`. */
@@ -624,6 +626,12 @@ export function installFakeEnvironment(
     ),
     keybindings: options?.keybindings ?? DEFAULT_RESOLVED_KEYBINDINGS,
   };
+  if (options?.requiredWorktreeBootstrap) {
+    const environment = baseServerConfig.environment;
+    baseServerConfig = { ...baseServerConfig, environment: {
+      ...environment, capabilities: { ...environment.capabilities, requiredWorktreeBootstrap: true },
+    } };
+  }
   dispatched = [];
   acceptCommands = options?.acceptCommands === true;
   projects = [
