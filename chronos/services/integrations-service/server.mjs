@@ -13,7 +13,7 @@ import path from 'node:path';
 import { INTEGRATIONS, byId, readUserEnv, setUserEnv, mask, testKey, UserError } from './keys.mjs';
 
 const HERE = serviceDir('integrations-service');
-fs.mkdirSync(HERE, { recursive: true });
+fs.mkdirSync(HERE, { recursive: true, mode: 0o700 });
 const PORT = Number(process.env.OLY_INTEGRATIONS_PORT || 4522);
 const STATE = path.join(HERE, 'state.json'); // last test results only (no secrets)
 const ORIGINS = new Set(['t3code://app', 'http://localhost:3773', 'http://127.0.0.1:3773']);

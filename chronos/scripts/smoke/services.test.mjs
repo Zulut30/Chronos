@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -69,7 +70,21 @@ test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
           assert.equal((await fetch(base+'/excalidraw/app.js')).status,200);
           assert.equal((await fetch(base+'/api/wp/sites')).status,404);
         }else if(variable==='INTEGRATIONS'){
-          if(process.platform!=='win32') assert.equal((await fetch(base+'/api/balances/saved')).status,200);
+          if(process.platform!=='win32') {
+            const value=randomUUID();
+            const modify=(route,payload)=>fetch(base+'/api/keys'+route,{method:'POST',
+              headers:{'x-oly':'1','content-type':'application/json'},body:JSON.stringify(payload)});
+            const saved=await modify('',{id:'openrouter',value});
+            assert.equal(saved.status,200);
+            const file=path.join(data,'integrations-service','keys.env');
+            assert.equal(fs.statSync(file).mode & 0o777,0o600);
+            assert.equal(fs.statSync(path.dirname(file)).mode & 0o777,0o700);
+            assert.ok(fs.readFileSync(file,'utf8').includes(value));
+            const listed=await(await fetch(base+'/api/keys')).text();
+            assert.ok(listed.includes(value.slice(-4)));assert.ok(!listed.includes(value));
+            assert.equal((await modify('/delete',{id:'openrouter'})).status,200);
+            assert.ok(!fs.readFileSync(file,'utf8').includes(value));
+          }
         }else if(variable==='MCP'){
           assert.ok((await get('/api/locations')).locations.some(l=>l.project===project));
         }else{

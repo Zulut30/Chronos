@@ -1,22 +1,23 @@
-import { ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+// @effect-diagnostics nodeBuiltinImport:off -- The test uses fake native child handles and a temporary service log directory.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { supervise } from "./Sidecars.ts";
 
 const service = { name: "tasks-service", port: 4518, health: "/api/health" };
 let baseDir: string;
 beforeEach(() => {
-  baseDir = mkdtempSync(join(tmpdir(), "chronos-sidecars-"));
+  baseDir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "chronos-sidecars-"));
   vi.useFakeTimers();
 });
 afterEach(() => {
   vi.useRealTimers();
-  rmSync(baseDir, { recursive: true, force: true });
+  NodeFS.rmSync(baseDir, { recursive: true, force: true });
 });
 function fixture() {
-  const child = new ChildProcess();
+  const child = new NodeChildProcess.ChildProcess();
   const kill = vi.spyOn(child, "kill").mockReturnValue(true);
   const probe = vi.fn<() => Promise<"available" | "external" | "occupied">>().mockResolvedValue("available");
   const launch = vi.fn(() => child);

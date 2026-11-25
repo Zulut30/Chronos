@@ -1,7 +1,8 @@
-import { spawn, type ChildProcess } from "node:child_process";
-import { appendFileSync, closeSync, mkdirSync, openSync } from "node:fs";
-import { get } from "node:http";
-import { join } from "node:path";
+// @effect-diagnostics nodeBuiltinImport:off globalTimers:off globalDate:off -- Native child handles, log descriptors and retry timers must also stop synchronously on Electron exit.
+import * as NodeChildProcess from "node:child_process";
+import * as NodeFS from "node:fs";
+import * as NodeHttp from "node:http";
+import * as NodePath from "node:path";
 
 export interface Service {
   name: string;
@@ -24,7 +25,7 @@ type PortState = "available" | "external" | "occupied";
 
 export function probe(service: Service, signal: AbortSignal): Promise<PortState> {
   return new Promise((resolve) => {
-    const req = get({ hostname: "127.0.0.1", port: service.port, path: service.health, signal }, (res) => {
+    const req = NodeHttp.get({ hostname: "127.0.0.1", port: service.port, path: service.health, signal }, (res) => {
       if (service.name === "olympus-hub" || res.statusCode !== 200) {
         resolve(service.name === "olympus-hub" && res.statusCode === 401 ? "external" : "occupied");
         res.destroy();
@@ -55,20 +56,20 @@ interface Options {
   executable: string;
   env: NodeJS.ProcessEnv;
 }
-function launch(service: Service, options: Options, log: string): ChildProcess {
-  const cwd = join(options.resources, service.name);
-  const fd = openSync(log, "a", 0o600);
+function launch(service: Service, options: Options, log: string): NodeChildProcess.ChildProcess {
+  const cwd = NodePath.join(options.resources, service.name);
+  const fd = NodeFS.openSync(log, "a", 0o600);
   try {
     const env = { ...options.env };
     for (const key of Object.keys(env)) {
       if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(key)) delete env[key];
     }
-    return spawn(options.executable, [join(cwd, "server.mjs")], {
+    return NodeChildProcess.spawn(options.executable, [NodePath.join(cwd, "server.mjs")], {
       cwd, windowsHide: true, stdio: ["ignore", fd, fd],
       env: { ...env, ELECTRON_RUN_AS_NODE: "1", CHRONOS_T3_HOME: options.baseDir,
         CHRONOS_SERVICES_DATA: options.baseDir },
     });
-  } finally { closeSync(fd); }
+  } finally { NodeFS.closeSync(fd); }
 }
 
 const production = { probe, launch };
@@ -78,13 +79,13 @@ export function supervise(service: Service, options: Options, deps = production)
   let timer: ReturnType<typeof setTimeout> | undefined;
   let backoff = 1000;
   let lastStatus = "";
-  const dir = join(options.baseDir, "logs", "services");
-  const log = join(dir, service.name + ".log");
+  const dir = NodePath.join(options.baseDir, "logs", "services");
+  const log = NodePath.join(dir, service.name + ".log");
   function status(message: string) {
     if (message === lastStatus) return;
     try {
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-      appendFileSync(log, new Date().toISOString() + " " + message + "\n", { mode: 0o600 });
+      NodeFS.mkdirSync(dir, { recursive: true, mode: 0o700 });
+      NodeFS.appendFileSync(log, new Date().toISOString() + " " + message + "\n", { mode: 0o600 });
       lastStatus = message;
     } catch { /* A read-only profile must not prevent the application opening. */ }
   }

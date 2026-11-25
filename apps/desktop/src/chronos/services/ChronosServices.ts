@@ -1,5 +1,4 @@
 import * as Effect from "effect/Effect";
-import { join } from "node:path";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { isChronosVersion } from "@t3tools/shared/cliRelease";
 
@@ -12,12 +11,18 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
   if (!environment.isPackaged || !isChronosVersion(environment.appVersion)) return;
   const options = {
     baseDir: environment.baseDir,
-    resources: join(environment.resourcesPath, "chronos-services"),
+    resources: environment.path.join(environment.resourcesPath, "chronos-services"),
     executable: yield* HostProcess.ExecutablePath,
     env: yield* HostProcess.Environment,
   };
   yield* Effect.acquireRelease(
-    Effect.sync(() => services.map((service) => supervise(service, options))),
-    (stops) => Effect.sync(() => { for (const stop of stops) stop(); }),
+    Effect.sync(() => {
+      const stops = services.map((service) => supervise(service, options));
+      const stopAll = () => { for (const stop of stops) stop(); };
+      // Electron's updater can exit before the desktop scope closes.
+      process.once("exit", stopAll);
+      return () => { process.off("exit", stopAll); stopAll(); };
+    }),
+    (stop) => Effect.sync(stop),
   );
 });
