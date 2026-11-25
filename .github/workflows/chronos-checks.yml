@@ -88,7 +88,7 @@ jobs:
 
       - name: Shared release and theme regression tests
         working-directory: packages/shared
-        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts src/nodeSqliteClient.test.ts
 
       - name: Shell reducer and positional index
         working-directory: packages/client-runtime
