@@ -11,6 +11,8 @@ Chronos — независимый форк [pingdotgg/t3code](https://github.co
 
 В настольном клиенте HostedBrowserWebview и диалог Студии создают отдельный guest. DesktopWindow связывает partition с обработчиком `chronos-artifact://` и preload из ресурсов. Документы страницы и MCP хранятся в одной SQLite.
 
+Ярлыки Windows передают UUID через `--chronos-artifact`. Boot запускает отдельное окно до загрузки основного приложения, а DesktopClerk передаёт повторный запуск уже открытому Chronos. [Сравнение хостов на Windows](parity/artifacts.md)
+
 ## Архитектура переноса Olympus (паритет 1:1)
 
 Предыдущая попытка на базе 4838 с переписыванием функций Olympus на React и отдельным i18n-слоем

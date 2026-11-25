@@ -13,6 +13,18 @@ function identify(event) {
     throw Error("Запрос вне артефакта");
   return id;
 }
+function trustedArtifact(event,id) {
+  if (!uuid.test(id) || !event.senderFrame || event.senderFrame !== event.sender.mainFrame ||
+      new URL(event.senderFrame.url).protocol !== "t3code:" || new URL(event.senderFrame.url).hostname !== "app")
+    throw Error("Откройте артефакт в Chronos");
+  return db().metadata(id);
+}
+ipcMain.handle("chronos:artifact-icon",(event,id)=>trustedArtifact(event,id).icon);
+ipcMain.handle("chronos:artifact-install",(event,id,image)=>{
+  const metadata=trustedArtifact(event,id);
+  if (typeof image !== "string" || image.length > 96000 || !image.startsWith("data:image/png;base64,")) throw Error("Некорректный значок");
+  return require("./install.cjs").install(id,metadata,image);
+});
 const fileDialogs = new WeakSet();
 ipcMain.handle("chronos:artifact-api",async (event,method,args = {}) => {
   const id = identify(event);

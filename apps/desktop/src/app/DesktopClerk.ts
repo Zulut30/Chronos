@@ -130,6 +130,13 @@ export const make = Effect.gen(function* () {
     pendingSecondInstances.push(argv);
   };
   yield* electronApp.on("second-instance", (_event: unknown, argv: readonly string[]) => {
+    // chronos: deliver artifact shortcuts without activating the main interface.
+    if (isChronosVersion(environment.appVersion) && argv.some(arg => arg.startsWith("--chronos-artifact="))) {
+      const standalone = require(environment.path.join(environment.resourcesPath,"chronos-services","artifacts","standalone.cjs")) as {requestId(args:readonly string[]):string|null;open(id:string):Promise<void>};
+      const id = standalone.requestId(argv);
+      if (id) void standalone.open(id);
+      return;
+    }
     handleSecondInstance(argv);
   });
   // macOS hands a launch link to open-url, which can fire before configure runs.

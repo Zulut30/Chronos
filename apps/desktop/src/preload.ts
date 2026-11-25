@@ -46,6 +46,14 @@ try {
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
 const clientPlatform = process.platform;
 
+// chronos: installation is available only in the trusted Windows shell.
+if (clientPlatform === "win32") {
+  contextBridge.exposeInMainWorld("chronosArtifactInstaller", {
+    metadata: (id: string) => ipcRenderer.invoke("chronos:artifact-icon", id),
+    install: (id: string, icon: string) => ipcRenderer.invoke("chronos:artifact-install", id, icon),
+  });
+}
+
 if (clientPlatform === "darwin") {
   // Native buttons ignore Chromium zoom; reserve native points even after reload.
   const syncWindowControlInset = () => {

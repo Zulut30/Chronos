@@ -26,8 +26,38 @@ export function mountArtifact(parent: HTMLElement,id: string) {
   guest.addEventListener("dom-ready",()=>{ready=true;sendTheme();});
   const observer = new MutationObserver(sendTheme);
   observer.observe(root,{attributes:true,attributeFilter:["class","style","data-theme-id"]});
-  parent.append(guest);
-  return () => {observer.disconnect();guest.remove();};
+  const panel = document.createElement("div");
+  Object.assign(panel.style,{height:"100%",width:"100%",minHeight:"0",display:"flex",flexDirection:"column",flex:"1"});
+  const installer = (window as Window & {chronosArtifactInstaller?: {
+    metadata(id:string):Promise<string>; install(id:string,icon:string):Promise<boolean>;
+  }}).chronosArtifactInstaller;
+  if (installer) {
+    const bar=document.createElement("div");
+    bar.className="flex items-center justify-end gap-2 border-b px-3 py-1";
+    const button=document.createElement("button"), status=document.createElement("span");
+    status.setAttribute("role","status");
+    button.type="button";
+    button.textContent="Установить как приложение";
+    button.onclick=async () => {
+      button.disabled=true;
+      try {
+        const icon=await installer.metadata(id);
+        const canvas=document.createElement("canvas");
+        canvas.width=canvas.height=64;
+        const ctx=canvas.getContext("2d");
+        if (!ctx) throw Error("Не удалось создать значок");
+        ctx.fillStyle="#40435e";ctx.fillRect(0,0,64,64);ctx.fillStyle="white";
+        ctx.font="38px Segoe UI Emoji, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+        ctx.fillText(Array.from(icon).slice(0,6).join(""),32,33,58);
+        await installer.install(id,canvas.toDataURL());
+        status.textContent="Ярлыки добавлены в «Пуск» и на рабочий стол";
+      } catch(e) {status.textContent=e instanceof Error ? e.message : "Не удалось установить приложение";}
+      finally {button.disabled=false;}
+    };
+    bar.append(status,button);panel.append(bar);
+  }
+  panel.append(guest);parent.append(panel);
+  return () => {observer.disconnect();panel.remove();};
 }
 
 export function ArtifactView({id}:{id:string}) {
