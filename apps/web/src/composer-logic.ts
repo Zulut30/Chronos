@@ -273,7 +273,10 @@ export function detectComposerTrigger(text: string, cursorInput: number): Compos
     };
   }
   const pullRequestTrigger = detectComposerPullRequestTrigger(token, cursor);
-  if (pullRequestTrigger) return pullRequestTrigger;
+  if (pullRequestTrigger) {
+    // chronos: the Olympus task picker owns # in the chat composer.
+    return "__olyTasks" in globalThis ? null : pullRequestTrigger;
+  }
   const skillPrefix = /^\p{Sc}/u.exec(token);
   if (skillPrefix) {
     if (isCurrencyAmountQuery(token.slice(skillPrefix[0].length))) return null;

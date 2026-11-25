@@ -11,7 +11,7 @@ import {
   compileResolvedKeybindingsConfig,
   mergeWithDefaultKeybindings,
 } from "@t3tools/shared/keybindings";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   clampCollapsedComposerCursor,
@@ -326,6 +326,18 @@ describe("detectComposerTrigger", () => {
   it("does not keep pull request completion active for headings or embedded hashes", () => {
     expect(detectComposerTrigger("# Heading", "# Heading".length)).toBeNull();
     expect(detectComposerTrigger("issue#123", "issue#123".length)).toBeNull();
+  });
+
+  it("reserves # for the Olympus board when its picker is installed", () => {
+    vi.stubGlobal("__olyTasks", {});
+    try {
+      for (const text of ["#", "#123", "Задача #T-4"]) {
+        expect(detectComposerTrigger(text, text.length)).toBeNull();
+      }
+      expect(detectComposerTrigger("@", 1)?.kind).toBe("path");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   // regression: #936 @file autocomplete used the wrong cursor when typing mid-text
