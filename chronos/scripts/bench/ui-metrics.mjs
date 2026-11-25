@@ -127,18 +127,25 @@ function install(tracing) {
       return center(el);
     },
     endScroll: () => state.endScroll(),
+    timelinePoint() {
+      return center(document.querySelector(".messages-timeline-scroll"));
+    },
     async fixedTimeline() {
-      const el = scroller(timeline());
+      const el = document.querySelector(".messages-timeline-scroll");
       const frame = () => new Promise(requestAnimationFrame);
-      const step = 24;
+      const step = 8;
       const count = 72;
       // Let the virtual list measure the top of the seeded, completed chat before timing.
-      for (let i = 0; i < 12; i++) {
+      let stable = 0;
+      const deadline = performance.now() + 4000;
+      while (stable < 10 && performance.now() < deadline) {
         el.scrollTo({ top: 0, behavior: "instant" });
         await frame();
+        stable = el.scrollTop === 0 ? stable + 1 : 0;
       }
-      if (el.scrollTop !== 0 || el.scrollHeight - el.clientHeight < step * count)
-        throw Error("Seeded timeline cannot fit the fixed scroll path");
+      if (stable < 10 || el.scrollHeight - el.clientHeight < step * count)
+        throw Error("Seeded timeline cannot fit path at top=" + el.scrollTop +
+          ", height=" + el.scrollHeight + ", viewport=" + el.clientHeight);
       const times = [await frame()];
       let path = 0;
       for (let i = 1; i <= count; i++) {
@@ -200,9 +207,13 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
       distance,
     };
   }
-  const timeline = process.env.BENCH_FIXED_SCROLL === "1"
-    ? await evaluate("uiBench.fixedTimeline()")
-    : await scroll("timeline");
+  async function fixedTimeline() {
+    // User input releases sticky follow and pending position restoration on the actual list.
+    const point = await evaluate("uiBench.timelinePoint()");
+    await page("Input.dispatchMouseEvent", { type: "mouseWheel", ...point, deltaX: 0, deltaY: -640 });
+    return evaluate("uiBench.fixedTimeline()");
+  }
+  const timeline = process.env.BENCH_FIXED_SCROLL === "1" ? await fixedTimeline() : await scroll("timeline");
   const sidebar = await scroll("sidebar");
   if (streamingId) {
     await navigate(streamingId);
