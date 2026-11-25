@@ -47,6 +47,7 @@ import * as ServerSettings from "../serverSettings.ts";
 import * as CheckpointService from "./CheckpointService.ts";
 import * as EventSink from "./EventSink.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
+import { RunSubscriber } from "../chronos/perf/codexRecipients.ts";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { PROVIDER_STOP_REASON_SIGNAL } from "@t3tools/provider-core/server/subagentProjection";
 import * as ProviderEventIngestor from "./ProviderEventIngestor.ts";
@@ -1250,7 +1251,13 @@ export const layer: Layer.Layer<
         const eventSubscription =
           input.session.subscribeEvents === undefined
             ? { events: input.session.events, close: Effect.void }
-            : yield* input.session.subscribeEvents;
+            : yield* input.session.subscribeEvents.pipe(
+                // chronos: native children can still belong to their parent's run.
+                Effect.provideService(RunSubscriber, {
+                  ...routeIdentity,
+                  root: input.appThread.lineage.parentThreadId === null,
+                }),
+              );
         const inheritedBackgroundTurnItems = yield* (
           input.loadInheritedBackgroundTurnItems?.() ?? Effect.succeed([])
         ).pipe(
