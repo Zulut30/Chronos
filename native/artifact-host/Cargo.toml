@@ -1,0 +1,13 @@
+[package]
+name = "chronos-artifact-host"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+
+[dependencies]
+tao = "=0.34.5"
+wry = "=0.53.5"
+
+[profile.release]
+strip = true
