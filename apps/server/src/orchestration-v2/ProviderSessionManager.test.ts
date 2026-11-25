@@ -2,6 +2,7 @@ import * as NetAddress from "effect/net/NetAddress";
 import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
+import { verifySharedRunQueues } from "../chronos/perf/sharedRunQueues.testkit.ts";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import {
   EnvironmentId,
@@ -5166,6 +5167,9 @@ it.effect.each([
             (event) => Option.isSome(event) && event.value.type === "provider_session.updated",
           ),
         );
+
+        // chronos: exercise address selection in the manager's real pump and run queues.
+        yield* verifySharedRunQueues(firstRuntime, queue!, firstThreadId, secondThreadId);
 
         yield* manager.detach({ providerSessionId, threadId: secondThreadId });
         yield* manager.open({
