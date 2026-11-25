@@ -9,7 +9,7 @@ declare global {
     chronosPC?: { settings(input: unknown): Promise<State>; subscribe(listener: () => void): () => void };
   }
 }
-const labels: Record<string,string> = { open:"Открыть", attach:"Подключиться", snapshot:"Снимок", click:"Нажать", fill:"Заполнить поле", close:"Завершить сессию", stop:"Аварийная остановка" };
+const labels: Record<string,string> = { open:"Открыть", attach:"Подключиться", snapshot:"Снимок", expand:"Раскрыть меню", click:"Нажать", fill:"Заполнить поле", close:"Завершить сессию", stop:"Аварийная остановка" };
 const button = "rounded-md border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50";
 function useControl() {
   const [state,setState] = useState<State>();

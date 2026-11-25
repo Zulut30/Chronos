@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import * as path from "node:path";
+import * as NodeCrypto from "node:crypto";
+import * as NodeModule from "node:module";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import { globalShortcut } from "electron";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -21,17 +21,17 @@ export const pcAgentEnvironment = () => agentEnvironment;
 
 export const startPcControl = Effect.fn("Chronos.pcControl")(function* (env: DesktopEnvironment["Service"]) {
   if (!env.isPackaged || !isChronosVersion(env.appVersion)) return;
-  const tools = path.join(env.resourcesPath, "chronos-pc");
-  const key = randomBytes(32).toString("hex");
-  const name = "chronos-pc-" + randomUUID();
-  const socket = env.platform === "win32" ? "\\\\.\\pipe\\" + name : path.join(tmpdir(), name);
+  const tools = NodePath.join(env.resourcesPath, "chronos-pc");
+  const key = NodeCrypto.randomBytes(32).toString("hex");
+  const name = "chronos-pc-" + NodeCrypto.randomUUID();
+  const socket = env.platform === "win32" ? "\\\\.\\pipe\\" + name : NodePath.join(NodeOS.tmpdir(), name);
   const ipc = yield* DesktopIpc;
   const windows = yield* ElectronWindow;
-  const factory = createRequire(path.join(tools, "controller.cjs"))("./controller.cjs") as {
+  const factory = NodeModule.createRequire(NodePath.join(tools, "controller.cjs"))("./controller.cjs") as {
     createController(options: Record<string, unknown>): Controller;
   };
   const controller = factory.createController({
-    dir: path.join(env.baseDir, "pc-control"), tools, socket, key, shortcut: globalShortcut,
+    dir: NodePath.join(env.baseDir, "pc-control"), tools, socket, key, shortcut: globalShortcut,
     notify() {
       const main = Effect.runSync(windows.main);
       if (Option.isSome(main) && !main.value.isDestroyed()) main.value.webContents.send("chronos:pc-changed");
@@ -39,8 +39,8 @@ export const startPcControl = Effect.fn("Chronos.pcControl")(function* (env: Des
   });
   agentEnvironment = {
     CHRONOS_PC_SOCKET: socket, CHRONOS_PC_KEY: key,
-    CHRONOS_PC_CLI: path.join(tools, "bin", "client.cjs"),
-    CHRONOS_PC_BIN: path.join(tools, "bin"),
+    CHRONOS_PC_CLI: NodePath.join(tools, "bin", "client.cjs"),
+    CHRONOS_PC_BIN: NodePath.join(tools, "bin"),
   };
   yield* Effect.addFinalizer(() => Effect.sync(() => { agentEnvironment = {}; controller.stop(); }));
   yield* ipc.handle({

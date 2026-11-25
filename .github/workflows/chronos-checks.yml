@@ -41,7 +41,13 @@ jobs:
           $tools = Join-Path $env:RUNNER_TEMP 'pc-tools'
           node chronos/pc-control/stage.mjs win x64 $tools
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          ./chronos/scripts/smoke/pc-desktop.ps1 $tools
+      - name: Isolated Windows desktop
+        shell: pwsh
+        run: ./chronos/scripts/smoke/pc-desktop.ps1 (Join-Path $env:RUNNER_TEMP 'pc-tools')
+      - name: Headless web form
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: node chronos/scripts/smoke/pc-web.cjs (Join-Path $env:RUNNER_TEMP 'pc-tools')
 
   checks:
     name: Typecheck and tests

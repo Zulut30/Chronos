@@ -34,6 +34,33 @@ function execute(file, args, { env, cwd, signal, stdin = "" }) {
   });
 }
 
+function ownWindow(helper, desk, exe, session, opts) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(helper, [desk,"own",exe], { cwd:opts.cwd, env:opts.env, windowsHide:true, stdio:["pipe","pipe","pipe"] });
+    session.owner = child;
+    const cancel = () => child.kill();
+    const timer = setTimeout(cancel,10000).unref();
+    opts.signal.addEventListener("abort",cancel,{ once:true });
+    const cleanup = () => { clearTimeout(timer); opts.signal.removeEventListener("abort",cancel); };
+    const fail = () => { cleanup(); reject(new Error("Не удалось открыть приложение в фоне.")); };
+    child.once("error",fail);
+    child.once("exit",fail);
+    child.stderr.resume();
+    child.stdin.on("error",() => {});
+    let output = "";
+    child.stdout.on("data",data => {
+      output += data;
+      if (!output.includes("\n")) return;
+      cleanup();
+      try {
+        const pid = JSON.parse(output).pid;
+        if (!Number.isSafeInteger(pid) || pid <= 0 || opts.signal.aborted) throw new Error();
+        resolve(pid);
+      } catch { cancel(); fail(); }
+    });
+  });
+}
+
 function desktopRefs(tree) {
   const items = [];
   function walk(node) {
@@ -75,10 +102,8 @@ function makeNative(tools, stateDir) {
       if (op === "open") {
         if (win) {
           const exe = path.isAbsolute(session.target) ? session.target : path.join(process.env.SystemRoot, "System32", session.target);
-          const result = await execute(binary("private-desktop"), [desk, "launch", exe], opts);
-          if (!Number.isSafeInteger(result.pid) || result.pid <= 0) throw new Error("Неизвестный процесс.");
+          session.pid = await ownWindow(binary("private-desktop"),desk,exe,session,opts);
           session.app = path.basename(exe);
-          session.pid = result.pid;
         } else {
           const result = await desktop(["launch", session.target]);
           session.app = result.data.app;
@@ -86,10 +111,10 @@ function makeNative(tools, stateDir) {
         return;
       }
       if (op === "snapshot") {
-        const reply = await desktop(["snapshot","--app",session.app,"-i", ...(request.window ? ["--window-id",request.window] : [])]);
+        const reply = await desktop(["snapshot","--app",session.app,"-i", ...(request.surface === "menu" ? ["--surface","menu"] : []), ...(request.window ? ["--window-id",request.window] : [])]);
         return desktopRefs(reply.data.tree);
       }
-      if (op === "click") await desktop(["click", request.ref]);
+      if (op === "click" || op === "expand") await desktop([op, request.ref]);
       if (op === "fill") await desktop(["set-value",request.ref,"--stdin"],request.value);
       return;
     }
@@ -102,8 +127,13 @@ function makeNative(tools, stateDir) {
     const exec = (extra,stdin) => execute(binary("agent-browser"), [...args,...extra], {
       ...opts, stdin, env: { ...env, AGENT_BROWSER_IDLE_TIMEOUT_MS: "60000", AGENT_BROWSER_SOCKET_DIR: path.join(cwd, "socket") },
     });
-    if (op === "open") return void await exec(["open",request.target]);
+    if (op === "open") {
+      await exec(["open",request.target]);
+      if (new URL((await exec(["get","url"])).data.url).origin !== session.target) throw new Error("Сайт перешёл на другой адрес.");
+      return;
+    }
     if (op === "close") return void await exec(["close"]);
+    if (new URL((await exec(["get","url"])).data.url).origin !== session.target) throw new Error("Сайт перешёл на другой адрес.");
     if (op === "snapshot") {
       const result = await exec(["snapshot","-i"]);
       return Object.entries(result.data.refs ?? {}).map(([ref, value]) => ({
@@ -111,6 +141,11 @@ function makeNative(tools, stateDir) {
       }));
     }
     if (op === "click") return void await exec(["click",request.ref]);
+    if (op === "field") {
+      const type = (await exec(["get","attr",request.ref,"type"])).data.value;
+      const autocomplete = (await exec(["get","attr",request.ref,"autocomplete"])).data.value;
+      return !["text","email","search","url","tel","number"].includes(type) || /password|cc-|one-time-code/i.test(autocomplete ?? "");
+    }
     if (op === "fill") {
       const result = await exec(["batch","--bail","--omit-command"], JSON.stringify([["fill",request.ref,request.value]]));
       if (!Array.isArray(result) || !result.length || result[0].success !== true) throw new Error("Поле не заполнено.");

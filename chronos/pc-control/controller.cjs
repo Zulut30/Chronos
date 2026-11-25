@@ -5,6 +5,7 @@ const { randomUUID } = require("node:crypto");
 const { makeNative } = require("./native.cjs");
 
 const defaults = { enabled: false, all: false, apps: [], mode: "risk" };
+const operations = ["open","attach","snapshot","expand","click","fill","close"];
 const hotkey = "CommandOrControl+Alt+Shift+F12";
 function policy(input) {
   if (typeof input?.enabled !== "boolean" || typeof input.all !== "boolean" ||
@@ -48,7 +49,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
   function record(op, status) {
     // No application/window titles, hosts, refs, URIs, values, stdout or errors in the journal.
     history = [...history.slice(-99), { time: Date.now(), op, status }];
-    save(logFile,history);
+    try { save(logFile,history); } catch { /* keep the bounded in-memory journal if storage is full */ }
     changed();
   }
   function approve(meta, signal) {
@@ -71,15 +72,21 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
     });
   }
   async function release(s) {
+    if (s.released) return;
+    s.released = true;
     clearTimeout(s.timer);
     sessions.delete(s.id);
     if (s.kind === "web" && s.opened) {
       try { await native(s,"close",{},AbortSignal.timeout(8000)); } catch { /* native idle deadline remains in force */ }
     }
     if (s.owner) s.owner.stdin.end();
+    if (/^[a-f0-9-]{36}$/.test(s.id)) {
+      void fs.promises.rm(path.join(dir,"sessions",s.id),{ recursive:true, force:true, maxRetries:3 }).catch(() => {});
+    }
   }
   function renew(s) {
     clearTimeout(s.timer);
+    if (s.owner) return; // A private document can contain unsaved edits.
     s.timer = setTimeout(() => { if (!s.busy) void release(s); }, 120000).unref();
   }
   function allowed(target) {
@@ -88,7 +95,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
   }
   async function perform(q, signal) {
     if (!settings.enabled || signal.aborted) throw new Error("Управление ПК выключено.");
-    if (!q || !["open","attach","snapshot","click","fill","close"].includes(q.op)) throw new Error("Неизвестное действие.");
+    if (!q || !operations.includes(q.op)) throw new Error("Неизвестное действие.");
     const { op } = q;
     const opening = op === "open" || op === "attach";
     let s;
@@ -109,16 +116,19 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
     sessions.set(s.id,s);
     try {
       let field, value;
-      if (op === "click" || op === "fill") {
+      if (op === "click" || op === "expand" || op === "fill") {
         field = s.refs.get(q.ref);
         if (!field) throw new Error("Сделайте новый снимок и выберите элемент по ссылке.");
       }
       if (op === "fill" && q.value !== undefined && (typeof q.value !== "string" || q.value.length > 16000)) throw new Error("Недопустимое значение.");
       if (q.window !== undefined && (typeof q.window !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(q.window))) throw new Error("Недопустимое окно.");
-      const risk = op === "fill" || op === "click";
-      const manual = op === "fill" && (s.kind === "web" || field.secure !== false || q.value === undefined || /парол|password|passcode|pin|cvv|карт|card|iban/i.test(field.name));
+      if (op === "expand" && s.kind !== "desktop") throw new Error("Это действие доступно только в приложении.");
+      const navigation = s.kind === "web" && op === "open" && new URL(q.target).href !== s.target + "/";
+      const risk = navigation || op === "fill" || op === "click" || (op === "close" && s.kind === "desktop" && s.private);
+      const protectedField = op === "fill" && (s.kind === "web" ? await native(s,"field",{ref:q.ref},signal) : field.secure !== false);
+      const manual = op === "fill" && (protectedField || q.value === undefined || /парол|password|passcode|pin|cvv|карт|card|iban/i.test(field.name));
       if (risk || settings.mode === "every" || (settings.mode === "risk" && opening)) {
-        const supplied = await approve({ op, target:s.target, label:field?.name ?? "", manual,
+        const supplied = await approve({ op, target:navigation ? q.target : s.target, label:field?.name ?? "", manual,
           ...(op === "fill" && !manual ? { proposal:q.value } : {}) },signal);
         value = manual ? supplied : q.value;
       }
@@ -129,6 +139,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
           s.opened = true;
           await native(s,op,q,signal);
         }
+        if (signal.aborted) throw new Error("Действие остановлено.");
         return { session:s.id };
       }
       if (op === "close") { await release(s); return {}; }
@@ -140,6 +151,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
         return { elements: [...s.refs.values()].map(({ref,name,role}) => ({ref,name,role})) };
       }
       s.refs.clear();
+      if (op === "fill" && s.kind === "web" && !manual && await native(s,"field",{ref:q.ref},signal)) throw new Error("Поле изменилось. Сделайте новый снимок.");
       await native(s,op,{ref:q.ref,value},signal);
       return {};
     } catch (error) {
@@ -168,7 +180,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
       try { message = JSON.parse(buffer.trim()); } catch { client.destroy(); return; }
       if (message.key !== key || !settings.enabled) { client.destroy(); return; }
       active.add(task); changed();
-      const op = ["open","attach","snapshot","click","fill","close"].includes(message.request?.op) ? message.request.op : "unknown";
+      const op = operations.includes(message.request?.op) ? message.request.op : "unknown";
       perform(message.request,task.signal)
         .then(data => { record(op,"ok"); client.end(JSON.stringify({ok:true,...data})+"\n"); })
         .catch(err => { record(op,"failed"); client.end(JSON.stringify({ok:false,error:err.message})+"\n"); })

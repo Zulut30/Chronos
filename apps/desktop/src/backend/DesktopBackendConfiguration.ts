@@ -541,6 +541,11 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const serverExposure = yield* DesktopServerExposure.DesktopServerExposure;
     const backendExposure = yield* serverExposure.backendConfig;
+    const pcEnv = pcAgentEnvironment(); // chronos: keep the native tools behind the consent-aware CLI.
+    const inheritedEnv = yield* HostProcess.Environment;
+    const pcPath = pcEnv.CHRONOS_PC_BIN
+      ? [pcEnv.CHRONOS_PC_BIN, inheritedEnv.PATH ?? inheritedEnv.Path].filter(Boolean).join(environment.platform === "win32" ? ";" : ":")
+      : undefined;
 
     const bootstrap = {
       mode: "desktop" as const,
@@ -578,7 +583,8 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       cwd: environment.backendCwd,
       env: {
         ...backendChildEnvPatch(),
-        ...pcAgentEnvironment(), // chronos: only the local native backend gets the CLI capability
+        ...pcEnv, // chronos: only the local native backend gets the CLI capability
+        ...(pcPath ? { PATH: pcPath } : {}),
         // chronos: isolate the packaged Chronos backend from an active T3CODE_HOME.
         ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir } : {}),
         // chronos: only the matching packaged Windows helper implements the pipe-held sleep request.
