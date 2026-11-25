@@ -426,12 +426,28 @@ async function maybeDismissOnboarding(client, readyProvider) {
 async function verifyChatSettings(client) {
   const rows = ["#olympus-88-rich-text", "#olympus-40-files"];
   const globals = ["__olyRichText", "__olyFiles"];
+  async function waitFor(description, check) {
+    const deadline = Date.now() + 15_000;
+    while (!await check()) {
+      if (Date.now() >= deadline) throw new Error("Timed out waiting for " + description);
+      await sleep(150);
+    }
+  }
   async function openSettings(checked) {
-    await client.probe("performAction", { type: "navigate", to: "/settings/appearance" });
-    const ready = await waitUntilReady(client, {
-      allSelectors: rows.map((id) => id + ` [role=switch][aria-checked=${checked}]`),
+    const action = await client.probe("performAction", { type: "navigate", to: "/settings/appearance" });
+    if (!action.ok) throw new Error(action.detail);
+    const allSelectors = rows.map((id) => id + ` [role=switch][aria-checked=${checked}]`);
+    await waitFor("switches " + checked, async () => (await client.probe("checkReady", { allSelectors })).ready);
+  }
+  async function reloadWindow() {
+    client.clearEvents();
+    await client.send("Page.reload");
+    // The old surface disappears during reload. Wait for the new main document before probing it.
+    await waitFor("new document", () => client.events.some((event) => event.method === "Page.loadEventFired"));
+    await waitFor("new router", async () => {
+      const info = await client.probe("appInfo");
+      return info.hasRouter && info.hasOlyCore && info.bodyTextLength > 0;
     });
-    if (!ready.ready) throw new Error(ready.detail);
   }
   async function clickSwitches() {
     for (const id of rows) {
@@ -439,14 +455,16 @@ async function verifyChatSettings(client) {
       if (!action.ok) throw new Error(action.detail);
     }
   }
+  await client.send("Page.bringToFront");
   for (const enabled of [true, false]) {
+    console.log("Checking switches " + enabled + " -> " + !enabled);
     await openSettings(enabled);
     await clickSwitches();
     await openSettings(!enabled);
     const before = await client.probe("checkGlobals", { expected: globals });
     if (before.presentCount !== (enabled ? 2 : 0)) throw new Error("Module changed before reload");
-    await client.send("Page.reload");
-    await waitForAppHydrated(client);
+    console.log("Reloading with switches " + !enabled);
+    await reloadWindow();
     await openSettings(!enabled);
     const after = await client.probe("checkGlobals", { expected: [...globals, "__olyCore", "__olyReferences"] });
     if (JSON.stringify(after.missing) !== JSON.stringify(enabled ? globals : [])) {
