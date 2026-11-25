@@ -1,66 +1,52 @@
 ---
 name: chronos-release
-description: Выпуск релиза Chronos (Zulut30/Chronos) — версия в chronos/version.json, тег chronos-v*, CI-сборка Windows/macOS и GitHub Release с фидами обновлений. Тег и релиз создаются только по явному слову пользователя. Используй, когда просят «выпусти Chronos», «сделай релиз», «новая версия Chronos» или по /chronos-release.
+description: "Выпуск версии и проверка фида Chronos. Prepare a release, tag a verified main commit or check the latest update assets."
 ---
 
 # Релиз Chronos
 
-Репозиторий `~/Documents/Chronos` (Windows: `%USERPROFILE%\Documents\Chronos`), `origin` = `Zulut30/Chronos` (публичный).
-Схема версий и обновлений — `chronos/README.md` («Версии», «Обновления»).
+Полный цикл разработки включает слияние проверенного кандидата в `main`, push, тег и релиз `chronos-v*` без дополнительного вопроса. Ограничение «только подготовь» означает передать версию, SHA, проверки и список изменений. Для проверки уже выпущенного релиза переходи к последнему разделу.
 
-## Правила
-- Тег и релиз — **только после явного «выпускай/создай тег» пользователя в этом разговоре**.
-  До этого можно всё подготовить и показать.
-- Релиз публикуется только из `main` (после слияния проверенной ветки `feature/*` или `upstream-sync/*`).
-  Force-push, перезапись и удаление тегов/релизов — только по отдельной явной просьбе.
-- Никаких секретов: подпись не используется, все значения в workflow публичные.
+Откат опубликованной версии делай новой ревизией с возвратом нужных изменений: подготовь кандидат и проведи его через те же барьеры. На force-push, замену или удаление тега, удаление или перезапись релиза всегда нужно явное согласие пользователя на конкретное действие. Полный список исключений — в [chronos-router](../chronos-router/SKILL.md).
 
-## 1. Подготовка
+## Версия и проверенный коммит
+
+В чистом checkout кандидата сверь `upstreamCommit` в [version.json](../../version.json) с коммитом nightly. Запиши базу, SHA и тег до проверок:
+
 ```bash
-cd ~/Documents/Chronos
-git switch main && git pull --ff-only origin main && git status --short
-node chronos/scripts/chronos-version.mjs
-git tag -l 'chronos-v*' && gh release list --repo Zulut30/Chronos --limit 5
+set -euo pipefail
+git fetch origin refs/heads/main:refs/remotes/origin/main
+base=$(git rev-parse 'origin/main^{commit}')
+sha=$(git rev-parse 'HEAD^{commit}')
+tag=$(node chronos/scripts/chronos-version.mjs | node -p 'JSON.parse(require("node:fs").readFileSync(0, "utf8")).tag')
+gh release list -R Zulut30/Chronos --limit 5
+git ls-remote --tags origin "refs/tags/$tag" "refs/tags/$tag^{}"
 ```
-- Убедись, что `upstream`, `upstreamCommit` и `revision` в `chronos/version.json` актуальны
-  (для паритета на базе 4774 — `upstream: "0.1.10-nightly.20261116.4774"`,
-  `upstreamCommit: "16695c812fffe75e85f8cc3084d2c561aa3ca93f"`). Если тег уже выпущен, увеличь
-  `revision`.
-- Коммит `Chronos <версия>` в `main`, push — после согласия пользователя.
-- Для публикации нужны успешные **Chronos checks** (`chronos-checks.yml`) и ручная
-  **Chronos desktop** (`chronos-desktop.yml`, `event=workflow_dispatch`) на точном SHA `main`
-  (а также зелёный `chronos-parity.yml`, если он активен). Запуск сборки:
-  `gh workflow run chronos-desktop.yml --repo Zulut30/Chronos --ref main`.
 
-Покажи пользователю: версию, базу апстрима, что вошло с прошлого релиза
-(`git log --oneline <прошлый тег>..main`), ссылку на зелёный прогон. Спроси разрешение.
+У аннотированного тега строка с `^{}` указывает на коммит. Если версия уже занята другим SHA, подними `revision` в ветке и заново определи SHA и тег до проверок. Если тег указывает на нужный SHA, проверь существующую публикацию или продолжи её workflow с места сбоя.
 
-## 2. Тег (по слову пользователя)
+До продвижения main проверь Chronos checks, паритет перевода, полный ручной `chronos-desktop` на точном SHA кандидата и `chronos-smoke` 14/14 по его Windows-артефакту (`desktop_run_id`, `require_services=true`, `require_provider=true`). Для `chronos-perf.yml` требуется зелёная пара прежний main / кандидат в `pair.json`. Пока шлюза нет в main, используй ref `perf/guard`. Отсутствующий результат блокирует слияние и выпуск. Перед обычным fast-forward push сверь текущий SHA удалённого main с `$base`. При выпуске уже проверенного main возьми прежнюю базу из отчёта об интеграции. Если база сдвинулась или нужен отдельный merge-коммит, сначала проверь новый кандидат в интеграционной ветке. Список изменений даёт `git log --oneline <предыдущий-тег>.."$sha"`. Команды Actions и сверка артефактов — в [chronos-ci](../chronos-ci/SKILL.md).
+
+## Публикация
+
+Для нового тега продолжи в том же Bash. Workflow публикации выбирает последний успешный ручной desktop run этого SHA. Перед отправкой сверь его ID с проверенным smoke: если появился другой run, проведи строгий smoke по его артефакту. Повторно сверь SHA удалённого main.
+
 ```bash
-tag=$(node chronos/scripts/chronos-version.mjs | node -p 'JSON.parse(require("fs").readFileSync(0)).tag')
-git tag -a "$tag" -m "Chronos ${tag#chronos-v}"
-git push origin "$tag"
+test "$sha" = "$(gh api repos/Zulut30/Chronos/commits/main --jq .sha)"
+test "${desktop_run_id:?ID полного desktop, прошедшего строгий smoke}" = "$(gh api "repos/Zulut30/Chronos/actions/workflows/chronos-desktop.yml/runs?head_sha=$sha&event=workflow_dispatch&status=success" --jq '.workflow_runs[0].id')"
+git tag -a "$tag" "$sha" -m "Chronos ${tag#chronos-v}"
+git push origin "refs/tags/$tag"
+gh run list -R Zulut30/Chronos --workflow chronos-desktop.yml --branch "$tag" --event push --commit "$sha"
+gh run watch <id> -R Zulut30/Chronos --exit-status
 ```
-Пуш тега `chronos-v*` запускает `chronos-desktop.yml`: `version` → `release`. Тег, не совпадающий с
-`chronos/version.json`, роняет сборку на первом шаге; при отсутствии проверенного `workflow_dispatch`
-на точном SHA `main` job `release` остановится до публикации.
 
-## 3. CI и публикация
+Тег запускает `version` и `release` в [desktop workflow](../../../.github/workflows/chronos-desktop.yml). Job проверяет версию и текущий main, находит успешные проверки и ручную desktop-сборку этого SHA, проверяет манифесты и публикует релиз с `--latest`. При временном сбое проверь, успел ли появиться релиз и все его assets. При исправлении исходников собери и проверь новую ревизию. Удаление, замена тега или перезапись опубликованного релиза требуют отдельного согласия.
+
+## Проверка публикации и фида
+
 ```bash
-gh run list --repo Zulut30/Chronos --workflow chronos-desktop.yml --limit 1
-gh run watch <id> --repo Zulut30/Chronos --exit-status
-gh release view "$tag" --repo Zulut30/Chronos
+gh release view "$tag" -R Zulut30/Chronos --json tagName,isDraft,isPrerelease,url,assets
+gh api repos/Zulut30/Chronos/releases/latest --jq .tag_name
 ```
-Job `release` сверяет артефакты через `chronos/scripts/verify-release.mjs` и публикует обычный
-(не pre-release) релиз с `--latest`: установщики (`Chronos-${VERSION}-*` и постоянные имена
-`Chronos-Setup-x64.exe`, `Chronos-mac-arm64.dmg`, `Chronos-mac-x64.dmg`), `SHA256SUMS`,
-`*.blockmap`, `nightly.yml` и `nightly-mac.yml`.
 
-При временном сбое скачивания или публикации проверь статус релиза и повтори упавший job. Если
-требуется исправление исходников, увеличь `revision` и создай новый тег (старый тег удалять только
-с согласия пользователя).
-
-## 4. Отчёт
-Версия, ссылка на релиз и прогон, статус платформ, что проверить пользователю: установка на
-Windows (SmartScreen → «Подробнее» → «Выполнить в любом случае»), на macOS (ПКМ → «Открыть»),
-запуск рядом с T3 (`%APPDATA%\Chronos`, `~/.chronos/userdata`) и проверка автообновления.
+Для проверки latest без заданного тега сначала получи его второй командой. Сверь тег, статус, `nightly.yml`, `nightly-mac.yml`, установщики, архивы CLI и `SHA256SUMS`. Для проверки самого фида скачай оба файла в новый пустой каталог командой `gh release download "$tag" -R Zulut30/Chronos -p 'nightly*.yml' -D <каталог>`. Поле `version` должно совпасть с версией без `chronos-v`, а имена в `files[].url` после URL-декодирования должны присутствовать в assets. В отчёт включи SHA, версию, ссылку на run и релиз, результат проверки фидов.

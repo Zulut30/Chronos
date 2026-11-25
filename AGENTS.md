@@ -1,7 +1,20 @@
 # T3 Code
 
-<!-- chronos: fork instructions -->
-For Chronos development, Olympus parity work on base 4774, and T3 backports, start with [chronos/README.md](chronos/README.md) and stream reports in `chronos/parity/`. Use the skills in `chronos/skills/` for this checkout. Olympus features and translation are ported as-is (no React rewrite); for UI verification follow `chronos/skills/chronos-ui/SKILL.md`.
+<!-- chronos: begin fork instructions -->
+
+## Chronos: перед любой работой возьми `chronos-router`
+
+Claude Code, Codex и Antigravity начинают любую задачу в этом форке с [chronos-router](chronos/skills/chronos-router/SKILL.md). Найди корень текущего checkout через `git rev-parse --show-toplevel` и прочитай файл из этой ветки, в том числе при запуске из подкаталога. Для работы с Chronos следующие правила уточняют инструкции T3 ниже.
+
+- Стабильность и скорость на слабом ПК и SSH-серверах первичны. Новое выключено по умолчанию или запускается лениво.
+- Модули Olympus в `apps/web/src/chronos/olympus/features/*.js` сохраняются байт в байт. Минимальные стыки апстрима помечай `// chronos:`. Перевод веди по глоссарию Olympus.
+- Установку зависимостей, сборку монорепо и полный typecheck выполняет CI. На ПК используй уже имеющиеся зависимости и точечные проверки по очереди. Автоматический `vp i` при создании worktree в форке не применяется. Для путей `chronos/skills` и `chronos/scripts` штатный `check:changed` выбирает все пакеты. Для правки скиллов запусти [профильные проверки](chronos/README.md#скиллы) и сохрани обычный pre-commit. Полный прогон пройдёт в Chronos checks.
+- Всегда нужно явное согласие пользователя на запись в устройства и прошивку, установку или любые изменения на gildra и debian-151, изменения установленного T3/Olympus и `~/.t3`, удаление данных пользователя, платные прогоны API, force-push и удаление тегов или релизов. Береги сервисы 4517–4524 и чужие процессы.
+- Секреты запрашивай через `request_secret`. Секреты и личные данные храни вне репозитория.
+- Для задач на изменение Chronos постоянно разрешён полный цикл без дополнительных вопросов: сессии-исполнители → проверка → слияние в `main` → push → тег и релиз `chronos-v*`. Явное ограничение задачи (только отчёт, план или ветка) определяет, на каком шаге остановиться. Исполнители работают на `codex` / `gpt-6.2-astra`, `reasoningEffort: "xhigh"`, каждый в своих ветке и worktree до результата, с ожиданием CI в шелле.
+- До продвижения `main` нужны зелёные **Chronos checks**, полный ручной `chronos-desktop` на точном SHA кандидата, `chronos-smoke` 14/14 по его `desktop_run_id` с `require_services=true` и `require_provider=true` и `chronos-perf.yml` для пары прежний main / кандидат. Пока шлюза нет в `main`, используй workflow из `perf/guard`. Без зелёного результата для этой пары слияние и выпуск ждут. Тег и релиз ведёт `chronos-release`.
+
+<!-- chronos: end fork instructions -->
 
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web, desktop, and mobile clients.
 

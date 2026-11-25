@@ -39,6 +39,14 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
+      - name: Validate Chronos skills and exercise profile synchronization
+        run: |
+          python -m venv "$RUNNER_TEMP/chronos-skills-env"
+          "$RUNNER_TEMP/chronos-skills-env/bin/pip" install --quiet PyYAML==6.0.3 Markdown==3.8.2
+          "$RUNNER_TEMP/chronos-skills-env/bin/python" chronos/scripts/validate-skills.py
+          "$RUNNER_TEMP/chronos-skills-env/bin/python" chronos/scripts/test-validate-skills.py
+          node --test chronos/scripts/sync-skills.test.mjs
+
       - name: Validate Chronos version metadata
         run: node chronos/scripts/chronos-version.mjs
 
@@ -167,7 +175,7 @@ jobs:
             chronos/scripts/smoke
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Compare Windows packages on the same machine
         shell: pwsh
         env:
