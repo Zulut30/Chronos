@@ -132,11 +132,12 @@ for await (const line of createInterface({ input: process.stdin })) {
         },
       });
     }
+    const outputTokens = Number(prompt.match(/SPEED_TOKENS_(\d+)/)?.[1] ?? 500);
     result = {
       stopReason: "end_turn",
       ...(workload === "code"
         ? {
-            usage: { totalTokens: 3000, inputTokens: 2500, outputTokens: 500 },
+            usage: { totalTokens: 2500 + outputTokens, inputTokens: 2500, outputTokens },
           }
         : {}),
     };

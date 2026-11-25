@@ -1,5 +1,5 @@
 // Node 24+. Windows packaged Chronos, no install/build or provider credentials required.
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
@@ -56,12 +56,15 @@ export function createSandbox(frames, interval, workload = "paragraph", streamin
     catch { if (p.exitCode === null) p.kill(); }
   }
   const modelSelection = { instanceId: "bench", model: "bench" };
+  // This registered local ACP flavor publishes per-turn usage from the prompt response.
+  const commandPath = workload === "code" ? join(root, "glm.exe") : process.execPath;
+  if (commandPath !== process.execPath) copyFileSync(process.execPath, commandPath);
   const disabled = ["codex","claudeAgent","cursor","grok","muse","pi","opencode","antigravity","kiro","fx"].map(driver =>
     [driver, { driver, enabled: false, ...(driver === "codex" ? { config: { binaryPath: join(fake,"disabled-model") } } : {}) }]);
   writeFileSync(join(userdata, "settings.json"), JSON.stringify({ defaultModelSelection: modelSelection,
     backgroundActivityProfile: "battery-saver", automaticGitFetchInterval: 0, responseStreamingMode: streamingMode,
     providerInstances: { ...Object.fromEntries(disabled), bench: { driver: "acpRegistry", enabled: true, displayName: "Bench",
-      config: { source: "local", commandPath: process.execPath, commandArgs: [join(import.meta.dirname,"agent.mjs"), root, String(frames), String(interval), workload] } } } }));
+      config: { source: "local", commandPath, commandArgs: [join(import.meta.dirname,"agent.mjs"), root, String(frames), String(interval), workload] } } } }));
   run(git, ["init", "-q", "-b", "main"]);
   run(git, ["-c","user.name=Bench","-c","user.email=bench@example.invalid","commit","--allow-empty","-qm","Fixture"]);
   function close() {

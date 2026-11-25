@@ -238,7 +238,7 @@ try {
     const { runFullSmoke } = await import("./desktop-smoke.mjs");
     await runFullSmoke(debug, output, env);
   } else {
-    await Promise.all(ids.map((id) => launch(id, false)));
+    await Promise.all(ids.map((id, index) => launch(id, false, "SPEED_TOKENS_" + (501 + index) + " ")));
     await wait("agent start barrier", () => ids.every((id) => existsSync(join(root, id + ".ready"))));
     const rowCount = await evaluate("document.querySelectorAll('[data-thread-item]').length");
     const perf = async () =>
@@ -366,11 +366,14 @@ try {
       );
     const olympus = await evaluate(`(() => {
       const ids = ${JSON.stringify(ids)};
-      const turns = Array.from(globalThis.__olySpeed.turns.values());
+      const speed = globalThis.__olySpeed;
+      const turns = Array.from(speed.turns.values());
       return {
+        speedObserved: { frames: speed.frames, parsed: speed.parsed, turns: turns.length, items: speed.items.size, rateThreads: speed.textPts.size, error: speed.err ?? null },
         liveSpeedPoints: ids.filter(id => (globalThis.__olySpeed.textPts.get(id)?.length ?? 0) > 1).length,
         budgets: ids.map(id => globalThis.__olyBudget.total(id,${JSON.stringify(environment)})),
-        speedTurns: ids.filter(id => turns.some(t => t.thread === id && t.status === "completed" && t.usage?.outputTokens === 500)).length,
+        speedSamples: ids.filter((_, index) => Object.values(speed.S.m.bench?.x ?? {}).some(bucket => bucket.t.some(([tokens, ms]) => tokens === 501 + index && ms > 1500))).length,
+        speedTurns: ids.filter((id, index) => turns.some(t => t.thread === id && t.status === "completed" && t.usage?.outputTokens === 501 + index)).length,
       };
     })()`);
     const placeholders = await evaluate(
@@ -450,6 +453,8 @@ try {
     console.log(result);
     if (mode === "desktop") {
       assert.deepEqual(olympus.budgets, ids.map(() => 0.42), "Olympus lost a completed agent cost");
+      assert.equal(olympus.speedTurns, n, "Olympus lost final per-turn token usage");
+      assert.equal(olympus.speedSamples, n, "Olympus lost a model throughput sample");
     }
   }
 } catch (error) {
