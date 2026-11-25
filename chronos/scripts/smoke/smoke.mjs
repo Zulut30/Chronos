@@ -455,6 +455,29 @@ async function verifyPcControl(client) {
   await wait(state + '.then(s => !s.settings.enabled && s.history.some(e => e.op === "stop"))');
 }
 
+async function verifyKeyboardSettings(client) {
+  const action = (input) => client.probe("performAction", input);
+  const navigate = await action({ type: "navigate", to: "/settings/keyboards" });
+  if (!navigate.ok) throw new Error(navigate.detail);
+  const toggle = "#keyboards input[type=checkbox]:enabled";
+  const positions = [
+    ...Array.from({length: 9}, (_, i) => "Клавиша " + (i + 1)),
+    ...["Верхняя", "Нижняя"].flatMap(knob =>
+      ["Влево", "Нажать", "Вправо"].map(move => knob + " ручка · " + move)),
+  ].map(name => '#keyboards button[aria-label="' + name + '"]');
+  const waitForSwitch = async (checked) => {
+    const allSelectors = [...positions, toggle + (checked ? ":checked" : ":not(:checked)")];
+    const result = await waitUntilReady(client, {allSelectors});
+    if (!result.ready) throw new Error("Keyboard settings: " + JSON.stringify(result));
+  };
+  await waitForSwitch(false);
+  for (const checked of [true, false]) {
+    const click = await action({type: "click", selector: toggle});
+    if (!click.ok) throw new Error(click.detail);
+    await waitForSwitch(checked);
+  }
+}
+
 async function verifyChatSettings(client) {
   const rows = ["#olympus-88-rich-text", "#olympus-40-files"];
   const globals = ["__olyRichText", "__olyFiles"];
@@ -910,6 +933,17 @@ async function run() {
       unexpectedEnglishPhrases: allUnexpectedEnglish,
     };
     report.ok = report.summary.failedChecks === 0;
+    if (opts.verifyChatSettings && opts.launch && process.platform === "win32") {
+      try {
+        await verifyKeyboardSettings(client);
+        report.keyboardSettings = {ok:true};
+        console.log("[PASS] keyboard settings: 15 positions and native listener switch");
+      } catch(error) {
+        report.keyboardSettings = {ok:false,error:String(error)};
+        report.ok = false;
+        console.log("[FAIL] keyboard settings: "+error);
+      }
+    }
     if (opts.verifyChatSettings) {
       try {
         await verifyChatSettings(client);

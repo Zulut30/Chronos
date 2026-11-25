@@ -100,6 +100,8 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/chat": MessageSquareTextIcon,
   "/settings/diffs": FileDiffIcon,
   "/settings/projects": PanelsTopLeftIcon,
+  // chronos: macro pad profiles.
+  "/settings/keyboards": KeyboardIcon,
   "/settings/keybindings": KeyboardIcon,
   "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,

@@ -127,6 +127,15 @@ contextBridge.exposeInMainWorld("chronosPC", {
 });
 
 contextBridge.exposeInMainWorld("desktopBridge", {
+  // chronos: the local main window accepts only profile operations and normalized events.
+  ...(clientPlatform === "win32" ? {keyboard: {
+    request: (op: string, payload?: unknown) => ipcRenderer.invoke("chronos:keyboard", op, payload),
+    subscribe: (cb: (msg: import("@t3tools/contracts").KeyboardEventMessage) => void) => {
+      const handle = (_event: Electron.IpcRendererEvent, msg: import("@t3tools/contracts").KeyboardEventMessage) => cb(msg);
+      ipcRenderer.on("chronos:keyboard-event", handle);
+      return () => { ipcRenderer.off("chronos:keyboard-event", handle); };
+    },
+  }} : {}),
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
     if (typeof result !== "object" || result === null) {
