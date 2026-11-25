@@ -72,8 +72,16 @@ function install(tracing) {
     },
     focusRevealedCard(id) {
       const target = row(id);
-      if (!target || target.querySelector("[data-sidebar-card-placeholder]")) return false;
+      if (!target) return false;
       const { x, y } = center(target);
+      const viewport = scroller(target).getBoundingClientRect();
+      // Resolving intrinsic row sizes or revealing the active route may move this item
+      // after the first jump. Correct the scroll only while the hit point is outside.
+      if (y < viewport.top || y >= viewport.bottom) {
+        target.closest("[data-thread-item]").scrollIntoView({ block: "center", behavior: "instant" });
+        return false;
+      }
+      if (target.querySelector("[data-sidebar-card-placeholder]")) return false;
       if (!target.contains(document.elementFromPoint(x, y))) return false;
       target.focus({ preventScroll: true });
       return document.activeElement === target;
