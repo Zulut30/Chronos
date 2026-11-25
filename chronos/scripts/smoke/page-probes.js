@@ -509,6 +509,10 @@
         ...(cfg.allowedEnglish || []),
       ];
 
+      const cleanComposer = cfg.cleanProfile
+        ? document.querySelector("[data-chat-provider-unavailable]")?.closest("[data-slot=composer-host]")
+        : null;
+      const unexpected = new Set();
       const phraseSet = new Set();
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
       let node;
@@ -521,13 +525,13 @@
         if (!isVisible(parent)) continue;
         if (countLatinWords(text) >= 2) {
           phraseSet.add(text);
+          const expectedInComposer = cleanComposer?.contains(parent) && cfg.englishScan?.cleanComposerEnglish?.includes(text);
+          if (!expectedInComposer && !matchesAllowed(text, allowedRules)) unexpected.add(text);
         }
       }
 
       const englishPhrases = [...phraseSet].sort();
-      const unexpectedEnglishPhrases = englishPhrases.filter(
-        (p) => !matchesAllowed(p, allowedRules),
-      );
+      const unexpectedEnglishPhrases = [...unexpected].sort();
 
       // Measure dynamic pixel mask bounding boxes in viewport coordinates.
       const vw = window.innerWidth || 1400;
@@ -568,7 +572,6 @@
 
       return {
         ok: failedAssertions.length === 0,
-
         pathname: globalThis.__TSR_ROUTER__?.state?.location?.pathname ?? null,
         theme: {
           dark: document.documentElement.classList.contains("dark"),

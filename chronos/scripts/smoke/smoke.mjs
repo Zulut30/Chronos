@@ -575,6 +575,7 @@ async function run() {
           const inspected = await client.probe("inspectScreen", {
             expect,
             englishScan: checks.englishScan,
+            cleanProfile: opts.profile === "clean",
             excludeEnglishSelectors: screen.excludeEnglishSelectors,
             allowedEnglish,
             maskSelectors: mergedMaskSelectors,
@@ -654,6 +655,7 @@ async function run() {
           const inspected = await client.probe("inspectScreen", {
             expect,
             englishScan: checks.englishScan,
+            cleanProfile: opts.profile === "clean",
             excludeEnglishSelectors: screen.excludeEnglishSelectors,
             allowedEnglish,
             maskSelectors: mergedMaskSelectors,

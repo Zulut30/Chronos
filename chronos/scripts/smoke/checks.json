@@ -65,6 +65,10 @@
       "[data-thread-item] .truncate:not(.text-secondary-label)",
       "[data-slot='project-monogram']"
     ],
+    "cleanComposerEnglish": [
+      "Enable a provider in Settings to send a message",
+      "Open provider settings"
+    ],
     "allowedGlobal": [
       "No threads yet",
       "Add project"
