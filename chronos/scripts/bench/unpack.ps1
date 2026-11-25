@@ -1,7 +1,7 @@
 param([Parameter(Mandatory)][string]$Run, [Parameter(Mandatory)][string]$Destination)
 $ErrorActionPreference = 'Stop'
 if ($Run -notmatch '^\d+$') { throw 'Expected a desktop run ID' }
-gh run download $Run -R $env:GITHUB_REPOSITORY -n chronos-win-x64 -p '*.exe' -D $Destination
+gh run download $Run -R $env:GITHUB_REPOSITORY -n chronos-win-x64 -D $Destination
 if ($LASTEXITCODE) { throw 'Desktop artifact download failed' }
 $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
 $installer = @(Get-ChildItem -LiteralPath $Destination -File -Filter '*.exe')
