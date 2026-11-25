@@ -1,6 +1,6 @@
 // Task board storage for T3 Code (shared by the HTTP service and the MCP server). No dependencies.
 // Data: ~/.t3/tasks/{meta.json, groups.json, trash.json, projects/<projectId>.json}. Projects come from T3's SQLite (read-only).
-import { t3Home, servicesData } from '../paths.mjs';
+import { resolveServicePath, t3Home, servicesData } from '../paths.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -89,7 +89,7 @@ async function query(sql, ...params) {
 function projectIcon(r){
  let custom;try{custom=JSON.parse(r.project_icon_json||'null')}catch{}
  if(custom)return custom;
- if(r.favicon_path){try{const f=path.isAbsolute(r.favicon_path)?r.favicon_path:path.resolve(r.root||'',r.favicon_path);const ext=path.extname(f).slice(1).toLowerCase();const mime={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',ico:'image/x-icon'}[ext];if(mime&&fs.statSync(f).size<=512*1024)return {kind:'image',background:/white|light/i.test(path.basename(f))?'#132849':null,url:'data:'+mime+';base64,'+fs.readFileSync(f).toString('base64')}}catch{}}
+ if(r.favicon_path){try{const f=path.isAbsolute(r.favicon_path)?r.favicon_path:resolveServicePath(r.root||'',r.favicon_path);const ext=path.extname(f).slice(1).toLowerCase();const mime={svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',ico:'image/x-icon'}[ext];if(mime&&fs.statSync(f).size<=512*1024)return {kind:'image',background:/white|light/i.test(path.basename(f))?'#132849':null,url:'data:'+mime+';base64,'+fs.readFileSync(f).toString('base64')}}catch{}}
  return null;
 }
 function dueDate(value){if(value==null||value==='')return null;const s=String(value);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s))||new Date(s).toISOString().slice(0,10)!==s)throw new Error('Неверная дата срока');return s}
@@ -112,7 +112,7 @@ export async function threadProject(threadId) {
     return r ? r.project_id : null;
   } catch { return null; }
 }
-const normPath = (p) => path.resolve(String(p)).replace(/[\\/]+$/, '').toLowerCase();
+const normPath = (p) => resolveServicePath(String(p)).replace(/[\\/]+$/, '').toLowerCase();
 /** Resolve a project from an id, a title, a path, or (default) a working directory. */
 export async function resolveProject(ref, cwd) {
   const list = await t3Projects();

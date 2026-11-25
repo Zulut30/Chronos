@@ -1,7 +1,7 @@
 // Skills Manager for T3 Code — local service (127.0.0.1 only, no dependencies).
 // Lists, copies, syncs, enables/disables, creates, deletes and installs/updates agent skills across
 // local folders, T3 projects and SSH servers. Deleted/replaced skills go to a trash folder, never removed outright.
-import { t3Home, servicesData } from '../paths.mjs';
+import { resolveServicePath, t3Home, servicesData } from '../paths.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -17,7 +17,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const T3_DB = path.join(t3Home, 'userdata', 'statev2.sqlite');
 const TRASH = path.join(servicesData, 'caches', 'skills-trash');
 const REGISTRY = path.join(servicesData, 'caches', 'skills-registry.json');
-const TAR = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
+const TAR = process.platform === 'win32' ? path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const HOST_RE = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
 const DIS = '.disabled'; // disabled skills live next to the skills folder: <…>/skills.disabled/<name>
@@ -144,7 +144,7 @@ async function locations(force) {
   if (!force && locCache && Date.now() - locAt < 60000) return locCache.map((l) => (l.kind === 'ssh' ? { ...l, t3: tunnels.has(l.host) } : l));
   const locs = [];
   for (const a of AGENTS) locs.push({ id: `local:user:${a.agent}`, kind: 'local', group: 'Этот компьютер', label: a.label, short: a.short, agent: a.agent, path: path.join(HOME, a.rel) });
-  const same = (x, y) => path.resolve(x).toLowerCase() === path.resolve(y).toLowerCase();
+  const same = (x, y) => resolveServicePath(x).toLowerCase() === resolveServicePath(y).toLowerCase();
   for (const p of await t3Projects()) for (const a of AGENTS) {
     const dir = path.join(p.root, a.rel);
     if (same(p.root, HOME)) continue; // a project at the home folder would duplicate «Этот компьютер»
@@ -554,7 +554,7 @@ function encodePrompt({name,title,description,mode,body}) {
 const revisionOf = data => crypto.createHash('sha256').update(data).digest('hex');
 async function libraryDir(dir) {
   await fsp.mkdir(dir, {recursive:true});
-  if (path.relative(path.resolve(dir), await fsp.realpath(dir))) throw err('Недопустимая ссылка на каталог шаблонов');
+  if (path.relative(resolveServicePath(dir), await fsp.realpath(dir))) throw err('Недопустимая ссылка на каталог шаблонов');
 }
 let promptQueue = Promise.resolve();
 function inLibrary(operation) {

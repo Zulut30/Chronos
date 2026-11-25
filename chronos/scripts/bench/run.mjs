@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
+import { DatabaseSync } from "node:sqlite";
 import assert from "node:assert/strict";
 import { connectCdp, rpcClient } from "./client.mjs";
 
@@ -70,6 +71,20 @@ function disk() {
   const sum = (dir, regex) => readdirSync(dir).filter(f => regex.test(f)).reduce((v,f) => v + statSync(join(dir,f)).size, 0);
   return { db: sum(userdata, /^statev2\.sqlite(?:-wal|-shm)?$/), trace: sum(join(userdata, "logs"), /^server\.trace\.ndjson(?:\.\d+)?$/) };
 }
+// Read a short, consistent snapshot outside the timed interval. No checkpoint:
+// a checkpoint here would change the physical high-water mark being measured.
+function databaseSample() {
+  const file = join(userdata, "statev2.sqlite");
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    db.exec("PRAGMA busy_timeout=5000; BEGIN");
+    const scalar = (query) => Object.values(db.prepare(query).get())[0];
+    const sizes = Object.fromEntries(["","-wal","-shm"].map(ext => [ext || "main", existsSync(file+ext) ? statSync(file+ext).size : 0]));
+    return { sizes, pageSize:scalar("PRAGMA page_size"), pages:scalar("PRAGMA page_count"),
+      freePages:scalar("PRAGMA freelist_count"),
+      events:db.prepare("SELECT event_type, count(*) AS rows, sum(length(CAST(payload_json AS BLOB))) AS bytes FROM orchestration_events GROUP BY event_type ORDER BY event_type").all() };
+  } finally { db.close(); }
+}
 function stop(p) {
   if (!p.pid || p.exitCode !== null) return;
   try { execFileSync("taskkill.exe", ["/pid", String(p.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" }); }
@@ -108,6 +123,7 @@ try {
   const debugPort = await port();
   const browser = start(chrome, ["--headless=new","--no-first-run","--no-default-browser-check","--disable-background-networking",
     "--disable-extensions","--disable-component-update","--disable-sync","--renderer-process-limit=1",
+    ...(process.env.BENCH_V8_SIZE === "1" ? ["--js-flags=--optimize-for-size"] : []),
     "--disable-features=SpareRendererForSitePerProcess","--remote-debugging-port=" + debugPort,"--user-data-dir="+profile,
     "--proxy-server=127.0.0.1:9","--proxy-bypass-list=<-loopback>;127.0.0.1:"+listen,"about:blank"], env);
   const endpoint = await wait("private CDP", async () => {
@@ -168,10 +184,26 @@ try {
     writeFileSync(marker, "");
     return await wait("server probe "+name, () => existsSync(marker+".json") && json(marker+".json"), 6000);
   }
+  const databaseBefore = databaseSample();
   const before = await renderer(false), diskBefore = disk(), begin = await probe("start");
+  if (process.env.BENCH_FRAME_TIMES === "1") {
+    await page("Runtime.evaluate", { expression: `window.benchFrames=[]; requestAnimationFrame(function frame(now){
+      if(!window.benchFrames)return; window.benchFrames.push(now);requestAnimationFrame(frame);
+    })` });
+  }
   writeFileSync(join(root, "go"), "");
   await wait("terminal events", () => { rpc.check(); return complete.size === n; }, 120000);
   const end = await probe("end"), after = await renderer(true);
+  let frameP95Ms;
+  if (process.env.BENCH_FRAME_TIMES === "1") {
+    const sample = await page("Runtime.evaluate", {expression:`(()=>{
+      const times=window.benchFrames;window.benchFrames=null;
+      const gaps=times.slice(1).map((t,i)=>t-times[i]).sort((a,b)=>a-b);
+      return gaps[Math.ceil(gaps.length*0.95)-1];
+    })()`,returnByValue:true});
+    frameP95Ms = sample.result.value;
+    assert(frameP95Ms > 0);
+  }
   assert.equal(end.pid, server.pid);
   assert.deepEqual(after.pids.sort(), before.pids.sort());
   await sleep(1300); // allow the final one-second trace batch to reach disk
@@ -191,6 +223,7 @@ try {
     lagSamples:end.count, serverCpuPct:(end.cpu-begin.cpu)/elapsed/10, serverRssMiB:end.rss/1048576,
     rendererCpuPct:(after.cpu-before.cpu)*100000/(after.time-before.time), rendererRssMiB:after.rss/1048576,
     dbGrowthKiB:(diskAfter.db-diskBefore.db)/1024, traceGrowthKiB:(diskAfter.trace-diskBefore.trace)/1024,
+    databaseBefore, databaseAfter:databaseSample(), frameP95Ms, optimizeForSize:process.env.BENCH_V8_SIZE === "1",
     completed:complete.size, rendererCount:after.pids.length, verifiedTexts:n, visibleFinal:true };
   writeFileSync(resolve(output), JSON.stringify(result,null,2)+"\n");
   console.log(result);

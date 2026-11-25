@@ -7,7 +7,7 @@ import type {
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
 import { waitForHttpReady as waitForHttpReadyShared } from "@t3tools/shared/httpReadiness";
-import { cliReleaseDownloadBaseUrl } from "@t3tools/shared/cliRelease";
+import { chronosUpstreamVersion, isChronosVersion, sshArchiveReleaseUrl } from "@t3tools/shared/cliRelease";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import * as NetService from "@t3tools/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@t3tools/shared/schemaJson";
@@ -493,7 +493,7 @@ if [ -n "$T3_SYSTEM_EXECUTABLE" ] && T3_SYSTEM_VERSION="$("$T3_SYSTEM_EXECUTABLE
 fi
 # Self-contained release archive: no Node, npm, or compiler on the remote.
 # Unpacked into the pinned-runtime layout so \`t3 service install\` reuses it.
-T3_RELEASE_BASE_URL=@@T3_RELEASE_BASE_URL@@
+T3_RELEASE_DIR=@@T3_RELEASE_DIR@@
 T3_RUNTIME_DIR="$HOME/.t3/runtime/versions/$T3_ARCHIVE_VERSION"
 t3_runtime_ready() {
   [ -x "$T3_RUNTIME_DIR/t3" ] && [ "$(cat "$T3_RUNTIME_DIR/.install-complete" 2>/dev/null)" = "$T3_ARCHIVE_VERSION" ]
@@ -553,8 +553,8 @@ if ! t3_runtime_ready; then
       exit 1
     }
   }
-  t3_fetch "$T3_RELEASE_BASE_URL/v$T3_ARCHIVE_VERSION/SHA256SUMS" "$T3_STAGING/SHA256SUMS" @@T3_ARCHIVE_CHECKSUMS_SECONDS@@
-  t3_fetch "$T3_RELEASE_BASE_URL/v$T3_ARCHIVE_VERSION/$T3_ARCHIVE" "$T3_STAGING/$T3_ARCHIVE" @@T3_ARCHIVE_DOWNLOAD_SECONDS@@
+  t3_fetch "$T3_RELEASE_DIR/SHA256SUMS" "$T3_STAGING/SHA256SUMS" @@T3_ARCHIVE_CHECKSUMS_SECONDS@@
+  t3_fetch "$T3_RELEASE_DIR/$T3_ARCHIVE" "$T3_STAGING/$T3_ARCHIVE" @@T3_ARCHIVE_DOWNLOAD_SECONDS@@
   T3_EXPECTED="$(grep " \\*\\{0,1\\}$T3_ARCHIVE$" "$T3_STAGING/SHA256SUMS" | cut -d' ' -f1)"
   if command -v sha256sum >/dev/null 2>&1; then
     T3_ACTUAL="$(sha256sum < "$T3_STAGING/$T3_ARCHIVE" | cut -d' ' -f1)"
@@ -751,6 +751,21 @@ keeps_running_server() {
   [ "$T3_ARCHIVE_MODE" = "1" ] &&
     "$RUNNER_FILE" __ssh-helper keep-server "$DEFAULT_RUNTIME_FILE" "$REMOTE_PID" >/dev/null 2>&1
 }
+# chronos: identify the distribution of the owned PID, even when two desktops
+# have written different runner scripts. Both servers report the upstream version.
+CHRONOS_ARCHIVE=@@CHRONOS_ARCHIVE@@
+CHRONOS_OWNER_FILE="$DEFAULT_SERVER_HOME/ssh-launch/.chronos-runtime"
+chronos_same_base_switch() {
+  [ "$T3_ARCHIVE_MODE" = 1 ] || return 1
+  RUNNING_ARCHIVE=""
+  if [ -f "$CHRONOS_OWNER_FILE" ] && read -r OWNER_PID OWNER_ARCHIVE <"$CHRONOS_OWNER_FILE" && [ "$OWNER_PID" = "$REMOTE_PID" ]; then
+    RUNNING_ARCHIVE="$OWNER_ARCHIVE"
+  fi
+  [ "$RUNNING_ARCHIVE" != "$CHRONOS_ARCHIVE" ] || return 1
+  PROBE_ARCHIVE="\${CHRONOS_ARCHIVE:-$RUNNING_ARCHIVE}"
+  case "$PROBE_ARCHIVE" in *[!0-9a-zA-Z.-]*) return 1 ;; *.chronos.*) ;; *) return 1 ;; esac
+  "$HOME/.t3/runtime/versions/$PROBE_ARCHIVE/t3" __ssh-helper chronos-matches-base "$DEFAULT_RUNTIME_FILE" "$REMOTE_PID" @@CHRONOS_BASE@@ >/dev/null 2>&1
+}
 @@T3_MANAGED_SERVER_RUNNING_SCRIPT@@
 # The server publishes its runtime record only after it answers, so one that
 # has published and now refuses every connection has closed its listener to
@@ -926,7 +941,7 @@ if [ "$REMOTE_MANAGED" = "external" ]; then
 elif [ -n "$REMOTE_PORT" ] && managed_server_running "$REMOTE_PID"; then
   # Reconnect owns the local tunnel, not the lifetime of an already running
   # server. A changed runner is the update path and replaces an older server.
-  if [ "$RUNNER_CHANGED" -eq 1 ] && [ "$FOREIGN_LAUNCHER" -eq 0 ] && ! keeps_running_server; then
+  if [ "$FOREIGN_LAUNCHER" -eq 0 ] && { { [ "$RUNNER_CHANGED" -eq 1 ] && ! keeps_running_server; } || chronos_same_base_switch; }; then
     kill "$REMOTE_PID" 2>/dev/null || true
     wait_for_pid_exit "$REMOTE_PID"
     REMOTE_PID=""
@@ -1030,6 +1045,11 @@ if [ -z "$REMOTE_PORT" ]; then
   (umask 077 && : >"$LOG_FILE")
   nohup env T3CODE_NO_BROWSER=1 "$RUNNER_FILE" serve --host 127.0.0.1 --port "$REMOTE_PORT" --base-dir "$DEFAULT_SERVER_HOME" >>"$LOG_FILE" 2>&1 < /dev/null &
   REMOTE_PID="$!"
+  if [ -n "$CHRONOS_ARCHIVE" ]; then
+    (umask 077 && printf '%s %s\\n' "$REMOTE_PID" "$CHRONOS_ARCHIVE" >"$CHRONOS_OWNER_FILE")
+  elif [ -f "$CHRONOS_OWNER_FILE" ]; then
+    rm -f "$CHRONOS_OWNER_FILE"
+  fi
   printf '%s\\n' "$REMOTE_PID" >"$PID_FILE"
   printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
   printf 'managed\\n' >"$MANAGED_FILE"
@@ -1162,15 +1182,13 @@ export function buildRemoteT3RunnerScript(input?: RemoteT3RunnerOptions): string
   if (archiveVersion !== "" && !EXACT_ARCHIVE_VERSION.test(archiveVersion)) {
     throw new SshInvalidArchiveVersionError({ archiveVersion });
   }
-  const releaseBaseUrl = cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(
-    /\/v$/u,
-    "",
-  );
+  // chronos: release tags and versioned runner caches distinguish the two distributions.
+  const releaseDir = sshArchiveReleaseUrl(archiveVersion, input?.releaseBaseUrl ?? undefined);
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_RUNNER_SCRIPT, {
       T3_NODE_SCRIPT_PATH: shellSingleQuote(nodeScriptPath),
       T3_ARCHIVE_VERSION: shellSingleQuote(archiveVersion),
-      T3_RELEASE_BASE_URL: shellSingleQuote(releaseBaseUrl),
+      T3_RELEASE_DIR: shellSingleQuote(releaseDir),
       T3_ARCHIVE_LOCK_WAIT_SECONDS: String(REMOTE_ARCHIVE_LOCK_WAIT_SECONDS),
       T3_ARCHIVE_DOWNLOAD_SECONDS: String(REMOTE_ARCHIVE_DOWNLOAD_SECONDS),
       T3_ARCHIVE_CHECKSUMS_SECONDS: String(REMOTE_ARCHIVE_CHECKSUMS_SECONDS),
@@ -1189,7 +1207,10 @@ export function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string 
 }
 
 export function buildRemoteLaunchScript(input?: RemoteT3RunnerOptions): string {
+  const version = input?.archiveVersion?.trim() ?? "";
   return applyScriptPlaceholders(REMOTE_LAUNCH_SCRIPT, {
+    CHRONOS_ARCHIVE: shellSingleQuote(isChronosVersion(version) ? version : ""),
+    CHRONOS_BASE: shellSingleQuote(chronosUpstreamVersion(version)),
     T3_UPDATE_MARKER_FILE: DESKTOP_UPDATE_IN_PROGRESS_MARKER_FILE,
     T3_UPDATE_TTL_MS: String(DESKTOP_UPDATE_IN_PROGRESS_TTL_MS),
     T3_UPDATE_TTL_SECONDS: String(DESKTOP_UPDATE_IN_PROGRESS_TTL_MS / 1000),

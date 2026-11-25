@@ -579,6 +579,11 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
         ...backendChildEnvPatch(),
         // chronos: isolate the packaged Chronos backend from an active T3CODE_HOME.
         ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir } : {}),
+        // chronos: only the matching packaged Windows helper implements the pipe-held sleep request.
+        CHRONOS_WINDOWS_INHIBITOR:
+          environment.platform === "win32" && environment.isPackaged && isChronosVersion(environment.appVersion)
+            ? Option.getOrUndefined(input.resourceMonitorPath)
+            : undefined,
         ELECTRON_RUN_AS_NODE: "1",
         T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1",
         T3CODE_CLI_PATH: Option.getOrUndefined(input.cliPath),

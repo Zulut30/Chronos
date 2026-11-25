@@ -36,6 +36,13 @@ describe("KeepAwake.holdWhileWanted", () => {
 });
 
 describe("KeepAwake.inhibitorCommand", () => {
+  it("holds the bundled Windows inhibitor through the server pipe", () => {
+    const env = { CHRONOS_WINDOWS_INHIBITOR: "C:/Chronos/resource-monitor/t3-resource-monitor.exe" };
+    expect(KeepAwake.inhibitorCommand("win32", 1, false, env)).toEqual({
+      command: env.CHRONOS_WINDOWS_INHIBITOR, args: ["--chronos-keep-awake"], stdin: "pipe",
+    });
+    expect(KeepAwake.inhibitorCommand("linux", 1, true, env)?.command).toBe("powershell.exe");
+  });
   it("runs PowerShell by its System32 path on Windows", () => {
     expect(
       KeepAwake.inhibitorCommand("win32", 1, false, { SYSTEMROOT: String.raw`D:\Windows` })

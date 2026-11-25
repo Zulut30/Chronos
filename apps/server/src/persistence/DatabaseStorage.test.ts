@@ -41,6 +41,7 @@ it.effect("a new database returns freed pages online without losing data", () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const storage = yield* DatabaseStorage.DatabaseStorage;
+    assert.deepEqual(yield* sql`PRAGMA journal_size_limit`, [{ journal_size_limit: 32 * 1024 * 1024 }]);
     assert.deepEqual(yield* sql`PRAGMA auto_vacuum`, [{ auto_vacuum: 2 }]);
     yield* sql`CREATE TABLE retained (value TEXT)`;
     yield* sql`INSERT INTO retained VALUES ('keep')`;

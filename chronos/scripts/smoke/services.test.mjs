@@ -22,7 +22,7 @@ async function freePort() {
   const { port } = socket.address(); const closed = once(socket, 'close'); socket.close(); await closed;
   return port;
 }
-test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
+test('seven hosted HTTP modules and OpenRouter stdio', async () => {
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'chronos-services-')));
   const home = path.join(tmp, 'home'), t3 = path.join(tmp, 'server'), data = path.join(tmp, 'service data');
   const project = path.join(tmp, 'example project'), downloads = path.join(home,'Downloads');
@@ -36,12 +36,16 @@ test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
   for (const key of Object.keys(env)) {
     if ((key.startsWith('OLY_') && key!=='OLY_FILES_DEST') || /API_KEY$/.test(key)) delete env[key];
   }
+  const tasksDir = process.platform === 'win32' ? path.join(tmp,'configured tasks') : path.join(data,'tasks');
+  if (process.platform === 'win32') env.Oly_Tasks_Dir = tasksDir;
   try {
+    fs.mkdirSync(path.join(t3,'logs','services'),{recursive:true});
     for (const [name, variable, health] of httpServices) {
       const port = await freePort(), base = 'http://127.0.0.1:' + port;
-      const proc = spawn(process.execPath,[path.join(resources,name,'server.mjs')],{
-        cwd:tmp,env:{...env,['OLY_'+variable+'_PORT']:String(port)},windowsHide:true,stdio:'ignore',
+      const proc = spawn(process.execPath,[path.join(resources,'host.mjs')],{
+        cwd:tmp,env:{...env,['OLY_'+variable+'_PORT']:String(port)},windowsHide:true,stdio:['ignore','ignore','ignore','ipc'],
       });
+      proc.send(name);
       const exited = once(proc,'exit');
       try {
         let ready=false;
@@ -52,7 +56,7 @@ test('seven isolated HTTP sidecars and OpenRouter stdio', async () => {
         assert.ok(ready,name+' readiness');
         const get=async p=>{const r=await fetch(base+p);assert.equal(r.status,200,p);return r.json()};
         if(variable==='TASKS'){
-          assert.equal((await get(health)).data,path.join(data,'tasks'));
+          assert.equal((await get(health)).data,tasksDir);
           assert.ok((await get('/api/projects')).some(p=>p.id==='example'));
         }else if(variable==='SKILLS'){
           assert.ok((await get('/api/prompts')).prompts.length);

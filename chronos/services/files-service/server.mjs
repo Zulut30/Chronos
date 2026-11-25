@@ -1,7 +1,7 @@
 // Files service for T3 Code — saves downloads to the user's Downloads folder (127.0.0.1 only, no dependencies).
 // Sources: signed T3 asset URLs (any environment), the local disk (local environment only) and SSH (environments
 // that T3 desktop reaches through an SSH tunnel; target resolved from T3's own desktop trace log). Never writes remotely.
-import { t3Home, serviceDir } from '../paths.mjs';
+import { resolveServicePath, t3Home, serviceDir } from '../paths.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -14,7 +14,7 @@ import { pipeline } from 'node:stream/promises';
 const PORT = Number(process.env.OLY_FILES_PORT || 4519);
 const HOME = os.homedir();
 const T3 = t3Home;
-const TAR = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
+const TAR = process.platform === 'win32' ? path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 const ORIGINS = new Set(['t3code://app', 'http://localhost:3773', 'http://127.0.0.1:3773']);
 const DATA = serviceDir('files-service');
 fs.mkdirSync(DATA, { recursive: true });
@@ -28,7 +28,7 @@ function downloadsDir() {
   try {
     const out = execFileSync('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\User Shell Folders', '/v', '{374DE290-123F-4565-9164-39C4925E467B}'], { encoding: 'utf8', windowsHide: true });
     const m = /REG_(?:EXPAND_)?SZ\s+(.+)\s*$/m.exec(out);
-    if (m) { const p = m[1].trim().replace(/%([^%]+)%/g, (_, v) => process.env[v] || ''); if (p) return p; }
+    if (m) { const p = m[1].trim().replace(/%([^%]+)%/g, (_, v) => process.env[v.toUpperCase()] || ''); if (p) return p; }
   } catch {}
   return path.join(HOME, 'Downloads');
 }
@@ -148,7 +148,7 @@ function jobZip({ name, files }) {
 // local environment: copy or zip straight from disk
 function jobLocal({ envId, path: p, isDir }) {
   if (!envId || envId !== localEnvId()) throw new Error('Не локальное окружение');
-  const abs = path.resolve(String(p || ''));
+  const abs = resolveServicePath(String(p || ''));
   const st = fs.statSync(abs);
   const n = safeName(path.basename(abs), 'download');
   const j = newJob('local', st.isDirectory() ? n + '.zip' : n);
@@ -220,13 +220,13 @@ async function saveBody(req, name) {
   return out;
 }
 function reveal(p) {
-  const abs = path.resolve(String(p || ''));
-  const rel = path.relative(path.resolve(DEST), abs);
+  const abs = resolveServicePath(String(p || ''));
+  const rel = path.relative(resolveServicePath(DEST), abs);
   if (rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel)) throw new Error('Путь вне папки загрузок');
-  const target = fs.existsSync(abs) ? abs : path.resolve(DEST);
+  const target = fs.existsSync(abs) ? abs : resolveServicePath(DEST);
   if (process.platform === 'darwin') return spawn('open', ['-R', target], { detached: true, stdio: 'ignore' }).unref();
   if (process.platform !== 'win32') return spawn('xdg-open', [path.dirname(target)], { detached: true, stdio: 'ignore' }).unref();
-  spawn('explorer.exe', [target === abs && abs !== path.resolve(DEST) ? `/select,"${abs}"` : `"${target}"`], { windowsVerbatimArguments: true, detached: true, stdio: 'ignore' }).unref();
+  spawn('explorer.exe', [target === abs && abs !== resolveServicePath(DEST) ? `/select,"${abs}"` : `"${target}"`], { windowsVerbatimArguments: true, detached: true, stdio: 'ignore' }).unref();
 }
 
 // ---------- http ----------

@@ -13,7 +13,8 @@ import { initializeV2Database } from "./initializeV2Database.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerOwnership from "../serverOwnership.ts";
 
-const WAL_SIZE_LIMIT_BYTES = 128 * 1024 * 1024;
+// chronos: reclaim burst allocation on WAL reuse without blocking a reader or forcing a checkpoint.
+const WAL_SIZE_LIMIT_BYTES = 32 * 1024 * 1024;
 
 export class ServerOwnsDatabaseError extends Schema.TaggedError<ServerOwnsDatabaseError>()(
   "ServerOwnsDatabaseError",

@@ -826,7 +826,14 @@ fn write_history(
     Ok(())
 }
 
+#[cfg(windows)]
+mod chronos_keep_awake;
+
 fn main() -> io::Result<()> {
+    #[cfg(windows)]
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--chronos-keep-awake")) {
+        return chronos_keep_awake::hold();
+    }
     let mut writer = BufWriter::new(io::stdout().lock());
     write_event(
         &mut writer,

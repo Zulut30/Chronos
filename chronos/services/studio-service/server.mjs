@@ -1,6 +1,6 @@
 // T3 Studio — local service (127.0.0.1:4520, no dependencies).
 // Excalidraw boards stored as .excalidraw JSON files (project/.excalidraw or the server folder),
-import { t3Home, serviceDir } from '../paths.mjs';
+import { resolveServicePath, t3Home, serviceDir } from '../paths.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -40,7 +40,7 @@ function saveState() {
 let context = { threadId: null, cwd: null, at: 0 };
 
 // ---------- helpers ----------
-const norm = (p) => path.resolve(String(p || ''));
+const norm = (p) => resolveServicePath(String(p || ''));
 const same = (a, b) => (IS_WIN ? a.toLowerCase() === b.toLowerCase() : a === b);
 const inside = (child, parent) => { const r = path.relative(parent, child); return r === '' || (!!r && !r.startsWith('..') && !path.isAbsolute(r)); };
 function badReq(msg) { const e = new Error(msg); e.status = 400; return e; }
@@ -84,7 +84,7 @@ function resolveProject(cwd) {
     const g = fs.readFileSync(path.join(c, '.git'), 'utf8');
     const m = /gitdir:\s*(.+)/.exec(g);
     if (m) {
-      const main = norm(path.resolve(c, m[1].trim(), '..', '..', '..'));
+      const main = norm(resolveServicePath(c, m[1].trim(), '..', '..', '..'));
       hit = projects.find((p) => same(p.root, main));
       if (hit) return hit;
     }

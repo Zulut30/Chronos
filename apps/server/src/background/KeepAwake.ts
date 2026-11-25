@@ -78,6 +78,10 @@ export function inhibitorCommand(
         stdin: "ignore",
       };
     case "win32":
+      // chronos: packaged Windows supplies its matching native helper.
+      if (env.CHRONOS_WINDOWS_INHIBITOR) {
+        return { command: env.CHRONOS_WINDOWS_INHIBITOR, args: ["--chronos-keep-awake"], stdin: "pipe" };
+      }
       return {
         command: windowsPowerShellPath(env),
         args: [
