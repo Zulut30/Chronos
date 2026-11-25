@@ -1,5 +1,6 @@
 """Check the skill metadata and the repository links an agent can follow."""
 
+import re
 import sys
 from html.parser import HTMLParser
 from pathlib import Path
@@ -11,6 +12,14 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 SKILLS = ROOT / "chronos" / "skills"
+REQUIRED = {
+    "chronos-router", "chronos-ci", "chronos-delegate", "chronos-feature", "chronos-l10n",
+    "chronos-live-verify", "chronos-parity-check", "chronos-release", "chronos-servers",
+    "chronos-ui", "chronos-ui-review", "chronos-upstream-adopt", "chronos-upstream-sync",
+}
+# These rows can use literal skill names until their provider branches land.
+PENDING = {"chronos-artifacts", "chronos-pc-control", "chronos-perf-guard"}
+NAME = r"chronos-[a-z0-9]+(?:-[a-z0-9]+)*"
 
 
 class LocalLinks(HTMLParser):
@@ -54,6 +63,8 @@ def validate_skill(folder):
         return ["frontmatter must be a mapping"]
 
     errors = []
+    if not re.fullmatch(NAME, folder.name):
+        errors.append("invalid installation directory name")
     if metadata.get("name") != folder.name:
         errors.append(f"name must be {folder.name}")
     description = metadata.get("description")
@@ -67,14 +78,53 @@ def validate_skill(folder):
     return errors
 
 
+def validate_routing(root, installed):
+    skills = root / "chronos" / "skills"
+    errors = [f"missing required skill: {name}" for name in sorted(REQUIRED - installed)]
+    router = skills / "chronos-router" / "SKILL.md"
+    if not router.is_file():
+        return errors + ["missing router entry point"]
+
+    routes = set()
+    for line in router.read_text(encoding="utf-8-sig").splitlines():
+        cells = line.strip().strip("|").split("|")
+        if len(cells) != 2:
+            continue
+        target = cells[1].strip()
+        link = re.match(rf"\[({NAME})\]\(([^)]+)\)", target)
+        if link:
+            name, path = link.groups()
+            if (router.parent / path).resolve() != (skills / name / "SKILL.md").resolve():
+                errors.append(f"router sends {name} to {path}")
+            routes.add(name)
+        else:
+            literal = re.match(rf"`({NAME})`", target)
+            if literal and literal[1] in PENDING:
+                routes.add(literal[1])
+
+    for name in sorted((installed | PENDING) - {"chronos-router"} - routes):
+        errors.append(f"no router table entry for {name}")
+
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        document = (root / name).read_text(encoding="utf-8-sig")
+        block = re.search(
+            r"<!-- chronos: begin fork instructions -->(.*?)<!-- chronos: end fork instructions -->",
+            document, re.DOTALL,
+        )
+        if not block or not re.search(r"\[[^\]]+\]\(chronos/skills/chronos-router/SKILL\.md\)", block[1]):
+            errors.append(f"{name}: missing fork entry point to chronos-router")
+    return errors
+
+
 def main():
     folders = sorted(path for path in SKILLS.iterdir() if path.is_dir())
     if not folders:
         sys.exit("No skills found")
-    errors = [f"{folder.name}: {error}" for folder in folders for error in validate_skill(folder)]
+    errors = validate_routing(ROOT, {folder.name for folder in folders})
+    errors.extend(f"{folder.name}: {error}" for folder in folders for error in validate_skill(folder))
     if errors:
         sys.exit("\n".join(errors))
-    print(f"Validated {len(folders)} skills, metadata and local Markdown links.")
+    print(f"Validated {len(folders)} skills, router coverage, agent entry points, metadata and local Markdown links.")
 
 
 if __name__ == "__main__":

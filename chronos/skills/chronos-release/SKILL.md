@@ -1,57 +1,51 @@
 ---
 name: chronos-release
-description: "Выпуск версии, тега и обновлений Chronos. Use for release preparation, verified main artifacts, chronos-v tags, publication and update feeds."
+description: "Выпуск версии и проверка фида Chronos. Prepare a release, tag a verified main commit or check the latest update assets."
 ---
 
 # Релиз Chronos
 
-Репозиторий `~/Documents/Chronos` (Windows: `%USERPROFILE%\Documents\Chronos`), `origin` = `Zulut30/Chronos` (публичный).
-Схема версий и обновлений — `chronos/README.md` («Версии», «Обновления»).
+Для тега и публикации нужна просьба пользователя о выпуске или постоянное разрешение на ежедневную синхронизацию T3 после всех проверок. Для запроса только на подготовку передай версию, SHA, проверки и список изменений. Для проверки уже выпущенного релиза переходи сразу к последнему разделу.
 
-## Правила
-- Основание для тега и релиза — явная просьба пользователя либо постоянное разрешение на ежедневную синхронизацию по [chronos-upstream-sync](../chronos-upstream-sync/SKILL.md) после всех зелёных проверок. Задание только на ветку, отчёт или подготовку этим разрешением не расширяется.
-- Релиз публикуется только из `main` (после слияния проверенной ветки `feature/*` или `upstream-sync/*`).
-  Force-push, перезапись и удаление тегов/релизов — только по отдельной явной просьбе.
-- Никаких секретов: подпись не используется, все значения в workflow публичные.
+## Версия и проверенный коммит
 
-## 1. Подготовка
-```bash
-cd ~/Documents/Chronos
-git switch main && git pull --ff-only origin main && git status --short
-node chronos/scripts/chronos-version.mjs
-git tag -l 'chronos-v*' && gh release list --repo Zulut30/Chronos --limit 5
-```
-- Сверь `upstream`, `upstreamCommit` и свободную `revision` с целевой nightly и предыдущим релизом. Версию готовь в проверяемом кандидате. Изменение `revision` создаёт новый SHA для проверок.
-- На точном SHA main проверь Chronos checks, chronos-parity, ручной chronos-desktop (все платформы), smoke 14/14 с обоими строгими входами и chronos-perf.yml по [chronos-ci](../chronos-ci/SKILL.md). Сверь ссылки на прогоны и версию до создания тега.
-- Составь список изменений `git log --oneline <прошлый тег>..main`. При действующем разрешении продолжай до результата. Когда запрошена только подготовка, передай версию, SHA и ссылки.
-
-## 2. Тег на проверенном SHA
+Из своего checkout выполни в Bash:
 
 ```bash
-tag=$(node chronos/scripts/chronos-version.mjs | node -p 'JSON.parse(require("fs").readFileSync(0)).tag')
-git tag -a "$tag" -m "Chronos ${tag#chronos-v}"
-git push origin "$tag"
+set -euo pipefail
+git fetch origin refs/heads/main:refs/remotes/origin/main
+sha=$(git rev-parse 'origin/main^{commit}')
+tag=$(git show "$sha:chronos/version.json" | node -e '
+  const { upstream, revision } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  console.log(`chronos-v${upstream}.chronos.${revision}`);
+')
+gh release list -R Zulut30/Chronos --limit 5
+git ls-remote --tags --refs origin "refs/tags/$tag"
 ```
-Пуш тега `chronos-v*` запускает `chronos-desktop.yml`: `version` → `release`. Тег, не совпадающий с
-`chronos/version.json`, роняет сборку на первом шаге; при отсутствии проверенного `workflow_dispatch`
-на точном SHA `main` job `release` остановится до публикации.
 
-## 3. CI и публикация
+Сверь `upstreamCommit` в [version.json](../../version.json) с коммитом nightly. В рабочей ветке кандидата командой `node chronos/scripts/chronos-version.mjs` проверь формат и вычисленную версию до слияния. Новая ревизия получает свой SHA и проверки. Если тег уже существует, сверь его коммит и статус публикации. Для новой версии нужен свободный тег.
+
+Проверь Chronos checks, паритет перевода, успешный ручной Chronos desktop на точном SHA main (включая CLI и все платформы), строгий smoke его Windows-артефакта и результат perf для того же SHA. Используй пару предыдущего main и кандидата, проверенную **до слияния**. Для fast-forward SHA сохраняется. Если появился другой коммит слияния, его тоже нужно проверить до продвижения main. Контрольное сравнение main с собой после слияния не измеряет внесённое изменение. Список изменений даёт `git log --oneline <предыдущий-тег>.."$sha"`. Команды Actions и сверка артефактов — в [chronos-ci](../chronos-ci/SKILL.md).
+
+## Публикация
+
+При разрешённом выпуске продолжи в том же Bash. Перед отправкой снова сверь SHA удалённого main. Смена SHA возвращает к проверкам.
+
 ```bash
-gh run list --repo Zulut30/Chronos --workflow chronos-desktop.yml --branch "$tag" --event push --commit "$(git rev-parse HEAD)"
-gh run watch <id> --repo Zulut30/Chronos --exit-status
-gh release view "$tag" --repo Zulut30/Chronos
+test "$sha" = "$(gh api repos/Zulut30/Chronos/commits/main --jq .sha)"
+git tag -a "$tag" "$sha" -m "Chronos ${tag#chronos-v}"
+git push origin "refs/tags/$tag"
+gh run list -R Zulut30/Chronos --workflow chronos-desktop.yml --branch "$tag" --event push --commit "$sha"
+gh run watch <id> -R Zulut30/Chronos --exit-status
 ```
-Job `release` сверяет артефакты через `chronos/scripts/verify-release.mjs` и публикует обычный
-(не pre-release) релиз с `--latest`: установщики (`Chronos-${VERSION}-*` и постоянные имена
-`Chronos-Setup-x64.exe`, `Chronos-mac-arm64.dmg`, `Chronos-mac-x64.dmg`), `SHA256SUMS`,
-`*.blockmap`, `nightly.yml` и `nightly-mac.yml`.
 
-При временном сбое скачивания или публикации проверь статус релиза и повтори упавший job. Если
-требуется исправление исходников, увеличь `revision` и создай новый тег (старый тег удалять только
-с согласия пользователя).
+Тег запускает `version` и `release` в [desktop workflow](../../../.github/workflows/chronos-desktop.yml). Job проверяет версию и текущий main, находит успешные проверки и ручную desktop-сборку этого SHA, проверяет манифесты и публикует релиз с `--latest`. При временном сбое проверь, успел ли появиться релиз и все его assets. При исправлении исходников собери и проверь новую ревизию. Удаление, замена тега или перезапись опубликованного релиза требуют отдельного согласия.
 
-## 4. Отчёт
-Версия, ссылка на релиз и прогон, статус платформ, что проверить пользователю: установка на
-Windows (SmartScreen → «Подробнее» → «Выполнить в любом случае»), на macOS (ПКМ → «Открыть»),
-запуск рядом с T3 (`%APPDATA%\Chronos`, `~/.chronos/userdata`) и проверка автообновления.
+## Проверка публикации и фида
+
+```bash
+gh release view "$tag" -R Zulut30/Chronos --json tagName,isDraft,isPrerelease,url,assets
+gh api repos/Zulut30/Chronos/releases/latest --jq .tag_name
+```
+
+Для проверки latest без заданного тега сначала получи его второй командой. Сверь тег, статус, `nightly.yml`, `nightly-mac.yml`, установщики, архивы CLI и `SHA256SUMS`. Для проверки самого фида скачай оба файла в новый пустой каталог командой `gh release download "$tag" -R Zulut30/Chronos -p 'nightly*.yml' -D <каталог>`. Поле `version` должно совпасть с версией без `chronos-v`, а имена в `files[].url` после URL-декодирования должны присутствовать в assets. В отчёт включи SHA, версию, ссылку на run и релиз, результат проверки фидов.

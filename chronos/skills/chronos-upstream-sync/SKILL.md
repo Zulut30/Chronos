@@ -1,6 +1,6 @@
 ---
 name: chronos-upstream-sync
-description: "Ежедневная синхронизация Chronos с nightly T3. Use for daily upstream sync, compatibility review, merge gates and release of a verified nightly."
+description: "Обновить форк Chronos с T3, проверить новую nightly. Review upstream compatibility or run the verified daily sync."
 ---
 
 # Синхронизация Chronos с апстримом T3
@@ -15,19 +15,21 @@ description: "Ежедневная синхронизация Chronos с nightly
   - после диагностики и повторной проверки остаётся блокирующая ошибка CI/smoke или необъяснённая регрессия паритета (`chronos-parity-check`);
   - апстрим меняет `appId`, профиль, схемы, Clerk/relay или формат фида обновлений;
   - новая функция T3 напрямую конфликтует с функцией Olympus и выбор приоритета неочевиден (`chronos-upstream-adopt`);
-  - пользователь явно просил только сводку или ветку без слияния.
+
+При запросе только на сводку или ветку заверши запрошенную работу и отчитайся.
+
 - **Всегда запрещено:** force-push в `main`; запуск тестовых сборок на живом `~/.t3` (**миграции БД односторонние** — откатить базу на старую версию без бэкапа нельзя); секреты, токены, скриншоты и личные данные в публичном репо.
 
 ## 1. Разведка и сводка коммитов
 
 ```bash
 git status --short                              # дерево должно быть чистым
-git fetch origin && git fetch upstream main
+git fetch origin
 git ls-remote --tags --refs --sort=-version:refname upstream 'v*-nightly.*' | head -5
-node chronos/scripts/chronos-version.mjs        # текущие upstream и upstreamCommit
+git show origin/main:chronos/version.json       # upstream, revision и upstreamCommit
 ```
 
-Выбери целевой nightly-тег `vX-nightly.YYYYMMDD.N`, забери коммит и прогони план:
+Для плана нужен checkout проверяемой базы: `upstream-plan.mjs nightly` читает локальный `HEAD` и `chronos/version.json`. Проверь совпадение `git rev-parse HEAD` и `git rev-parse origin/main` в своём чистом checkout. При повторном запуске продолжай уже существующую ветку по её зафиксированной базе. Выбери целевой nightly-тег `vX-nightly.YYYYMMDD.N`, забери коммит и прогони план:
 
 ```bash
 git fetch --no-tags upstream "refs/tags/<tag>"
@@ -37,7 +39,7 @@ git log --oneline --no-merges <upstreamCommit>.."$target_sha"
 git diff --stat <upstreamCommit>.."$target_sha"
 ```
 
-Сформируй краткую сводку по группам: `desktop`, `server`, `web`, `mobile`, `l10n/GT`, `CI`, зависимости (`electron`, `@pierre/trees`, `@tanstack/router-core`), миграции (`apps/server/src/persistence/Migrations/`).
+Если целевой SHA совпадает с `upstreamCommit` или уже входит в актуальный main, отчитайся о текущей базе и заверши ежедневный прогон без новой ревизии. Сформируй краткую сводку по группам: `desktop`, `server`, `web`, `mobile`, `l10n/GT`, `CI`, зависимости (`electron`, `@pierre/trees`, `@tanstack/router-core`), миграции (`apps/server/src/persistence/Migrations/`).
 Проверь пересечение с точками форка (`git grep -l "chronos:"`). Если появились новые пользовательские функции T3 (страницы, настройки, триггеры, провайдеры) — сразу оцени их по `chronos-upstream-adopt`.
 
 ## 2. Ветка и слияние
@@ -49,14 +51,14 @@ git merge --no-ff "$target_sha" -m "feat(sync): merge upstream T3 <tag> into Chr
 
 ## 3. Разрешение конфликтов (опыт 4774→5209)
 
-| Класс файла | Правило разрешения |
-| --- | --- |
-| `.github/workflows/*` (кроме `chronos-*.yml`) | Удалённые в форке workflow оставлять удалёнными (`git rm`). Все **новые** апстримные workflow тоже удалять (`git rm`). |
-| `pnpm-workspace.yaml`, `pnpm-lock.yaml` | Взять версию апстрима и заново добавить запись патча `patches/@pierre__trees@<ver>.patch`: `patch_hash` = SHA-256 файла патча **строго с LF**, ссылки импортёров и ключ snapshot. Если версия `@pierre/trees` сменилась — перебазировать патч, сверить tarball из lock и проверить `git apply --check` на JS и `.d.ts`. |
-| Точка встраивания с `// chronos:` / `// chronos(olympus):` | Взять новый файл апстрима и повторить правку Chronos поверх него. Если код переехал (пример: `resolveDesktopSshCliRunner` из `main.ts` → `DesktopSshEnvironment.ts`, схема Markdown → `markdownHast.ts`), перенести правку в новое место и обновить `chronos/README.md`. |
-| Апстрим реализовал то же нативно | Принять апстрим целиком и удалить лишний патч/модуль форка, сохранив лишь узкие поля для Olympus (пример 5209: приняты `AntigravityChildWork.ts`, `AntigravityProtocol.ts`, CLI sign-in в `antigravityUsageLimits.ts`, удалён модуль поиска потомков, оставлено только поле `olyAccountEmail` для модуля 28). Отметить удаление в `chronos/parity/`. |
-| Контракты и общие пакеты | В `packages/contracts/src/{server,usage}.ts` сохранить `THEME_CSS_MAX_LENGTH = 4_194_304` и `"openrouter"` в `UsageProviderKind` (проверить `apps/{web,mobile}/.../usageProviders.ts`). В `packages/shared/src/themeCss.ts` оставить и встроенные картинки Olympus, и `--theme-background-image`. В `markdownPipeline.ts` / `markdownHast.ts` сохранить `pre`/`post` Olympus вокруг `rehypeSanitize` и `sanitizeChatHast`. |
-| Корневой `README.md` | Оставить описание форка Chronos; версию и точки обновить в `chronos/README.md`. |
+| Класс файла                                                | Правило разрешения                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/*` (кроме `chronos-*.yml`)              | Удалённые в форке workflow оставлять удалёнными (`git rm`). Все **новые** апстримные workflow тоже удалять (`git rm`).                                                                                                                                                                                                                                                                                                     |
+| `pnpm-workspace.yaml`, `pnpm-lock.yaml`                    | Взять версию апстрима и заново добавить запись патча `patches/@pierre__trees@<ver>.patch`: `patch_hash` = SHA-256 файла патча **строго с LF**, ссылки импортёров и ключ snapshot. Если версия `@pierre/trees` сменилась — перебазировать патч, сверить tarball из lock и проверить `git apply --check` на JS и `.d.ts`.                                                                                                    |
+| Точка встраивания с `// chronos:` / `// chronos(olympus):` | Взять новый файл апстрима и повторить правку Chronos поверх него. Если код переехал (пример: `resolveDesktopSshCliRunner` из `main.ts` → `DesktopSshEnvironment.ts`, схема Markdown → `markdownHast.ts`), перенести правку в новое место и обновить `chronos/README.md`.                                                                                                                                                   |
+| Апстрим реализовал то же нативно                           | Принять апстрим целиком и удалить лишний патч/модуль форка, сохранив лишь узкие поля для Olympus (пример 5209: приняты `AntigravityChildWork.ts`, `AntigravityProtocol.ts`, CLI sign-in в `antigravityUsageLimits.ts`, удалён модуль поиска потомков, оставлено только поле `olyAccountEmail` для модуля 28). Отметить удаление в `chronos/parity/`.                                                                       |
+| Контракты и общие пакеты                                   | В `packages/contracts/src/{server,usage}.ts` сохранить `THEME_CSS_MAX_LENGTH = 4_194_304` и `"openrouter"` в `UsageProviderKind` (проверить `apps/{web,mobile}/.../usageProviders.ts`). В `packages/shared/src/themeCss.ts` оставить и встроенные картинки Olympus, и `--theme-background-image`. В `markdownPipeline.ts` / `markdownHast.ts` сохранить `pre`/`post` Olympus вокруг `rehypeSanitize` и `sanitizeChatHast`. |
+| Корневой `README.md`                                       | Оставить описание форка Chronos; версию и точки обновить в `chronos/README.md`.                                                                                                                                                                                                                                                                                                                                            |
 
 ## 4. Чек-лист скрытых поломок (случаются без git-конфликтов)
 
@@ -76,25 +78,25 @@ git merge --no-ff "$target_sha" -m "feat(sync): merge upstream T3 <tag> into Chr
 
 Сверь перед сборкой по `chronos/parity/client.md` и `chronos/parity/upstream-5209.md`:
 
-| Зависимость | Файлы T3 и Chronos для сверки |
-| --- | --- |
-| **React Fiber пропсы (24/25/28)** | `24`: `ThreadDetailsUsage.tsx` (`window` в `LimitRow`/`PoolRow`, `tabIndex=0`, `#thread-details-usage-heading`), `ThreadRelationshipsControl.tsx` (`rows`, ключ `li` = `threadId`, `#thread-details-lineage-heading`). `25`: `ThreadDetailsPanel.tsx` / `ThreadDetailsCard.tsx` (`threadRef`, `data-workspace-focus-key="details:..."`). `28`: `ProviderModelPicker.tsx` (`environmentId`, `instanceEntries`, `activeInstanceId`, email в метаданных, `data-model-picker-{sidebar,content,provider}`). |
-| **Хешированные чанки и шимы (93)** | `apps/web/src/chronos/olympus/plugin.ts` (`entities-BYt4Kx9w.js`, `rightPanelStore-BKC7Sf3u.js`, `react-BP46yLMB.js`, `jsx-runtime-BQExFN_X.js`), `shims/{entities,rightPanelStore,react,jsx-runtime}.ts`, адаптер `panelSurfaces.ts` (`side-chat:<id>` ↔ `thread:<id>`), `PanelHost.tsx` в `ChatView.tsx`. Прогнать `apps/web/src/chronos/olympus/compatibility.test.ts`. |
-| **Роутер (22/26/93)** | `apps/web/src/router.ts` и версия `@tanstack/router-core` в lock: всё ещё устанавливает `self.__TSR_ROUTER__ = this`, параметры маршрута треда (environmentId, threadId) не изменились. |
-| **Лексер и отправка (10/55/30/70)** | `composer-editor-mentions.ts` (`splitPromptIntoComposerSegments` → `__olyReferences.lex`), `composerContextPresentation.tsx` и `CollapsedComposerPromptPreview.tsx` (чипы `oly-`), `__olyWrapModeText` и `__olySendPlan` в `useComposerSend.ts` (вкл. мультимодельный fan-out, искл. `/compact`), `useComposerResume.ts`, `useThreadLifecycle.tsx`, `ChatView.tsx`. |
-| **Цепочка Markdown (88)** | `packages/shared/src/markdownPipeline.ts` и `markdownHast.ts` (Words вызывает `sanitizeChatHast` напрямую!): `mark`, `u`, `dataOlyStyle` и `pre → rehypeSanitize → post` активны в обеих точках. |
-| **Иконки `@pierre/trees` (15)** | Патч `patches/@pierre__trees@<ver>.patch`, `apps/web/src/pierre-icons.ts` (`__olyLangIcons.apply` до создания resolver), `DiffPanel.tsx` (`PierreEntryIcon`). |
-| **DOM-селекторы и тексты `features/*.js`** | Сверь изменённые экраны с описью в `chronos/parity/upstream-5209.md` (`data-slot`, `data-workspace-area`, `data-settings-section`, русские `aria-label` для «Расход», «Показать или скрыть правую панель», «Поиск в настройках», «Закрыть настройки», «Студия», «День / ночь»). |
+| Зависимость                                | Файлы T3 и Chronos для сверки                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **React Fiber пропсы (24/25/28)**          | `24`: `ThreadDetailsUsage.tsx` (`window` в `LimitRow`/`PoolRow`, `tabIndex=0`, `#thread-details-usage-heading`), `ThreadRelationshipsControl.tsx` (`rows`, ключ `li` = `threadId`, `#thread-details-lineage-heading`). `25`: `ThreadDetailsPanel.tsx` / `ThreadDetailsCard.tsx` (`threadRef`, `data-workspace-focus-key="details:..."`). `28`: `ProviderModelPicker.tsx` (`environmentId`, `instanceEntries`, `activeInstanceId`, email в метаданных, `data-model-picker-{sidebar,content,provider}`). |
+| **Хешированные чанки и шимы (93)**         | `apps/web/src/chronos/olympus/plugin.ts` (`entities-BYt4Kx9w.js`, `rightPanelStore-BKC7Sf3u.js`, `react-BP46yLMB.js`, `jsx-runtime-BQExFN_X.js`), `shims/{entities,rightPanelStore,react,jsx-runtime}.ts`, адаптер `panelSurfaces.ts` (`side-chat:<id>` ↔ `thread:<id>`), `PanelHost.tsx` в `ChatView.tsx`. Прогнать `apps/web/src/chronos/olympus/compatibility.test.ts`.                                                                                                                             |
+| **Роутер (22/26/93)**                      | `apps/web/src/router.ts` и версия `@tanstack/router-core` в lock: всё ещё устанавливает `self.__TSR_ROUTER__ = this`, параметры маршрута треда (environmentId, threadId) не изменились.                                                                                                                                                                                                                                                                                                                |
+| **Лексер и отправка (10/55/30/70)**        | `composer-editor-mentions.ts` (`splitPromptIntoComposerSegments` → `__olyReferences.lex`), `composerContextPresentation.tsx` и `CollapsedComposerPromptPreview.tsx` (чипы `oly-`), `__olyWrapModeText` и `__olySendPlan` в `useComposerSend.ts` (вкл. мультимодельный fan-out, искл. `/compact`), `useComposerResume.ts`, `useThreadLifecycle.tsx`, `ChatView.tsx`.                                                                                                                                    |
+| **Цепочка Markdown (88)**                  | `packages/shared/src/markdownPipeline.ts` и `markdownHast.ts` (Words вызывает `sanitizeChatHast` напрямую!): `mark`, `u`, `dataOlyStyle` и `pre → rehypeSanitize → post` активны в обеих точках.                                                                                                                                                                                                                                                                                                       |
+| **Иконки `@pierre/trees` (15)**            | Патч `patches/@pierre__trees@<ver>.patch`, `apps/web/src/pierre-icons.ts` (`__olyLangIcons.apply` до создания resolver), `DiffPanel.tsx` (`PierreEntryIcon`).                                                                                                                                                                                                                                                                                                                                          |
+| **DOM-селекторы и тексты `features/*.js`** | Сверь изменённые экраны с описью в `chronos/parity/upstream-5209.md` (`data-slot`, `data-workspace-area`, `data-settings-section`, русские `aria-label` для «Расход», «Показать или скрыть правую панель», «Поиск в настройках», «Закрыть настройки», «Студия», «День / ночь»).                                                                                                                                                                                                                        |
 
 ## 6. Перевод и проверка кандидата
 
-1. Разбери новые GT-ключи и видимые литералы по [chronos-l10n](../chronos-l10n/SKILL.md). Сверь русские подписи, используемые селекторами Olympus.
+1. При появлении новых строк разбери GT-ключи и видимые литералы по [правилам перевода](../../parity/l10n.md). Сверь русские подписи, используемые селекторами Olympus.
 2. В [version.json](../../version.json) обнови `upstream`, полный `upstreamCommit` и `revision`. Проверь `node chronos/scripts/chronos-version.mjs` и `node chronos/scripts/upstream-plan.mjs surface`. Обнови [карту интеграций](../../README.md) и отчёт по nightly.
-3. Отправь свою `upstream-sync/<дата>` и проверь её SHA по [chronos-ci](../chronos-ci/SKILL.md). Дождись Chronos checks, chronos-parity, desktop для всех платформ, smoke 14/14 по артефакту этого desktop (`require_services=true`, `require_provider=true`) и зелёного chronos-perf.yml. Когда perf workflow ещё недоступен, оставь ветку до появления подтверждённого результата.
-4. При доступном ПК сравни окно и wording по [chronos-parity-check](../chronos-parity-check/SKILL.md). Исправь регрессии в ветке, повтори затронутые проверки и разбери каждое расхождение.
+3. Отправь свою `upstream-sync/<дата>`. На её SHA дождись `chronos-checks.yml`, `chronos-parity.yml`, ручного `chronos-desktop.yml` и `chronos-smoke.yml` с `desktop_run_id` этой сборки и обоими параметрами `require_services=true`, `require_provider=true` (14/14). Отсутствующий прогон запусти через `gh workflow run <workflow> --ref <ветка> -R Zulut30/Chronos`, передавая inputs через `-f`. Каждый run жди через `gh run watch <id> -R Zulut30/Chronos --exit-status`. Для perf используй ref шлюза и `-f target=<ветка-кандидата>`. Проверь SHA main и кандидата в `pair.json`. Без подтверждённой пары слияние ждёт.
+4. При доступном ПК сравни окно и wording по [методике smoke и compare](../../scripts/smoke/README.md). Исправь регрессии в ветке, повтори затронутые проверки и разбери каждое расхождение.
 
 ## 7. Слияние, синхронизация скиллов и релиз
 
-После подтверждения всех условий проверь, что база main не ушла вперёд. При изменении базы сначала проверь объединённый кандидат. Влей проверенный SHA в main. **Ежедневная задача после слияния** в актуальном локальном checkout main выполняет `node chronos/scripts/sync-skills.mjs`. На удалённом CI-раннере команда обновила бы только его домашний каталог.
+После подтверждения всех условий проверь, что база main не ушла вперёд. При изменении базы сначала проверь объединённый кандидат. Продвинь main fast-forward на проверенный SHA. Если нужен отдельный merge-коммит, сначала проверь его в интеграционной ветке. **Ежедневная задача после слияния** в актуальном локальном checkout main выполняет `node chronos/scripts/sync-skills.mjs`. На удалённом CI-раннере команда обновила бы только его домашний каталог.
 
 На точном SHA main собери доказательства для релиза по [chronos-release](../chronos-release/SKILL.md), включая ручной desktop и smoke его артефакта. В отчёте укажи старую и новую базы, важные изменения и конфликты, ссылки на проверки и perf, итог локального сравнения и синхронизации скиллов, тег и ссылку на релиз либо причину остановки.

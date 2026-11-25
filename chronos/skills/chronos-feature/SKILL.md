@@ -1,18 +1,18 @@
 ---
 name: chronos-feature
-description: "Разработка функций и исправлений Chronos с сохранением паритета Olympus. Use for implementing features, fixing bugs and choosing upstream integration points."
+description: "Реализация функций и исправление ошибок Chronos. Implement a feature, fix a regression or locate a fork integration point."
 ---
 
 # Разработка функций и правок в Chronos
 
-Текущая база апстрима — в `chronos/version.json`; карта всех точек встраивания и отчёты потоков — в `chronos/README.md` и `chronos/parity/`. Функции Olympus переносятся как есть, без переписывания на React. Начинай ветку от `main` (архив старой переписи `legacy/react-rewrite` не трогай).
+Текущая база апстрима — в `chronos/version.json`; карта всех точек встраивания и отчёты потоков — в `chronos/README.md` и `chronos/parity/`. Функции Olympus переносятся как есть, без переписывания на React. Работай в назначенной ветке. Новую независимую ветку начинай от актуального `origin/main` (архив старой переписи `legacy/react-rewrite` не трогай).
 
 ## Где размещать код
 
 1. **Изолированные каталоги форка:**
-   - **Веб-клиент:** `apps/web/src/chronos/<фича>/` (например, `issue-trello/`, `idleUnload/`, `perf/`). Модули Olympus лежат байт в байт в `apps/web/src/chronos/olympus/features/`, подключаются через `prologue.ts` и плагин `olympus/plugin.ts` (мимо React Compiler и переводчика) — адаптацию делай в стыке вне этих файлов. Байты проверяет [тест паритета модулей](../../scripts/olympus-settings.test.mjs).
+   - **Веб-клиент:** `apps/web/src/chronos/<фича>/` (например, `issue-trello/`, `idleUnload/`, `perf/`). Модули Olympus лежат байт в байт в `apps/web/src/chronos/olympus/features/`, подключаются через `prologue.ts` и плагин `olympus/plugin.ts` (мимо React Compiler и переводчика) — адаптацию делай в стыке вне этих файлов. [Тест упаковки](../../scripts/olympus-settings.test.mjs) сравнивает бандл с файлами текущего checkout. Для проверки самих исходников сравни `git diff <проверенная-база> -- apps/web/src/chronos/olympus/features`.
    - **Сервисы Olympus и sidecar-менеджер (`chronos/parity/services.md`):**
-     - исходники 7 HTTP-сервисов (`4517–4524`: `skills-manager`, `tasks-service`, `files-service`, `studio-service`, `integrations-service`, `mcp-manager`, `olympus-hub`) и `openrouter-service` (stdio) — в `chronos/services/<имя>/`. Пути данных параметризуются через `CHRONOS_T3_HOME` и `CHRONOS_SERVICES_DATA` (фолбэк `~/.t3` при ручном запуске);
+     - исходники 7 HTTP-сервисов (порты 4517–4520, 4522–4524: `skills-manager`, `tasks-service`, `files-service`, `studio-service`, `integrations-service`, `mcp-manager`, `olympus-hub`) и `openrouter-service` (stdio) — в `chronos/services/<имя>/`. Пути данных параметризуются через `CHRONOS_T3_HOME` и `CHRONOS_SERVICES_DATA` (фолбэк `~/.t3` при ручном запуске);
      - [Sidecars.ts](../../../apps/desktop/src/chronos/services/Sidecars.ts) проверяет порты. Один [host.mjs](../../services/host.mjs) держит HTTP-сервисы в отдельных Worker, OpenRouter использует stdio. Тестируй управление жизненным циклом в CI или изолированном стенде; существующие службы пользователя продолжают работу;
      - сохранение `Origin: t3code://app` для CORS портов сервисов — `apps/desktop/src/chronos/services/ServiceOrigins.ts` (подключён в `RemoteRequestHeaders.ts`).
    - **Перевод.** Для каталогов GT, JS-литералов и динамических строк следуй [chronos-l10n](../chronos-l10n/SKILL.md).
@@ -31,4 +31,4 @@ description: "Разработка функций и исправлений Chro
 
 ## Проверка изменения
 
-Проверь поверхность патча командой `node chronos/scripts/upstream-plan.mjs feature <база-ветки>`. Для новой возможности проверь, что без включения или первого обращения она не запускает дополнительный процесс, наблюдатель или загрузку. Тяжёлые проверки и сборку выполняет [chronos-ci](../chronos-ci/SKILL.md). Для поведения готового пакета используй [chronos-live-verify](../chronos-live-verify/SKILL.md). Условия входа в main задаёт [chronos-router](../chronos-router/SKILL.md).
+Для вопроса об устройстве достаточно карты и исходников. При изменении кода проверь поверхность патча командой `node chronos/scripts/upstream-plan.mjs feature <база-ветки>`. Для новой возможности проверь, что без включения или первого обращения она не запускает дополнительный процесс, наблюдатель или загрузку. Тяжёлые проверки и сборку выполняет [chronos-ci](../chronos-ci/SKILL.md). Для поведения готового пакета используй [chronos-live-verify](../chronos-live-verify/SKILL.md). Условия входа в main задаёт [chronos-router](../chronos-router/SKILL.md).

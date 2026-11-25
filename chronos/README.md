@@ -58,14 +58,14 @@ node chronos/scripts/upstream-plan.mjs feature main
 
 ### Trello
 
-| Точка встраивания в T3 | Назначение |
-| --- | --- |
-| `packages/contracts/src/issue.ts`, `packages/source-control-core/src/server/IssueTracker.ts` | Необязательные срок и вложения, разрешение срока и определение доски карточки |
-| `apps/server/src/issue/{IssueTrackerRegistry,IssueService}.ts` | Регистрация драйвера, выбор доски и аккаунта для короткой ссылки, обработка срока |
-| `apps/server/src/mcp/toolkits/issues/{tools,handlers}.ts` | Чтение вложений и срока, создание и обновление карточек |
-| `packages/client-runtime/src/issueLinks.ts`, `apps/web/src/lib/openIssueLink.ts`, `apps/mobile/src/native/useOpenPullRequest.ts` | Распознавание ссылки в чате и переход на реальную доску |
-| `apps/web/src/components/settings/{IssueTrackerSettings.tsx,settingsSearch.ts}`, `components/issue/{issuePresentation,IssueDetailPanel}.tsx` | Поиск и настройка подключения, обозначение Trello и поля карточки |
-| `apps/mobile/src/features/issues/IssueRouteScreen.tsx` | Срок и ссылки вложений в мобильной карточке |
+| Точка встраивания в T3                                                                                                                           | Назначение                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| `packages/contracts/src/issue.ts`, `packages/source-control-core/src/server/IssueTracker.ts`                                                     | Необязательные срок и вложения, разрешение срока и определение доски карточки        |
+| `apps/server/src/issue/{IssueTrackerRegistry,IssueService}.ts`                                                                                   | Регистрация драйвера, выбор доски и аккаунта для короткой ссылки, обработка срока    |
+| `apps/server/src/mcp/toolkits/issues/{tools,handlers}.ts`                                                                                        | Чтение вложений и срока, создание и обновление карточек                              |
+| `packages/client-runtime/src/issueLinks.ts`, `apps/web/src/lib/openIssueLink.ts`, `apps/mobile/src/native/useOpenPullRequest.ts`                 | Распознавание ссылки в чате и переход на реальную доску                              |
+| `apps/web/src/components/settings/{IssueTrackerSettings.tsx,settingsSearch.ts}`, `components/issue/{issuePresentation,IssueDetailPanel}.tsx`     | Поиск и настройка подключения, обозначение Trello и поля карточки                    |
+| `apps/mobile/src/features/issues/IssueRouteScreen.tsx`                                                                                           | Срок и ссылки вложений в мобильной карточке                                          |
 | `packages/client-runtime/src/issueLinks.test.ts`, `apps/server/src/mcp/toolkits/issues/handlers.test.ts`, `.github/workflows/chronos-checks.yml` | Моки REST, короткие ссылки, реальные обработчики инструментов, регрессии подключений |
 
 [Возможности и проверка Trello](parity/trello-tracker.md)
@@ -171,13 +171,13 @@ T3). Оставлены только workflow Chronos:
 
 В **Настройки → Внешний вид → Интерфейс** можно включить цветной текст, скачивание и дополнительные функции чата. [Опись модулей, зависимостей и параметров](parity/chat-settings.md) содержит ключи, исходные значения и время применения.
 
-| Точка встраивания | Назначение |
-| --- | --- |
-| `apps/web/src/components/settings/AppearanceSettingsPanel.tsx` | Основные строки и группа внутри «Дополнительно». |
-| `apps/web/src/components/settings/settingsSearch.ts` | Поиск строк и раскрытие «Дополнительно» при переходе. |
-| `apps/web/src/i18n/translations/*.json` | Строки штатного GT-каталога и русский перевод. |
-| `apps/web/src/chronos/olympus/plugin.ts` | Общий снимок флагов для пролога, Pierre и Markdown в сборке и dev. |
-| `packages/shared/src/markdownPipeline.ts`, `packages/shared/src/markdownHast.ts` | Существующие точки подключения получают пустой экспорт плагина при отключении цвета. |
+| Точка встраивания                                                                                                | Назначение                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web/src/components/settings/AppearanceSettingsPanel.tsx`                                                   | Основные строки и группа внутри «Дополнительно».                                                                             |
+| `apps/web/src/components/settings/settingsSearch.ts`                                                             | Поиск строк и раскрытие «Дополнительно» при переходе.                                                                        |
+| `apps/web/src/i18n/translations/*.json`                                                                          | Строки штатного GT-каталога и русский перевод.                                                                               |
+| `apps/web/src/chronos/olympus/plugin.ts`                                                                         | Общий снимок флагов для пролога, Pierre и Markdown в сборке и dev.                                                           |
+| `packages/shared/src/markdownPipeline.ts`, `packages/shared/src/markdownHast.ts`                                 | Существующие точки подключения получают пустой экспорт плагина при отключении цвета.                                         |
 | `apps/web/src/components/ChatView.tsx`, `components/chat/{useComposerSend,useComposerResume,useThreadLifecycle}` | Существующие точки отправки получают исходный interactionMode через резервную функцию при отключении дополнительных режимов. |
 
 ## Точки встраивания слоя упаковки в код апстрима
@@ -186,35 +186,35 @@ T3). Оставлены только workflow Chronos:
 Точки встраивания клиентских модулей, серверных патчей и перевода описаны в соответствующих
 отчётах в `chronos/parity/`.
 
-| Файл апстрима | Правка упаковки |
-| --- | --- |
-| `packages/contracts/src/settings.ts`, `apps/server/src/serverSettings.ts` | Минуты простоя Claude в настройках окружения и значение для старых профилей |
-| `packages/provider-core/src/server/ProviderAdapter.ts`, `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts` | Локальная проверка готовности к выгрузке, дерево процессов и нативное возобновление Claude |
-| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `apps/server/src/terminal/Manager.ts` | Таймер, блокировка открытия и проверка открытых терминалов. [Устройство и ручная проверка](parity/perf-idle-unload.md) |
-| `apps/web/src/components/settings/ProviderSettingsPanel.tsx` | Поле времени простоя в дополнительных настройках провайдеров |
-| `packages/shared/src/cliRelease.ts` | Блок `chronos: begin/end` (версии, appId, scheme, URLs); `cliReleaseChannelOf` читает версию апстрима |
-| `apps/desktop/src/app/DesktopConfig.ts` | Переменная окружения `CHRONOS_HOME` |
-| `apps/desktop/src/app/DesktopEnvironment.ts` | Имя продукта `Chronos`, заголовок окна, `~/.chronos` / `CHRONOS_HOME`, AUMID `io.github.zulut30.chronos` |
-| `apps/desktop/src/app/DesktopUserData.ts` | Профиль `%APPDATA%\Chronos` / `~/Library/Application Support/Chronos` |
-| `apps/desktop/src/app/DesktopLegacyLocalStorage.ts` | Отключение миграции legacy localStorage T3 |
-| `apps/desktop/src/app/DesktopClerk.ts` | Внешний callback-протокол `chronos://` (внутренний origin остаётся `t3code://app`) |
-| `apps/desktop/src/app/DesktopCliCommand.ts` | Не перехватывать глобальный `t3` в PATH |
-| `apps/desktop/src/app/DesktopCliShim.ts` | Жёсткая привязка `~/.chronos/bin/t3` к `~/.chronos` (`privateHome`) |
-| `apps/desktop/src/backend/DesktopBackendConfiguration.ts` | `T3CODE_HOME` для локального бэкенда и `--base-dir ~/.chronos` для WSL |
-| `apps/desktop/src/ssh/DesktopSshEnvironment.ts` | `resolveDesktopSshCliRunner` запрашивает CLI-архив версии апстрима и учитывает зеркало релизов |
-| `apps/desktop/src/updates/updateChannels.ts` | Признак nightly по версии апстрима |
-| `apps/desktop/src/updates/DesktopUpdates.ts` | Фильтр версий Chronos, фиксация канала `nightly`, открытие релиза в браузере на неподписанной macOS |
-| `apps/desktop/src/electron/ElectronDialog.ts` | Имя продукта `Chronos` в системных диалогах (без русской локализации) |
-| `apps/desktop/src/app/DesktopStartupRecovery.ts` | Ссылки восстановления на релизы `Zulut30/Chronos` (`chronos-v*`) и имя продукта `Chronos` |
-| `apps/desktop/src/app/DesktopAppIdentity.test.ts`, `DesktopClerk.test.ts`, `DesktopEnvironment.test.ts`, `DesktopPreReadyPlatform.test.ts`, `updates/updatesTestHarness.ts` | Ожидания имени/профиля/схемы Chronos и переносимость путей фикстур на Windows |
-| `apps/desktop/src/app/DesktopClerk.ts`, `apps/desktop/src/electron/ElectronProtocol.ts` | После моста Clerk (схема `chronos://`) заново регистрируются привилегии `t3code://` вместе с `chronos://` (`apps/desktop/src/chronos/ChronosSchemes.ts`), иначе в окне не работает `fetch` (терминал, wasm) |
-| `apps/desktop/src/window/RemoteRequestHeaders.ts` | С T3 5209 окно вырезает `Origin: t3code://app` из запросов к `http(s)`; для портов сервисов Olympus на loopback (`apps/desktop/src/chronos/services/ServiceOrigins.ts`) заголовок сохраняется, иначе их CORS отклоняет запросы |
-| `apps/web/src/components/sidebar/SidebarChrome.tsx` | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus |
-| `apps/web/src/components/desktopUpdate.logic.ts` | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*` |
-| `apps/desktop/src/app/DesktopApp.ts` | Запуск и остановка sidecar-процессов в области жизни DesktopApp после готовности Electron |
-| `scripts/build-desktop-artifact.ts` | Ресурсы сервисов Olympus, `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos |
-| `.github/workflows/*` | Удалены 27 workflow апстрима; добавлены `chronos-desktop.yml`, `chronos-checks.yml`, `chronos-upstream.yml` |
-| `.gitignore`, `AGENTS.md`, `README.md` | Игнор `chronos/.work/` и `__pycache__/`, актуальные инструкции форка |
+| Файл апстрима                                                                                                                                                               | Правка упаковки                                                                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/contracts/src/settings.ts`, `apps/server/src/serverSettings.ts`                                                                                                   | Минуты простоя Claude в настройках окружения и значение для старых профилей                                                                                                                                                    |
+| `packages/provider-core/src/server/ProviderAdapter.ts`, `apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts`                                                      | Локальная проверка готовности к выгрузке, дерево процессов и нативное возобновление Claude                                                                                                                                     |
+| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `apps/server/src/terminal/Manager.ts`                                                                         | Таймер, блокировка открытия и проверка открытых терминалов. [Устройство и ручная проверка](parity/perf-idle-unload.md)                                                                                                         |
+| `apps/web/src/components/settings/ProviderSettingsPanel.tsx`                                                                                                                | Поле времени простоя в дополнительных настройках провайдеров                                                                                                                                                                   |
+| `packages/shared/src/cliRelease.ts`                                                                                                                                         | Блок `chronos: begin/end` (версии, appId, scheme, URLs); `cliReleaseChannelOf` читает версию апстрима                                                                                                                          |
+| `apps/desktop/src/app/DesktopConfig.ts`                                                                                                                                     | Переменная окружения `CHRONOS_HOME`                                                                                                                                                                                            |
+| `apps/desktop/src/app/DesktopEnvironment.ts`                                                                                                                                | Имя продукта `Chronos`, заголовок окна, `~/.chronos` / `CHRONOS_HOME`, AUMID `io.github.zulut30.chronos`                                                                                                                       |
+| `apps/desktop/src/app/DesktopUserData.ts`                                                                                                                                   | Профиль `%APPDATA%\Chronos` / `~/Library/Application Support/Chronos`                                                                                                                                                          |
+| `apps/desktop/src/app/DesktopLegacyLocalStorage.ts`                                                                                                                         | Отключение миграции legacy localStorage T3                                                                                                                                                                                     |
+| `apps/desktop/src/app/DesktopClerk.ts`                                                                                                                                      | Внешний callback-протокол `chronos://` (внутренний origin остаётся `t3code://app`)                                                                                                                                             |
+| `apps/desktop/src/app/DesktopCliCommand.ts`                                                                                                                                 | Не перехватывать глобальный `t3` в PATH                                                                                                                                                                                        |
+| `apps/desktop/src/app/DesktopCliShim.ts`                                                                                                                                    | Жёсткая привязка `~/.chronos/bin/t3` к `~/.chronos` (`privateHome`)                                                                                                                                                            |
+| `apps/desktop/src/backend/DesktopBackendConfiguration.ts`                                                                                                                   | `T3CODE_HOME` для локального бэкенда и `--base-dir ~/.chronos` для WSL                                                                                                                                                         |
+| `apps/desktop/src/ssh/DesktopSshEnvironment.ts`                                                                                                                             | `resolveDesktopSshCliRunner` запрашивает CLI-архив версии апстрима и учитывает зеркало релизов                                                                                                                                 |
+| `apps/desktop/src/updates/updateChannels.ts`                                                                                                                                | Признак nightly по версии апстрима                                                                                                                                                                                             |
+| `apps/desktop/src/updates/DesktopUpdates.ts`                                                                                                                                | Фильтр версий Chronos, фиксация канала `nightly`, открытие релиза в браузере на неподписанной macOS                                                                                                                            |
+| `apps/desktop/src/electron/ElectronDialog.ts`                                                                                                                               | Имя продукта `Chronos` в системных диалогах (без русской локализации)                                                                                                                                                          |
+| `apps/desktop/src/app/DesktopStartupRecovery.ts`                                                                                                                            | Ссылки восстановления на релизы `Zulut30/Chronos` (`chronos-v*`) и имя продукта `Chronos`                                                                                                                                      |
+| `apps/desktop/src/app/DesktopAppIdentity.test.ts`, `DesktopClerk.test.ts`, `DesktopEnvironment.test.ts`, `DesktopPreReadyPlatform.test.ts`, `updates/updatesTestHarness.ts` | Ожидания имени/профиля/схемы Chronos и переносимость путей фикстур на Windows                                                                                                                                                  |
+| `apps/desktop/src/app/DesktopClerk.ts`, `apps/desktop/src/electron/ElectronProtocol.ts`                                                                                     | После моста Clerk (схема `chronos://`) заново регистрируются привилегии `t3code://` вместе с `chronos://` (`apps/desktop/src/chronos/ChronosSchemes.ts`), иначе в окне не работает `fetch` (терминал, wasm)                    |
+| `apps/desktop/src/window/RemoteRequestHeaders.ts`                                                                                                                           | С T3 5209 окно вырезает `Origin: t3code://app` из запросов к `http(s)`; для портов сервисов Olympus на loopback (`apps/desktop/src/chronos/services/ServiceOrigins.ts`) заголовок сохраняется, иначе их CORS отклоняет запросы |
+| `apps/web/src/components/sidebar/SidebarChrome.tsx`                                                                                                                         | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus                                                                                         |
+| `apps/web/src/components/desktopUpdate.logic.ts`                                                                                                                            | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*`                                                                                                                                                                           |
+| `apps/desktop/src/app/DesktopApp.ts`                                                                                                                                        | Запуск и остановка sidecar-процессов в области жизни DesktopApp после готовности Electron                                                                                                                                      |
+| `scripts/build-desktop-artifact.ts`                                                                                                                                         | Ресурсы сервисов Olympus, `appId`, `productName`, иконки из `chronos/brand`, имя артефактов, фид обновлений, протокол `chronos://`, без `installer.nsh`, WSL-архив апстрима, метаданные издателя Chronos                       |
+| `.github/workflows/*`                                                                                                                                                       | Удалены 27 workflow апстрима; добавлены `chronos-desktop.yml`, `chronos-checks.yml`, `chronos-upstream.yml`                                                                                                                    |
+| `.gitignore`, `AGENTS.md`, `README.md`                                                                                                                                      | Игнор `chronos/.work/` и `__pycache__/`, актуальные инструкции форка                                                                                                                                                           |
 
 Новые модули упаковки: `apps/desktop/src/chronos/` (`ChronosUpdates.ts`, `ChronosBrand.ts`,
 `ChronosBrand.test.ts`), `chronos/brand/`, `chronos/version.json`, `chronos/scripts/`
@@ -222,15 +222,15 @@ T3). Оставлены только workflow Chronos:
 
 ## Точки встраивания оптимизаций при параллельных запусках
 
-| Файл апстрима | Назначение |
-|---|---|
-| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `RunExecutionService.ts` | Привязка очереди к запуску и выбор получателей событий Codex |
-| `apps/server/src/orchestration-v2/ProviderCommitBatch.ts` | Размер неизменного snapshot перед постановкой в очередь |
-| `apps/server/src/orchestration-v2/EventSink.ts` | Каналы подписок на committed events одного треда |
-| `apps/server/src/usage/UsageService.ts` | Общий скан OpenCode и OpenRouter и раздельные итоги |
-| `apps/server/src/observability/Observability.ts`, `packages/shared/src/observability.ts` | Решение о записи локального span после завершения |
-| `apps/web/src/components/chat/useThreadFind.ts` | Подписка поиска на открытую проекцию |
-| `packages/client-runtime/src/state/shellReducer.ts`, `threadShell.ts` | Индекс позиций и повторное использование списка ссылок тредов |
+| Файл апстрима                                                                            | Назначение                                                    |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `RunExecutionService.ts`   | Привязка очереди к запуску и выбор получателей событий Codex  |
+| `apps/server/src/orchestration-v2/ProviderCommitBatch.ts`                                | Размер неизменного snapshot перед постановкой в очередь       |
+| `apps/server/src/orchestration-v2/EventSink.ts`                                          | Каналы подписок на committed events одного треда              |
+| `apps/server/src/usage/UsageService.ts`                                                  | Общий скан OpenCode и OpenRouter и раздельные итоги           |
+| `apps/server/src/observability/Observability.ts`, `packages/shared/src/observability.ts` | Решение о записи локального span после завершения             |
+| `apps/web/src/components/chat/useThreadFind.ts`                                          | Подписка поиска на открытую проекцию                          |
+| `packages/client-runtime/src/state/shellReducer.ts`, `threadShell.ts`                    | Индекс позиций и повторное использование списка ссылок тредов |
 
 [Методика стенда](scripts/bench/README.md) и [замеры](parity/perf-quick-wins.md).
 
@@ -255,6 +255,6 @@ python chronos/scripts/validate-skills.py
 node chronos/scripts/sync-skills.mjs
 ```
 
-Валидатор использует PyYAML и Python-Markdown (`python -m pip install PyYAML==6.0.3 Markdown==3.8.2`) и проверяет метаданные и локальные Markdown-ссылки. Имя соответствует папке, описание занимает от 1 до 1023 символов. Для ссылки на файл репозитория используй относительный Markdown-путь от SKILL.md.
+Валидатор использует PyYAML и Python-Markdown (`python -m pip install PyYAML==6.0.3 Markdown==3.8.2`) и проверяет обязательные скиллы, маршруты к ним, вход из корневых инструкций, метаданные и локальные Markdown-ссылки. Имя соответствует папке, описание занимает от 1 до 1023 символов. Для ссылки на файл репозитория используй относительный Markdown-путь от SKILL.md.
 
-Синхронизация раскладывает `chronos-*` в `~/.claude/skills`, `~/.codex/skills` и `~/.agents/skills`. Для каждого каталога она ведёт отдельный реестр в соседнем `chronos-skill-sync/managed.json`. Старые версии при замене сохраняются в `chronos-skill-sync/backups/<запуск>/replaced/`. Скилл, исчезнувший из ранее установленного набора, перемещается в `removed/` этого бэкапа и помечается в выводе. Скиллы, которые скрипт никогда не устанавливал и которых нет в исходниках, остаются на месте. Повтор того же набора пропускает идентичные файлы. После ежедневного слияния запускай синхронизацию из обновлённого main на рабочем ПК.
+Синхронизация раскладывает `chronos-*` в `~/.claude/skills`, `~/.codex/skills` и `~/.agents/skills`. Для каждого каталога она ведёт отдельный реестр в соседнем `chronos-skill-sync/managed.json`. Старые версии при замене сохраняются в `chronos-skill-sync/backups/<запуск>/replaced/`. Скилл, исчезнувший из ранее установленного набора, перемещается в `removed/` этого бэкапа и помечается в выводе. Скиллы, которые скрипт никогда не устанавливал и которых нет в исходниках, остаются на месте. Повтор того же набора пропускает идентичные файлы. Синхронизируй из одного выбранного checkout за раз. Перед запуском из более старой ветки сравни её набор с `managed.json`: ранее управляемый пакет, отсутствующий в этой ветке, будет архивирован. После прерванной синхронизации проверь PID из `sync.lock`. Если процесс точно завершился, сохрани бэкап, убери только оставшийся lock этого профиля и повтори команду из того же checkout. Повторный запуск после успешной установки должен перечислить все пакеты в `unchanged` в каждом из трёх профилей. После ежедневного слияния запускай синхронизацию из обновлённого main на рабочем ПК.

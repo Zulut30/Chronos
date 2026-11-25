@@ -1,17 +1,19 @@
 # T3 Code
 
 <!-- chronos: begin fork instructions -->
+
 ## Chronos: перед любой работой возьми `chronos-router`
 
-Claude Code, Codex и Antigravity начинают любую задачу в этом форке с [chronos-router](chronos/skills/chronos-router/SKILL.md). Открой файл из текущей ветки, даже если скилл отсутствует в списке команд. Для работы с Chronos следующие правила уточняют инструкции T3 ниже.
+Claude Code, Codex и Antigravity начинают любую задачу в этом форке с [chronos-router](chronos/skills/chronos-router/SKILL.md). Найди корень текущего checkout через `git rev-parse --show-toplevel` и прочитай файл из этой ветки, в том числе при запуске из подкаталога. Для работы с Chronos следующие правила уточняют инструкции T3 ниже.
 
 - Стабильность и скорость на слабом ПК и SSH-серверах первичны. Новое выключено по умолчанию или запускается лениво.
 - Модули Olympus в `apps/web/src/chronos/olympus/features/*.js` сохраняются байт в байт. Минимальные стыки апстрима помечай `// chronos:`. Перевод веди по глоссарию Olympus.
-- Установку зависимостей, сборку монорепо и полный typecheck выполняет CI. На ПК используй лёгкие проверки, установленный Chronos с CDP 9333 или изолированную песочницу.
-- Береги установленный T3/Olympus, `~/.t3`, сервисы 4517–4524 и чужие процессы. Хосты gildra и debian-151 доступны для чтения. Для изменений нужно явное согласие.
+- Установку зависимостей, сборку монорепо и полный typecheck выполняет CI. На ПК используй уже имеющиеся зависимости и точечные проверки по очереди. Правило T3 ниже про автоматический `vp i` в форке не применяется.
+- Береги установленный T3/Olympus, `~/.t3`, сервисы 4517–4524 и чужие процессы. Серверы и установленный Olympus доступны только для чтения. Изменения и перезапуски требуют явного согласия пользователя.
 - Секреты запрашивай через `request_secret`. Секреты и личные данные храни вне репозитория.
-- Исполнители работают на `codex` / `gpt-6.2-astra`, `reasoningEffort: "xhigh"`, каждый в своих ветке и worktree до результата, с ожиданием CI в шелле.
+- Когда пользователь поручил работу исполнителям, они работают на `codex` / `gpt-6.2-astra`, `reasoningEffort: "xhigh"`, каждый в своих ветке и worktree до результата, с ожиданием CI в шелле.
 - Перед main требуются зелёные Chronos checks, desktop, smoke 14/14 (`require_services=true`, `require_provider=true`) и `chronos-perf.yml`. Постоянное разрешение на слияние и выпуск касается только проверенной ежедневной синхронизации T3. Тег и релиз ведёт `chronos-release`.
+
 <!-- chronos: end fork instructions -->
 
 T3 Code is a minimal GUI for coding agents. A Node WebSocket server wraps provider CLIs and agents (Codex, Claude Code, Cursor, Grok, OpenCode, Antigravity, Kiro, Pi, Muse Code, fx) and serves web, desktop, and mobile clients.

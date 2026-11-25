@@ -1,12 +1,14 @@
 ---
 name: chronos-ui
-description: "Правки экранов Chronos, темы, диалогов и управления с клавиатуры. Use to implement UI changes while preserving Olympus layout, wording and behavior."
+description: "Изменить экран, тему или настройку Chronos. Implement Appearance, dialog, layout and keyboard changes."
 ---
 
 Работай в репозитории Chronos. Архитектура переноса и точки подключения описаны в `chronos/README.md`
 и отчётах `chronos/parity/`. Внутри окна Chronos должен воспроизводить Olympus 1:1 — не заменяй
 модули Olympus самописным React-UI и не добавляй отдельный брендинг внутрь веб-клиента без явного
 решения пользователя.
+
+Для настройки во «Внешнем виде» начни с [AppearanceSettingsPanel.tsx](../../../apps/web/src/components/settings/AppearanceSettingsPanel.tsx) и [settingsSearch.ts](../../../apps/web/src/components/settings/settingsSearch.ts). Посмотри, где соседний переключатель хранит значение и когда применяет его. Для модулей чата это указано в [описи настроек](../../parity/chat-settings.md). Сверь поиск, значение в старом профиле, эффект переключения и сохранение после перезапуска. Изменение темы проверяй в тестовом профиле Chronos.
 
 Перед изменением воспроизведи действие пользователя в отдельном экземпляре Chronos и зафиксируй
 исходный вид. Окно T3/Olympus, из которого пользователь ведёт работу, оставь открытым и не трогай

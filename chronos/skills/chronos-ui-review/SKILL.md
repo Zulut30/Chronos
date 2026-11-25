@@ -1,12 +1,11 @@
 ---
 name: chronos-ui-review
-description: "Приёмка готового интерфейса Chronos по эталону Olympus. Use for a visual or behavioral review of a packaged UI change in the installed application."
+description: "Принять готовый интерфейс Chronos по эталону Olympus. Review a packaged screen visually and test its behavior."
 ---
 
 Выбери экземпляр Chronos по пути исполняемого файла, профилю (`%APPDATA%\Chronos` / `~/.chronos`) и
 заголовку окна `Chronos`. На одном ПК может работать T3/Olympus с похожим интерфейсом. Сохрани окно,
-из которого ведётся работа. Для пакетной сборки сверь версию в «О программе» с проверяемым коммитом
-или тегом.
+из которого ведётся работа. Версия в «О программе» может совпасть у нескольких коммитов. Установи соответствие через ID desktop-прогона, его `headSha` и артефакт, из которого установлен пакет.
 
 Возьми сохранённые эталонные снимки Olympus и сценарий из [отчёта паритета](../../parity/baseline-4774.md). Сравни тот же сценарий при одинаковой ширине, масштабе и внешней теме
 `olympus.json` (день и ночь). Проверь, что на уровне ОС видны имя `Chronos`, иконки из

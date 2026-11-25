@@ -1,16 +1,16 @@
 ---
 name: chronos-servers
-description: "SSH-серверы Chronos, метрики только для чтения и источник CLI. Use for read-only SSH diagnostics on gildra or debian-151, server CLI selection and deployment consent."
+description: "Нагрузка SSH-хостов и источник CLI Chronos. Inspect server CPU, memory or CLI selection on gildra and debian-151."
 ---
 
 # SSH и серверный CLI
 
-На **gildra** и **debian-151** по умолчанию разрешено только чтение. Для измерения используй существующий SSH alias пользователя. В отчёт достаточно включить время, нагрузку, память и агрегаты процессов. Оставь в секрете адреса, аргументы процессов, содержимое окружения, журналы диалогов и учётные данные.
+На серверах по умолчанию разрешено только чтение. Для **gildra** и **debian-151** запрос на метрики покрывает штатную SSH-диагностику. Для измерения используй существующий SSH alias пользователя. В отчёт достаточно включить время, нагрузку, память и агрегаты процессов. Оставь в секрете адреса, аргументы процессов, содержимое окружения, журналы диалогов и учётные данные.
 
 Из Git Bash/WSL с настроенным для этого хоста SSH выполни quoted Bash heredoc. Одинарные кавычки вокруг разделителя сохраняют `$` и переводы строк при передаче удалённому Bash. PowerShell-пайп может изменить кодировку и окончания строк.
 
 ```bash
-ssh -o BatchMode=yes gildra 'bash -s' <<'CHRONOS_METRICS'
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes gildra 'bash -s' <<'CHRONOS_METRICS'
 set -eu
 date -u
 uptime
