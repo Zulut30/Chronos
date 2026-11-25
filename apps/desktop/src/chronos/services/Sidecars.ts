@@ -59,10 +59,10 @@ interface Options {
 type OnExit = (reason: string) => void;
 type Launch = (service: Service, onExit: OnExit) => void;
 
-export function createServiceHost(options: Options) {
+export function createServiceHost(options: Options & { platform: NodeJS.Platform }) {
   const env = { ...options.env };
   for (const key of Object.keys(env)) {
-    const name = process.platform === "win32" ? key.toUpperCase() : key;
+    const name = options.platform === "win32" ? key.toUpperCase() : key;
     if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(name)) delete env[key];
   }
   const workers = new Map<string, OnExit>();

@@ -11,6 +11,7 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
   if (!environment.isPackaged || !isChronosVersion(environment.appVersion)) return;
   const options = {
     baseDir: environment.baseDir,
+    platform: environment.platform,
     resources: environment.path.join(environment.resourcesPath, "chronos-services"),
     executable: yield* HostProcess.ExecutablePath,
     env: yield* HostProcess.Environment,
