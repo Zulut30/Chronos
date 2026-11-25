@@ -15,14 +15,6 @@ async function api(path, body) {
   return response.status === 204 ? null : response.json();
 }
 const workflow = "/actions/workflows/chronos-desktop.yml";
-const audit = env.AUDIT === "true" || (env.GITHUB_REF_NAME === "perf/guard" && env.COMMIT_MESSAGE?.includes("[perf-audit]"));
-const refs = audit ? ["main", "feature/artifacts", "feature/pc-control", "perf/round-3", "fix/stability-2026-11-25"] : [env.TARGET || env.GITHUB_REF_NAME];
-const targets = new Map();
-for (const ref of new Set(["main", ...refs])) {
-  assert.match(ref, /^[\w./-]+$/);
-  const sha = !audit && !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : (await api("/commits/" + encodeURIComponent(ref))).sha;
-  targets.set(ref, { ref, sha });
-}
 async function packageFor({ref, sha}) {
   const runs = async () => (await api(workflow + "/runs?head_sha=" + sha + "&per_page=100")).workflow_runs;
   let requested = false;
@@ -43,6 +35,22 @@ async function packageFor({ref, sha}) {
   } while (Date.now() < deadline);
   throw Error("Timed out waiting for exact Windows package: " + ref + " " + sha);
 }
-await Promise.all([...targets.values()].map(async t => { t.run = await packageFor(t); console.log(t); }));
-const base = targets.get("main");
-appendFileSync(env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include: refs.map(ref => ({ name: ref.replaceAll("/", "-"), base, head: targets.get(ref) })) }) + "\n");
+if (env.PAIR) {
+  const pair = JSON.parse(env.PAIR);
+  const base = await packageFor(pair.base);
+  const head = pair.head.sha === pair.base.sha ? base : await packageFor(pair.head);
+  pair.base.run = base;
+  pair.head.run = head;
+  appendFileSync(env.GITHUB_OUTPUT, "pair=" + JSON.stringify(pair) + "\n");
+} else {
+  const audit = env.AUDIT === "true" || (env.GITHUB_REF_NAME === "perf/guard" && env.COMMIT_MESSAGE?.includes("[perf-audit]"));
+  const refs = audit ? ["main", "feature/artifacts", "feature/pc-control", "perf/round-3", "fix/stability-2026-11-25"] : [env.TARGET || env.GITHUB_REF_NAME];
+  const targets = new Map();
+  for (const ref of new Set(["main", ...refs])) {
+    assert.match(ref, /^[\w./-]+$/);
+    const sha = !audit && !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : (await api("/commits/" + encodeURIComponent(ref))).sha;
+    targets.set(ref, { ref, sha });
+  }
+  const base = targets.get("main");
+  appendFileSync(env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include: refs.map(ref => ({ name: ref.replaceAll("/", "-"), base, head: targets.get(ref) })) }) + "\n");
+}

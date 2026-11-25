@@ -26,14 +26,14 @@ jobs:
     timeout-minutes: 105
     permissions:
       contents: read
-      actions: write
+      actions: read
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           sparse-checkout: chronos/scripts/bench
-          persist-credentials: false
+          persist-credentials: true
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,40 +42,13 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: node chronos/scripts/bench/guard-plan.mjs
   compare:
-    name: main vs ${{ matrix.head.ref }}
     needs: packages
-    runs-on: windows-2025
-    timeout-minutes: 115
-    permissions:
-      contents: read
-      actions: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.packages.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          sparse-checkout: |
-            chronos
-            apps/web/src/chronos/olympus/featureFlags.ts
-          sparse-checkout-cone-mode: false
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - name: Compare exact Windows packages on this runner
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PAIR: ${{ toJSON(matrix) }}
-        run: ./chronos/scripts/bench/guard-run.ps1 -Results "$env:RUNNER_TEMP/guard"
-      - name: Enforce budget and publish the comparison
-        if: ${{ !cancelled() }}
-        run: node chronos/scripts/bench/guard-compare.mjs "$env:RUNNER_TEMP/guard"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: ${{ !cancelled() }}
-        with:
-          name: guard-${{ matrix.name }}
-          path: ${{ runner.temp }}/guard
-          if-no-files-found: error
-          retention-days: 14
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/chronos-perf-pair.yml
+    with:
+      pair: ${{ toJSON(matrix) }}
