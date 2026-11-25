@@ -152,6 +152,20 @@ test("desktop broker asks for new OS assignments; denial and stale plans preserv
     },
   });
   const before = await request("open");
+  const created = await request("create", "Для записи");
+  const renamed = await request("rename", { base: created.revision, name: "Для монтажа" });
+  assert.equal(renamed.current.id, created.current.id);
+  assert.equal(db.load(created.current.id).name, "Для монтажа");
+  await assert.rejects(request("delete", created.revision), /изменился/);
+  assert.equal((await request("delete", renamed.revision)).current.id, created.current.id);
+  response = 1;
+  const removed = await request("delete", renamed.revision);
+  assert.equal(removed.current.id, "default");
+  assert.deepEqual(db.names(), before.profiles);
+  assert.equal(db.state().active, "default");
+  await assert.rejects(request("delete", removed.revision), /Основной/);
+  response = 0;
+  dialogs = 0;
   const proposal = model.plan(db, { key1: { id: "volume-up" } });
   await assert.rejects(request("save", proposal));
   assert.deepEqual(db.load("default"), before.current);

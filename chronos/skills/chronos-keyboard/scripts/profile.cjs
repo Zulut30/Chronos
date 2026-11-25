@@ -33,6 +33,12 @@ const actions = {
 };
 const osAction = (id) =>
   /^(?:volume-|media-)/.test(id) || id === "program" || id === "url";
+function positionName(slot) {
+  if (slot.startsWith("key")) return "Клавиша " + slot.slice(3);
+  const [knob, move] = slot.split("-");
+  return (knob === "upper" ? "Верхняя ручка" : "Нижняя ручка") + " · " +
+    ({left: "влево", right: "вправо", press: "нажатие"})[move];
+}
 function check(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -62,9 +68,9 @@ function action(value) {
     "Некорректный параметр.",
   );
   if (id === "url") {
-    const url = new URL(arg);
+    const url = URL.canParse(arg) ? new URL(arg) : null;
     check(
-      ["https:", "http:"].includes(url.protocol) &&
+      url && ["https:", "http:"].includes(url.protocol) &&
         !url.username &&
         !url.password,
       "Нужна ссылка HTTP или HTTPS.",
@@ -105,10 +111,8 @@ function profile(p) {
       "Неизвестный формат сигнала.",
     );
     if (signal !== null) {
-      check(
-        !seen.has(signal),
-        "Этот сигнал уже назначен позиции " + seen.get(signal) + ".",
-      );
+      if (seen.has(signal))
+        throw Error("Один сигнал у двух позиций: «" + positionName(seen.get(signal)) + "» и «" + positionName(slot) + "».");
       seen.set(signal, slot);
     }
     const a =
@@ -181,6 +185,7 @@ function store(root) {
     names,
     dir,
     save: (p) => write(file(p.id), profile(p)),
+    remove: (id) => fs.unlinkSync(file(id)),
     configure: (s) => write(path.join(dir, "settings.json"), s),
   };
 }
@@ -230,6 +235,7 @@ function mapped(p, signal, grants) {
 }
 module.exports = {
   slots,
+  positionName,
   actions,
   osAction,
   check,

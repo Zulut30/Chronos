@@ -3,5 +3,5 @@
 <title>Артефакты</title><link rel="stylesheet" href="artifacts.css">
 <main><header><h1>Артефакты</h1><input id="search" type="search" placeholder="Поиск" aria-label="Поиск артефактов"></header>
 <p id="status" role="status"></p><section id="cards" aria-label="Список артефактов"></section></main>
-<dialog><form method="dialog"><h2></h2><p></p><footer><button value="cancel" autofocus>Отмена</button><button value="delete">Удалить</button></footer></form></dialog>
+<dialog aria-labelledby="delete-title" aria-describedby="delete-description"><form method="dialog"><h2 id="delete-title"></h2><p id="delete-description"></p><footer><button value="cancel" autofocus>Отмена</button><button value="delete">Удалить</button></footer></form></dialog>
 <script type="module" src="artifacts.js"></script></html>

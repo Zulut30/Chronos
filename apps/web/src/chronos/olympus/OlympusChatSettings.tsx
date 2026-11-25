@@ -118,7 +118,7 @@ function PreferenceRow({ entry }: { entry: Preference }) {
 export function OlympusChatSettings({ advanced = false }: { advanced?: boolean }) {
   const m = useMessages();
   return <>
-    <p className="px-3 py-2 text-xs text-muted-foreground sm:px-4">{m(olympusCopy.restart)}</p>
+    {!advanced && <p className="px-3 py-2 text-xs text-muted-foreground sm:px-4">{m(olympusCopy.restart)}</p>}
     {(advanced ? modules.slice(2) : modules.slice(0, 2)).map((entry) => <ModuleRow key={entry.id} entry={entry} />)}
     {advanced && <>
       {preferences.map((entry) => <PreferenceRow key={entry.id} entry={entry} />)}

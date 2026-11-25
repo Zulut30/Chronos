@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { desktopError } from "../desktopError";
 
 const origin = "http://127.0.0.1:4520";
 export function artifactId(raw: string | null) {
@@ -32,17 +33,42 @@ export function mountArtifact(parent: HTMLElement,id: string) {
   const panel = document.createElement("div");
   Object.assign(panel.style,{height:"100%",width:"100%",minHeight:"0",display:"flex",flexDirection:"column",flex:"1"});
   const installer = (window as Window & {chronosArtifactInstaller?: {
-    metadata(id:string):Promise<string>; install(id:string,icon:string,theme:ReturnType<typeof readTheme>):Promise<boolean>;
+    metadata(id:string):Promise<string>; installed(id:string):Promise<boolean>; remove(id:string):Promise<void>;
+    install(id:string,icon:string,theme:ReturnType<typeof readTheme>):Promise<boolean>;
   }}).chronosArtifactInstaller;
   if (installer) {
     const bar=document.createElement("div");
-    bar.className="flex items-center justify-end gap-2 border-b px-3 py-1";
+    bar.className="flex flex-wrap items-center justify-end gap-2 border-b bg-background px-3 py-1 text-foreground";
     const button=document.createElement("button"), status=document.createElement("span");
     status.setAttribute("role","status");
     button.type="button";
+    const remove=document.createElement("button");
+    remove.type="button";
+    remove.textContent="Удалить ярлыки";
+    for (const control of [button,remove]) control.className="rounded border bg-card px-2 py-1 text-sm hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring";
+    remove.hidden=true;
+    function installed(value:boolean) {
+      button.textContent=value ? "Обновить ярлыки" : "Установить как приложение";
+      remove.hidden=!value;
+    }
     button.textContent="Установить как приложение";
+    button.disabled=true;
+    void installer.installed(id).then(installed)
+      .catch(e=>{status.textContent=desktopError(e,"Не удалось проверить ярлыки.");})
+      .finally(()=>{button.disabled=false;});
+    remove.onclick=async () => {
+      button.disabled=remove.disabled=true;
+      try {
+        await installer.remove(id);
+        installed(false);
+        status.textContent="Ярлыки удалены. Артефакт сохранён в галерее.";
+        button.disabled=false;
+        button.focus();
+      } catch (e) {status.textContent=desktopError(e,"Не удалось удалить ярлыки.");}
+      finally {button.disabled=remove.disabled=false;}
+    };
     button.onclick=async () => {
-      button.disabled=true;
+      button.disabled=remove.disabled=true;
       try {
         const icon=await installer.metadata(id);
         const canvas=document.createElement("canvas");
@@ -53,11 +79,12 @@ export function mountArtifact(parent: HTMLElement,id: string) {
         ctx.font="38px Segoe UI Emoji, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillText(Array.from(icon).slice(0,6).join(""),32,33,58);
         await installer.install(id,canvas.toDataURL(),readTheme());
+        installed(true);
         status.textContent="Ярлыки добавлены в «Пуск» и на рабочий стол";
-      } catch(e) {status.textContent=e instanceof Error ? e.message : "Не удалось установить приложение";}
-      finally {button.disabled=false;}
+      } catch(e) {status.textContent=desktopError(e,"Не удалось установить приложение.");}
+      finally {button.disabled=remove.disabled=false;}
     };
-    bar.append(status,button);panel.append(bar);
+    bar.append(status,button,remove);panel.append(bar);
   }
   panel.append(guest);parent.append(panel);
   return () => {observer.disconnect();panel.remove();};
@@ -83,16 +110,18 @@ export function watchArtifactDialog() {
   window.addEventListener("chronos:show-artifact",show);
   let current: HTMLIFrameElement | null = null;
   let dispose: (()=>void) | undefined;
-  const observer = new MutationObserver(() => {
-    const frame = document.querySelector<HTMLIFrameElement>("[data-oly-studio-overlay] iframe");
+  let dialog: Element | null = null;
+  function refreshFrame() {
+    const frame = dialog?.querySelector<HTMLIFrameElement>("iframe") ?? null;
     if (frame === current) return;
     dispose?.();
+    dispose = undefined;
     current = frame;
     const id = artifactId(frame?.src ?? null);
     if (frame && (id || frame.src.startsWith(origin+"/artifacts.html"))) {
       // Studio also uses the dialog when its preview RPC times out in an active thread.
       void import("./panel").then(async ({openArtifactTab}) => {
-        if (frame.isConnected && await openArtifactTab(frame.src) && frame.isConnected) {
+        if (frame === current && frame.isConnected && await openArtifactTab(frame.src) && frame === current && frame.isConnected) {
           (window as Window & {__olyStudioShell?: {close():void}}).__olyStudioShell?.close();
         }
       }).catch(()=>{});
@@ -102,7 +131,29 @@ export function watchArtifactDialog() {
       frame.style.display = "none";
       dispose = mountArtifact(frame.parentElement,id);
     }
+  }
+  const frames = new MutationObserver(refreshFrame);
+  function observeDialog(next: Element | null) {
+    frames.disconnect();
+    dialog = next;
+    if (dialog) frames.observe(dialog, { childList: true });
+    refreshFrame();
+  }
+  // Studio appends its dialog to body, then replaces the loading state with a direct iframe.
+  const selector = "[data-oly-studio-overlay]";
+  const dialogs = new MutationObserver((records) => {
+    if (dialog && dialog.parentNode !== document.body) observeDialog(null);
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof Element && node.parentNode === document.body && node.matches(selector)) observeDialog(node);
+      }
+    }
   });
-  observer.observe(document.documentElement,{childList:true,subtree:true});
-  return () => {window.removeEventListener("chronos:show-artifact",show);observer.disconnect();dispose?.();};
+  dialogs.observe(document.body, { childList: true });
+  observeDialog(document.body.querySelector(":scope > " + selector));
+  return () => {
+    window.removeEventListener("chronos:show-artifact",show);
+    dialogs.disconnect();
+    observeDialog(null);
+  };
 }

@@ -5,6 +5,50 @@ import {pathToFileURL} from "node:url";
 import {setTimeout as delay} from "node:timers/promises";
 import {writeFileSync} from "node:fs";
 
+async function verifyGallery(client, id) {
+  const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
+  const target = await waitFor("gallery document", async () => {
+    const { frameTree } = await client.send("Page.getFrameTree");
+    const frame = frameTree.childFrames?.find(node => match(node.frame.url));
+    if (frame) {
+      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"gallery-smoke"});
+      return { contextId:executionContextId };
+    }
+    const { targetInfos } = await client.send("Target.getTargets");
+    const guest = targetInfos.find(info => match(info.url));
+    if (guest) return client.send("Target.attachToTarget",{targetId:guest.targetId,flatten:true});
+  });
+  const evaluate = async expression => {
+    const reply = await client.send("Runtime.evaluate",{expression,contextId:target.contextId,returnByValue:true,awaitPromise:true},30000,target.sessionId);
+    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description || reply.exceptionDetails.text);
+    return reply.result.value;
+  };
+  try {
+    const card = `document.querySelector('article[data-id="${id}"]')`;
+    await waitFor("gallery card",()=>evaluate(card + " !== null"));
+    const search = value => evaluate(`document.querySelector("#search").value=${JSON.stringify(value)};document.querySelector("#search").dispatchEvent(new Event("input"));true`);
+    await search("несуществующий артефакт");
+    assert.equal(await evaluate('document.querySelector("#status").textContent'),"Ничего не найдено");
+    await search("полировка");
+    await evaluate(card+'.querySelector("[data-pin]").click()');
+    await waitFor("pin and focus",()=>evaluate(card+'.querySelector("[data-pin]") === document.activeElement && document.activeElement.textContent === "Открепить"'));
+    await evaluate(card+'.querySelector("summary").click()');
+    await waitFor("two versions",()=>evaluate(card+'.querySelectorAll("li").length === 2'));
+    await evaluate(card+'.querySelector("li button").click()');
+    await waitFor("restored version",()=>evaluate(card+'.querySelectorAll("li").length === 3'));
+    await evaluate(card+'.querySelector("nav button:last-child").focus();document.activeElement.click()');
+    assert.equal(await evaluate('document.activeElement.value'),"cancel");
+    await evaluate('document.querySelector("button[value=cancel]").click()');
+    assert.equal(await evaluate(card+'.querySelector("nav button:last-child") === document.activeElement'),true);
+    await evaluate(card+'.querySelector("nav button:last-child").click()');
+    await evaluate('document.querySelector("button[value=delete]").click()');
+    await waitFor("deletion",()=>evaluate(card+' === null && document.activeElement.id === "search"'));
+    await search("");
+  } finally {
+    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
+  }
+}
+
 async function waitFor(label,test) {
   const end=Date.now()+45000;
   let last;
@@ -38,10 +82,15 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       }).observe({type:"paint",buffered:true});
       </script></html>`}};
     const {id}=store.publish(input);
+    const sample={...input,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
+    const temporary=store.publish(sample);
+    store.publish({...sample,expectedVersion:1,label:"Вторая версия"});
     await client.probe("performAction",{type:"navigate",to:"/"});
     await waitFor("gallery link",()=>evaluate(`Boolean(document.querySelector('button[aria-label="Артефакты"]'))`));
     await evaluate(`document.querySelector('button[aria-label="Артефакты"]').click()`);
     await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('dialog iframe[src*="/artifacts.html"],webview[src*="/artifacts.html"]'))`));
+    await verifyGallery(client,temporary.id);
+    assert.equal(store.history(temporary.id).length,0);
     await showArtifact(id);
     const row=await waitFor("isolated page wrote to MCP database",()=>store.documents(id,"get",{collection:"probe",key:"frame"}));
     assert.equal(row.host,id);
@@ -49,7 +98,16 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     assert.equal(row.files,"undefined");
     assert.equal(row.alias,"function");
     assert.ok(["light","dark"].includes(row.mode));
-    await evaluate(`[...document.querySelectorAll("button")].find(b=>b.textContent==="Установить как приложение").click()`);
+    async function press(label) {
+      const button = `[...document.querySelectorAll("button")].find(b=>!b.hidden && !b.disabled && b.textContent===${JSON.stringify(label)})`;
+      await waitFor(label,()=>evaluate(`Boolean(${button})`));
+      await evaluate(button + ".click()");
+    }
+    await press("Установить как приложение");
+    await press("Обновить ярлыки");
+    await press("Удалить ярлыки");
+    await waitFor("both shortcuts removed",()=>evaluate(`window.chronosArtifactInstaller.installed("${id}").then(value=>!value)`));
+    await press("Установить как приложение");
     await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
     // Use the app's own authenticated session to create an empty local thread; no model turn is run.
     await evaluate(`(async()=>{
