@@ -1,3 +1,4 @@
+import { attachArtifact, protectArtifact } from "../chronos/artifacts.ts"; // chronos: isolated Studio pages
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -623,6 +624,7 @@ export const make = Effect.gen(function* () {
       return Option.none();
     }
     window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+      if (attachArtifact(event, webPreferences, params)) return; // chronos: per-artifact partition
       if (
         typeof params.partition !== "string" ||
         !previewManager.isBrowserPartition(params.partition)
@@ -769,6 +771,7 @@ export const make = Effect.gen(function* () {
     };
     installContextMenu(window, window.webContents);
     window.webContents.on("did-attach-webview", (_event, contents) => {
+      if (protectArtifact(contents)) return; // chronos: artifact guests have their own navigation policy
       installContextMenu(window, contents, true);
       void runPromise(previewManager.prepareWebview(contents));
     });

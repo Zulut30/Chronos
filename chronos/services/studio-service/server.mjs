@@ -222,6 +222,13 @@ const server = http.createServer(async (req, res) => {
     if (mutating && req.headers['x-oly'] !== '1') return json(res, req, 403, { error: 'Нужен заголовок x-oly: 1' });
     const B = async () => { const t = await body(req); return t ? JSON.parse(t) : {}; };
 
+    // chronos: gallery actions share the artifact store with Studio MCP.
+    if (p.startsWith('/api/artifacts/')) {
+      if (req.method !== 'POST' || req.headers.origin !== 'http://' + host)
+        return json(res, req, 403, {error:'Откройте галерею в Студии'});
+      const { galleryRequest } = await import('../artifacts/gallery.mjs');
+      return json(res, req, 200, await galleryRequest(p.slice('/api/artifacts/'.length), await B()));
+    }
     if (!p.startsWith('/api/')) {
       if (p === '/' || p === '/index.html') return serveStatic(req, res, 'index.html');
       if (p === '/board') return serveStatic(req, res, 'excalidraw/index.html');
@@ -310,6 +317,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/open') { // ask T3 windows to open something in the right panel
       const b = await B();
       let msg;
+      if (b.artifact) {
+        const {deliverToDesktop} = await import('../artifacts/desktop-bridge.mjs');
+        const delivery = deliverToDesktop(b.artifact,b.confirmDelete);
+        if (delivery) return json(res,req,200,{ok:true,delivered:await delivery});
+      }
       if (b.board) { const f = boardPath(b.board); if (!fs.existsSync(f)) return json(res, req, 404, { error: 'Доска не найдена' }); touchRecent(f); msg = { kind: 'board', path: f, title: boardName(f) }; }
       else if (b.hub === 'boards') msg = { kind: 'hub', tab: 'boards' };
       else if (typeof b.url === 'string' && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(b.url)) msg = { kind: 'url', url: b.url };

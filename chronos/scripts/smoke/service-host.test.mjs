@@ -75,6 +75,19 @@ async function run(shared, measure) {
       host.send("tasks-service");
     }
     await Promise.all(entries.map(([name]) => check(name)));
+    if (host && !measure) {
+      const id = "12345678-1234-4234-8234-123456789abc";
+      host.once("message", msg => {
+        assert.equal(msg.kind,"artifact-open");
+        assert.equal(msg.id,id);
+        host.send({kind:"artifact-delivered",request:msg.request,delivered:true});
+      });
+      const response = await fetch(new URL("/api/open",urls.get("studio-service")),{
+        method:"POST",headers:{"content-type":"application/json","x-oly":"1"},
+        body:JSON.stringify({artifact:id,confirmDelete:false}),
+      });
+      assert.deepEqual(await response.json(),{ok:true,delivered:1});
+    }
     if (measure) {
       await delay(1000);
       const ids = children.map(p => p.child.pid).join(",");

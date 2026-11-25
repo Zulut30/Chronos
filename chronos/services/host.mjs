@@ -5,6 +5,7 @@ import { Worker } from "node:worker_threads";
 const services = new Set(["skills-manager", "tasks-service", "files-service", "studio-service",
   "integrations-service", "mcp-manager", "olympus-hub"]);
 const running = new Set();
+let studio;
 // Worker copies on Windows have case-sensitive keys. Service settings use uppercase,
 // and each worker still needs a private copy for changes such as API-key updates.
 const workerEnv = process.platform === "win32"
@@ -14,6 +15,7 @@ const workerEnv = process.platform === "win32"
 // Each entry is a worker main module. Its process.exit(), globals and uncaught
 // JS errors stay inside the worker. Desktop re-probes the port before restarting it.
 process.on("message", (name) => {
+  if (name?.kind === "artifact-delivered") {studio?.postMessage(name);return;}
   if (!services.has(name) || running.has(name)) return;
   const log = createWriteStream(join(process.env.CHRONOS_T3_HOME, "logs", "services", name + ".log"),
     { flags: "a", mode: 0o600 });
@@ -27,6 +29,13 @@ process.on("message", (name) => {
     const worker = new Worker(new URL("./" + name + "/server.mjs", import.meta.url),
       { env: workerEnv, stdout: true, stderr: true, workerData: { serviceCwd: join(import.meta.dirname, name) } });
     running.add(name);
+    if (name === "studio-service") {
+      studio = worker;
+      worker.on("message",message => {
+        if (message?.kind === "artifact-open" && process.connected) process.send(message,()=>{});
+      });
+      worker.once("exit",()=>{if (studio===worker) studio=undefined;});
+    }
     worker.stdout.pipe(log, { end: false });
     worker.stderr.pipe(log, { end: false });
     worker.on("error", error => log.write(error.stack + "\n"));

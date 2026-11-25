@@ -79,6 +79,7 @@ jobs:
           "$runtime" -e "const db=new (require('node:sqlite').DatabaseSync)(':memory:'); console.log(process.versions.electron, process.versions.node, db.prepare('SELECT 1 AS ok').get()); db.close()"
           "$runtime" --test ../../chronos/scripts/smoke/services.test.mjs ../../chronos/scripts/smoke/service-host.test.mjs
           "$runtime" --test ../../chronos/services/mcp-manager/worker.test.mjs
+          "$runtime" --test ../../chronos/services/artifacts/*.test.mjs
 
       - name: Chronos desktop module lint
         run: vp lint apps/desktop/src/chronos
