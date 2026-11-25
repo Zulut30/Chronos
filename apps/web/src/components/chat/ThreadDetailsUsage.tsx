@@ -183,12 +183,14 @@ function LimitRow({
   const m = useMessages();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const left = remainingPercent(window);
+  // chronos: GT formats the whole tooltip as one string, so shorten the window name before interpolation.
+  const label = globalThis.__olyThreadDetails?.shortLabel(window.label) ?? window.label;
   const pace = paceOf(window, now);
   const timeLeft = paceRemainingPercent(window, now);
   const resetsAt = window.resetsAt ? Date.parse(window.resetsAt) : Number.NaN;
   return (
     <UsageRow
-      label={window.label}
+      label={label}
       fill={left}
       tone={limitTone(left)}
       tick={timeLeft}
@@ -198,7 +200,7 @@ function LimitRow({
       tooltip={
         <>
           <span className="text-foreground">
-            {gt("{label}: {left}% left", { label: window.label, left })}
+            {gt("{label}: {left}% left", { label, left })}
           </span>
           {pace && timeLeft !== null ? (
             <span className="text-muted-foreground">
@@ -224,6 +226,7 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
   const m = useMessages();
   const timestampFormat = usePrimarySettings((settings) => settings.timestampFormat);
   const left = window.remainingPercent;
+  const label = globalThis.__olyThreadDetails?.shortLabel(window.label) ?? window.label;
   const accounts = window.members.length;
   const from = poolSources(window);
   const sourceLabels = [...from.hubs, ...(from.signedIn ? [gt("Signed-in accounts")] : [])];
@@ -238,7 +241,7 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
       : null;
   return (
     <UsageRow
-      label={window.label}
+      label={label}
       fill={left}
       tone={limitTone(left)}
       value={`${left}%`}
@@ -249,11 +252,11 @@ function PoolRow({ window, now }: { readonly window: LimitPoolWindow; readonly n
           <span className="text-foreground">
             {accounts > 1
               ? gt("{label}: {left}% left across {accounts} accounts", {
-                  label: window.label,
+                  label,
                   left,
                   accounts,
                 })
-              : gt("{label}: {left}% left", { label: window.label, left })}
+              : gt("{label}: {left}% left", { label, left })}
           </span>
           {window.pace ? (
             <span className="text-muted-foreground">{m(PACE_LABEL[window.pace])}</span>
