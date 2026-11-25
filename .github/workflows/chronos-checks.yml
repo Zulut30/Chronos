@@ -33,6 +33,9 @@ jobs:
       - name: Validate Chronos version metadata
         run: node chronos/scripts/chronos-version.mjs
 
+      - name: Exercise token-free ACP benchmark fixture
+        run: node --test chronos/scripts/bench/agent.test.mjs
+
       - name: Preview feature changes and upstream integration in a temporary repository
         run: node --test chronos/scripts/upstream-plan.test.mjs
 
