@@ -95,7 +95,15 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
     const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});
     await waitFor("panel first paint",()=>readFrame()?.opens>=2);
-    const baseline=footprint();
+    // Tab transitions may leave short-lived Chromium helpers. Sample after the tree settles.
+    let baseline=footprint();
+    for(let round=0; round<5; round++) {
+      await delay(1000);
+      const sample=footprint();
+      const stable=sample.processes===baseline.processes && Math.abs(sample.privateBytes-baseline.privateBytes)<4*1024**2;
+      baseline=sample;
+      if(stable) break;
+    }
     const start=Date.now();
     const child=spawn(opts.launch,["--chronos-artifact="+id],{stdio:"ignore",windowsHide:true});
     const exited=new Promise((resolve,reject)=>{child.once("error",reject);child.once("exit",resolve);});
