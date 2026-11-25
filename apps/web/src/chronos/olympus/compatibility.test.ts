@@ -37,4 +37,18 @@ describe("Olympus 4774 on upstream 5209", () => {
     })).toBe(3);
     expect(ru).toEqual({ a: "Тред", b: "В {dst} из {src}", c: ["Открыть ", node], d: "штатная форма" });
   });
+
+  it("matches whole Olympus pattern frames and preserves native fallback and rich children", () => {
+    const node = { t: "b", i: 1, c: "plan" };
+    const localized = { ...node, c: "тариф" };
+    const en = { a: "Authenticated · {method}", b: "Turn {count}", c: "Turn {name}",
+      d: ["Authenticated · ", node], e: "Disabled", f: "Turn {count} more", g: "Turn {count}" };
+    const ru = { a: "", b: "", c: "ход", d: [localized], e: "Отключён", f: "ещё", g: "" };
+    applyOlympusCatalog(en, ru, { Disabled: "замена" }, {
+      patterns: [["^Authenticated · (.+)$", "Авторизовано · $1"], ["^Turn (\\d+)$", "Ход $1"]],
+      settings: { g: ["Other source", "не тот контекст"] }, fallback: ["Disabled"],
+    });
+    expect(ru).toEqual({ a: "Авторизовано · {method}", b: "Ход {count}", c: "ход",
+      d: ["Авторизовано · ", localized], e: "Отключён", f: "ещё", g: "Ход {count}" });
+  });
 });

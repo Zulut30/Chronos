@@ -115,7 +115,11 @@ export function getProviderSummary(
     const authLabel = providerAuthLabel(provider.auth, resolve);
     return {
       headline: authLabel
-        ? resolve(msg("Authenticated · {method}", { method: authLabel }))
+        ? resolve(msg("Authenticated · {method}", {
+            method: authLabel,
+            // chronos: only the Russian catalog selects known whole Olympus plan headlines.
+            olympusPlan: authLabel.includes("_") ? "other" : authLabel.replaceAll(" ", "_"),
+          }))
         : resolve(msg("Authenticated")),
       detail: provider.message ?? null,
     };
