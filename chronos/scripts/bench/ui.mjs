@@ -364,7 +364,7 @@ try {
       await wait("final visible marker", () =>
         evaluate("uiBench.hasText(" + JSON.stringify("MARK_" + ids[0] + "_" + (frames - 1) + "_") + ")"),
       );
-    const olympus = await evaluate(`(() => {
+    const readOlympus = () => evaluate(`(() => {
       const ids = ${JSON.stringify(ids)};
       const speed = globalThis.__olySpeed;
       const turns = Array.from(speed.turns.values());
@@ -376,6 +376,15 @@ try {
         speedTurns: ids.filter((id, index) => turns.some(t => t.thread === id && t.status === "completed" && t.usage?.outputTokens === 501 + index)).length,
       };
     })()`);
+    let olympus = await readOlympus();
+    if (mode === "desktop" && n) {
+      // The server may finalize before Electron receives its last WebSocket chunk.
+      const until = Date.now() + 5000;
+      while (Date.now() < until && (olympus.budgets.some(cost => cost !== 0.42) || olympus.speedSamples < n || olympus.speedTurns < n)) {
+        await sleep(100);
+        olympus = await readOlympus();
+      }
+    }
     const placeholders = await evaluate(
       "document.querySelectorAll('[data-sidebar-card-placeholder]').length",
     );
