@@ -16,7 +16,7 @@ on:
         description: "Focused same-VM package comparison (three alternating passes)"
         type: choice
         default: full
-        options: [full, scroll, startup, renderer, server]
+        options: [full, scroll, wheel, startup, renderer, server]
   push:
     branches:
       - main

@@ -7,7 +7,7 @@ $results = Join-Path $env:RUNNER_TEMP 'ui-results'
 foreach ($build in ($builds | Select-Object -Unique)) {
   & "$PSScriptRoot/unpack.ps1" -Run $build -Destination (Join-Path $env:RUNNER_TEMP "ui-package-$build")
 }
-$env:BENCH_FIXED_SCROLL = '1'
+$env:BENCH_FIXED_SCROLL = if ($env:SUITE -eq 'wheel') { 'wheel' } else { '1' }
 $errors = @()
 foreach ($pass in 1..3) {
   $order = $builds.Clone()
@@ -21,7 +21,7 @@ foreach ($pass in 1..3) {
         node "$PSScriptRoot/ui.mjs" desktop $pkg 0 "$out/startup.json" startup
         if ($LASTEXITCODE) { $errors += "Startup $build pass $pass" }
       }
-      'scroll' {
+      { $_ -in 'scroll','wheel' } {
         foreach ($n in 8,16) {
           node "$PSScriptRoot/ui.mjs" desktop $pkg $n "$out/$n.json"
           if ($LASTEXITCODE) { $errors += "Scroll $build N=$n pass $pass" }

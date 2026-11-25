@@ -107,11 +107,22 @@ function install(tracing) {
         { once: true },
       );
     },
-    beginScroll(area) {
-      const el = scroller(area === "sidebar" ? document.querySelector("[data-thread-item]") : timeline());
-      el.scrollTop = Math.round((el.scrollHeight - el.clientHeight) / 2);
+    beginScroll(area, fixedWheel = false) {
+      const el = fixedWheel ? document.querySelector(".messages-timeline-scroll") :
+        scroller(area === "sidebar" ? document.querySelector("[data-thread-item]") : timeline());
+      if (!fixedWheel) el.scrollTop = Math.round((el.scrollHeight - el.clientHeight) / 2);
+      else if (el.scrollTop !== 0)
+        throw Error("Wheel must start at the beginning of the timeline");
       const start = el.scrollTop;
       const times = [];
+      let last = start, path = 0;
+      const record = () => {
+        const position = el.scrollTop;
+        path += Math.abs(position - last);
+        last = position;
+      };
+      if (fixedWheel) el.addEventListener("scroll", record);
+      state.wheelOffset = () => el.scrollTop - start;
       let active = true;
       function tick(t) {
         if (active) {
@@ -122,19 +133,30 @@ function install(tracing) {
       requestAnimationFrame(tick);
       state.endScroll = () => {
         active = false;
-        return { times, distance: Math.abs(el.scrollTop - start), height: el.scrollHeight };
+        if (fixedWheel) {
+          el.removeEventListener("scroll", record);
+          record();
+        }
+        return { times, distance: Math.abs(el.scrollTop - start), path, height: el.scrollHeight };
       };
-      return center(el);
+      return fixedWheel ? window.uiBench.timelinePoint() : center(el);
     },
     endScroll: () => state.endScroll(),
+    wheelOffset: () => state.wheelOffset(),
     timelinePoint() {
-      return center(document.querySelector(".messages-timeline-scroll"));
+      const el = document.querySelector(".messages-timeline-scroll");
+      const r = el.getBoundingClientRect();
+      const y = Math.floor(r.top + r.height / 2);
+      for (const inset of [24, 48, r.width / 2]) {
+        const x = Math.floor(r.left + inset);
+        const hit = document.elementFromPoint(x, y);
+        if (el.contains(hit) && scroller(hit) === el) return { x, y };
+      }
+      throw Error("No unobstructed wheel target in the timeline");
     },
-    async fixedTimeline() {
+    async prepareTimeline(required) {
       const el = document.querySelector(".messages-timeline-scroll");
       const frame = () => new Promise(requestAnimationFrame);
-      const step = 8;
-      const count = 72;
       // Let the virtual list measure the top of the seeded, completed chat before timing.
       let stable = 0;
       const deadline = performance.now() + 4000;
@@ -143,9 +165,15 @@ function install(tracing) {
         await frame();
         stable = el.scrollTop === 0 ? stable + 1 : 0;
       }
-      if (stable < 10 || el.scrollHeight - el.clientHeight < step * count)
+      if (stable < 10 || el.scrollHeight - el.clientHeight < required)
         throw Error("Seeded timeline cannot fit path at top=" + el.scrollTop +
           ", height=" + el.scrollHeight + ", viewport=" + el.clientHeight);
+    },
+    async fixedTimeline() {
+      const el = document.querySelector(".messages-timeline-scroll");
+      const frame = () => new Promise(requestAnimationFrame);
+      const step = 8;
+      const count = 72;
       const times = [await frame()];
       let path = 0;
       for (let i = 1; i <= count; i++) {
@@ -185,8 +213,8 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
     assert(timing?.first >= 0 && timing.ready >= timing.first);
     switches.push(timing);
   }
-  async function scroll(area) {
-    const point = await evaluate("uiBench.beginScroll(" + JSON.stringify(area) + ")");
+  async function scroll(area, fixedWheel = false) {
+    const point = await evaluate("uiBench.beginScroll(" + JSON.stringify(area) + "," + fixedWheel + ")");
     for (let i = 0; i < 35; i++) {
       await page("Input.dispatchMouseEvent", {
         type: "mouseWheel",
@@ -195,8 +223,14 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
         deltaY: i < 18 ? 65 : -35,
       });
       await sleep(27);
+      if (fixedWheel && (i === 17 || i === 34)) {
+        const expected = i === 17 ? 1170 : 575;
+        await wait("wheel offset " + expected, async () =>
+          Math.abs(await evaluate("uiBench.wheelOffset()") - expected) <= 1, 2000);
+      }
     }
-    const { times, distance, height } = await evaluate("uiBench.endScroll()");
+    const { times, distance, height, path } = await evaluate("uiBench.endScroll()");
+    if (fixedWheel) assert(Math.abs(path - 1765) <= 2, "Unexpected wheel travel: " + path);
     assert(
       times.length > 2 && distance > 5,
       area + " did not scroll: " + JSON.stringify({ times: times.length, distance, height }),
@@ -205,15 +239,19 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
       fps: (1000 * (times.length - 1)) / (times.at(-1) - times[0]),
       frames: times.length,
       distance,
+      ...(fixedWheel ? { path } : {}),
     };
   }
   async function fixedTimeline() {
     // User input releases sticky follow and pending position restoration on the actual list.
     const point = await evaluate("uiBench.timelinePoint()");
     await page("Input.dispatchMouseEvent", { type: "mouseWheel", ...point, deltaX: 0, deltaY: -640 });
+    const wheel = process.env.BENCH_FIXED_SCROLL === "wheel";
+    await evaluate("uiBench.prepareTimeline(" + (wheel ? 1170 : 576) + ")");
+    if (wheel) return scroll("timeline", true);
     return evaluate("uiBench.fixedTimeline()");
   }
-  const timeline = process.env.BENCH_FIXED_SCROLL === "1" ? await fixedTimeline() : await scroll("timeline");
+  const timeline = process.env.BENCH_FIXED_SCROLL ? await fixedTimeline() : await scroll("timeline");
   const sidebar = await scroll("sidebar");
   if (streamingId) {
     await navigate(streamingId);
