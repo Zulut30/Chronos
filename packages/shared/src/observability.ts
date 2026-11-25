@@ -583,39 +583,54 @@ function redactExitCredentials(exit: Exit.Exit<unknown, unknown>): Exit.Exit<unk
   return cause === exit.cause ? exit : ExitRuntime.failCause(cause);
 }
 
-// chronos: the native span itself holds local attributes and events. Only an exporter needs a copy.
-class LocalFileSpan extends Tracer.NativeSpan {
-  private readonly delegate: Tracer.Span | undefined;
+class LocalFileSpan implements Tracer.Span {
+  readonly _tag = "Span";
+  readonly name: string;
+  readonly parent: Option.Option<Tracer.AnySpan>;
+  readonly annotations: Tracer.Span["annotations"];
+  readonly links: Array<Tracer.SpanLink>;
+  readonly sampled: boolean;
+  readonly kind: Tracer.SpanKind;
+
+  status: Tracer.SpanStatus;
+  attributes: Map<string, unknown>;
+  events: Array<[name: string, startTime: bigint, attributes: Record<string, unknown>]>;
+  private readonly delegate: Tracer.Span;
   private readonly push: (record: EffectTraceRecord) => void;
   private readonly keepLocalSpan: LocalFileTracerOptions["keepLocalSpan"];
 
   constructor(
     options: Parameters<Tracer.Tracer["span"]>[0],
-    delegate: Tracer.Span | undefined,
+    delegate: Tracer.Span,
     push: (record: EffectTraceRecord) => void,
     keepLocalSpan?: LocalFileTracerOptions["keepLocalSpan"],
   ) {
-    super({
-      ...options,
-      name: delegate?.name ?? options.name,
-      sampled: delegate?.sampled ?? options.sampled,
-      kind: delegate?.kind ?? options.kind,
-      links: [...options.links],
-    });
     this.delegate = delegate;
     this.push = push;
     this.keepLocalSpan = keepLocalSpan;
+    this.name = delegate.name;
+    this.parent = options.parent;
+    this.annotations = options.annotations;
+    this.links = [...options.links];
+    this.sampled = delegate.sampled;
+    this.kind = delegate.kind;
+    this.status = {
+      _tag: "Started",
+      startTime: options.startTime,
+    };
+    this.attributes = new Map();
+    this.events = [];
   }
 
-  override get spanId(): string {
-    return this.delegate?.spanId ?? super.spanId;
+  get spanId(): string {
+    return this.delegate.spanId;
   }
 
-  override get traceId(): string {
-    return this.delegate?.traceId ?? super.traceId;
+  get traceId(): string {
+    return this.delegate.traceId;
   }
 
-  override end(endTime: bigint, exit: Exit.Exit<unknown, unknown>): void {
+  end(endTime: bigint, exit: Exit.Exit<unknown, unknown>): void {
     // Cached lookup fibers retain parent spans. Traces need success status, not result payloads.
     const traceExit = ExitRuntime.isSuccess(exit) ? ExitRuntime.void : exit;
     this.status = {
@@ -624,35 +639,35 @@ class LocalFileSpan extends Tracer.NativeSpan {
       endTime,
       exit: traceExit,
     };
-    this.delegate?.end(endTime, redactExitCredentials(traceExit));
+    this.delegate.end(endTime, redactExitCredentials(traceExit));
 
     if (this.sampled && (this.keepLocalSpan?.(this) ?? true)) {
       this.push(spanToTraceRecord(this));
     }
   }
 
-  override attribute(key: string, value: unknown): void {
+  attribute(key: string, value: unknown): void {
     const recorded =
       (key === "url.full" || key === "url.query") && typeof value === "string"
         ? redactUrlCredentials(value)
         : value;
     this.attributes.set(key, recorded);
-    this.delegate?.attribute(key, recorded);
+    this.delegate.attribute(key, recorded);
   }
 
-  override event(name: string, startTime: bigint, attributes?: Record<string, unknown>): void {
+  event(name: string, startTime: bigint, attributes?: Record<string, unknown>): void {
     const cause = attributes?.["effect.cause"];
     const nextAttributes =
       typeof cause === "string"
         ? { ...attributes, "effect.cause": redactUrlCredentials(cause) }
         : (attributes ?? {});
     this.events.push([name, startTime, nextAttributes]);
-    this.delegate?.event(name, startTime, nextAttributes);
+    this.delegate.event(name, startTime, nextAttributes);
   }
 
-  override addLinks(links: ReadonlyArray<Tracer.SpanLink>): void {
+  addLinks(links: ReadonlyArray<Tracer.SpanLink>): void {
     this.links.push(...links);
-    this.delegate?.addLinks(links);
+    this.delegate.addLinks(links);
   }
 }
 
@@ -669,12 +684,17 @@ export const makeLocalFileTracer = Effect.fn("makeLocalFileTracer")(function* (
       ...(options.onFlush ? { onFlush: options.onFlush } : {}),
     }));
 
-  const delegate = options.delegate;
+  const delegate =
+    options.delegate ??
+    Tracer.make({
+      span: (spanOptions) => new Tracer.NativeSpan(spanOptions),
+    });
+
   return Tracer.make({
     span(spanOptions) {
-      return new LocalFileSpan(spanOptions, delegate?.span(spanOptions), sink.push, options.keepLocalSpan);
+      return new LocalFileSpan(spanOptions, delegate.span(spanOptions), sink.push, options.keepLocalSpan);
     },
-    ...(delegate?.context ? { context: delegate.context } : {}),
+    ...(delegate.context ? { context: delegate.context } : {}),
   });
 });
 
