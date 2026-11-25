@@ -8,6 +8,10 @@ on:
         description: "Optional packaged UI benchmark: comma-separated Chronos desktop run IDs"
         required: false
         type: string
+      ui_large_sidebar:
+        description: "Also measure a 1,000-thread sidebar without active agents"
+        type: boolean
+        default: false
   push:
     branches:
       - main
@@ -144,12 +148,16 @@ jobs:
   packaged-ui:
     if: inputs.ui_builds != ''
     runs-on: windows-2025
-    timeout-minutes: 55
+    timeout-minutes: 90
     permissions:
       actions: read
       contents: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            chronos/scripts/bench
+            chronos/scripts/smoke
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -158,6 +166,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BUILDS: ${{ inputs.ui_builds }}
+          LARGE_SIDEBAR: ${{ inputs.ui_large_sidebar }}
         run: |
           $ErrorActionPreference = 'Stop'
           $results = Join-Path $env:RUNNER_TEMP 'ui-results'
@@ -173,6 +182,12 @@ jobs:
             foreach ($n in 0,8,16) {
               node chronos/scripts/bench/ui.mjs desktop "$dest/pkg" $n "$out/$n.json"
               if ($LASTEXITCODE) { $errors += "UI $build N=$n" }
+            }
+            if ($env:LARGE_SIDEBAR -eq 'true') {
+              $env:BENCH_UI_ROWS = '1000'
+              node chronos/scripts/bench/ui.mjs desktop "$dest/pkg" 0 "$out/1000-rows.json"
+              if ($LASTEXITCODE) { $errors += "UI $build 1000 rows" }
+              Remove-Item Env:BENCH_UI_ROWS
             }
           }
           if ($errors.Count) { throw ($errors -join ", ") }
