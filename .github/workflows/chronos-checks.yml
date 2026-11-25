@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: chronos-checks-${{ github.ref }}
+  group: chronos-checks-${{ github.ref }}-${{ inputs.ui_builds || 'checks' }}
   cancel-in-progress: true
 
 jobs:
