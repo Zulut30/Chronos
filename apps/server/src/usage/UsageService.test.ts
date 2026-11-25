@@ -2402,6 +2402,8 @@ describe("UsageService", () => {
         { root: hostRoot, id: "host", output: 5 },
         { root: instanceRoot, id: "work", output: 7 },
         { root: xdgRoot, id: "xdg", output: 11 },
+        // chronos(olympus): the shared reader partitions this source into OpenRouter buckets.
+        { root: NodePath.join(home, ".t3", "userdata", "openrouter-usage"), id: "receipt", output: 13 },
       ];
       yield* Effect.promise(async () => {
         for (const { root, id, output } of histories) {
@@ -2412,6 +2414,7 @@ describe("UsageService", () => {
             encodeUnknownJsonString({
               role: "assistant",
               modelID: "example-model",
+              ...(id === "receipt" ? { providerID: "openrouter", olyOpenrouterReceipt: true } : {}),
               time: { created: Date.parse("2026-08-01T10:00:00Z") },
               tokens: { input: 10, output },
             }),
@@ -2466,6 +2469,11 @@ describe("UsageService", () => {
           .sort((a, b) => a - b),
         [5, 7, 11],
       );
+      assert.deepStrictEqual(
+        summary.buckets.filter((bucket) => bucket.provider === "openrouter")
+          .map((bucket) => bucket.totals.outputTokens),
+        [13],
+      );
     }),
   );
 
@@ -2514,11 +2522,14 @@ describe("UsageService", () => {
             source.fingerprint.provider === provider &&
             !source.fingerprint.resolvedHomePath.endsWith("antigravity-acp"),
         );
-      assert.strictEqual(sourcesFor("opencode").length, 1);
       assert.strictEqual(sourcesFor("antigravity").length, 1);
-      assert.strictEqual(
-        sourcesFor("opencode")[0]?.fingerprint.resolvedHomePath,
-        yield* Effect.promise(() => NodeFSP.realpath(opencode)),
+      // chronos(olympus): the receipt root is scanned alongside the single canonical OpenCode root.
+      assert.deepStrictEqual(
+        sourcesFor("opencode").map((source) => source.fingerprint.resolvedHomePath).sort(),
+        [
+          yield* Effect.promise(() => NodeFSP.realpath(opencode)),
+          NodePath.join(home, ".t3", "userdata", "openrouter-usage"),
+        ].sort(),
       );
       assert.strictEqual(
         sourcesFor("antigravity")[0]?.fingerprint.resolvedHomePath,

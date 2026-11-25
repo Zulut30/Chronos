@@ -767,7 +767,8 @@ describe("openCodeUsageReader", () => {
         );
       assert.deepStrictEqual(
         sources.map((source) => source.dir).sort(),
-        [defaultRoot, instanceRoot, xdgRoot].sort(),
+        // chronos(olympus): deduplicate the receipt directory across all configured instances.
+        [defaultRoot, instanceRoot, xdgRoot, path.join(home, ".t3", "userdata", "openrouter-usage")].sort(),
       );
     }).pipe(Effect.provide(NodeServices.layer)),
   );
