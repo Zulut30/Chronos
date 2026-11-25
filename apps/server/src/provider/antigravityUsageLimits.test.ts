@@ -688,6 +688,8 @@ describe("Antigravity subscription limits", () => {
         "Sign in with Google to see Antigravity limits.",
       );
       expect(limits.unavailable?.reason).not.toBe("unsupported");
+      // chronos(olympus): the selected provider account is displayed in the model picker.
+      expect(limits).toMatchObject({ olyAccountEmail: "someone@example.com" });
     }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))),
   );
 

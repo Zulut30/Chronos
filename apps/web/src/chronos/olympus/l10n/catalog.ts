@@ -81,7 +81,12 @@ export function olympusCatalog(): Plugin {
       if (!runtime) throw new Error("Missing Olympus runtime dictionary");
       const exact = (JSON.parse(runtime) as { exact: Pairs }).exact;
       const tables = readJson<Record<"presentational" | "strict" | "label" | "broad", Pairs>>(dictPath);
-      const pairs = { ...readJson<Pairs>(additionsPath), ...exact, ...tables.broad, ...tables.strict, ...tables.label, ...tables.presentational };
+      const additions = readJson<{ messages: Pairs; threadDetails: Pairs }>(additionsPath);
+      const pairs = {
+        ...additions.messages, ...exact, ...tables.broad, ...tables.strict, ...tables.label, ...tables.presentational,
+        // 24-thread-details used to replace these labels after the static translator ran.
+        ...additions.threadDetails,
+      };
       // Native composer override N03 supersedes the earlier static translation.
       const placeholder = "Ask anything. @ files, $ skills, / commands";
       pairs[placeholder] = exact[placeholder]!;

@@ -1,9 +1,11 @@
 # Chronos
 
 Chronos — независимый форк [pingdotgg/t3code](https://github.com/pingdotgg/t3code) (MIT) на базе
-**`v0.1.10-nightly.20261116.4774`** (`16695c812fffe75e85f8cc3084d2c561aa3ca93f`), переносящий
+**`v0.1.12-nightly.20261124.5209`** (`84e4264bb347e36e97f6c3bd95d666eecfa12e07`), переносящий
 функциональность, внешний вид внутри окна, серверные правки и русский перевод Olympus один в один
 поверх исходников T3, с установкой рядом с T3 и собственной лентой обновлений.
+
+Проверка переноса с эталона 4774 на эту базу — в [отчёте по nightly 5209](parity/upstream-5209.md).
 
 ## Архитектура переноса Olympus (паритет 1:1)
 
@@ -95,9 +97,9 @@ node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
 
 ```json
 {
-  "upstream": "0.1.10-nightly.20261116.4774",
-  "upstreamCommit": "16695c812fffe75e85f8cc3084d2c561aa3ca93f",
-  "revision": 4
+  "upstream": "0.1.12-nightly.20261124.5209",
+  "upstreamCommit": "84e4264bb347e36e97f6c3bd95d666eecfa12e07",
+  "revision": 5
 }
 ```
 
@@ -105,7 +107,7 @@ node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
 - `upstreamCommit` — полный SHA коммита этого тега.
 - `revision` — счётчик релизов Chronos (следующий после `main`).
 - Версия приложения: `<upstream>.chronos.<revision>`, например
-  `0.1.10-nightly.20261116.4774.chronos.4`.
+  `0.1.12-nightly.20261124.5209.chronos.5`.
 - Тег релиза: `chronos-v<версия>` (`node chronos/scripts/chronos-version.mjs` печатает все поля).
 
 Сервер, веб и CLI собираются с версией апстрима (`<upstream>`), только десктоп-оболочка получает
@@ -161,7 +163,7 @@ T3). Оставлены только workflow Chronos:
 | `apps/desktop/src/app/DesktopCliCommand.ts` | Не перехватывать глобальный `t3` в PATH |
 | `apps/desktop/src/app/DesktopCliShim.ts` | Жёсткая привязка `~/.chronos/bin/t3` к `~/.chronos` (`privateHome`) |
 | `apps/desktop/src/backend/DesktopBackendConfiguration.ts` | `T3CODE_HOME` для локального бэкенда и `--base-dir ~/.chronos` для WSL |
-| `apps/desktop/src/main.ts` | `resolveDesktopSshCliRunner` запрашивает CLI-архив версии апстрима (на базе 4774 функция находится в `main.ts`) |
+| `apps/desktop/src/ssh/DesktopSshEnvironment.ts` | `resolveDesktopSshCliRunner` запрашивает CLI-архив версии апстрима и учитывает зеркало релизов |
 | `apps/desktop/src/updates/updateChannels.ts` | Признак nightly по версии апстрима |
 | `apps/desktop/src/updates/DesktopUpdates.ts` | Фильтр версий Chronos, фиксация канала `nightly`, открытие релиза в браузере на неподписанной macOS |
 | `apps/desktop/src/electron/ElectronDialog.ts` | Имя продукта `Chronos` в системных диалогах (без русской локализации) |

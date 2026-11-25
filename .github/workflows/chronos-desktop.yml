@@ -147,7 +147,8 @@ jobs:
             arch: arm64
             rust_target: aarch64-apple-darwin
           - label: macOS x64
-            runner: macos-26
+            # The upstream cache generator executes the packaged x64 Electron before signing.
+            runner: macos-26-intel
             platform: mac
             target: dmg
             arch: x64
@@ -165,13 +166,6 @@ jobs:
         uses: ./.github/actions/setup-ci-deps
         with:
           install-args: --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
-
-      - name: Ensure Rosetta for macOS x64 bytecode generation
-        if: matrix.platform == 'mac' && matrix.arch == 'x64'
-        run: |
-          if [[ "$(uname -m)" == "arm64" ]] && ! /usr/bin/arch -x86_64 /usr/bin/true; then
-            sudo /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-          fi
 
       - name: Cache resource monitor
         id: resource_monitor_cache

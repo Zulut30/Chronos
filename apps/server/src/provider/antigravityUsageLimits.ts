@@ -44,7 +44,7 @@ const TokenFile = Schema.Struct({
 // antigravity-oauth-token without one or when T3 bypasses the keyring. It stores no OAuth client, so T3 cannot refresh it.
 const CliToken = Schema.Struct({
   // chronos(olympus): the model picker displays the email carried by the active CLI sign-in.
-  id_token_email: Schema.optional(Schema.String),
+  id_token_email: Schema.optional(Schema.Unknown),
   token: Schema.Struct({
     access_token: Schema.NonEmptyString,
     refresh_token: Schema.optional(Schema.String),
@@ -376,7 +376,7 @@ export const makeAntigravityUsageProbe = Effect.fn("makeAntigravityUsageProbe")(
         });
       }
       const { token, id_token_email } = yield* decodeCliToken(stored);
-      olyAccountEmail = id_token_email;
+      olyAccountEmail = typeof id_token_email === "string" ? id_token_email : undefined;
       if (!(Date.parse(token.expiry ?? "") > now + 60_000)) {
         return makeUnavailableUsageLimits({
           checkedAt,

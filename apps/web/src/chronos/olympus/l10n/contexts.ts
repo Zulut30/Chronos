@@ -113,9 +113,13 @@ export function visitStrings(code: string, parse: Parse, visit: (site: Site) => 
           } else parts.push(String(node.value));
           // GT hashes English at call time. Minification renames gt/msg and the JSX T
           // component, but keeps the call argument and component-children shapes.
+          let outer = parents.length - 1;
+          while (outer >= 0 && parents[outer]!.node.type === "ConditionalExpression" &&
+                 parents[outer]!.field !== "test") outer--;
+          const argument = parents[outer];
           const jsx = parents.at(-3);
           const catalogArgument =
-            (parent?.node.type === "CallExpression" && parent.field === "arguments" && parent.index === 0) ||
+            (argument?.node.type === "CallExpression" && argument.field === "arguments" && argument.index === 0) ||
             (property === "children" && jsx?.node.type === "CallExpression" &&
               Array.isArray(jsx.node.arguments) && isNode(jsx.node.arguments[0]) &&
               !["Literal", "TemplateLiteral"].includes(jsx.node.arguments[0].type));

@@ -30,6 +30,18 @@ const packagedEnvironment = DesktopEnvironment.DesktopEnvironment.pipe(
 );
 
 describe("resolveDesktopSshCliRunner", () => {
+  it.effect("uses the upstream archive for a packaged Chronos nightly", () =>
+    Effect.gen(function* () {
+      const environment = yield* packagedEnvironment;
+      // chronos: a fork revision has no archive on the upstream CLI host.
+      const runner = resolveDesktopSshCliRunner(
+        { ...environment, appVersion: "0.1.12-nightly.20261124.5209.chronos.5" },
+        {},
+      );
+      assert.deepStrictEqual(runner, { archiveVersion: "0.1.12-nightly.20261124.5209" });
+    }),
+  );
+
   it.effect("downloads the remote runner from the release mirror", () =>
     Effect.gen(function* () {
       const environment = yield* packagedEnvironment;
