@@ -152,7 +152,15 @@ try {
       assert.equal(text,readFileSync(join(root,id+".txt"),"utf8").trim());
     }
     if(n) await wait("final visible marker",()=>evaluate("uiBench.hasText("+JSON.stringify("MARK_"+ids[0]+"_"+(frames-1)+"_")+")"));
-    const result = {mode,n,rowCount,frames,interval,rendererCount:pids.length,rendererRssMiB:rss/1048576,
+    const olympus = await evaluate(`(() => {
+      const ids = ${JSON.stringify(ids)};
+      const turns = Array.from(globalThis.__olySpeed.turns.values());
+      return {
+        budgets: ids.map(id => globalThis.__olyBudget.total(id,${JSON.stringify(environment)})),
+        speedTurns: ids.filter(id => turns.some(t => t.thread === id && t.status === "completed" && t.usage?.outputTokens === 500)).length,
+      };
+    })()`);
+    const result = {mode,n,rowCount,frames,interval,olympus,rendererCount:pids.length,rendererRssMiB:rss/1048576,
       heapMiB:after.JSHeapUsedSize/1048576,layoutMs:(after.LayoutDuration-before.LayoutDuration)*1000,
       scriptMs:(after.ScriptDuration-before.ScriptDuration)*1000,rendererAgentSubscriptions:ids.filter(id=>detailIds.has(id)).length,
       verifiedHistories:n+2,...sample};

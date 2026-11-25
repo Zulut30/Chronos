@@ -40,7 +40,14 @@ for await (const line of createInterface({ input: process.stdin })) {
       if (!seed) await sleep(Number(interval));
     }
     writeFileSync(join(root, thread + ".txt"), final);
-    result = { stopReason: "end_turn" };
+    if (workload === "code") {
+      send({ method: "session/update", params: { sessionId, update: {
+        sessionUpdate: "usage_update", used: 2500, size: 10000, cost: { amount: 0.42, currency: "USD" },
+      } } });
+    }
+    result = { stopReason: "end_turn", ...(workload === "code" ? {
+      usage: { totalTokens: 3000, inputTokens: 2500, outputTokens: 500 },
+    } : {}) };
   }
   send({ id, result });
 }

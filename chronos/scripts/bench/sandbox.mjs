@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 export function createSandbox(frames, interval, workload = "paragraph", streamingMode = "paragraph") {
   const git = execFileSync("where.exe", ["git.exe"], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
   assert(existsSync(git));
-  const tempRoot = realpathSync(tmpdir());
+  const tempRoot = realpathSync.native(process.env.RUNNER_TEMP || tmpdir());
   const root = mkdtempSync(join(tempRoot, "chronos-bench-"));
   const home = join(root, "home"), userdata = join(home, "userdata"), work = join(root, "workspace");
   const fake = join(root, "user"), temp = join(root, "temp"), profile = join(root, "chrome");
