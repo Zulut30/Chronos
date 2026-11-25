@@ -4,6 +4,15 @@ if ($builds.Count -lt 2 -or ($builds | Where-Object { $_ -notmatch '^\d+$' })) {
   throw 'Expected at least two desktop build IDs'
 }
 $results = Join-Path $env:RUNNER_TEMP 'ui-results'
+if ($env:SUITE -eq 'server') {
+  $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $env:RUNNER_TEMP 'bench-browser'
+  npx.cmd --yes playwright@1.64.1 install chromium-headless-shell
+  if ($LASTEXITCODE) { throw 'Cannot install the pinned benchmark browser' }
+  $shell = @(Get-ChildItem -LiteralPath $env:PLAYWRIGHT_BROWSERS_PATH -Recurse -File |
+    Where-Object Name -in 'chrome-headless-shell.exe','headless_shell.exe')
+  if ($shell.Count -ne 1) { throw "Expected one headless shell, found $($shell.Count)" }
+  $env:BENCH_CHROME = $shell[0].FullName
+}
 foreach ($build in ($builds | Select-Object -Unique)) {
   & "$PSScriptRoot/unpack.ps1" -Run $build -Destination (Join-Path $env:RUNNER_TEMP "ui-package-$build")
 }
