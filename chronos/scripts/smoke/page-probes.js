@@ -402,7 +402,7 @@
         return { ok: true, detail: `navigated to ${spec.to}` };
       }
       if (spec.type === "click") {
-        const nodes = [...document.querySelectorAll(spec.selector)];
+        const nodes = [...document.querySelectorAll(spec.selector)].filter((node) => !spec.text || node.textContent.trim() === spec.text);
         const target = nodes.find(isElementVisible) || nodes[0];
         if (!target) {
           return { ok: Boolean(spec.optional), detail: `click target not found: ${spec.selector}` };
@@ -425,6 +425,32 @@
       return { ok: false, detail: `unknown action type: ${spec.type}` };
     }
 
+    case "limitsSelected":
+      return [...document.querySelectorAll("button[aria-pressed=true], button[data-pressed]")].some(
+        (button) => isElementVisible(button) && button.textContent.trim() === "Лимиты",
+      );
+    case "olympusColors": {
+      const root = document.documentElement;
+      const style = getComputedStyle(root);
+      // Published palettes are normalized to OKLCH. Sample in sRGB to compare rendered colors.
+      const pixel = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+      const token = (name) => {
+        const value = style.getPropertyValue(name).trim();
+        if (!value || !CSS.supports("color", value)) return null;
+        pixel.clearRect(0, 0, 1, 1);
+        pixel.fillStyle = value;
+        pixel.fillRect(0, 0, 1, 1);
+        const [r, g, b] = pixel.getImageData(0, 0, 1, 1).data;
+        return "#" + [r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("");
+      };
+      const code = document.querySelector("[data-message-role=assistant] .chat-markdown :not(pre) > code");
+      return {
+        themeId: root.dataset.themeId, dark: root.classList.contains("dark"),
+        canvas: token("--app-theme-canvas"), card: token("--card"), glass: token("--oly-glass"),
+        inlineBackground: code && getComputedStyle(code).backgroundColor,
+        inlineForeground: code && getComputedStyle(code).color,
+      };
+    }
     case "getThemeState": {
       return {
         dark: document.documentElement.classList.contains("dark"),

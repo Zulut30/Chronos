@@ -35,6 +35,7 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
   --strict-en                Fail if unexpected English phrases are detected
@@ -105,6 +106,8 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--verify-olympus") {
+      opts.verifyOlympus = true;
     } else if (arg === "--verify-chat-settings") {
       opts.verifyChatSettings = true;
     } else if (arg === "--require-provider") {
@@ -883,6 +886,20 @@ async function run() {
         report.chatSettings = { ok: false, error: String(error) };
         report.ok = false;
         console.log("[FAIL] chat settings: " + error);
+      }
+    }
+
+    if (opts.verifyOlympus) {
+      try {
+        const { verifyOlympusScreens } = await import("./olympus-screens.mjs");
+        const screens = await verifyOlympusScreens({
+          client, opts, checks, ready: waitUntilReady, settle: settleScreen, classify: classifyEvents,
+        });
+        report.olympus = { ok: true, screenshots: screens.length };
+      } catch (error) {
+        report.olympus = { ok: false, error: String(error.stack || error) };
+        report.ok = false;
+        console.error("[FAIL] Olympus:", error);
       }
     }
 

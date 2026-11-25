@@ -25,6 +25,8 @@ import * as DesktopBackendManager from "../backend/DesktopBackendManager.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopHomeOwner from "../backend/DesktopHomeOwner.ts";
 import * as DesktopLocalEnvironmentAuth from "../backend/DesktopLocalEnvironmentAuth.ts";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
+import { installOlympusTheme } from "../chronos/OlympusTheme.ts"; // chronos: seed the external theme before the backend reads settings
 import { startChronosServices } from "../chronos/services/ChronosServices.ts"; // chronos: bundled Olympus services
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
 import * as DesktopLegacyLocalStorage from "./DesktopLegacyLocalStorage.ts";
@@ -423,6 +425,13 @@ const startup = Effect.gen(function* () {
     Effect.catchCause((cause) => fatalStartupCause("whenReady", cause)),
   );
   yield* logStartupInfo("app ready");
+  if (environment.isPackaged && isChronosVersion(environment.appVersion)) {
+    const resource = environment.path.join(environment.resourcesPath, "chronos-themes", "olympus.json");
+    yield* Effect.try({
+      try: () => installOlympusTheme(environment.stateDir, resource),
+      catch: (cause) => ({ _tag: "OlympusThemeInstallError" as const, cause }),
+    }).pipe(Effect.catch((error) => Effect.logWarning("Could not install Olympus theme", error)));
+  }
   yield* startChronosServices(environment); // chronos: own sidecars in the desktop lifecycle scope
   if (environment.platform === "linux") {
     const selectedBackend = yield* safeStorage.selectedStorageBackend;
