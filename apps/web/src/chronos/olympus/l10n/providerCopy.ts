@@ -1,7 +1,13 @@
 const effort = new Map([
   ["Low", "Низкий"], ["Medium", "Средний"], ["High", "Высокий"],
-  ["Extra High", "Очень высокий"],
+  ["Extra High", "Очень высокий"], ["Max", "Максимальный"],
 ]);
+
+// A provider detail contains only traits; its first segment can itself be the effort.
+export function effortDetail(label: string, locale: string): string {
+  if (!locale.startsWith("ru")) return label;
+  return label.split(" · ").map((part) => effort.get(part) ?? part).join(" · ");
+}
 
 export function effortLabel(label: string, locale: string): string {
   if (!locale.startsWith("ru")) return label;

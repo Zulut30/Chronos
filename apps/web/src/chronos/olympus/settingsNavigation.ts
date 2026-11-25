@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 const apiKeys = "[data-oly-ik-nav] button";
 const mcp = "[data-oly-mcp-nav] button";
 const prompts = "[data-oly-ps-nav-button]";
-const sections = `[data-settings-section], ${apiKeys}, ${mcp}, ${prompts}`;
+export const settingsSectionButtons = `[data-settings-section], ${apiKeys}, ${mcp}, ${prompts}`;
 
 function visiblePanelButton(nav: HTMLElement) {
   const layout = nav.parentElement;
@@ -23,7 +23,7 @@ export function useOlympusSettingsNav(activePath: string) {
     if (!nav) return;
 
     function selectSection(event: MouseEvent) {
-      const button = event.target instanceof Element && event.target.closest(sections);
+      const button = event.target instanceof Element && event.target.closest(settingsSectionButtons);
       if (!button) return;
       if (!button.matches(apiKeys)) globalThis.__olyIntegrations?.close();
       if (!button.matches(mcp)) globalThis.__olyMcpManager?.close();
@@ -31,7 +31,7 @@ export function useOlympusSettingsNav(activePath: string) {
 
     const syncSelection = () => {
       const panel = visiblePanelButton(nav);
-      for (const button of nav.querySelectorAll<HTMLElement>(sections)) {
+      for (const button of nav.querySelectorAll<HTMLElement>(settingsSectionButtons)) {
         const active = panel
           ? button.matches(panel)
           : button.dataset.settingsSection === activePath;
