@@ -147,6 +147,19 @@ T3). Оставлены только workflow Chronos:
 - macOS: неподписанные сборки не могут обновляться через Squirrel.Mac — «Скачать» открывает
   страницу последнего релиза Chronos в браузере.
 
+## Настройки чата Olympus
+
+В **Настройки → Внешний вид → Интерфейс** можно включить цветной текст, скачивание и дополнительные функции чата. [Опись модулей, зависимостей и параметров](parity/chat-settings.md) содержит ключи, исходные значения и время применения.
+
+| Точка встраивания | Назначение |
+| --- | --- |
+| `apps/web/src/components/settings/AppearanceSettingsPanel.tsx` | Основные строки и группа внутри «Дополнительно». |
+| `apps/web/src/components/settings/settingsSearch.ts` | Поиск строк и раскрытие «Дополнительно» при переходе. |
+| `apps/web/src/i18n/translations/*.json` | Строки штатного GT-каталога и русский перевод. |
+| `apps/web/src/chronos/olympus/plugin.ts` | Общий снимок флагов для пролога, Pierre и Markdown в сборке и dev. |
+| `packages/shared/src/markdownPipeline.ts`, `packages/shared/src/markdownHast.ts` | Существующие точки подключения получают пустой экспорт плагина при отключении цвета. |
+| `apps/web/src/components/ChatView.tsx`, `components/chat/{useComposerSend,useComposerResume,useThreadLifecycle}` | Существующие точки отправки получают исходный interactionMode через резервную функцию при отключении дополнительных режимов. |
+
 ## Точки встраивания слоя упаковки в код апстрима
 
 Все правки упаковки в файлах апстрима помечены комментарием `chronos:` (`git grep -n "chronos:"`).

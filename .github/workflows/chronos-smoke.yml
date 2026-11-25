@@ -11,6 +11,11 @@ on:
         description: "Run ID of chronos-desktop.yml that produced the chronos-win-x64 artifact"
         required: true
         type: string
+      require_provider:
+        description: "Provision an offline Codex CLI and require all composer checks"
+        required: false
+        type: boolean
+        default: false
       require_services:
         description: "Fail when the bundled Olympus services do not answer (builds that ship chronos-services)"
         required: false
@@ -93,11 +98,31 @@ jobs:
           Write-Host "Installed Chronos executable: $exe"
           "CHRONOS_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Prepare an offline composer provider for the full UI suite
+        if: inputs.require_provider
+        shell: pwsh
+        run: |
+          npm install --global @openai/codex@0.172.0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $providerHome = Join-Path $env:RUNNER_TEMP 'smoke-codex'
+          New-Item -ItemType Directory -Force -Path $providerHome | Out-Null
+          # The smoke only opens the model picker. No turns or API credentials are needed.
+          @(
+            'model_provider = "local-smoke"',
+            '[model_providers.local-smoke]',
+            'name = "Local smoke"',
+            'base_url = "http://127.0.0.1:1/v1"',
+            'wire_api = "responses"',
+            'requires_openai_auth = false'
+          ) | Set-Content -Encoding utf8NoBOM -LiteralPath (Join-Path $providerHome 'config.toml')
+          "CODEX_HOME=$providerHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Run functional smoke suite
         shell: pwsh
         env:
           T3CODE_DISABLE_AUTO_UPDATE: "1"
           CHRONOS_HOME: ${{ runner.temp }}\chronos-home
+          REQUIRE_PROVIDER: ${{ inputs.require_provider }}
           REQUIRE_SERVICES: ${{ inputs.require_services }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -115,6 +140,7 @@ jobs:
             '--no-screenshots',
             '--out', $outDir
           )
+          if ($env:REQUIRE_PROVIDER -eq 'true') { $smokeArgs += '--require-provider' }
           if ($env:REQUIRE_SERVICES -ne 'true') { $smokeArgs += '--allow-offline-services' }
           node chronos/scripts/smoke/smoke.mjs @smokeArgs
           $exitCode = $LASTEXITCODE

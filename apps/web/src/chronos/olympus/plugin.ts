@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite-plus";
+import { assemblePrologue, standaloneFeature } from "./featureAssets.ts";
 
 // 93-chat-panels constructs absolute URLs at runtime, including in unbundled dev.
 const panelShims = new Map([
@@ -14,7 +15,6 @@ const panelShims = new Map([
 ]);
 
 const richFile = "88-rich-markdown.chat.js";
-const richExports = "\nexport const richMarkdown = {pre: __olyRichPre, post: __olyRichPost};\n";
 const rawPrefix = "chronos-olympus:";
 const normalize = (id: string) => id.replaceAll("\\", "/");
 
@@ -38,19 +38,10 @@ export function olympusFeatures(): Plugin {
       };
       // The release prepended these files with occasional extra line feeds. Keep both
       // the execution order and those separators in the source prologue's import list.
-      const imports = read("prologue.ts").trimEnd().split(/\r?\n/);
-      const main = imports
-        .map((line) => {
-          if (line.trim() === "") return "\n";
-          const feature = /^import "(\.\/features\/[\w.-]+\.js)";$/.exec(line)?.[1];
-          if (!feature) throw new Error("Unexpected Olympus prologue line: " + line);
-          return read(feature);
-        })
-        .join("");
       const sources = [
-        ["main", main],
-        ["pierre", read("features/15-lang-icons.js")],
-        ["markdown", read("features/" + richFile) + richExports],
+        ["main", assemblePrologue(read("prologue.ts"), read)],
+        ["pierre", standaloneFeature("15-lang-icons.js", read("features/15-lang-icons.js"))],
+        ["markdown", standaloneFeature(richFile, read("features/" + richFile))],
       ] as const;
       for (const [key, source] of sources) {
         // An ESM asset stays outside both the JS compiler and the post-build translator.
@@ -99,9 +90,11 @@ export function olympusFeatures(): Plugin {
       }
     },
     transform(code, id) {
-      if (!bundled && normalize(id).endsWith("/chronos/olympus/features/" + richFile)) {
-        return { code: code + richExports, map: null };
-      }
+      if (bundled) return;
+      const file = /\/chronos\/olympus\/features\/([\w.-]+\.js)$/.exec(normalize(id))?.[1];
+      if (!file) return;
+      const wrapped = standaloneFeature(file, code);
+      if (wrapped !== code) return { code: wrapped, map: null };
     },
     outputOptions(options) {
       if (!bundled) return;

@@ -35,6 +35,7 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --require-provider         Run provider-dependent assertions on a clean CI profile
   --strict-en                Fail if unexpected English phrases are detected
   -h, --help                 Show this help message`);
 }
@@ -52,6 +53,7 @@ function parseArgs(argv) {
     screenshots: true,
     allowOfflineServices: false,
     strictEn: false,
+    requireProvider: false,
     profile: "full",
   };
 
@@ -101,6 +103,8 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--require-provider") {
+      opts.requireProvider = true;
     } else if (arg === "--strict-en") {
       opts.strictEn = true;
     } else {
@@ -425,7 +429,7 @@ async function run() {
   const opts = parseArgs(process.argv.slice(2));
   const checks = JSON.parse(readFileSync(opts.checksPath, "utf8"));
   function skipReason(requires) {
-    if (requires === "provider" && opts.profile === "clean") return "No agent provider assumed in clean profile";
+    if (requires === "provider" && opts.profile === "clean" && !opts.requireProvider) return "No agent provider assumed in clean profile";
     if (requires === "services" && opts.allowOfflineServices) return "Local Olympus services optional (--allow-offline-services)";
     return null;
   }

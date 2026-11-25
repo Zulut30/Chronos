@@ -151,7 +151,9 @@
       "expect": [
         { "text": "Цветовая схема", "label": "Пункт «Цветовая схема»" },
         { "text": "Темы", "label": "Секция «Темы»" },
-        { "text": "Типографика", "label": "Секция «Типографика»" }
+        { "text": "Типографика", "label": "Секция «Типографика»" },
+        { "selector": "#olympus-88-rich-text [role=switch][aria-checked=true][aria-label='Цветной текст в чате']", "label": "Цветной текст включён" },
+        { "selector": "#olympus-40-files [role=switch][aria-checked=true][aria-label='Скачивание файлов и папок']", "label": "Скачивание включено" }
       ],
       "allowedEnglish": [
         "T3 Code",

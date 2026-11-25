@@ -58,6 +58,8 @@ export function olympusL10n(): Plugin {
         let runtimeHosts = 0;
         for (const chunk of Object.values(bundle)) {
           if (chunk.type === "asset" && !chunk.fileName.endsWith(".js")) continue;
+          // The extracted Olympus assets are already localized and must retain their original bytes.
+          if (chunk.type === "asset" && /^assets\/olympus-(main|markdown|pierre)-[0-9a-f]+\.js$/.test(chunk.fileName)) continue;
           // Catalogs contain IDs and rich message arrays in every language. The Russian
           // JSON has already been processed by olympusCatalog before bundling.
           if (chunk.type === "chunk" && chunk.moduleIds.length > 0 &&

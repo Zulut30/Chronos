@@ -1,3 +1,4 @@
+import { olympusSearchItems } from "../../chronos/olympus/chatSettingsCatalog";
 import { HOSTED_APP_CHANNEL } from "~/branding";
 import { isElectron } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
@@ -252,7 +253,9 @@ const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
   .flatMap((definition) => [definition.label, ...(definition.searchKeywords ?? [])])
   .join(" ");
 
+// chronos: include the Olympus controls in native settings search.
 export const SETTINGS_SEARCH_ITEMS = [
+  ...olympusSearchItems,
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
