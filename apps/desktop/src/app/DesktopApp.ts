@@ -426,9 +426,11 @@ const startup = Effect.gen(function* () {
   );
   yield* logStartupInfo("app ready");
   if (environment.isPackaged && isChronosVersion(environment.appVersion)) {
-    yield* Effect.try(() =>
-      installOlympusTheme(environment.stateDir, environment.path.join(environment.resourcesPath, "chronos-themes", "olympus.json")),
-    ).pipe(Effect.catch((error) => Effect.logWarning("Could not install Olympus theme", error)));
+    const resource = environment.path.join(environment.resourcesPath, "chronos-themes", "olympus.json");
+    yield* Effect.try({
+      try: () => installOlympusTheme(environment.stateDir, resource),
+      catch: (cause) => ({ _tag: "OlympusThemeInstallError" as const, cause }),
+    }).pipe(Effect.catch((error) => Effect.logWarning("Could not install Olympus theme", error)));
   }
   yield* startChronosServices(environment); // chronos: own sidecars in the desktop lifecycle scope
   if (environment.platform === "linux") {
