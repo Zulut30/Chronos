@@ -113,9 +113,8 @@ export function KeyboardPanel() {
       if (op === "save") notice("Назначения сохранены.");
     } catch (err) {
       report(err);
-    } finally {
-      lock(false);
     }
+    lock(false);
   }
   function selectSlot(next: string) {
     if (s?.learning) void run("cancel");

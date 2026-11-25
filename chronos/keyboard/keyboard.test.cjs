@@ -76,6 +76,15 @@ test("only learned inputs dispatch, OS grants include the action target and nati
   assert.equal(model.mapped(p, signal, grants), null);
   assert.equal(model.mapped(p, other, grants), null);
 });
+test("every catalog action maps a learned key with its parameters and required grant", () => {
+  for (const id of Object.keys(model.actions)) {
+    const arg = {draft:"Claude", url:"https://example.com/", program:"C:\\Tools\\player.exe"}[id];
+    const action = model.action(arg ? {id, arg} : {id});
+    const p = model.profile({...model.initial(), bindings: {key5: {signal, action}}});
+    if (model.osAction(id)) assert.equal(model.mapped(p,signal,[]),null,id);
+    assert.deepEqual(model.mapped(p,signal,[model.grantKey(p,"key5",action)]),action,id);
+  }
+});
 test("child lifetime follows switch, selected path, focus and removal; stale output is ignored", () => {
   const children = [],
     signals = [];
