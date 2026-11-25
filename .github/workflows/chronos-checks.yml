@@ -85,6 +85,13 @@ jobs:
         working-directory: apps/web
         run: vp test run --project unit
 
+      - name: Backported thread navigation browser regressions
+        if: inputs.ui_builds != ''
+        working-directory: apps/web
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed'
+
       - name: Trello card link recognition
         working-directory: packages/client-runtime
         run: vp test run src/issueLinks.test.ts
