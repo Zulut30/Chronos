@@ -41,10 +41,27 @@ async function inhibitor(native) {
   const readyMs=performance.now()-t;
   if(native) assert.equal(line,"held");
   const sample=footprint([child]);
+  const consoleCount=Number(execFileSync(ps,["-NoProfile","-Command",
+    `@(Get-CimInstance Win32_Process -Filter "Name='conhost.exe' AND ParentProcessId=${child.pid}").Count`],
+    {encoding:"utf8",windowsHide:true}).trim());
+  if(native) assert.equal(consoleCount,0);
+
   if(native) child.stdin.end(); else child.kill();
   const [code]=await exited;
   if(native) assert.equal(code,0);
-  console.log(JSON.stringify({native,readyMs,...sample}));
+  console.log(JSON.stringify({native,readyMs,consoleCount,...sample}));
+}
+async function parentExit() {
+  const script = `const child=require("node:child_process").spawn(process.argv[1],["--chronos-keep-awake"],
+    {windowsHide:true,stdio:["pipe","pipe","pipe"]});
+    child.stdout.once("data",()=>process.send(child.pid,()=>process.exit(0)));`;
+  const parent=start(process.execPath,["-e",script,target],true);
+  const exited=once(parent,"exit");
+  const [pid]=await once(parent,"message",{signal:AbortSignal.timeout(10000)});
+  assert.equal((await exited)[0],0);
+  const live=()=>{try{process.kill(pid,0);return true}catch(e){if(e.code==="ESRCH")return false;throw e}};
+  for(let i=0;i<100&&live();i++) await new Promise(resolve=>setTimeout(resolve,50));
+  assert.equal(live(),false,"native hold survived its owner");
 }
 async function snapshot(lazy) {
   const exe=path.resolve(target,"Chronos.exe"), dir=path.resolve(target,"resources/app.asar/apps/desktop/dist-electron/snapShot");
@@ -75,6 +92,7 @@ async function snapshot(lazy) {
   console.log(JSON.stringify({lazy,...baseline,readyMs,requestToReadyMs}));
 }
 try {
+  if(mode==="inhibitor") await parentExit();
   for(const b of [false,true,true,false,false,true]) {
     if(mode==="inhibitor") await inhibitor(b);
     else if(mode==="snapshot") await snapshot(b);
