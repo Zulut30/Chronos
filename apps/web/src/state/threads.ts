@@ -12,11 +12,10 @@ import {
   createThreadEnvironmentAtoms,
   createThreadFamilyAtoms,
 } from "@t3tools/client-runtime/state/threads";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, OrchestrationV2ThreadShell, ThreadId } from "@t3tools/contracts";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
 
-import { selectBackgroundDetails, type BackgroundThreadShell } from "~/chronos/perf/backgroundDetails";
 import { environmentCatalog } from "../connection/catalog";
 import { connectionAtomRuntime } from "../connection/runtime";
 import { serverEnvironment } from "./server";
@@ -86,7 +85,7 @@ export function createRunningThreadKeepAliveAtom<E>(input: {
   readonly environmentIdsAtom: Atom.Atom<ReadonlyArray<EnvironmentId>>;
   readonly threadsAtom: (
     environmentId: EnvironmentId,
-  ) => Atom.Atom<ReadonlyArray<BackgroundThreadShell>>;
+  ) => Atom.Atom<ReadonlyArray<Pick<OrchestrationV2ThreadShell, "id" | "status">>>;
   readonly stateAtom: (
     environmentId: EnvironmentId,
     threadId: ThreadId,
@@ -95,7 +94,9 @@ export function createRunningThreadKeepAliveAtom<E>(input: {
   const runningThreadIdsAtom = Atom.family((environmentId: EnvironmentId) => {
     let previous: ReadonlyArray<ThreadId> = [];
     return Atom.make((get) => {
-      const running = selectBackgroundDetails(get(input.threadsAtom(environmentId)), previous, isRunning);
+      const running = get(input.threadsAtom(environmentId)).flatMap((thread) =>
+        isRunning(thread.status) ? [thread.id] : [],
+      );
       if (arrayElementsEqual(previous, running)) return previous;
       previous = running;
       return running;
