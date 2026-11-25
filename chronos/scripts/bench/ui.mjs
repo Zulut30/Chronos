@@ -356,6 +356,7 @@ async function benchmark() {
     let concurrentApproval;
     if (n && mode === "desktop") {
       const busy = ids.filter((id) => !existsSync(join(root, id + ".txt"))).length;
+      if (rows === 1000) assert.equal(busy, n, "Large-sidebar RSS requires all agents still streaming");
       assert(busy >= 4, "Need at least four busy background agents for the approval check");
       const { verifyApproval } = await import("./ui-history.mjs");
       concurrentApproval = { busy, ...(await verifyApproval({ rpc, evaluate, wait, launch })) };
@@ -459,6 +460,24 @@ async function benchmark() {
           below125ms: gaps.filter((t) => t < 125).length,
         }
       : null;
+    let tooltipVerified;
+    if (rows === 1000 && n === 16) {
+      const selector = '[data-thread-item$="' + targets[1] + '"] [data-sidebar-row]';
+      await page("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+      await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: "center", behavior: "instant" })`);
+      const point = await wait("visible hover target", () => evaluate(`(() => {
+        const row = document.querySelector(${JSON.stringify(selector)});
+        const box = row.getBoundingClientRect();
+        const x = box.left + 12, y = box.top + box.height / 2;
+        return row.contains(document.elementFromPoint(x, y)) && { x, y };
+      })()`));
+      await page("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
+      await wait("thread details after revealing its row", () => evaluate(`
+        [...document.querySelectorAll("[data-slot=tooltip-popup]")].some(popup =>
+          popup.getClientRects().length && popup.textContent.includes(${JSON.stringify("Bench " + targets[1])}))
+      `), 6000);
+      tooltipVerified = true;
+    }
     const result = {
       mode,
       n,
@@ -471,6 +490,7 @@ async function benchmark() {
       history,
       cadence,
       concurrentApproval,
+      tooltipVerified,
       rendererCount: pids.length,
       rendererRssMiB: rss / 1048576,
       heapMiB: after.JSHeapUsedSize / 1048576,

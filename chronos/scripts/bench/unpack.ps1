@@ -13,8 +13,17 @@ do {
   }
   Start-Sleep -Seconds 20
 } while ($true)
-gh run download $Run -R $env:GITHUB_REPOSITORY -n chronos-win-x64 -D $Destination
-if ($LASTEXITCODE) { throw 'Desktop artifact download failed' }
+foreach ($attempt in 1..4) {
+  $download = gh run download $Run -R $env:GITHUB_REPOSITORY -n chronos-win-x64 -D $Destination 2>&1
+  if ($LASTEXITCODE -eq 0) { break }
+  # Azure can throttle a large artifact temporarily. gh errors can contain a signed blob URL.
+  $reason = ($download -join ' ') -replace 'https?://\S+', '[URL]'
+  if ($attempt -eq 4 -or $reason -notmatch 'HTTP (429|5\d\d)|timeout|connection reset|unexpected EOF') {
+    throw "Desktop artifact $Run download failed: $reason"
+  }
+  Write-Warning "Temporary download failure for $Run (attempt $attempt): $reason"
+  Start-Sleep -Seconds (15 * $attempt)
+}
 $sevenZip = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
 $installer = @(Get-ChildItem -LiteralPath $Destination -File -Filter '*.exe')
 if ($installer.Count -ne 1) { throw 'Expected one Windows installer' }
