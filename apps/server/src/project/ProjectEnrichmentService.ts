@@ -269,13 +269,9 @@ export const make = Effect.fn("ProjectEnrichmentService.make")(function* (
   // peek/request/getAvailable run per project on every shell read, inside the caller's span; own spans were ~0ms noise.
   const peek: ProjectEnrichmentService["Service"]["peek"] = Effect.fnUntraced(
     function* (workspaceRoot) {
-      const [repositoryIdentity, faviconPath] = yield* Effect.all(
-        [
-          Cache.getSuccess(repositoryIdentityCache, workspaceRoot),
-          Cache.getSuccess(faviconCache, workspaceRoot),
-        ] as const,
-        { concurrency: "unbounded" },
-      );
+      // Both probes only inspect an existing cache entry; neither starts or waits for a lookup.
+      const repositoryIdentity = yield* Cache.getSuccess(repositoryIdentityCache, workspaceRoot);
+      const faviconPath = yield* Cache.getSuccess(faviconCache, workspaceRoot);
       const repositoryIdentityResolved = isSuccessfullyResolved(repositoryIdentity);
       return {
         repositoryIdentity: repositoryIdentityResolved
@@ -289,10 +285,9 @@ export const make = Effect.fn("ProjectEnrichmentService.make")(function* (
 
   const request: ProjectEnrichmentService["Service"]["request"] = Effect.fnUntraced(
     function* (workspaceRoot) {
-      const [hasRepositoryIdentity, hasFaviconPath] = yield* Effect.all(
-        [Cache.has(repositoryIdentityCache, workspaceRoot), Cache.has(faviconCache, workspaceRoot)],
-        { concurrency: "unbounded" },
-      );
+      const hasRepositoryIdentity = yield* Cache.has(repositoryIdentityCache, workspaceRoot);
+      const hasFaviconPath = yield* Cache.has(faviconCache, workspaceRoot);
+      if (hasRepositoryIdentity && hasFaviconPath) return;
       yield* Effect.all(
         [
           hasRepositoryIdentity

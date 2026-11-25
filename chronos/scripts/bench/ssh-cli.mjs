@@ -56,14 +56,18 @@ async function exercise(version, exe = path.join(home,".t3/runtime/versions",ver
     const logs=path.join(userdata,"logs");
     await delay(1300);const before=sample(child.pid), bytes=traceSize(logs), t=performance.now();
     for(let i=0;i<80;i++) await mutate({type:"project.update",title:"Bench "+i});
-    const elapsedMs=performance.now()-t;await delay(1300);
+    const elapsedMs=performance.now()-t;
+    const active=sample(child.pid);
+    await delay(1300);
     const after=sample(child.pid);
     const db=new DatabaseSync(path.join(userdata,"statev2.sqlite"),{readOnly:true});
     try {
       const {title}=db.prepare("SELECT title FROM projection_projects WHERE project_id=?").get(id);
       assert.equal(title,"Bench 79");
     } finally {db.close()}
-    const result={version,updates:80,elapsedMs,cpuMs:after.cpuMs-before.cpuMs,rssMiB:after.rssMiB,traceBytes:traceSize(logs)-bytes};
+    const result = { version, updates: 80, elapsedMs, cpuMs: after.cpuMs - before.cpuMs,
+      activeCpuMs: active.cpuMs - before.cpuMs, drainCpuMs: after.cpuMs - active.cpuMs,
+      rssMiB: after.rssMiB, traceBytes: traceSize(logs) - bytes };
     runs.push(result);console.log(JSON.stringify(result));
   } finally {
     if(child.exitCode===null) child.kill("SIGTERM");
