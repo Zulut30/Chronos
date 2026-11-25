@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Студия</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231952C5' stroke-width='2'%3E%3Cpath d='M3 5h18v12H3z'/%3E%3Cpath d='M8 21h8M12 17v4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/hub.css">
+<script>
+/* Theme: T3 passes it in the URL hash (theme=dark|light, olympus=1, T3 colour tokens) and may update it later by postMessage.
+   Without a hash (page opened directly) the system colour scheme is used. Olympus is also recognised by its canvas colour. */
+(()=>{const r=document.documentElement,mq=matchMedia('(prefers-color-scheme: dark)'),KEYS=['bg','fg','muted','border','panel','accent','primary','primary-fg','radius'];
+ function apply(hash){const q=new URLSearchParams(hash||''),t=q.get('theme'),bg=(q.get('bg')||'').toLowerCase().replace(/\s+/g,'');
+  r.classList.toggle('dark',t?t==='dark':mq.matches);
+  const oly=q.get('olympus')==='1'||/^(#f3efe6|#081530|rgb\(243,239,230\)|rgb\(8,21,48\))$/.test(bg);r.classList.toggle('olympus',oly);
+  for(const k of KEYS){const v=q.get(k);if(v&&!oly)r.style.setProperty('--t3-'+k,v);else r.style.removeProperty('--t3-'+k)}
+  r.dataset.themeFrom=t?'t3':'system'}
+ const h=location.hash.slice(1);if(new URLSearchParams(h).get('embedded'))r.classList.add('embedded');apply(h);
+ mq.addEventListener?.('change',()=>{if(r.dataset.themeFrom==='system')apply(location.hash.slice(1))});
+ window.__olyApplyTheme=apply})();
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Студия</h1>
+    <div class="tabs" role="tablist" aria-label="Разделы студии">
+      <button class="tab" role="tab" id="tab-boards" aria-controls="view" data-tab="boards" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="15" rx="2"/><path d="m7 15 3.5-4 3 3 2-2.5L18 15"/></svg>Доски<span class="count" id="n-boards" hidden></span></button>
+    </div>
+    <div class="tools" id="tools"></div>
+  </header>
+  <main id="view" role="tabpanel" aria-labelledby="tab-boards"></main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const qs=new URLSearchParams(location.search);
+const CWD=qs.get('cwd')||'';
+const H={'x-oly':'1','content-type':'application/json'};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=async(p,body)=>{const r=await fetch(p,body?{method:'POST',headers:H,body:JSON.stringify(body)}:{cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||r.statusText);return j};
+const sv=(d,fill)=>'<svg viewBox="0 0 24 24" '+(fill?'fill="currentColor"':'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"')+' aria-hidden="true">'+d+'</svg>';
+const IC={
+ board:sv('<rect x="3" y="4" width="18" height="15" rx="2"/><path d="m7 15 3.5-4 3 3 2-2.5L18 15"/>'),
+ pencil:sv('<path d="M17 3l4 4L7 21H3v-4z"/>'),
+ trash:sv('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+ plus:sv('<path d="M12 5v14M5 12h14"/>'),
+ folder:sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+ folderPlus:sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10.5v5M9.5 13h5"/>'),
+ play:sv('<path d="M7 4v16l13-8z"/>',1),
+ stop:sv('<rect x="6" y="6" width="12" height="12" rx="1.5"/>',1),
+ ext:sv('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
+ send:sv('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>'),
+ log:sv('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+ chev:sv('<path d="m6 9 6 6 6-6"/>'),
+ right:sv('<path d="m9 6 6 6-6 6"/>'),
+ search:sv('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+ spin:sv('<path d="M21 12a9 9 0 1 1-6.2-8.6"/>'),
+ project:sv('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+ warn:sv('<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>'),
+ sketch:sv('<path d="M4 18c3-5 5-9 8-9s2 6 5 6 3-3 3-3"/><circle cx="6" cy="7" r="2"/>'),
+};
+function toast(m,err){const d=document.createElement('div');if(err)d.className='err';d.textContent=m;$('#toast').appendChild(d);setTimeout(()=>d.remove(),err?7000:3200)}
+const fmtFull=t=>new Date(t).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+function ago(t){const s=(Date.now()-t)/1000;if(!(s>=0))return fmtFull(t);if(s<60)return 'только что';if(s<3600)return Math.floor(s/60)+' мин назад';if(s<86400)return Math.floor(s/3600)+' ч назад';
+ const d=new Date(t),y=new Date();y.setHours(0,0,0,0);if(t>=y-864e5)return 'вчера';if(s<7*86400)return Math.ceil(s/86400)+' дн. назад';
+ return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',...(d.getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{})})}
+const plural=(n,a,b,c)=>{const m=n%10,h=n%100;return n+' '+(m===1&&h!==11?a:m>=2&&m<=4&&(h<12||h>14)?b:c)};
+let viewSeq=0;let TAB='boards',LOCS=[],LOC=null,FILTER='';
+const PARENT_ORIGIN=new URLSearchParams(location.hash.slice(1)).get('parent-origin')||location.origin;
+function openBoard(p){if(document.documentElement.classList.contains('embedded')&&parent!==window)parent.postMessage({type:'oly-studio-board',path:p},PARENT_ORIGIN);else location.href=boardHref(p)}
+const boardHref=p=>'/board?path='+encodeURIComponent(p)+location.hash;
+/* T3 tells an open hub that its theme changed (day/night switch) */
+addEventListener('message',e=>{if(e.origin!==PARENT_ORIGIN||e.source!==parent||e.data?.type!=='oly-studio-theme'||typeof e.data.hash!=='string')return;
+ const q=new URLSearchParams(location.hash.slice(1));for(const[k,v]of new URLSearchParams(e.data.hash.replace(/^#/,'')))q.set(k,v);
+ history.replaceState(history.state,'',location.pathname+location.search+'#'+q);__olyApplyTheme(q.toString())});
+
+/* small in-page form dialog (no browser prompt/confirm) */
+function ask(title,description,fields=[],submit='Сохранить',opt={}){return new Promise(resolve=>{
+ const dialog=document.createElement('dialog');dialog.className='studio-form-dialog';
+ dialog.innerHTML='<form><h2>'+esc(title)+'</h2>'+(description?'<p>'+esc(description)+'</p>':'')+fields.map(f=>'<label class="f">'+esc(f.label)+'<input class="input" name="'+esc(f.name)+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.placeholder||'')+'" required autocomplete="off" spellcheck="false"></label>').join('')+'<footer><button class="btn" type="button">Отмена</button><button class="btn '+(opt.danger?'solid-danger':'primary')+'" type="submit">'+esc(submit)+'</button></footer></form>';
+ document.body.append(dialog);let done=false;const finish=value=>{if(done)return;done=true;dialog.close();dialog.remove();resolve(value)};
+ dialog.querySelector('button[type=button]').onclick=()=>finish(null);dialog.oncancel=e=>{e.preventDefault();finish(null)};
+ dialog.onclick=e=>{if(e.target===dialog)finish(null)};
+ dialog.querySelector('form').onsubmit=e=>{e.preventDefault();finish(Object.fromEntries(new FormData(e.target)))};
+ dialog.showModal();const inp=dialog.querySelector('input');if(inp){inp.focus();inp.select()}else dialog.querySelector('[type=submit]').focus()
+})}
+function setTab(t){TAB=t;document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1});
+ $('#view').setAttribute('aria-labelledby','tab-'+t);
+ const u=new URL(location.href);u.searchParams.set('tab',t);history.replaceState(null,'',u);render()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{if(b.dataset.tab!==TAB)setTab(b.dataset.tab)});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]')&&document.documentElement.classList.contains('embedded')&&parent!==window){e.preventDefault();parent.postMessage({type:'oly-studio-close'},PARENT_ORIGIN)}});
+function count(id,n){const el=$(id);el.hidden=!(n>0);el.textContent=n>0?n:''}
+const locLabel=l=>l.kind==='project'?l.title:l.kind==='server'?'Папка студии':l.title;
+const shortDir=d=>{const p=String(d||'').split(/[\\/]/).filter(Boolean);return p.length>2?'…\\'+p.slice(-2).join('\\'):p.join('\\')};
+const dirLabel=d=>{const l=LOCS.find(x=>x.dir.toLowerCase()===String(d||'').toLowerCase());return l?locLabel(l):shortDir(d)};
+const emptyBox=(icon,title,text,btn)=>`<div class="empty">${icon?`<span class="tile">${icon}</span>`:''}<b>${esc(title)}</b>${text?`<p>${text}</p>`:''}${btn||''}</div>`;
+const skeleton=n=>Array.from({length:n},()=>'<div class="skel" aria-hidden="true"><i></i><span style="flex:1;display:grid;gap:7px"><i style="width:42%"></i><i style="width:24%"></i></span></div>').join('');
+const cardSkeleton=n=>'<div class="cards">'+Array.from({length:n},()=>'<div class="card skel" aria-hidden="true"><div class="thumb"></div><div class="cap"><i style="width:55%"></i><i style="width:35%"></i></div></div>').join('')+'</div>';
+
+async function load(){
+ const v=$('#view');v.innerHTML=cardSkeleton(3);
+ try{const j=await api('/api/locations?cwd='+encodeURIComponent(CWD));LOCS=j.locations}
+ catch(e){$('#tools').innerHTML='';v.innerHTML=emptyBox(IC.warn,'Студия не отвечает','Сервис студии на этом компьютере не запущен или ещё стартует. '+esc(e.message),'<button class="btn primary" id="retry">Повторить</button>');$('#retry').onclick=load;return}
+ const saved=sessionStorage.getItem('oly-studio-loc');
+ LOC=LOCS.find(l=>l.id===saved)||LOCS.find(l=>l.current)||LOCS[0];
+ setTab(TAB);
+}
+async function render(){ return renderBoards() }
+
+// ---------- board thumbnails (drawn locally from the .excalidraw JSON) ----------
+const THUMBS=new Map();let thumbIO=null;
+const FONT={1:'"Segoe Print","Comic Sans MS",cursive',2:'Helvetica,Arial,sans-serif',3:'"Cascadia Code",Consolas,monospace',5:'"Segoe Print","Comic Sans MS",cursive',6:'Nunito,"Segoe UI",sans-serif',7:'"Comic Shanns","Cascadia Code",monospace',8:'"Liberation Sans",Arial,sans-serif'};
+function thumbSvg(doc){
+ const els=(Array.isArray(doc?.elements)?doc.elements:[]).filter(e=>e&&!e.isDeleted&&typeof e.x==='number'&&typeof e.y==='number');
+ if(!els.length)return '';
+ const lines=t=>String(t??'').split('\n');
+ const textBox=e=>{const fs=e.fontSize||20,L=lines(e.text);return{w:e.width||Math.max(...L.map(l=>l.length))*fs*.55,h:e.height||L.length*fs*1.25}};
+ let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;const grow=(a,b,c,d)=>{x0=Math.min(x0,a,c);y0=Math.min(y0,b,d);x1=Math.max(x1,a,c);y1=Math.max(y1,b,d)};
+ const pts=e=>Array.isArray(e.points)&&e.points.length?e.points:[[0,0],[e.width||0,e.height||0]];
+ for(const e of els){if(['line','arrow','freedraw'].includes(e.type)){for(const[p,q]of pts(e))grow(e.x+p,e.y+q,e.x+p,e.y+q)}else if(e.type==='text'){const b=textBox(e);grow(e.x,e.y,e.x+b.w,e.y+b.h)}else grow(e.x,e.y,e.x+(e.width||0),e.y+(e.height||0))}
+ if(!isFinite(x0))return '';
+ let w=Math.max(x1-x0,40),h=Math.max(y1-y0,40);const pad=Math.max(w,h)*.05+10;x0-=pad;y0-=pad;w+=pad*2;h+=pad*2;
+ const ratio=16/10;if(w/h<ratio){const nw=h*ratio;x0-=(nw-w)/2;w=nw}else{const nh=w/ratio;y0-=(nh-h)/2;h=nh}
+ const bg=/^#[0-9a-f]{3,8}$/i.test(doc?.appState?.viewBackgroundColor||'')?doc.appState.viewBackgroundColor:'#ffffff';
+ const col=c=>typeof c==='string'&&/^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d.,\s%]+\))$/i.test(c)?c:null;
+ const sw=e=>Math.min(2.6,Math.max(1,(e.strokeWidth||2)*.6)).toFixed(2);
+ let out='';
+ const textEl=(t,x,y,fs,ff,anchor,fill,valign,boxH)=>{const L=lines(t),lh=fs*1.25;let ty=valign==='middle'?y+(boxH-L.length*lh)/2:y;
+  return `<text x="${x.toFixed(1)}" font-size="${fs}" font-family='${FONT[ff]||FONT[1]}' text-anchor="${anchor}" fill="${fill}">${L.map((l,i)=>`<tspan x="${x.toFixed(1)}" y="${(ty+fs*.95+i*lh).toFixed(1)}">${esc(l)}</tspan>`).join('')}</text>`};
+ for(const e of els){const stroke=col(e.strokeColor)||'#1e1e1e',fillC=col(e.backgroundColor),fill=fillC&&fillC!=='transparent'?fillC:'none';
+  const op=typeof e.opacity==='number'?Math.max(.1,e.opacity/100):1,ex=e.x,ey=e.y,ew=e.width||0,eh=e.height||0;
+  const fo=fill!=='none'&&e.fillStyle&&e.fillStyle!=='solid'?' fill-opacity=".45"':'';
+  const common=`stroke="${stroke}" stroke-width="${sw(e)}" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"${e.strokeStyle==='dashed'?' stroke-dasharray="6 5"':e.strokeStyle==='dotted'?' stroke-dasharray="1.5 4"':''}`;
+  let s='';
+  if(e.type==='rectangle'||e.type==='frame'||e.type==='magicframe'||e.type==='embeddable'||e.type==='iframe'){const r=e.roundness?Math.min(Math.abs(ew),Math.abs(eh))*.12:0;s=`<rect x="${Math.min(ex,ex+ew)}" y="${Math.min(ey,ey+eh)}" width="${Math.abs(ew)}" height="${Math.abs(eh)}" rx="${r}" fill="${e.type==='frame'?'none':fill}"${fo} ${common}${e.type==='frame'?' stroke-dasharray="6 5" stroke-opacity=".5"':''}/>`;if(e.type==='frame'&&e.name)s+=textEl(e.name,ex,ey-18,14,2,'start','#888');}
+  else if(e.type==='ellipse')s=`<ellipse cx="${ex+ew/2}" cy="${ey+eh/2}" rx="${Math.abs(ew/2)}" ry="${Math.abs(eh/2)}" fill="${fill}"${fo} ${common}/>`;
+  else if(e.type==='diamond')s=`<polygon points="${ex+ew/2},${ey} ${ex+ew},${ey+eh/2} ${ex+ew/2},${ey+eh} ${ex},${ey+eh/2}" fill="${fill}"${fo} ${common}/>`;
+  else if(e.type==='image')s=`<rect x="${ex}" y="${ey}" width="${ew}" height="${eh}" fill="#00000012" stroke="#00000026" vector-effect="non-scaling-stroke"/>`;
+  else if(e.type==='line'||e.type==='arrow'||e.type==='freedraw'){const P=pts(e).map(([a,b])=>[ex+a,ey+b]);s=`<polyline points="${P.map(p=>p.map(n=>n.toFixed(1)).join(',')).join(' ')}" fill="${e.type==='line'&&fill!=='none'&&P.length>2?fill:'none'}" ${common}/>`;
+   if(e.type==='arrow'&&P.length>1&&e.endArrowhead!==null){const[a,b]=P[P.length-2],[c,d]=P[P.length-1],ang=Math.atan2(d-b,c-a),L=Math.max(8,Math.min(22,Math.hypot(c-a,d-b)*.25));
+    s+=`<polyline points="${(c-L*Math.cos(ang-.45)).toFixed(1)},${(d-L*Math.sin(ang-.45)).toFixed(1)} ${c.toFixed(1)},${d.toFixed(1)} ${(c-L*Math.cos(ang+.45)).toFixed(1)},${(d-L*Math.sin(ang+.45)).toFixed(1)}" fill="none" ${common}/>`}}
+  else if(e.type==='text'){const b=textBox(e),al=e.textAlign==='center'?'middle':e.textAlign==='right'?'end':'start';s=textEl(e.text,al==='middle'?ex+b.w/2:al==='end'?ex+b.w:ex,ey,e.fontSize||20,e.fontFamily,al,stroke,'top',b.h)}
+  if(e.label&&e.label.text&&e.type!=='text'){const fs=e.label.fontSize||20;s+=e.type==='arrow'||e.type==='line'?textEl(e.label.text,ex+ew/2,ey+eh/2-fs*.7,fs,e.label.fontFamily||e.fontFamily,'middle',col(e.label.strokeColor)||stroke,'top',fs):textEl(e.label.text,ex+ew/2,ey,fs,e.label.fontFamily||e.fontFamily,'middle',col(e.label.strokeColor)||stroke,'middle',eh)}
+  if(!s)continue;
+  const tr=e.angle?` transform="rotate(${(e.angle*180/Math.PI).toFixed(2)} ${(ex+ew/2).toFixed(1)} ${(ey+eh/2).toFixed(1)})"`:'';
+  out+=op<1||tr?`<g${op<1?` opacity="${op}"`:''}${tr}>${s}</g>`:s}
+ return `<svg viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><rect x="${x0}" y="${y0}" width="${w}" height="${h}" fill="${bg}"/>${out}</svg>`}
+async function drawThumb(card){const box=card.querySelector('[data-thumb]');if(!box||box.dataset.state)return;box.dataset.state='load';
+ const key=card.dataset.path+'|'+card.dataset.mtime;let html=THUMBS.get(key);
+ if(html===undefined){try{const r=await fetch('/api/board?path='+encodeURIComponent(card.dataset.path),{cache:'no-store'});if(!r.ok)throw 0;html=thumbSvg(JSON.parse(await r.text()))}catch(e){html=null}THUMBS.set(key,html)}
+ if(!box.isConnected)return;box.dataset.state='done';
+ box.innerHTML=html||`<span class="blank">${IC.sketch}<span>${html===''?'Пустая доска':'Нет превью'}</span></span>`;box.classList.toggle('paper',!!html)}
+function watchThumbs(root){thumbIO?.disconnect();const cards=[...root.querySelectorAll('.card[data-path]')];
+ if(!('IntersectionObserver' in window)){cards.forEach(drawThumb);return}
+ thumbIO=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){thumbIO.unobserve(e.target);drawThumb(e.target)}},{rootMargin:'200px'});cards.forEach(c=>thumbIO.observe(c));
+ /* fallback when the observer is not delivering (hidden/occluded window): draw the first cards anyway */
+ setTimeout(()=>{if(cards[0]?.isConnected&&!cards.some(c=>c.querySelector('[data-thumb]')?.dataset.state))cards.slice(0,12).forEach(drawThumb)},1200)}
+
+// ---------- boards ----------
+function boardTools(){const group=(name,list)=>list.length?`<optgroup label="${name}">${list.map(l=>`<option value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(locLabel(l))}</option>`).join('')}</optgroup>`:'';
+ const cur=LOCS.filter(l=>l.current&&l.kind==='project');
+ const opts=group('Текущий проект',cur)+group(cur.length?'Другие проекты':'Проекты',LOCS.filter(l=>l.kind==='project'&&!l.current))+group('Другие папки',LOCS.filter(l=>l.kind!=='project'))+'<optgroup label="Добавить"><option value="__add">Другая папка на диске…</option></optgroup>';
+ return `<label class="picker" title="Где хранятся доски: ${esc(LOC.dir)}">${LOC.kind==='project'?IC.project:IC.folder}<span class="sr">Папка с досками</span><select id="loc">${opts}</select>${IC.chev}</label><button class="btn primary" id="newBoard">${IC.plus}<span class="lbl">Новая доска</span></button>`}
+async function addDir(){const values=await ask('Доска в другой папке','Укажите папку на диске — она появится в списке папок студии.',[{name:'dir',label:'Папка',placeholder:'Например, D:\\Проекты\\Эскизы'},{name:'name',label:'Название первой доски',value:'Новая доска'}],'Создать доску');if(!values)return;
+ try{const j=await api('/api/board/create',{dir:values.dir.trim(),name:values.name.trim(),custom:true});openBoard(j.path)}catch(e){toast(e.message,true)}}
+async function renderBoards(){
+ const epoch=++viewSeq,v=$('#view');
+ $('#tools').innerHTML=boardTools();
+ $('#loc').onchange=e=>{if(e.target.value==='__add'){e.target.value=LOC.id;return addDir()}LOC=LOCS.find(l=>l.id===e.target.value);sessionStorage.setItem('oly-studio-loc',LOC.id);FILTER='';renderBoards()};
+ $('#newBoard').onclick=newBoard;
+ if(!v.querySelector('.cards'))v.innerHTML=cardSkeleton(3);
+ let b,r;try{[b,r]=await Promise.all([api('/api/boards?dir='+encodeURIComponent(LOC.dir)),api('/api/recent')])}
+ catch(e){if(epoch===viewSeq){v.innerHTML=emptyBox(IC.warn,'Не удалось получить доски',esc(e.message),'<button class="btn" id="retry">Повторить</button>');$('#retry').onclick=renderBoards}return}
+ if(epoch!==viewSeq||TAB!=='boards')return;
+ count('#n-boards',b.boards.length);
+ const here=new Set(b.boards.map(x=>x.path.toLowerCase()));const rec=r.recent.filter(x=>!here.has(x.path.toLowerCase())).slice(0,8);
+ const place=LOC.kind==='project'?`проекта «${esc(LOC.title)}»`:LOC.kind==='server'?'студии':`папки «${esc(LOC.title)}»`;
+ const card=(x,meta,metaTitle)=>`<div class="card" role="button" tabindex="0" data-path="${esc(x.path)}" data-mtime="${esc(x.mtime||0)}" data-name="${esc(x.name.toLowerCase())}" aria-label="Открыть доску ${esc(x.name)}">
+  <div class="thumb" data-thumb><span class="blank"></span></div>
+  <div class="cap"><span class="name" title="${esc(x.name)}">${esc(x.name)}</span><span class="meta" title="${esc(metaTitle||'')}">${meta}</span></div>
+  <div class="acts board-share"><button class="btn sm sendto" data-act="chat" title="Прикрепить снимок доски и путь к файлу к сообщению в текущем чате">${IC.send}<span class="lbl">В чат</span></button></div><div class="acts"><button class="btn sm icon" data-act="rename" aria-label="Переименовать доску «${esc(x.name)}»" title="Переименовать">${IC.pencil}</button><button class="btn sm icon danger" data-act="trash" aria-label="Удалить доску «${esc(x.name)}»" title="Удалить (в корзину рядом с доской)">${IC.trash}</button></div></div>`;
+ const newCard=`<button class="card new" data-new type="button"><span class="plus">${IC.plus}</span><b>Новая доска</b><span>в папке ${place}</span></button>`;
+ const showFilter=b.boards.length+rec.length>6;
+ v.innerHTML=`<section class="sec"><div class="sec-h"><h2>Доски ${place}</h2><span class="n">${b.boards.length||''}</span>${showFilter?`<label class="search">${IC.search}<span class="sr">Найти доску</span><input class="input" id="flt" placeholder="Найти доску" value="${esc(FILTER)}" autocomplete="off"></label>`:''}</div>
+  <div class="cards" id="list">${b.boards.map(x=>card(x,`Изменена ${esc(ago(x.mtime))}`,fmtFull(x.mtime))).join('')}${newCard}</div>
+  ${b.boards.length?'':`<p class="lead">Доска — файл Excalidraw в папке ${place}. Агенты в чате читают и правят её, а вы видите изменения сразу.</p>`}</section>
+  ${rec.length?`<section class="sec"><div class="sec-h"><h2>Недавние из других папок</h2><span class="n">${rec.length}</span></div><div class="cards sm" id="recent">${rec.map(x=>card(x,`${esc(dirLabel(x.dir))} · ${esc(ago(x.openedAt||x.mtime))}`,x.dir)).join('')}</div></section>`:''}
+  <div id="nohit" hidden>${emptyBox('','Ничего не найдено','Попробуйте другое название.')}</div>`;
+ v.querySelector('[data-new]').onclick=newBoard;
+ const flt=$('#flt');if(flt){const apply=()=>{FILTER=flt.value;const q=FILTER.trim().toLowerCase();let any=false;
+   v.querySelectorAll('.card[data-path]').forEach(el=>{const on=!q||el.dataset.name.includes(q);el.hidden=!on;any=any||on});
+   v.querySelector('[data-new]').hidden=!!q;v.querySelectorAll('.sec').forEach(s=>{s.hidden=!!q&&!s.querySelector('.card[data-path]:not([hidden])')});$('#nohit').hidden=!q||any};
+  flt.oninput=apply;apply()}
+ const cards=[...v.querySelectorAll('.card[data-path]')];
+ cards.forEach(el=>{const p=el.dataset.path;
+  el.onclick=e=>{const a=e.target.closest('[data-act]');if(a){e.stopPropagation();return act(a.dataset.act,p)}openBoard(p)};
+  el.onkeydown=e=>{if(e.target!==el)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();openBoard(p)}
+   if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const vis=[...v.querySelectorAll('.card:not([hidden])')];const i=vis.indexOf(el);
+    const per=Math.max(1,Math.round(el.parentElement.clientWidth/el.offsetWidth));const step=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:e.key==='ArrowDown'?per:-per;vis[i+step]?.focus()}}});
+ watchThumbs(v);
+}
+async function newBoard(){const where=LOC.kind==='project'?'в проекте «'+LOC.title+'»':LOC.kind==='server'?'в папке студии':'в папке «'+LOC.title+'»';
+ const values=await ask('Новая доска','Доска будет создана '+where+' и сразу откроется.',[{name:'name',label:'Название',value:'Новая доска'}],'Создать');if(!values)return;
+ try{const j=await api('/api/board/create',{dir:LOC.dir,name:values.name.trim()||'Новая доска'});openBoard(j.path)}catch(err){toast(err.message,true)}}
+/* "В чат": the board page renders the exact Excalidraw snapshot and hands it to the T3 window; it runs in a hidden frame so the hub stays put */
+let SENDING=null;
+async function sendBoard(p){
+ if(SENDING)return toast('Подождите — предыдущая доска ещё отправляется');
+ const card=[...document.querySelectorAll('.card[data-path]')].find(c=>c.dataset.path===p),btn=card?.querySelector('[data-act=chat]'),lbl=btn?.querySelector('.lbl');
+ const h=new URLSearchParams(location.hash.slice(1));h.delete('embedded');h.delete('parent-origin');h.set('send','1');
+ const f=document.createElement('iframe');f.className='sendframe';f.tabIndex=-1;f.setAttribute('aria-hidden','true');f.src='/board?path='+encodeURIComponent(p)+'#'+h;
+ SENDING=f;card?.classList.add('sending');if(btn)btn.disabled=true;if(lbl)lbl.textContent='Отправляю…';document.body.append(f);
+ const res=await new Promise(done=>{const t0=Date.now(),iv=setInterval(()=>{let st='';try{st=f.contentDocument?.querySelector('.oly-status')?.textContent||''}catch(e){}
+   if(/отправлен[оа]? в чат/i.test(st)){clearInterval(iv);done({ok:true})}
+   else if(/^(Не отправлено|Ошибка|Файл доски)/.test(st)){clearInterval(iv);done({ok:false,text:st.replace(/^Не отправлено:\s*/,'')})}
+   else if(Date.now()-t0>30000){clearInterval(iv);done({ok:false,text:'Снимок доски не успел подготовиться — откройте доску и нажмите «В чат» там'})}},150)});
+ f.remove();SENDING=null;card?.classList.remove('sending');if(btn)btn.disabled=false;if(lbl)lbl.textContent='В чат';
+ if(!res.ok)return toast(res.text||'Не отправлено',true);
+ toast('Доска отправлена в чат');
+ if(document.documentElement.classList.contains('embedded')&&parent!==window)setTimeout(()=>parent.postMessage({type:'oly-studio-close'},PARENT_ORIGIN),450)}
+async function act(a,p){
+ const name=p.split(/[\\/]/).pop().replace(/\.excalidraw$/i,'');
+ try{
+  if(a==='chat')return sendBoard(p);
+  if(a==='rename'){const values=await ask('Переименовать доску','',[{name:'name',label:'Новое название',value:name}]);const n=values?.name.trim();if(!n||n===name)return;await api('/api/board/rename',{path:p,name:n});toast('Доска переименована')}
+  if(a==='trash'){if(!await ask('Удалить доску «'+name+'»?','Файл переместится в папку .trash рядом с доской — его можно вернуть вручную.',[],'Удалить',{danger:true}))return;await api('/api/board/delete',{path:p});toast('Доска перемещена в корзину')}
+  renderBoards();
+ }catch(e){toast(e.message,true)}
+}
+
+
+load();
+</script>
+</body></html>
