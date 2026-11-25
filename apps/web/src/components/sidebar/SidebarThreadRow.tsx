@@ -1721,8 +1721,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
             {metaLine}
           </SidebarCardContents>
         </TooltipTrigger>
-        {/* chronos: an offscreen card keeps its trigger; the popup can mount inside the overscan. */}
-        {(!props.windowCard || leaseLiveStatus) && detailsTooltip}
+        {detailsTooltip}
       </Tooltip>
     </li>
   );
