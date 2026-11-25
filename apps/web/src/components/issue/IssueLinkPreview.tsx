@@ -1,6 +1,6 @@
 import type { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card";
 import type { EnvironmentId, IssueDetail, IssueRef } from "@t3tools/contracts";
-import { T, Var } from "gt-react";
+import { T, useGT, Var } from "gt-react";
 import { useRef, useState, type ComponentPropsWithoutRef, type ReactElement } from "react";
 
 import { RelativeTime } from "~/components/RelativeTime";
@@ -75,7 +75,8 @@ export function IssueLinkPreviewFallback({
 }
 
 function IssuePreviewCardBody({ detail }: { detail: IssueDetail }) {
-  const state = issueStatePresentation(detail.state);
+  const gt = useGT();
+  const state = issueStatePresentation(detail.state, gt);
   const createdAt = <RelativeTime timestamp={detail.createdAt} />;
   const author = detail.author;
   const authorLabel =

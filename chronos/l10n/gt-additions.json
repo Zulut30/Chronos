@@ -1,5 +1,21 @@
 {
   "messages": {
+    "Issues": "Задачи трекеров",
+    "Issues breadcrumb": "Навигация по задачам трекеров",
+    "Issues Assigned to Me": "Назначенные мне задачи",
+    "Search issues": "Поиск задач",
+    "Sort issues": "Сортировка задач",
+    "Refresh issues": "Обновить список задач",
+    "No issues under these filters.": "Нет задач с такими фильтрами.",
+    "Select an issue first": "Сначала выберите задачу",
+    "Loading issue": "Загрузка задачи",
+    "Refresh issue": "Обновить задачу",
+    "Issue title": "Заголовок задачи",
+    "Issue state, {state}": "Состояние задачи: {state}",
+    "Link issue to a thread": "Привязать задачу к треду",
+    "{list, select, pullRequest {Saved pull request views} other {Saved issue views}}": "{list, select, pullRequest {Сохранённые представления пул-реквестов} other {Сохранённые представления задач}}",
+    "Could not load this issue": "Не удалось загрузить задачу",
+    "Linked issues": "Привязанные задачи",
     "Issue trackers": "Трекеры задач",
     "Could not load issue trackers": "Не удалось загрузить трекеры задач",
     "Workflow runs": "Запуски воркфлоу",
@@ -22,6 +38,10 @@
     "On pace": "Тратится равномерно",
     "Under pace": "Тратится медленнее равномерного",
     "Context compacts automatically when needed.": "Контекст сжимается автоматически, когда нужно."
+  },
+  "issueStates": {
+    "6a717189b43e9f0e": ["Open", "Открыта"],
+    "f8700aef3eb2cf71": ["Closed", "Закрыта"]
   },
   "settings4774": {
     "81d0d1e78b196630": [

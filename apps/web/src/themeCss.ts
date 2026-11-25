@@ -61,4 +61,18 @@ export function applyThemeCss(css: string | undefined): void {
   }
   themeSheet.replaceSync(next);
   stripFetches(themeSheet);
+  // chronos: Olympus 4774 styles the limit rows as divs. In 5209 they also link to /usage.
+  if (next.includes("#thread-details-usage-heading")) {
+    const sections =
+      "[data-thread-details-card] section:has(#thread-details-usage-heading, #thread-details-context-heading)";
+    for (const rule of themeSheet.cssRules) {
+      if (
+        rule instanceof CSSStyleRule &&
+        rule.selectorText.includes(sections) &&
+        rule.selectorText.includes("div[tabindex]")
+      ) {
+        rule.selectorText = rule.selectorText.replaceAll("div[tabindex]", ":is(div, a)[tabindex]");
+      }
+    }
+  }
 }

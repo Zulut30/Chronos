@@ -40,7 +40,7 @@ function LinkedIssueRow({
   const configs = useServerConfigs();
   const detail = useLinkedIssueDetail(threadRef.environmentId, link, mountScope);
   const trackerPresentation = issueTrackerPresentation(link.tracker);
-  const state = detail === null ? null : issueStatePresentation(detail.state);
+  const state = detail === null ? null : issueStatePresentation(detail.state, gt);
   const Icon = state?.Icon ?? IssueGlyph.issue;
   const title = detail?.title ?? link.title;
   const anchorProps = {

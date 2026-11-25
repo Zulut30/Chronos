@@ -9,6 +9,7 @@ declare global {
     threadId: string,
   ) => ProviderInteractionMode;
   var __olyWrapModeText: ((text: string, threadId: string) => string) | undefined;
+  var __olyThreadDetails: { shortLabel(label: string): string } | undefined;
   var __olyReferences:
     | {
         lex(text: string, base: (text: string) => ComposerPromptSegment[]): ComposerPromptSegment[];
