@@ -413,16 +413,21 @@ async function benchmark() {
       "document.querySelectorAll('[data-sidebar-card-placeholder]').length",
     );
     // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
-    const farId = await evaluate(`(() => {
-      const rows = document.querySelectorAll("[data-thread-item] [data-sidebar-row]");
-      const row = rows[rows.length - 1];
-      row.scrollIntoView({ block:"center", behavior:"instant" });
-      row.focus();
-      return row.closest("[data-thread-item]").getAttribute("data-thread-item").slice(-36);
-    })()`);
-    await wait("offscreen card", () =>
-      evaluate(`!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`),
-    );
+    const farId = await evaluate("uiBench.revealDistantFixture()");
+    try {
+      await wait("offscreen card", () =>
+        evaluate("uiBench.focusRevealedCard(" + JSON.stringify(farId) + ")"),
+      );
+    } catch (error) {
+      const state = await evaluate(`(() => {
+        const row = document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-row]');
+        const box = row?.getBoundingClientRect();
+        return { exists: !!row, rect: box?.toJSON(), placeholder: !!row?.querySelector("[data-sidebar-card-placeholder]"),
+          viewport: row?.closest('[data-slot="scroll-area-viewport"]')?.getBoundingClientRect().toJSON(),
+          focused: row === document.activeElement };
+      })()`);
+      throw Error("Offscreen fixture " + farId + ": " + JSON.stringify(state), { cause: error });
+    }
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
       key: "Enter",

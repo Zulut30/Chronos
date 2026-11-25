@@ -54,6 +54,30 @@ function install(tracing) {
   };
   window.uiBench = {
     hasText,
+    revealDistantFixture() {
+      const fixtures = document.querySelectorAll('[data-thread-item] [data-sidebar-row][aria-label^="Fixture "]');
+      if (fixtures.length < 2) throw Error("Expected distant seeded rows in the sidebar");
+      const viewport = scroller(fixtures[0]).getBoundingClientRect();
+      // content-visibility can skip the children of an offscreen list item. The item itself
+      // reserves space and remains a scroll target as the streaming threads change order.
+      const items = [fixtures[0], fixtures[fixtures.length - 1]].map(el => el.closest("[data-thread-item]"));
+      const distance = item => {
+        const r = item.getBoundingClientRect();
+        return Math.max(viewport.top - r.bottom, r.top - viewport.bottom);
+      };
+      const item = distance(items[0]) > distance(items[1]) ? items[0] : items[1];
+      if (distance(item) <= 0) throw Error("Fixture must start outside the sidebar viewport");
+      item.scrollIntoView({ block: "center", behavior: "instant" });
+      return item.getAttribute("data-thread-item").slice(-36);
+    },
+    focusRevealedCard(id) {
+      const target = row(id);
+      if (!target || target.querySelector("[data-sidebar-card-placeholder]")) return false;
+      const { x, y } = center(target);
+      if (!target.contains(document.elementFromPoint(x, y))) return false;
+      target.focus({ preventScroll: true });
+      return document.activeElement === target;
+    },
     topOfTimeline() {
       scroller(timeline()).scrollTop = 0;
     },
