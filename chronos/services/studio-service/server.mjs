@@ -223,13 +223,6 @@ const server = http.createServer(async (req, res) => {
     const B = async () => { const t = await body(req); return t ? JSON.parse(t) : {}; };
 
     // chronos: gallery actions share the artifact store with Studio MCP.
-    if (p === '/api/artifact-snapshot' && req.method === 'GET') {
-      const {artifactStore} = await import('../artifacts/tools.mjs');
-      const page = (await artifactStore()).read(q('id')).files['index.html'];
-      res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store',
-        'Content-Security-Policy':"sandbox; default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'"});
-      return res.end(page);
-    }
     if (p.startsWith('/api/artifacts/')) {
       if (req.method !== 'POST' || req.headers.origin !== 'http://' + host)
         return json(res, req, 403, {error:'Откройте галерею в Студии'});

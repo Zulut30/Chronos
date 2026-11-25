@@ -12,6 +12,9 @@ foreach ($link in $desktop,$menu) {
   if (-not (Test-Path -LiteralPath ($shortcut.IconLocation -replace ',\s*0$',''))) {throw 'Missing icon'}
 }
 if (Get-Process Chronos -ErrorAction SilentlyContinue | Where-Object MainWindowHandle) {throw 'A desktop window survived the smoke shutdown'}
+$env:ARTIFACT_PROBE_ID=$Id
+$env:ARTIFACT_PROBE_BASE=node -e "const p=require('node:path'),s=require(p.join(p.dirname(process.env.CHRONOS_EXE),'resources/chronos-services/artifacts/store.mjs')).openArtifacts(process.env.CHRONOS_HOME);console.log(s.documents(process.env.ARTIFACT_PROBE_ID,'get',{collection:'probe',key:'frame'}).opens);s.close()"
+if ($LASTEXITCODE) {exit $LASTEXITCODE}
 $started = Start-Process -FilePath $desktop -PassThru
 try {
   $deadline = [DateTime]::UtcNow.AddSeconds(40)
@@ -22,8 +25,7 @@ try {
     if ($windows.Count -eq 1 -and $windows[0].MainWindowTitle -eq $title) {break}
   } while ([DateTime]::UtcNow -lt $deadline -and -not $started.HasExited)
   if ($windows.Count -ne 1 -or $windows[0].MainWindowTitle -ne $title) {throw 'Shortcut did not open an artifact-only window'}
-  $env:ARTIFACT_PROBE_ID=$Id
-  node -e "const p=require('node:path'),s=require(p.join(p.dirname(process.env.CHRONOS_EXE),'resources/chronos-services/artifacts/store.mjs')).openArtifacts(process.env.CHRONOS_HOME); (async()=>{try{for(let i=0;i<80;i++){if(s.documents(process.env.ARTIFACT_PROBE_ID,'get',{collection:'probe',key:'frame'})?.opens>=2)return;await new Promise(r=>setTimeout(r,100));}throw Error('Standalone page did not render');}finally{s.close()}})()"
+  node -e "const p=require('node:path'),s=require(p.join(p.dirname(process.env.CHRONOS_EXE),'resources/chronos-services/artifacts/store.mjs')).openArtifacts(process.env.CHRONOS_HOME); (async()=>{try{for(let i=0;i<80;i++){if(s.documents(process.env.ARTIFACT_PROBE_ID,'get',{collection:'probe',key:'frame'})?.opens>Number(process.env.ARTIFACT_PROBE_BASE))return;await new Promise(r=>setTimeout(r,100));}throw Error('Standalone page did not render');}finally{s.close()}})()"
   if ($LASTEXITCODE) {exit $LASTEXITCODE}
   Write-Host 'PASS: both shortcuts, custom icon, cold start with a single artifact window'
 } finally {

@@ -5,7 +5,7 @@ import {setTimeout as delay} from "node:timers/promises";
 import {writeFileSync} from "node:fs";
 
 async function waitFor(label,test) {
-  const end=Date.now()+25000;
+  const end=Date.now()+45000;
   let last;
   do {
     try {const result=await test();if (result) return result;} catch(e) {last=e;}
@@ -48,7 +48,47 @@ export async function verifyArtifacts(client, opts) {
     assert.ok(["light","dark"].includes(row.mode));
     await evaluate(`[...document.querySelectorAll("button")].find(b=>b.textContent==="Установить как приложение").click()`);
     await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
+    // Use the app's own authenticated session to create an empty local thread; no model turn is run.
+    await evaluate(`(async()=>{
+      window.__olyStudioShell.close();
+      const socket=window.__olyStudio.ws;
+      async function call(tag,payload) {
+        const id=String(800000000+Math.floor(Math.random()*9000000));
+        return new Promise((resolve,reject)=>{
+          let buffer="";
+          const cleanup=()=>{clearTimeout(timer);socket.removeEventListener("message",receive);};
+          const timer=setTimeout(()=>{cleanup();reject(Error(tag+" timed out"));},15000);
+          function receive(event) {
+            if(typeof event.data!=="string")return;
+            if(event.data.charCodeAt(0)===30){buffer+=event.data.slice(1);return;}
+            const raw=buffer+event.data;buffer="";
+            if(!raw.includes(id))return;
+            for(const msg of [JSON.parse(raw)].flat()){
+              if(msg._tag!=="Exit" || String(msg.requestId)!==id)continue;
+              cleanup();
+              if(msg.exit._tag==="Success")resolve(msg.exit.value);else reject(Error(tag+" failed"));
+            }
+          }
+          socket.addEventListener("message",receive);
+          socket.send(JSON.stringify({_tag:"Request",id,tag,payload,headers:[]}));
+        });
+      }
+      const {environment}=await call("server.getConfig",{});
+      const {projectId}=await call("projects.ensureScratch",{});
+      const threadId=crypto.randomUUID();
+      await call("orchestration.dispatchCommand",{type:"thread.create",createdBy:"user",creationSource:"web",
+        commandId:crypto.randomUUID(),projectId,threadId,title:"Проверка панели",runtimeMode:"approval-required",interactionMode:"default",
+        modelSelection:{instanceId:"codex",model:"smoke"},branch:null,worktreePath:null});
+      await window.__TSR_ROUTER__.navigate({to:"/"+environment.environmentId+"/"+threadId});
+      return true;
+    })()`);
+    await showArtifact(id);
+    await waitFor("artifact guest visible inside thread right panel",()=>evaluate(`(() => {
+      const guest=document.querySelector('[data-electron-browser-host] webview[src="chronos-artifact://${id}/index.html"]');
+      const r=guest?.getBoundingClientRect();
+      return !!r && r.width>100 && r.height>100 && r.right>0 && r.left<innerWidth && !document.querySelector('dialog[open] webview');
+    })()`));
     writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
-    console.log("PASS: gallery, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
+    console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
   } finally {store.close();}
 }

@@ -15,13 +15,16 @@ export function mountArtifact(parent: HTMLElement,id: string) {
   Object.assign(guest.style,{display:"flex",width:"100%",height:"100%",flex:"1",minHeight:"0"});
   let ready = false;
   const root = document.documentElement;
-  function sendTheme() {
-    if (!ready) return;
+  function readTheme() {
     const style = getComputedStyle(root);
     const tokens = Object.fromEntries(["background","foreground","card","primary","primary-foreground","border","accent","muted-foreground"]
       .map(key => ["--"+key,style.getPropertyValue("--"+key).trim()]));
+    return {mode:root.classList.contains("dark") ? "dark" : "light",tokens};
+  }
+  function sendTheme() {
+    if (!ready) return;
     void (guest as unknown as {send(channel:string,data:unknown):Promise<void>})
-      .send("chronos:artifact-theme",{mode:root.classList.contains("dark") ? "dark" : "light",tokens}).catch(()=>{});
+      .send("chronos:artifact-theme",readTheme()).catch(()=>{});
   }
   guest.addEventListener("dom-ready",()=>{ready=true;sendTheme();});
   const observer = new MutationObserver(sendTheme);
@@ -29,7 +32,7 @@ export function mountArtifact(parent: HTMLElement,id: string) {
   const panel = document.createElement("div");
   Object.assign(panel.style,{height:"100%",width:"100%",minHeight:"0",display:"flex",flexDirection:"column",flex:"1"});
   const installer = (window as Window & {chronosArtifactInstaller?: {
-    metadata(id:string):Promise<string>; install(id:string,icon:string):Promise<boolean>;
+    metadata(id:string):Promise<string>; install(id:string,icon:string,theme:ReturnType<typeof readTheme>):Promise<boolean>;
   }}).chronosArtifactInstaller;
   if (installer) {
     const bar=document.createElement("div");
@@ -49,7 +52,7 @@ export function mountArtifact(parent: HTMLElement,id: string) {
         ctx.fillStyle="#40435e";ctx.fillRect(0,0,64,64);ctx.fillStyle="white";
         ctx.font="38px Segoe UI Emoji, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
         ctx.fillText(Array.from(icon).slice(0,6).join(""),32,33,58);
-        await installer.install(id,canvas.toDataURL());
+        await installer.install(id,canvas.toDataURL(),readTheme());
         status.textContent="Ярлыки добавлены в «Пуск» и на рабочий стол";
       } catch(e) {status.textContent=e instanceof Error ? e.message : "Не удалось установить приложение";}
       finally {button.disabled=false;}
@@ -78,6 +81,14 @@ export function watchArtifactDialog() {
     dispose?.();
     current = frame;
     const id = artifactId(frame?.src ?? null);
+    if (frame && (id || frame.src.startsWith(origin+"/artifacts.html"))) {
+      // Studio also uses the dialog when its preview RPC times out in an active thread.
+      void import("./panel").then(async ({openArtifactTab}) => {
+        if (frame.isConnected && await openArtifactTab(frame.src) && frame.isConnected) {
+          (window as Window & {__olyStudioShell?: {close():void}}).__olyStudioShell?.close();
+        }
+      }).catch(()=>{});
+    }
     if (frame && id && frame.parentElement) {
       frame.hidden = true;
       frame.style.display = "none";

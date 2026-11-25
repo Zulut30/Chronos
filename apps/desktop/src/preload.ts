@@ -50,7 +50,7 @@ const clientPlatform = process.platform;
 if (clientPlatform === "win32") {
   contextBridge.exposeInMainWorld("chronosArtifactInstaller", {
     metadata: (id: string) => ipcRenderer.invoke("chronos:artifact-icon", id),
-    install: (id: string, icon: string) => ipcRenderer.invoke("chronos:artifact-install", id, icon),
+    install: (id: string, icon: string, theme: unknown) => ipcRenderer.invoke("chronos:artifact-install", id, icon, theme),
   });
 }
 

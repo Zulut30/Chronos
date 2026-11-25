@@ -21,6 +21,10 @@ async function open(id) {
     windows.set(id,window);
     window.removeMenu();
     runtime.protect(window.webContents);
+    window.webContents.on("did-finish-load",()=>{
+      if (!metadata.capabilities.includes("theme")) return;
+      try {window.webContents.send("chronos:artifact-theme",JSON.parse(fs.readFileSync(icon.slice(0,-4)+".json","utf8")));} catch {}
+    });
     window.once("closed",()=>windows.delete(id));
     window.once("ready-to-show",()=>window.show());
     await window.loadURL("chronos-artifact://"+id+"/index.html");

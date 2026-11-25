@@ -27,10 +27,13 @@ function askDelete(a) {
   dialog.returnValue = "";
   dialog.showModal();
 }
-dialog.onclose = () => {
+dialog.oncancel = () => {pending = null;};
+dialog.querySelector("form").onsubmit = event => {
+  event.preventDefault();
   const a = pending;
   pending = null;
-  if (dialog.returnValue === "delete" && a) run(async () => {await request("delete",{id:a.id,expectedVersion:a.version});await refresh();});
+  dialog.close();
+  if (event.submitter?.value === "delete" && a) run(async () => {await request("delete",{id:a.id,expectedVersion:a.version});await refresh();});
 };
 function render() {
   cards.replaceChildren();

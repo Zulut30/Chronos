@@ -17,7 +17,7 @@ function matches(file,args) {
     return path.resolve(shortcut.target).toLowerCase() === path.resolve(process.execPath).toLowerCase() && shortcut.args === args;
   } catch {return false;}
 }
-function install(id,metadata,iconData) {
+function install(id,metadata,iconData,theme) {
   if (process.platform !== "win32") throw Error("Ярлыки доступны в Windows");
   const png=nativeImage.createFromDataURL(iconData);
   if (png.isEmpty() || png.getSize().width !== 64 || png.getSize().height !== 64) throw Error("Некорректный значок");
@@ -25,6 +25,11 @@ function install(id,metadata,iconData) {
   fs.mkdirSync(icons,{recursive:true});
   const icon=path.join(icons,id+".ico");
   fs.writeFileSync(icon,iconFile(png.toPNG()));
+  if (["light","dark"].includes(theme?.mode) && theme.tokens && typeof theme.tokens === "object") {
+    const tokens=Object.fromEntries(Object.entries(theme.tokens).filter(([k,v]) =>
+      /^--[a-z-]{1,48}$/.test(k) && typeof v === "string" && v.length <= 256).slice(0,32));
+    fs.writeFileSync(path.join(icons,id+".json"),JSON.stringify({mode:theme.mode,tokens}));
+  }
   const args="--chronos-artifact="+id;
   const stem=metadata.title.replace(/[<>:"/\\|?*\x00-\x1f]/g,"_").slice(0,80).trim().replace(/[. ]+$/,"") || "Артефакт";
   const name=/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/i.test(stem) ? "_"+stem : stem;
