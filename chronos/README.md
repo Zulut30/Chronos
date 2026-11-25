@@ -171,6 +171,7 @@ T3). Оставлены только workflow Chronos:
 | `apps/desktop/src/app/DesktopStartupRecovery.ts` | Ссылки восстановления на релизы `Zulut30/Chronos` (`chronos-v*`) и имя продукта `Chronos` |
 | `apps/desktop/src/app/DesktopAppIdentity.test.ts`, `DesktopClerk.test.ts`, `DesktopEnvironment.test.ts`, `DesktopPreReadyPlatform.test.ts`, `updates/updatesTestHarness.ts` | Ожидания имени/профиля/схемы Chronos и переносимость путей фикстур на Windows |
 | `apps/desktop/src/app/DesktopClerk.ts`, `apps/desktop/src/electron/ElectronProtocol.ts` | После моста Clerk (схема `chronos://`) заново регистрируются привилегии `t3code://` вместе с `chronos://` (`apps/desktop/src/chronos/ChronosSchemes.ts`), иначе в окне не работает `fetch` (терминал, wasm) |
+| `apps/desktop/src/window/RemoteRequestHeaders.ts` | С T3 5209 окно вырезает `Origin: t3code://app` из запросов к `http(s)`; для портов сервисов Olympus на loopback (`apps/desktop/src/chronos/services/ServiceOrigins.ts`) заголовок сохраняется, иначе их CORS отклоняет запросы |
 | `apps/web/src/components/sidebar/SidebarChrome.tsx` | Знак и имя Chronos в шапке сайдбара вместо `T3 Code` (`apps/web/src/chronos/brand/`) — единственное намеренное отличие окна от Olympus |
 | `apps/web/src/components/desktopUpdate.logic.ts` | Ссылка «Посмотреть релиз» ведёт на теги `chronos-v*` |
 | `apps/desktop/src/app/DesktopApp.ts` | Запуск и остановка sidecar-процессов в области жизни DesktopApp после готовности Electron |

@@ -65,6 +65,23 @@ describe("RemoteRequestHeaders", () => {
     });
   });
 
+  // chronos: the bundled Olympus services answer CORS only for Origin t3code://app.
+  it("preserves headers for the Olympus service ports on loopback", () => {
+    for (const url of [
+      "http://127.0.0.1:4518/api/tasks",
+      "http://localhost:4520/api/health",
+      "ws://127.0.0.1:4523/ws",
+    ]) {
+      const headers = stripDesktopOriginHeaders(packagedPolicy, {
+        url,
+        webContentsId: 42,
+        frame: { parent: null },
+        requestHeaders: { Origin: "t3code://app", "Sec-Fetch-Site": "cross-site" },
+      });
+      assert.isUndefined(headers);
+    }
+  });
+
   it("preserves headers for Clerk frontend API requests", () => {
     for (const url of ["https://clerk.t3.codes/v1/client", "https://CLERK.T3.CODES./v1/client"]) {
       const headers = stripDesktopOriginHeaders(packagedPolicy, {

@@ -1,6 +1,7 @@
 import * as NetAddress from "effect/net/NetAddress";
 import * as Result from "effect/Result";
 import type * as Electron from "electron";
+import { isOlympusServiceUrl } from "../chronos/services/ServiceOrigins.ts";
 
 // `*://` matches only http and https, so WebSocket schemes are listed separately.
 const REMOTE_REQUEST_URL_PATTERNS = ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"];
@@ -70,6 +71,8 @@ function hasExactDesktopOriginHeader(
 }
 
 function shouldPreserveOriginHeader(policy: MainWindowRequestHeaderPolicy, url: URL): boolean {
+  // chronos: Olympus services need Origin t3code://app for their CORS allowlist.
+  if (isOlympusServiceUrl(url)) return true;
   const hostname = normalizeHostname(url.hostname);
   if (
     policy.clerkFrontendApiHostname !== undefined &&
