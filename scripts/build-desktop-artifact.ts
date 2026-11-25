@@ -2835,7 +2835,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
       // chronos: stage the runtime allowlist from the checkout outside the app archive.
-      ...(isChronosVersion(version) ? [{ from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"), to: "chronos-services", filter: ["**/*", "!**/*.test.mjs"] }] : []),
+      ...(isChronosVersion(version) ? [{
+        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),
+        to: "chronos-services",
+        filter: ["**/*", "!**/*.test.mjs"],
+      }] : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
@@ -3235,7 +3239,7 @@ function collectUnpackedAsarFiles(
   return output;
 }
 
-const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (root: string) {
+const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(function* (root: string, excludeSuffix?: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const pendingDirectories = [root];
@@ -3250,7 +3254,7 @@ const countPayloadFiles = Effect.fn("desktopArtifact.countPayloadFiles")(functio
       const stat = yield* fs.stat(entryPath);
       if (stat.type === "Directory") {
         pendingDirectories.push(entryPath);
-      } else if (stat.type === "File") {
+      } else if (stat.type === "File" && !(excludeSuffix && entry.endsWith(excludeSuffix))) {
         count += 1;
       }
     }
@@ -4151,6 +4155,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       appExecutableName: `${resolveDesktopProductName(appVersion)}.exe`,
       targetArch: options.arch,
       appVersion,
+      // chronos: add exactly the declared service files to the upstream Windows budget.
+      fileLimit: WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT + (isChronosVersion(appVersion)
+        ? yield* countPayloadFiles(path.join(repoRoot, "chronos/services"), ".test.mjs")
+        : 0),
       expectWslRuntime: bundlesWslRuntime({
         platform: options.platform,
         runtimeArchivePath: options.wslRuntime,
