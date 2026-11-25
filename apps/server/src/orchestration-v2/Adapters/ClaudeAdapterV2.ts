@@ -6278,6 +6278,9 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
   const announcedMcpSignIns = new Set<string>();
   const mcpSignInKey = (nativeThreadId: string, server: string) =>
     `${nativeThreadId}\u0000${server}`;
+  // chronos: a started OAuth flow lives in its CLI; only that flow, not an unanswered card, pins it.
+  const startedMcpSignIns = new Map<string, number>();
+  const MCP_SIGN_IN_PIN_MS = 15 * 60_000;
 
   return ProviderAdapter.ProviderAdapterV2.of({
     instanceId: adapterOptions.instanceId,
@@ -14901,10 +14904,13 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               return false;
             const live = yield* Ref.get(queryContext);
             if (live === null) return true;
+            const now = yield* Clock.currentTimeMillis;
             if (
               liveMcpApps.has(live) ||
-              [...announcedMcpSignIns].some((key) =>
-                key.startsWith(mcpSignInKey(live.nativeThreadId, "")),
+              [...startedMcpSignIns].some(
+                ([key, startedAt]) =>
+                  key.startsWith(mcpSignInKey(live.nativeThreadId, "")) &&
+                  now - startedAt < MCP_SIGN_IN_PIN_MS,
               )
             )
               return false;
@@ -15232,6 +15238,12 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                     }),
                 ),
               );
+              if (authorizationUrl !== null) {
+                startedMcpSignIns.set(
+                  mcpSignInKey(liveQuery.nativeThreadId, server),
+                  yield* Clock.currentTimeMillis,
+                ); // chronos: keep this CLI until the flow completes.
+              }
               return { authorizationUrl };
             }),
             complete: Effect.fn("ClaudeAdapterV2.mcpSignIn.complete")(function* ({
@@ -15244,8 +15256,12 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               const statuses = yield* liveQuery.query.mcpServerStatus.pipe(
                 Effect.mapError(() => fail(`Claude couldn't finish the sign-in to ${server}.`)),
               );
+              const startedKey = mcpSignInKey(liveQuery.nativeThreadId, server); // chronos: CLI pin.
               // A browser on this machine may already have finished it on Claude's own page.
-              if (statuses.find((status) => status.name === server)?.status === "connected") return;
+              if (statuses.find((status) => status.name === server)?.status === "connected") {
+                startedMcpSignIns.delete(startedKey); // chronos: the flow is over.
+                return;
+              }
               const pasted = yield* Effect.try({
                 try: () => pastedUrl(callbackUrl).toString(),
                 catch: () =>
@@ -15270,6 +15286,7 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
                     ),
                   ),
                 );
+              startedMcpSignIns.delete(startedKey); // chronos: the flow is over.
             }),
           },
           stopTask: Effect.fn("ClaudeAdapterV2.stopTask")(function* ({ providerThread, taskId }) {
