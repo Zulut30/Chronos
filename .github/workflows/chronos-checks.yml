@@ -3,6 +3,11 @@ name: Chronos checks
 
 on:
   workflow_dispatch:
+    inputs:
+      ui_builds:
+        description: "Optional packaged UI benchmark: comma-separated Chronos desktop run IDs"
+        required: false
+        type: string
   push:
     branches:
       - main
@@ -128,3 +133,39 @@ jobs:
       - name: OpenCode and OpenRouter usage records
         working-directory: packages/provider-opencode
         run: vp test run src/server/usage.test.ts
+
+  packaged-ui:
+    if: inputs.ui_builds != ''
+    runs-on: windows-2025
+    timeout-minutes: 55
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Compare Windows packages on the same machine
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILDS: ${{ inputs.ui_builds }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $results = Join-Path $env:RUNNER_TEMP 'ui-results'
+          foreach ($build in $env:BUILDS.Split(',')) {
+            if ($build -notmatch '^\d+$') { throw 'Expected a desktop run ID' }
+            $out = Join-Path $results $build
+            New-Item -ItemType Directory -Force $out | Out-Null
+            $dest = Join-Path $env:RUNNER_TEMP "ui-package-$build"
+            ./chronos/scripts/bench/unpack.ps1 -Run $build -Destination $dest
+            node chronos/scripts/bench/desktop-smoke.mjs "$dest/pkg" "$out/smoke"
+            if ($LASTEXITCODE) { throw 'Full Olympus smoke failed' }
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: packaged-ui
+          path: ${{ runner.temp }}/ui-results/
+          retention-days: 14

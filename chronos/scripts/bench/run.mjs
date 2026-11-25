@@ -1,11 +1,10 @@
 // Node 24+. Windows packaged Chronos, no install/build or provider credentials required.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
-import { execFileSync, spawn } from "node:child_process";
-import { createServer } from "node:net";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import assert from "node:assert/strict";
+import { createSandbox } from "./sandbox.mjs";
 import { connectCdp, rpcClient } from "./client.mjs";
 
 const [distribution, count, output, frameArg = "80", intervalArg = "125"] = process.argv.slice(2);
@@ -16,50 +15,11 @@ if (!distribution || !output || ![n, frames, interval].every(v => Number.isSafeI
 const exe = resolve(distribution, "Chronos.exe");
 const entry = resolve(distribution, "resources/server.asar/apps/server/dist/bin.mjs");
 const chrome = process.env.BENCH_CHROME ?? join(process.env.ProgramFiles, "Google/Chrome/Application/chrome.exe");
-const git = execFileSync("where.exe", ["git.exe"], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
-assert(existsSync(exe) && existsSync(chrome) && existsSync(git));
-const root = mkdtempSync(join(tmpdir(), "chronos-bench-"));
-const home = join(root, "home"), userdata = join(home, "userdata"), work = join(root, "workspace");
-const fake = join(root, "user"), temp = join(root, "temp"), profile = join(root, "chrome");
+assert(existsSync(exe) && existsSync(chrome));
+const { root, home, userdata, work, profile, env, run, start, wait, port, modelSelection, close } = createSandbox(frames, interval);
 const json = (path) => JSON.parse(readFileSync(path, "utf8"));
-const children = [];
-const env = Object.fromEntries(["SystemRoot", "WINDIR", "COMSPEC", "PATHEXT", "SystemDrive", "ProgramFiles",
-  "ProgramFiles(x86)", "ProgramW6432", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE"].map(k => [k, process.env[k]]).filter(([,v]) => v));
-Object.assign(env, { Path: [dirname(process.execPath), dirname(git), join(env.SystemRoot, "System32"), env.SystemRoot].join(";"),
-  CHRONOS_HOME: home, T3CODE_HOME: home, HOME: fake, USERPROFILE: fake, APPDATA: join(fake, "Roaming"),
-  LOCALAPPDATA: join(fake, "Local"), TEMP: temp, TMP: temp, XDG_DATA_HOME: join(fake, "data"),
-  XDG_CONFIG_HOME: join(fake, "config"), CODEX_HOME: join(fake, "codex"), CLAUDE_CONFIG_DIR: join(fake, "claude"),
-  GIT_CONFIG_NOSYSTEM: "1", GIT_TERMINAL_PROMPT: "0", DO_NOT_TRACK: "1", T3CODE_TELEMETRY_ENABLED: "false", CI: "1" });
-for (const dir of [userdata, work, fake, temp, profile, env.APPDATA, env.LOCALAPPDATA]) mkdirSync(dir, { recursive: true });
 const serverEnv = { ...env, ELECTRON_RUN_AS_NODE: "1", CHRONOS_BENCH_ROOT: root };
 if (process.env.BENCH_TRACE_LEVEL) serverEnv.T3CODE_TRACE_MIN_LEVEL = process.env.BENCH_TRACE_LEVEL;
-const run = (file, args, childEnv = env) => execFileSync(file, args, { env: childEnv, cwd: work,
-  stdio: ["ignore","pipe","pipe"], encoding: "utf8", timeout: 30000, windowsHide: true });
-function start(file, args, childEnv) {
-  const p = spawn(file, args, { cwd: work, env: childEnv, windowsHide: true, stdio: ["ignore","pipe","pipe"] });
-  children.push(p);
-  p.stdout.resume();
-  p.errors = "";
-  p.stderr.on("data", data => { p.errors = (p.errors + data).slice(-1800); });
-  return p;
-}
-async function wait(label, test, timeout = 65000) {
-  const until = Date.now() + timeout;
-  do {
-    for (const p of children) if (p.exitCode !== null) throw Error("Benchmark child exited with code " + p.exitCode);
-    const result = await test();
-    if (result) return result;
-    await sleep(100);
-  } while (Date.now() < until);
-  throw Error("Timeout: " + label + " (" + root + ")");
-}
-async function port() {
-  const s = createServer();
-  await new Promise(resolve => s.listen(0, "127.0.0.1", resolve));
-  const p = s.address().port;
-  await new Promise(resolve => s.close(resolve));
-  return p;
-}
 async function post(path, body, headers = {}) {
   const res = await fetch(origin + path, { method: "POST", headers: { "content-type": "application/json", ...headers },
     ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) });
@@ -70,20 +30,6 @@ function disk() {
   const sum = (dir, regex) => readdirSync(dir).filter(f => regex.test(f)).reduce((v,f) => v + statSync(join(dir,f)).size, 0);
   return { db: sum(userdata, /^statev2\.sqlite(?:-wal|-shm)?$/), trace: sum(join(userdata, "logs"), /^server\.trace\.ndjson(?:\.\d+)?$/) };
 }
-function stop(p) {
-  if (!p.pid || p.exitCode !== null) return;
-  try { execFileSync("taskkill.exe", ["/pid", String(p.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" }); }
-  catch { if (p.exitCode === null) p.kill(); }
-}
-const modelSelection = { instanceId: "bench", model: "bench" };
-const disabled = ["codex","claudeAgent","cursor","grok","muse","pi","opencode","antigravity","kiro","fx"].map(driver =>
-  [driver, { driver, enabled: false, ...(driver === "codex" ? { config: { binaryPath: join(fake,"disabled-model") } } : {}) }]);
-writeFileSync(join(userdata, "settings.json"), JSON.stringify({ defaultModelSelection: modelSelection,
-  backgroundActivityProfile: "battery-saver", automaticGitFetchInterval: 0, responseStreamingMode: "paragraph",
-  providerInstances: { ...Object.fromEntries(disabled), bench: { driver: "acpRegistry", enabled: true, displayName: "Bench",
-    config: { source: "local", commandPath: process.execPath, commandArgs: [join(import.meta.dirname,"agent.mjs"), root, String(frames), String(interval)] } } } }));
-run(git, ["init", "-q", "-b", "main"]);
-run(git, ["-c","user.name=Bench","-c","user.email=bench@example.invalid","commit","--allow-empty","-qm","Fixture"]);
 const listen = await port(), origin = "http://127.0.0.1:" + listen;
 const proj = crypto.randomUUID();
 const ids = Array.from({ length: n }, () => crypto.randomUUID());
@@ -197,9 +143,5 @@ try {
 } finally {
   rpc?.close();
   cdp?.close();
-  children.reverse().forEach(stop);
-  const owned = resolve(root);
-  if (dirname(owned) === resolve(tmpdir()) && /^chronos-bench-[a-z0-9]+$/i.test(basename(owned))) {
-    rmSync(owned, { recursive: true, force: true, maxRetries: 6, retryDelay: 200 });
-  }
+  close();
 }
