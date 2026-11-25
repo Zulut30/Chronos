@@ -5,34 +5,35 @@ description: "Выпуск версии и проверка фида Chronos. Pr
 
 # Релиз Chronos
 
-Для тега и публикации нужна просьба пользователя о выпуске или постоянное разрешение на ежедневную синхронизацию T3 после всех проверок. Для запроса только на подготовку передай версию, SHA, проверки и список изменений. Для проверки уже выпущенного релиза переходи сразу к последнему разделу.
+Полный цикл разработки включает слияние проверенного кандидата в `main`, push, тег и релиз `chronos-v*` без дополнительного вопроса. Ограничение «только подготовь» означает передать версию, SHA, проверки и список изменений. Для проверки уже выпущенного релиза переходи к последнему разделу.
+
+Откат опубликованной версии делай новой ревизией с возвратом нужных изменений: подготовь кандидат и проведи его через те же барьеры. На force-push, замену или удаление тега, удаление или перезапись релиза всегда нужно явное согласие пользователя на конкретное действие. Полный список исключений — в [chronos-router](../chronos-router/SKILL.md).
 
 ## Версия и проверенный коммит
 
-Из своего checkout выполни в Bash:
+В чистом checkout кандидата сверь `upstreamCommit` в [version.json](../../version.json) с коммитом nightly. Запиши базу, SHA и тег до проверок:
 
 ```bash
 set -euo pipefail
 git fetch origin refs/heads/main:refs/remotes/origin/main
-sha=$(git rev-parse 'origin/main^{commit}')
-tag=$(git show "$sha:chronos/version.json" | node -e '
-  const { upstream, revision } = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
-  console.log(`chronos-v${upstream}.chronos.${revision}`);
-')
+base=$(git rev-parse 'origin/main^{commit}')
+sha=$(git rev-parse 'HEAD^{commit}')
+tag=$(node chronos/scripts/chronos-version.mjs | node -p 'JSON.parse(require("node:fs").readFileSync(0, "utf8")).tag')
 gh release list -R Zulut30/Chronos --limit 5
-git ls-remote --tags --refs origin "refs/tags/$tag"
+git ls-remote --tags origin "refs/tags/$tag" "refs/tags/$tag^{}"
 ```
 
-Сверь `upstreamCommit` в [version.json](../../version.json) с коммитом nightly. В рабочей ветке кандидата командой `node chronos/scripts/chronos-version.mjs` проверь формат и вычисленную версию до слияния. Новая ревизия получает свой SHA и проверки. Если тег уже существует, сверь его коммит и статус публикации. Для новой версии нужен свободный тег.
+У аннотированного тега строка с `^{}` указывает на коммит. Если версия уже занята другим SHA, подними `revision` в ветке и заново определи SHA и тег до проверок. Если тег указывает на нужный SHA, проверь существующую публикацию или продолжи её workflow с места сбоя.
 
-Проверь Chronos checks, паритет перевода, успешный ручной Chronos desktop на точном SHA main (включая CLI и все платформы), строгий smoke его Windows-артефакта и результат perf для того же SHA. Используй пару предыдущего main и кандидата, проверенную **до слияния**. Для fast-forward SHA сохраняется. Если появился другой коммит слияния, его тоже нужно проверить до продвижения main. Контрольное сравнение main с собой после слияния не измеряет внесённое изменение. Список изменений даёт `git log --oneline <предыдущий-тег>.."$sha"`. Команды Actions и сверка артефактов — в [chronos-ci](../chronos-ci/SKILL.md).
+До продвижения main проверь Chronos checks, паритет перевода, полный ручной `chronos-desktop` на точном SHA кандидата и `chronos-smoke` 14/14 по его Windows-артефакту (`desktop_run_id`, `require_services=true`, `require_provider=true`). Для `chronos-perf.yml` требуется зелёная пара прежний main / кандидат в `pair.json`. Пока шлюза нет в main, используй ref `perf/guard`. Отсутствующий результат блокирует слияние и выпуск. Перед обычным fast-forward push сверь текущий SHA удалённого main с `$base`. При выпуске уже проверенного main возьми прежнюю базу из отчёта об интеграции. Если база сдвинулась или нужен отдельный merge-коммит, сначала проверь новый кандидат в интеграционной ветке. Список изменений даёт `git log --oneline <предыдущий-тег>.."$sha"`. Команды Actions и сверка артефактов — в [chronos-ci](../chronos-ci/SKILL.md).
 
 ## Публикация
 
-При разрешённом выпуске продолжи в том же Bash. Перед отправкой снова сверь SHA удалённого main. Смена SHA возвращает к проверкам.
+Для нового тега продолжи в том же Bash. Workflow публикации выбирает последний успешный ручной desktop run этого SHA. Перед отправкой сверь его ID с проверенным smoke: если появился другой run, проведи строгий smoke по его артефакту. Повторно сверь SHA удалённого main.
 
 ```bash
 test "$sha" = "$(gh api repos/Zulut30/Chronos/commits/main --jq .sha)"
+test "${desktop_run_id:?ID полного desktop, прошедшего строгий smoke}" = "$(gh api "repos/Zulut30/Chronos/actions/workflows/chronos-desktop.yml/runs?head_sha=$sha&event=workflow_dispatch&status=success" --jq '.workflow_runs[0].id')"
 git tag -a "$tag" "$sha" -m "Chronos ${tag#chronos-v}"
 git push origin "refs/tags/$tag"
 gh run list -R Zulut30/Chronos --workflow chronos-desktop.yml --branch "$tag" --event push --commit "$sha"

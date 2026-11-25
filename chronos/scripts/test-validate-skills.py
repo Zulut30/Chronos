@@ -26,7 +26,15 @@ class RoutingTests(unittest.TestCase):
         self.rows = [
             f"| Task | [{name}](../{name}/SKILL.md) |"
             for name in sorted(self.installed - {"chronos-router"})
-        ] + [f"| Task | `{name}` |" for name in sorted(validator["PENDING"])]
+        ] + [
+            f"| Task | `{name}` · `git show origin/{ref}:chronos/skills/{name}/SKILL.md` |"
+            for name, ref in {
+                "chronos-artifacts": "feature/artifacts",
+                "chronos-keyboard": "feature/keyboard-studio",
+                "chronos-pc-control": "feature/pc-control",
+                "chronos-perf-guard": "perf/guard",
+            }.items()
+        ]
 
     def errors(self):
         self.router.write_text("\n".join(self.rows), encoding="utf-8")
@@ -38,6 +46,13 @@ class RoutingTests(unittest.TestCase):
     def test_detects_a_link_to_another_installed_skill(self):
         self.rows = [row.replace("(../chronos-ui/", "(../chronos-ci/") for row in self.rows]
         self.assertIn("router sends chronos-ui to ../chronos-ci/SKILL.md", self.errors())
+
+    def test_expected_keyboard_route_cannot_disappear_or_point_to_another_branch(self):
+        original = self.rows.copy()
+        self.rows = [row for row in original if "chronos-keyboard" not in row]
+        self.assertIn("no router table entry for chronos-keyboard", self.errors())
+        self.rows = [row.replace("origin/feature/keyboard-studio:", "origin/main:") for row in original]
+        self.assertTrue(any("origin/feature/keyboard-studio:" in e for e in self.errors()))
 
     def test_detects_missing_package_route_and_agent_entry(self):
         self.installed.remove("chronos-ci")

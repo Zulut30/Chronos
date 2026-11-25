@@ -10,7 +10,7 @@ description: "Обновить форк Chronos с T3, проверить нов
 
 ## Границы и постоянное разрешение
 
-- Постоянное разрешение пользователя относится к ежедневной синхронизации с T3. После всех условий [chronos-router](../chronos-router/SKILL.md), зелёного паритета и разбора расхождений сливай проверенную ветку и выпускай релиз по [chronos-release](../chronos-release/SKILL.md). Явная просьба ограничиться отчётом или веткой сохраняет этот предел.
+- Синхронизация с T3 входит в постоянно разрешённый полный цикл Chronos. После всех барьеров [chronos-router](../chronos-router/SKILL.md), зелёного паритета и разбора расхождений продвигай main, делай обычный push и выпускай `chronos-v*` по [chronos-release](../chronos-release/SKILL.md) без дополнительного вопроса. Просьба только запланировать обновление означает поставить задачу на указанное время. Просьба ограничиться отчётом или веткой задаёт предел работы.
 - **Остановись в ветке `upstream-sync/<дата>` и спроси пользователя**, если:
   - после диагностики и повторной проверки остаётся блокирующая ошибка CI/smoke или необъяснённая регрессия паритета (`chronos-parity-check`);
   - апстрим меняет `appId`, профиль, схемы, Clerk/relay или формат фида обновлений;
@@ -18,7 +18,7 @@ description: "Обновить форк Chronos с T3, проверить нов
 
 При запросе только на сводку или ветку заверши запрошенную работу и отчитайся.
 
-- **Всегда запрещено:** force-push в `main`; запуск тестовых сборок на живом `~/.t3` (**миграции БД односторонние** — откатить базу на старую версию без бэкапа нельзя); секреты, токены, скриншоты и личные данные в публичном репо.
+- Для force-push и остальных исключений из [chronos-router](../chronos-router/SKILL.md) нужно явное согласие пользователя. Тестовые сборки запускай с отдельным профилем: миграции БД односторонние. Секреты запрашивай только через `request_secret`, личные данные и снимки храни вне публичного репозитория.
 
 ## 1. Разведка и сводка коммитов
 
@@ -92,7 +92,7 @@ git merge --no-ff "$target_sha" -m "feat(sync): merge upstream T3 <tag> into Chr
 
 1. При появлении новых строк разбери GT-ключи и видимые литералы по [правилам перевода](../../parity/l10n.md). Сверь русские подписи, используемые селекторами Olympus.
 2. В [version.json](../../version.json) обнови `upstream`, полный `upstreamCommit` и `revision`. Проверь `node chronos/scripts/chronos-version.mjs` и `node chronos/scripts/upstream-plan.mjs surface`. Обнови [карту интеграций](../../README.md) и отчёт по nightly.
-3. Отправь свою `upstream-sync/<дата>`. На её SHA дождись `chronos-checks.yml`, `chronos-parity.yml`, ручного `chronos-desktop.yml` и `chronos-smoke.yml` с `desktop_run_id` этой сборки и обоими параметрами `require_services=true`, `require_provider=true` (14/14). Отсутствующий прогон запусти через `gh workflow run <workflow> --ref <ветка> -R Zulut30/Chronos`, передавая inputs через `-f`. Каждый run жди через `gh run watch <id> -R Zulut30/Chronos --exit-status`. Для perf используй ref шлюза и `-f target=<ветка-кандидата>`. Проверь SHA main и кандидата в `pair.json`. Без подтверждённой пары слияние ждёт.
+3. Отправь свою `upstream-sync/<дата>`. На её SHA дождись `chronos-checks.yml`, `chronos-parity.yml`, ручного `chronos-desktop.yml` и `chronos-smoke.yml` с `desktop_run_id` этой сборки и обоими параметрами `require_services=true`, `require_provider=true` (14/14). Отсутствующий прогон запусти через `gh workflow run <workflow> --ref <ветка> -R Zulut30/Chronos`, передавая inputs через `-f`. Каждый run жди через `gh run watch <id> -R Zulut30/Chronos --exit-status`. До появления `chronos-perf.yml` в main используй ref `perf/guard` и `-f target=<ветка-кандидата>`. Проверь SHA main и кандидата в `pair.json`. Без подтверждённой пары слияние ждёт.
 4. При доступном ПК сравни окно и wording по [методике smoke и compare](../../scripts/smoke/README.md). Исправь регрессии в ветке, повтори затронутые проверки и разбери каждое расхождение.
 
 ## 7. Слияние, синхронизация скиллов и релиз

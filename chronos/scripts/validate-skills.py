@@ -18,7 +18,12 @@ REQUIRED = {
     "chronos-ui", "chronos-ui-review", "chronos-upstream-adopt", "chronos-upstream-sync",
 }
 # These rows can use literal skill names until their provider branches land.
-PENDING = {"chronos-artifacts", "chronos-pc-control", "chronos-perf-guard"}
+PENDING = {
+    "chronos-artifacts": "feature/artifacts",
+    "chronos-keyboard": "feature/keyboard-studio",
+    "chronos-pc-control": "feature/pc-control",
+    "chronos-perf-guard": "perf/guard",
+}
 NAME = r"chronos-[a-z0-9]+(?:-[a-z0-9]+)*"
 
 
@@ -100,9 +105,13 @@ def validate_routing(root, installed):
         else:
             literal = re.match(rf"`({NAME})`", target)
             if literal and literal[1] in PENDING:
-                routes.add(literal[1])
+                name = literal[1]
+                command = f"git show origin/{PENDING[name]}:chronos/skills/{name}/SKILL.md"
+                if f"`{command}`" not in target:
+                    errors.append(f"router fallback for {name} needs: {command}")
+                routes.add(name)
 
-    for name in sorted((installed | PENDING) - {"chronos-router"} - routes):
+    for name in sorted((installed | PENDING.keys()) - {"chronos-router"} - routes):
         errors.append(f"no router table entry for {name}")
 
     for name in ("AGENTS.md", "CLAUDE.md"):
