@@ -252,6 +252,13 @@ T3). Оставлены только workflow Chronos:
 
 ```sh
 python chronos/scripts/validate-skills.py
+python chronos/scripts/test-validate-skills.py
+node --test chronos/scripts/sync-skills.test.mjs
+```
+
+Чтобы установить проверенный набор в локальные профили, выполни:
+
+```sh
 node chronos/scripts/sync-skills.mjs
 ```
 
