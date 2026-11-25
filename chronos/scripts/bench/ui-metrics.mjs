@@ -52,39 +52,50 @@ function install(tracing) {
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + Math.min(r.height, 50) / 2 };
   };
+  let offscreen;
   window.uiBench = {
     hasText,
-    revealDistantFixture() {
-      const fixtures = document.querySelectorAll('[data-thread-item] [data-sidebar-row][aria-label^="Fixture "]');
-      if (fixtures.length < 2) throw Error("Expected distant seeded rows in the sidebar");
-      const viewport = scroller(fixtures[0]).getBoundingClientRect();
-      // content-visibility can skip the children of an offscreen list item. The item itself
-      // reserves space and remains a scroll target as the streaming threads change order.
-      const items = [fixtures[0], fixtures[fixtures.length - 1]].map(el => el.closest("[data-thread-item]"));
-      const distance = item => {
-        const r = item.getBoundingClientRect();
-        return Math.max(viewport.top - r.bottom, r.top - viewport.bottom);
-      };
-      const item = distance(items[0]) > distance(items[1]) ? items[0] : items[1];
-      if (distance(item) <= 0) throw Error("Fixture must start outside the sidebar viewport");
-      item.scrollIntoView({ block: "center", behavior: "instant" });
-      return item.getAttribute("data-thread-item").slice(-36);
+    revealOffscreenCard() {
+      const rows = [...document.querySelectorAll("[data-thread-item] [data-sidebar-row]")];
+      const viewport = scroller(rows[0]);
+      const bounds = viewport.getBoundingClientRect();
+      const placeholder = "[data-sidebar-card-placeholder]";
+      const windowed = viewport.querySelector(placeholder) !== null;
+      const target = rows.findLast(row => {
+        if (!viewport.contains(row) || (windowed && !row.querySelector(placeholder))) return false;
+        const box = row.closest("[data-thread-item]").getBoundingClientRect();
+        return box.bottom <= bounds.top || box.top >= bounds.bottom;
+      });
+      if (!target) throw Error("No offscreen sidebar card for the reachability check");
+      const item = target.closest("[data-thread-item]");
+      offscreen = { target, item, viewport, steps: 0 };
+      // Realize virtualized cards one viewport at a time using the sidebar itself.
+      return item.dataset.threadItem.slice(-36);
     },
-    focusRevealedCard(id) {
-      const target = row(id);
-      if (!target) return false;
-      const { x, y } = center(target);
-      const viewport = scroller(target).getBoundingClientRect();
-      // Resolving intrinsic row sizes or revealing the active route may move this item
-      // after the first jump. Correct the scroll only while the hit point is outside.
-      if (y < viewport.top || y >= viewport.bottom) {
-        target.closest("[data-thread-item]").scrollIntoView({ block: "center", behavior: "instant" });
-        return false;
-      }
-      if (target.querySelector("[data-sidebar-card-placeholder]")) return false;
-      if (!target.contains(document.elementFromPoint(x, y))) return false;
-      target.focus({ preventScroll: true });
-      return document.activeElement === target;
+    offscreenState() {
+      const { target, item, viewport } = offscreen;
+      const card = item.getBoundingClientRect(), bounds = viewport.getBoundingClientRect();
+      return {
+        steps: offscreen.steps, scrollTop: viewport.scrollTop, scrollHeight: viewport.scrollHeight,
+        connected: target.isConnected, placeholder: !!target.querySelector("[data-sidebar-card-placeholder]"),
+        top: card.top, bottom: card.bottom, viewportTop: bounds.top, viewportBottom: bounds.bottom,
+        visible: card.bottom > bounds.top && card.top < bounds.bottom,
+      };
+    },
+    advanceToOffscreenCard() {
+      const info = this.offscreenState();
+      if (!info.connected) throw Error("Offscreen target unmounted");
+      if (info.visible) return !info.placeholder;
+      const { viewport } = offscreen;
+      const distance = (info.top + info.bottom - info.viewportTop - info.viewportBottom) / 2;
+      const page = Math.max(1, Math.floor(viewport.clientHeight * 0.8));
+      offscreen.steps++;
+      viewport.scrollBy({ top: Math.max(-page, Math.min(distance, page)), behavior: "instant" });
+      return false;
+    },
+    focusRevealedCard() {
+      offscreen.target.focus({ preventScroll: true });
+      return document.activeElement === offscreen.target;
     },
     topOfTimeline() {
       scroller(timeline()).scrollTop = 0;
@@ -293,7 +304,9 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
     verifyStreaming();
   }
   const input = [];
-  for (let i = 0; i < 14; i++) {
+  const inputSamples = Number(process.env.BENCH_UI_INPUT_SAMPLES ?? 14);
+  assert(Number.isSafeInteger(inputSamples) && inputSamples >= 14 && inputSamples <= 64);
+  for (let i = 0; i < inputSamples; i++) {
     await evaluate("uiBench.armInput()");
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",

@@ -1,0 +1,393 @@
+{
+  "version": 1,
+  "rounds": 3,
+  "calibration": {
+    "main": "45c3dbfe1422b17ea96f9343be9fa7a0e0c12cfd",
+    "windowsRun": "45648111151",
+    "storageControlRun": "45652389790",
+    "reference": "median of successful main samples; details in parity/perf-guard.md"
+  },
+  "providers": {
+    "@anthropic-ai/claude-code": "2.1.328",
+    "@openai/codex": "0.170.0"
+  },
+  "rules": {
+    "unused.main.privateMiB": {
+      "unit": "MiB",
+      "delta": 12,
+      "reference": 150.32,
+      "max": 168
+    },
+    "unused.main.wsMiB": {
+      "unit": "MiB",
+      "delta": 18,
+      "reference": 189.578,
+      "max": 212
+    },
+    "unused.main.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0.52,
+      "max": 3
+    },
+    "unused.main.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "unused.renderer.privateMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 145.273,
+      "max": 184
+    },
+    "unused.renderer.wsMiB": {
+      "unit": "MiB",
+      "delta": 36,
+      "reference": 211.918,
+      "max": 260
+    },
+    "unused.renderer.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0,
+      "max": 1.5
+    },
+    "unused.renderer.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "unused.server.privateMiB": {
+      "unit": "MiB",
+      "delta": 16,
+      "reference": 374.574,
+      "max": 400
+    },
+    "unused.server.wsMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 341.887,
+      "max": 372
+    },
+    "unused.server.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 1.689,
+      "max": 3.5
+    },
+    "unused.server.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "unused.olympus.privateMiB": {
+      "unit": "MiB",
+      "delta": 8,
+      "reference": 169.281,
+      "max": 184
+    },
+    "unused.olympus.wsMiB": {
+      "unit": "MiB",
+      "delta": 12,
+      "reference": 134.105,
+      "max": 152
+    },
+    "unused.olympus.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0,
+      "max": 1
+    },
+    "unused.olympus.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "unused.total.privateMiB": {
+      "unit": "MiB",
+      "delta": 32,
+      "reference": 874.824,
+      "max": 924
+    },
+    "unused.total.wsMiB": {
+      "unit": "MiB",
+      "delta": 48,
+      "reference": 1020.73,
+      "max": 1084
+    },
+    "unused.total.cpuPct": {
+      "unit": "% core",
+      "delta": 2,
+      "reference": 2.468,
+      "max": 5.5
+    },
+    "unused.total.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 8,
+      "max": 8
+    },
+    "disabled.main.privateMiB": {
+      "unit": "MiB",
+      "delta": 12,
+      "reference": 153.453,
+      "max": 168
+    },
+    "disabled.main.wsMiB": {
+      "unit": "MiB",
+      "delta": 18,
+      "reference": 193.121,
+      "max": 216
+    },
+    "disabled.main.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0.39,
+      "max": 3
+    },
+    "disabled.main.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "disabled.renderer.privateMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 205.443,
+      "max": 232
+    },
+    "disabled.renderer.wsMiB": {
+      "unit": "MiB",
+      "delta": 36,
+      "reference": 270.676,
+      "max": 308
+    },
+    "disabled.renderer.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0,
+      "max": 1.5
+    },
+    "disabled.renderer.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "disabled.server.privateMiB": {
+      "unit": "MiB",
+      "delta": 16,
+      "reference": 383.338,
+      "max": 404
+    },
+    "disabled.server.wsMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 350.855,
+      "max": 380
+    },
+    "disabled.server.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0.26,
+      "max": 3.5
+    },
+    "disabled.server.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "disabled.olympus.privateMiB": {
+      "unit": "MiB",
+      "delta": 8,
+      "reference": 170.211,
+      "max": 180
+    },
+    "disabled.olympus.wsMiB": {
+      "unit": "MiB",
+      "delta": 12,
+      "reference": 135.41,
+      "max": 152
+    },
+    "disabled.olympus.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "reference": 0,
+      "max": 1
+    },
+    "disabled.olympus.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 1,
+      "max": 1
+    },
+    "disabled.total.privateMiB": {
+      "unit": "MiB",
+      "delta": 32,
+      "reference": 946.121,
+      "max": 980
+    },
+    "disabled.total.wsMiB": {
+      "unit": "MiB",
+      "delta": 48,
+      "reference": 1084.939,
+      "max": 1140
+    },
+    "disabled.total.cpuPct": {
+      "unit": "% core",
+      "delta": 2,
+      "reference": 0.714,
+      "max": 5.5
+    },
+    "disabled.total.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 8,
+      "max": 8
+    },
+    "claudeAgent.agent.privateMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 323.594,
+      "max": 352
+    },
+    "claudeAgent.agent.wsMiB": {
+      "unit": "MiB",
+      "delta": 36,
+      "reference": 203.691,
+      "max": 244
+    },
+    "claudeAgent.agent.cpuPct": {
+      "unit": "% core",
+      "delta": 2,
+      "reference": 1.168,
+      "max": 4.5
+    },
+    "claudeAgent.agent.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 2,
+      "max": 2
+    },
+    "codex.agent.privateMiB": {
+      "unit": "MiB",
+      "delta": 24,
+      "reference": 32.969,
+      "max": 60
+    },
+    "codex.agent.wsMiB": {
+      "unit": "MiB",
+      "delta": 36,
+      "reference": 90.152,
+      "max": 128
+    },
+    "codex.agent.cpuPct": {
+      "unit": "% core",
+      "delta": 2,
+      "reference": 0.13,
+      "max": 2.5
+    },
+    "codex.agent.count": {
+      "unit": "process",
+      "delta": 0,
+      "reference": 2,
+      "max": 2
+    },
+    "ui0.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 650,
+      "reference": 226.5
+    },
+    "ui0.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 680,
+      "reference": 238.4
+    },
+    "ui0.inputMs.p95": {
+      "unit": "ms",
+      "delta": 20,
+      "relative": 0.25,
+      "max": 110,
+      "reference": 34.6
+    },
+    "ui8.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 670,
+      "reference": 230.5
+    },
+    "ui8.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 700,
+      "reference": 243.3
+    },
+    "ui8.inputMs.p95": {
+      "unit": "ms",
+      "delta": 20,
+      "relative": 0.25,
+      "max": 125,
+      "reference": 32.9
+    },
+    "ui8.timeline.fps": {
+      "unit": "FPS",
+      "direction": "min",
+      "delta": 3,
+      "min": 47,
+      "reference": 56.818
+    },
+    "ui16.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 720,
+      "reference": 238
+    },
+    "ui16.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 750,
+      "reference": 254
+    },
+    "ui16.inputMs.p95": {
+      "unit": "ms",
+      "delta": 20,
+      "relative": 0.25,
+      "max": 140,
+      "reference": 34.3
+    },
+    "ui16.timeline.fps": {
+      "unit": "FPS",
+      "direction": "min",
+      "delta": 3,
+      "min": 47,
+      "reference": 56.296
+    },
+    "storage.dbGrowthKiB": {
+      "unit": "KiB",
+      "delta": 16384,
+      "reference": 6789.105,
+      "max": 53248
+    },
+    "storage.traceGrowthKiB": {
+      "unit": "KiB",
+      "delta": 160,
+      "reference": 293.327,
+      "max": 1024
+    }
+  }
+}

@@ -1,0 +1,56 @@
+name: Chronos performance guard
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Branch to compare with main (defaults to the workflow ref)
+        type: string
+      audit:
+        description: Compare main with itself and audit the four development branches
+        type: boolean
+        default: false
+  push:
+    branches: [main, "feature/**", "perf/**", "fix/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chronos-perf-${{ github.ref }}-${{ inputs.target }}-${{ inputs.audit }}
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/bench
+          persist-credentials: true
+      - name: Verify comparator and benchmark fixture
+        run: node --test chronos/scripts/bench/guard-compare.test.mjs chronos/scripts/bench/agent.test.mjs
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ inputs.target }}
+          AUDIT: ${{ inputs.audit }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: node chronos/scripts/bench/guard-plan.mjs
+  compare:
+    needs: packages
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.packages.outputs.matrix) }}
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/chronos-perf-pair.yml
+    with:
+      pair: ${{ toJSON(matrix) }}

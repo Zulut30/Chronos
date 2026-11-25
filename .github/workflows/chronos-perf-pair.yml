@@ -1,0 +1,71 @@
+name: Chronos performance pair
+on:
+  workflow_call:
+    inputs:
+      pair:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      pair: ${{ steps.builds.outputs.pair }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/bench
+      - id: builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAIR: ${{ inputs.pair }}
+        run: node chronos/scripts/bench/guard-plan.mjs
+  compare:
+    name: main vs ${{ fromJSON(inputs.pair).head.ref }}
+    needs: package
+    runs-on: windows-2025
+    timeout-minutes: 115
+    env:
+      BENCH_UI_INPUT_SAMPLES: '40'
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare exact Windows packages and pinned CLIs
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAIR: ${{ needs.package.outputs.pair }}
+        run: ./chronos/scripts/bench/guard-run.ps1 -Stage prepare -Results "$env:RUNNER_TEMP/guard"
+      - name: First pair
+        run: ./chronos/scripts/bench/guard-run.ps1 -Stage first -Results "$env:RUNNER_TEMP/guard"
+      - name: Preserve first-pair evidence during the run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: first-${{ fromJSON(inputs.pair).name }}
+          path: ${{ runner.temp }}/guard
+          retention-days: 2
+      - name: Reversed and final pairs
+        run: ./chronos/scripts/bench/guard-run.ps1 -Stage remaining -Results "$env:RUNNER_TEMP/guard"
+      - name: Enforce budget and publish the comparison
+        if: ${{ !cancelled() }}
+        run: node chronos/scripts/bench/guard-compare.mjs "$env:RUNNER_TEMP/guard"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ !cancelled() }}
+        with:
+          name: guard-${{ fromJSON(inputs.pair).name }}
+          path: ${{ runner.temp }}/guard
+          if-no-files-found: error
+          retention-days: 14

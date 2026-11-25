@@ -9,9 +9,14 @@
 # archives, Linux and Windows arm64. Windows is cross-built on Linux exactly as
 # upstream does. See chronos/README.md.
 name: Chronos desktop
+run-name: ${{ inputs.perf_sha && format('Perf Windows {0}', inputs.perf_sha) || '' }}
 
 on:
   workflow_dispatch:
+    inputs:
+      perf_sha:
+        description: Build only the Windows benchmark package from this immutable commit
+        type: string
   push:
     branches:
       - main
@@ -22,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: chronos-desktop-${{ github.ref }}
+  group: chronos-desktop-${{ inputs.perf_sha || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -41,6 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      desktop_matrix: ${{ steps.platforms.outputs.matrix }}
       version: ${{ steps.version.outputs.version }}
       upstream: ${{ steps.version.outputs.upstream }}
       tag: ${{ steps.version.outputs.tag }}
@@ -48,7 +54,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          ref: ${{ inputs.perf_sha }}
           sparse-checkout: chronos
+      - name: Select desktop platforms
+        id: platforms
+        env:
+          PERF_SHA: ${{ inputs.perf_sha }}
+        run: |
+          if [[ -n "$PERF_SHA" ]]; then
+            [[ "$PERF_SHA" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$PERF_SHA" && "$GITHUB_REF_TYPE" == branch ]] || exit 1
+          fi
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs';
+          const platforms = [
+            { label: 'Windows x64', runner: 'ubuntu-24.04', platform: 'win', target: 'nsis', arch: 'x64', rust_target: 'x86_64-pc-windows-msvc' },
+            { label: 'macOS arm64', runner: 'macos-26', platform: 'mac', target: 'dmg', arch: 'arm64', rust_target: 'aarch64-apple-darwin' },
+            { label: 'macOS x64', runner: 'macos-26-intel', platform: 'mac', target: 'dmg', arch: 'x64', rust_target: 'x86_64-apple-darwin' },
+          ];
+          const include = platforms.filter(p => !process.env.PERF_SHA || p.platform === 'win');
+          appendFileSync(process.env.GITHUB_OUTPUT, 'matrix=' + JSON.stringify({include}) + '\n');
+          JS
       - name: Resolve Chronos version
         id: version
         env:
@@ -70,6 +95,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          ref: ${{ inputs.perf_sha }}
           sparse-checkout: |
             /*
             !/.repos/
@@ -101,7 +127,7 @@ jobs:
 
   # Vite builds do not typecheck; this covers the packages Chronos patches.
   typecheck:
-    if: github.ref_type != 'tag'
+    if: github.ref_type != 'tag' && !inputs.perf_sha
     name: Typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -126,6 +152,7 @@ jobs:
         run: vp run --filter @t3tools/contracts --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
   cli:
+    if: ${{ !inputs.perf_sha }}
     name: SSH CLI ${{ matrix.key }}
     needs: [version, bundle]
     runs-on: ${{ matrix.runner }}
@@ -195,31 +222,12 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - label: Windows x64
-            runner: ubuntu-24.04
-            platform: win
-            target: nsis
-            arch: x64
-            rust_target: x86_64-pc-windows-msvc
-          - label: macOS arm64
-            runner: macos-26
-            platform: mac
-            target: dmg
-            arch: arm64
-            rust_target: aarch64-apple-darwin
-          - label: macOS x64
-            # The upstream cache generator executes the packaged x64 Electron before signing.
-            runner: macos-26-intel
-            platform: mac
-            target: dmg
-            arch: x64
-            rust_target: x86_64-apple-darwin
+      matrix: ${{ fromJSON(needs.version.outputs.desktop_matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          ref: ${{ inputs.perf_sha }}
           sparse-checkout: |
             /*
             !/.repos/
@@ -326,6 +334,8 @@ jobs:
           CHRONOS_TEST_RESOURCES="$resources" node --test chronos/scripts/smoke/services.test.mjs
 
       - name: Collect release assets
+        env:
+          PERF_SHA: ${{ inputs.perf_sha }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -341,6 +351,7 @@ jobs:
               mv "$manifest" "${manifest%.yml}-${{ matrix.arch }}.yml"
             done
           fi
+          if [[ -n "$PERF_SHA" ]]; then git rev-parse HEAD > release-publish/perf-source.txt; fi
           ls -la release-publish
 
       - name: Upload desktop artifact
@@ -354,7 +365,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'chronos-v')
+    if: github.ref_type == 'tag' && !inputs.perf_sha && startsWith(github.ref_name, 'chronos-v')
     needs: version
     runs-on: ubuntu-24.04
     timeout-minutes: 20

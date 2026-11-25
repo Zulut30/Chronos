@@ -413,21 +413,15 @@ async function benchmark() {
       "document.querySelectorAll('[data-sidebar-card-placeholder]').length",
     );
     // Verify the offscreen row remains reachable using the same DOM contract as Olympus.
-    const farId = await evaluate("uiBench.revealDistantFixture()");
+    const farId = await evaluate("uiBench.revealOffscreenCard()");
     try {
-      await wait("offscreen card", () =>
-        evaluate("uiBench.focusRevealedCard(" + JSON.stringify(farId) + ")"),
-      );
+      await wait("offscreen card", () => evaluate("uiBench.advanceToOffscreenCard()"));
     } catch (error) {
-      const state = await evaluate(`(() => {
-        const row = document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-row]');
-        const box = row?.getBoundingClientRect();
-        return { exists: !!row, rect: box?.toJSON(), placeholder: !!row?.querySelector("[data-sidebar-card-placeholder]"),
-          viewport: row?.closest('[data-slot="scroll-area-viewport"]')?.getBoundingClientRect().toJSON(),
-          focused: row === document.activeElement };
-      })()`);
-      throw Error("Offscreen fixture " + farId + ": " + JSON.stringify(state), { cause: error });
+      console.error("Offscreen card at failure", farId, await evaluate("uiBench.offscreenState()"));
+      throw error;
     }
+    const offscreenCard = await evaluate("uiBench.offscreenState()");
+    assert(await evaluate("uiBench.focusRevealedCard()"), "Revealed card did not receive keyboard focus");
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
       key: "Enter",
@@ -491,6 +485,7 @@ async function benchmark() {
       interval,
       olympus,
       placeholders,
+      offscreenCard,
       settingsMs,
       history,
       cadence,
