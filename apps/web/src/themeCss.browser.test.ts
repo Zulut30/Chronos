@@ -2,6 +2,22 @@ import { expect, it } from "vite-plus/test";
 
 import { applyThemeCss } from "./themeCss";
 
+it("applies the Olympus 4774 limit row layout to the 5209 usage link", () => {
+  const card = document.createElement("div");
+  card.dataset.threadDetailsCard = "";
+  card.innerHTML = '<section><h3 id="thread-details-usage-heading"></h3><div><a tabindex="0" href="/usage"><span>25%</span></a></div></section>';
+  document.body.append(card);
+  using _card = { [Symbol.dispose]: () => card.remove() };
+  using _css = { [Symbol.dispose]: () => applyThemeCss(undefined) };
+  const section = "[data-thread-details-card] section:has(#thread-details-usage-heading,#thread-details-context-heading)";
+  applyThemeCss(`
+    ${section}>div:last-child>div[tabindex]{display:grid;grid-template-areas:"l r v" "b b b"}
+    ${section} div[tabindex]>span{grid-area:v}
+  `);
+  expect(getComputedStyle(card.querySelector("a")!).gridTemplateAreas).toBe('"l r v" "b b b"');
+  expect(getComputedStyle(card.querySelector("span")!).gridArea).toBe("v");
+});
+
 it("applies theme CSS and drops every rule that would load a remote file", () => {
   const probe = document.createElement("div");
   probe.dataset.themeCssProbe = "";
