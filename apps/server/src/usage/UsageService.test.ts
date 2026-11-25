@@ -44,6 +44,7 @@ import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import * as CodexUsageHistory from "./CodexUsageHistory.ts";
+import { OpenCodeDriver } from "@t3tools/provider-opencode/server";
 import * as CursorAccountReader from "@t3tools/provider-cursor/server/CursorAccountReader";
 import * as CursorUsageAccounts from "@t3tools/provider-cursor/server/CursorUsageAccounts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
@@ -2451,7 +2452,18 @@ describe("UsageService", () => {
           }),
         ),
       );
-      const summary = yield* service.readSummary(WINDOW);
+      // chronos: exercise the physical reader through the normal summary entry point.
+      const reader = OpenCodeDriver.usage;
+      assert.isTrue(reader?.kind === "scan");
+      if (reader?.kind !== "scan") throw new Error("Missing OpenCode scan reader");
+      const scan = vi.spyOn(reader, "scan");
+      const summary = yield* service.readSummary(WINDOW).pipe(
+        Effect.ensuring(Effect.sync(() => {
+          const calls = scan.mock.calls.length;
+          scan.mockRestore();
+          assert.equal(calls, 1);
+        })),
+      );
       const sources = summary.sources.filter(
         (source) => source.fingerprint.provider === "opencode",
       );

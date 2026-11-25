@@ -6,6 +6,7 @@ import {
   type OrchestrationV2ShellSnapshot,
   type OrchestrationV2ShellStreamItem,
 } from "@t3tools/contracts";
+import { threadIndex, upsertIndexedThread } from "../chronos/threadPositions.ts";
 import * as Schema from "effect/Schema";
 
 const sameThreadShell = Schema.toEquivalence(OrchestrationV2ThreadShell);
@@ -158,7 +159,8 @@ export function applyShellStreamEvent(
     case "thread.updated": {
       const existing =
         event.location === "active"
-          ? snapshot.threads.find((thread) => thread.id === event.thread.id)
+          // chronos: share row positions between equal-layout snapshots.
+          ? threadIndex(snapshot.threads).get(event.thread.id)
           : undefined;
       if (existing !== undefined && sameThreadShell(existing, event.thread)) {
         return { ...snapshot, snapshotSequence: event.sequence };
@@ -169,7 +171,7 @@ export function applyShellStreamEvent(
         ...snapshot,
         threads:
           event.location === "active"
-            ? upsertById(snapshot.threads, event.thread)
+            ? upsertIndexedThread(snapshot.threads, event.thread)
             : withoutThread(snapshot.threads),
         // The archive has its own bounded query/subscription. Older servers may
         // still send archive-located deltas here; remove them from the normal

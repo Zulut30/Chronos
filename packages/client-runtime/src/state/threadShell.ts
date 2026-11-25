@@ -1,3 +1,4 @@
+import { threadIndex, threadPositions } from "../chronos/threadPositions.ts";
 import { mFallback, msg } from "gt-i18n";
 import type { MFunctionType } from "gt-i18n/types";
 import type {
@@ -313,7 +314,8 @@ export function createEnvironmentThreadShellAtoms(input: {
       if (threads.length === 0) {
         return EMPTY_THREAD_INDEX;
       }
-      return new Map(threads.map((thread) => [thread.id, thread] as const));
+      // chronos: point reads reuse the reducer’s positional index.
+      return threadIndex(threads);
     }).pipe(Atom.withLabel(`environment-thread-index:${environmentId}`)),
   );
 
@@ -414,8 +416,14 @@ export function createEnvironmentThreadShellAtoms(input: {
 
   const environmentThreadRefsAtom = Atom.family((environmentId: EnvironmentId) => {
     let previous: ReadonlyArray<ScopedThreadRef> = [];
+    let layout: ReturnType<typeof threadPositions> | undefined;
     return Atom.make((get) => {
-      const next = get(environmentThreadsAtom(environmentId)).map((thread) => ({
+      // chronos: replacing one row preserves membership and order.
+      const threads = get(environmentThreadsAtom(environmentId));
+      const positions = threadPositions(threads);
+      if (layout === positions) return previous;
+      layout = positions;
+      const next = threads.map((thread) => ({
         environmentId,
         threadId: thread.id,
       }));

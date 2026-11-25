@@ -201,6 +201,20 @@ T3). Оставлены только workflow Chronos:
 `ChronosBrand.test.ts`), `chronos/brand/`, `chronos/version.json`, `chronos/scripts/`
 (`chronos-version.mjs`, `verify-release.mjs`, `upstream-plan.mjs`, `upstream-plan.test.mjs`).
 
+## Точки встраивания оптимизаций при параллельных запусках
+
+| Файл апстрима | Назначение |
+|---|---|
+| `apps/server/src/orchestration-v2/ProviderSessionManager.ts`, `RunExecutionService.ts` | Привязка очереди к запуску и выбор получателей событий Codex |
+| `apps/server/src/orchestration-v2/ProviderCommitBatch.ts` | Размер неизменного snapshot перед постановкой в очередь |
+| `apps/server/src/orchestration-v2/EventSink.ts` | Каналы подписок на committed events одного треда |
+| `apps/server/src/usage/UsageService.ts` | Общий скан OpenCode и OpenRouter и раздельные итоги |
+| `apps/server/src/observability/Observability.ts`, `packages/shared/src/observability.ts` | Решение о записи локального span после завершения |
+| `apps/web/src/components/chat/useThreadFind.ts` | Подписка поиска на открытую проекцию |
+| `packages/client-runtime/src/state/shellReducer.ts`, `threadShell.ts` | Индекс позиций и повторное использование списка ссылок тредов |
+
+[Методика стенда](scripts/bench/README.md) и [замеры](parity/perf-quick-wins.md).
+
 ## Скиллы
 
 Исходники скиллов в `chronos/skills/`:

@@ -181,6 +181,8 @@ export interface TraceSink {
 }
 
 export interface LocalFileTracerOptions extends TraceSinkOptions {
+  // chronos: decide local retention after the exit and log events are known.
+  readonly keepLocalSpan?: (span: Pick<SerializableSpan, "status" | "events">) => boolean;
   readonly delegate?: Tracer.Tracer;
   readonly sink?: TraceSink;
 }
@@ -597,14 +599,17 @@ class LocalFileSpan implements Tracer.Span {
   events: Array<[name: string, startTime: bigint, attributes: Record<string, unknown>]>;
   private readonly delegate: Tracer.Span;
   private readonly push: (record: EffectTraceRecord) => void;
+  private readonly keepLocalSpan: LocalFileTracerOptions["keepLocalSpan"];
 
   constructor(
     options: Parameters<Tracer.Tracer["span"]>[0],
     delegate: Tracer.Span,
     push: (record: EffectTraceRecord) => void,
+    keepLocalSpan?: LocalFileTracerOptions["keepLocalSpan"],
   ) {
     this.delegate = delegate;
     this.push = push;
+    this.keepLocalSpan = keepLocalSpan;
     this.name = delegate.name;
     this.spanId = delegate.spanId;
     this.traceId = delegate.traceId;
@@ -632,7 +637,7 @@ class LocalFileSpan implements Tracer.Span {
     };
     this.delegate.end(endTime, redactExitCredentials(traceExit));
 
-    if (this.sampled) {
+    if (this.sampled && (this.keepLocalSpan?.(this) ?? true)) {
       this.push(spanToTraceRecord(this));
     }
   }
@@ -683,7 +688,7 @@ export const makeLocalFileTracer = Effect.fn("makeLocalFileTracer")(function* (
 
   return Tracer.make({
     span(spanOptions) {
-      return new LocalFileSpan(spanOptions, delegate.span(spanOptions), sink.push);
+      return new LocalFileSpan(spanOptions, delegate.span(spanOptions), sink.push, options.keepLocalSpan);
     },
     ...(delegate.context ? { context: delegate.context } : {}),
   });

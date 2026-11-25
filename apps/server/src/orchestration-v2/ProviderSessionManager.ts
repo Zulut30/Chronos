@@ -71,6 +71,7 @@ import {
 import * as CommandOutputHub from "./CommandOutputHub.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as ProviderEventIngestor from "./ProviderEventIngestor.ts";
+import { makeCodexRecipients, RunSubscriber } from "../chronos/perf/codexRecipients.ts";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import {
@@ -718,15 +719,17 @@ export const layerWithOptions = (
         Effect.Effect<void>
       >();
 
+      // chronos: index queues by run for unambiguous Codex events.
+      const runQueues = makeCodexRecipients<Queue.Queue<ProviderSessionEventSignal, Cause.Done>>();
       const publishToSubscribers = (
         subscribers: Ref.Ref<
           ReadonlyMap<number, Queue.Queue<ProviderSessionEventSignal, Cause.Done>>
         >,
-        signal: ProviderSessionEventSignal,
+        signal: Extract<ProviderSessionEventSignal, { type: "event" }>,
       ) =>
         Ref.get(subscribers).pipe(
           Effect.flatMap((current) =>
-            Effect.forEach(current.values(), (queue) => Queue.offer(queue, signal), {
+            Effect.forEach(runQueues.recipients(current, signal.event), (queue) => Queue.offer(queue, signal), {
               discard: true,
             }),
           ),
@@ -2487,6 +2490,8 @@ export const layerWithOptions = (
           >,
         ): Effect.fn.Return<ProviderAdapter.ProviderAdapterV2EventSubscription> {
           const queue = yield* Queue.unbounded<ProviderSessionEventSignal, Cause.Done>();
+          // chronos: bind before publishing the new subscribers map.
+          runQueues.register(queue, yield* RunSubscriber);
           const subscriberId = yield* Ref.getAndUpdate(nextSubscriberId, (value) => value + 1);
           yield* Ref.update(subscribers, (current) => {
             const updated = new Map(current);
