@@ -33,12 +33,12 @@ import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import { BUILT_IN_USAGE_DRIVERS, type BuiltInUsageReadersEnv } from "../provider/builtInDrivers.ts";
 // chronos(olympus): server-syNn-CpO.mjs N16
+import { partitionOpenCode } from "../chronos/perf/partitionOpenCode.ts";
 import { OpenCodeDriver } from "@t3tools/provider-opencode/server";
 import type { ProviderDriver } from "@t3tools/provider-core/server/driver";
 import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/instanceEnvironment";
 import type {
   ProviderUsageInstance,
-  ProviderUsageScan,
   TranscriptUsageFormat,
   UsageRecord,
 } from "@t3tools/provider-core/server/usage";
@@ -93,38 +93,10 @@ const transcriptReaders = BUILT_IN_USAGE_DRIVERS.flatMap((driver) =>
   driver.usage?.kind === "transcripts" ? [{ driver, reader: driver.usage }] : [],
 );
 
-// chronos(olympus): server-syNn-CpO.mjs N15
-function olyUsagePartition(
-  sources: ReadonlyArray<ProviderUsageScan>,
-  provider: UsageProviderKind,
-): ReadonlyArray<ProviderUsageScan> {
-  return sources.map((source) => ({
-    ...source,
-    files:
-      source.files
-        ?.map((file) => ({
-          ...file,
-          records: file.records.filter((record) => record.provider === provider),
-        }))
-        .filter((file) => file.records.length > 0) ?? null,
-  }));
-}
-
-// chronos(olympus): server-syNn-CpO.mjs N16
-const scanReaders = BUILT_IN_USAGE_DRIVERS.flatMap((driver) => {
-  if (driver.usage?.kind !== "scan") return [];
-  const usage = driver.usage;
-  if (driver !== OpenCodeDriver) return [{ driver, reader: usage }];
-  return (["opencode", "openrouter"] as const).map((provider) => {
-    const reader: typeof usage = {
-      ...usage,
-      provider,
-      scan: (input) =>
-        usage.scan(input).pipe(Effect.map((sources) => olyUsagePartition(sources, provider))),
-    };
-    return { driver, reader };
-  });
-});
+// chronos: partition OpenCode and OpenRouter after the single physical scan.
+const scanReaders = BUILT_IN_USAGE_DRIVERS.flatMap((driver) =>
+  driver.usage?.kind === "scan" ? [{ driver, reader: driver.usage }] : [],
+);
 
 const providerRateModels = new Map(
   BUILT_IN_USAGE_DRIVERS.flatMap(({ usage }) =>
@@ -846,6 +818,7 @@ export const make = Effect.gen(function* () {
               ),
             ),
           ),
+          Effect.map((sources) => driver === OpenCodeDriver ? partitionOpenCode(sources) : sources),
           Effect.provideContext(readerContext),
         ),
       { concurrency: "unbounded" },
