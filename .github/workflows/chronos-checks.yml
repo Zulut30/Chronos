@@ -26,6 +26,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pc-probe:
+    if: github.ref == 'refs/heads/feature/pc-control'
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            chronos/pc-control
+            chronos/scripts/smoke
+      - shell: pwsh
+        run: |
+          $tools = Join-Path $env:RUNNER_TEMP 'pc-tools'
+          node chronos/pc-control/stage.mjs win x64 $tools
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./chronos/scripts/smoke/pc-desktop.ps1 $tools
+
   checks:
     name: Typecheck and tests
     runs-on: ubuntu-24.04
