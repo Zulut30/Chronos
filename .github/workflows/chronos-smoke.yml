@@ -142,6 +142,9 @@ jobs:
             '--out', $outDir
           )
           if ($env:REQUIRE_PROVIDER -eq 'true') { $smokeArgs += '--require-provider' }
+          if ($env:REQUIRE_PROVIDER -eq 'true' -and $env:REQUIRE_SERVICES -eq 'true') {
+            $smokeArgs += '--verify-olympus'
+          }
           if ($env:REQUIRE_SERVICES -ne 'true') { $smokeArgs += '--allow-offline-services' }
           node chronos/scripts/smoke/smoke.mjs @smokeArgs
           $exitCode = $LASTEXITCODE
@@ -167,6 +170,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chronos-smoke-report-${{ inputs.desktop_run_id }}
-          path: ${{ runner.temp }}/chronos-smoke-report/report.json
+          path: ${{ runner.temp }}/chronos-smoke-report/
           if-no-files-found: warn
           retention-days: 14
