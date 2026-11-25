@@ -1,6 +1,6 @@
 ---
 name: chronos-upstream-sync
-description: Пошагово синхронизирует форк Chronos (Zulut30/Chronos) с новым nightly T3 Code (pingdotgg/t3code) — сводка коммитов, ветка, слияние, разрешение конфликтов, проверка скрытых поломок и зависимостей Olympus, перевод новых строк, CI/smoke и выпуск релиза. Используй в ежедневной задаче 05:00, когда просят «обнови Chronos до T3», «синхронизируй с апстримом», «влей свежий nightly», «что нового в T3» или по /chronos-upstream-sync.
+description: "Ежедневная синхронизация Chronos с nightly T3. Use for daily upstream sync, compatibility review, merge gates and release of a verified nightly."
 ---
 
 # Синхронизация Chronos с апстримом T3
@@ -10,9 +10,9 @@ description: Пошагово синхронизирует форк Chronos (Zul
 
 ## Границы и постоянное разрешение
 
-- **Постоянное разрешение пользователя (2026-11-25, в т. ч. ежедневная задача `05:00`):** если зелёные `chronos-checks.yml`, `chronos-parity.yml`, `chronos-desktop.yml` (Windows x64, macOS arm64, macOS x64) и `chronos-smoke.yml` (`require_services=true`, плюс локальный smoke/wording при наличии ПК), а необъяснённых регрессий нет — **сливай в `main` и выпускай релиз** (`chronos-release`).
+- Постоянное разрешение пользователя относится к ежедневной синхронизации с T3. После всех условий [chronos-router](../chronos-router/SKILL.md), зелёного паритета и разбора расхождений сливай проверенную ветку и выпускай релиз по [chronos-release](../chronos-release/SKILL.md). Явная просьба ограничиться отчётом или веткой сохраняет этот предел.
 - **Остановись в ветке `upstream-sync/<дата>` и спроси пользователя**, если:
-  - падает CI/smoke или есть необъяснённая регрессия паритета (`chronos-parity-check`);
+  - после диагностики и повторной проверки остаётся блокирующая ошибка CI/smoke или необъяснённая регрессия паритета (`chronos-parity-check`);
   - апстрим меняет `appId`, профиль, схемы, Clerk/relay или формат фида обновлений;
   - новая функция T3 напрямую конфликтует с функцией Olympus и выбор приоритета неочевиден (`chronos-upstream-adopt`);
   - пользователь явно просил только сводку или ветку без слияния.
@@ -43,7 +43,7 @@ git diff --stat <upstreamCommit>.."$target_sha"
 ## 2. Ветка и слияние
 
 ```bash
-git switch -c upstream-sync/<YYYY-MM-DD> main
+git switch -c upstream-sync/<YYYY-MM-DD> origin/main
 git merge --no-ff "$target_sha" -m "feat(sync): merge upstream T3 <tag> into Chronos"
 ```
 
@@ -86,41 +86,15 @@ git merge --no-ff "$target_sha" -m "feat(sync): merge upstream T3 <tag> into Chr
 | **Иконки `@pierre/trees` (15)** | Патч `patches/@pierre__trees@<ver>.patch`, `apps/web/src/pierre-icons.ts` (`__olyLangIcons.apply` до создания resolver), `DiffPanel.tsx` (`PierreEntryIcon`). |
 | **DOM-селекторы и тексты `features/*.js`** | Сверь изменённые экраны с описью в `chronos/parity/upstream-5209.md` (`data-slot`, `data-workspace-area`, `data-settings-section`, русские `aria-label` для «Расход», «Показать или скрыть правую панель», «Поиск в настройках», «Закрыть настройки», «Студия», «День / ночь»). |
 
-## 6. Перевод новых строк
+## 6. Перевод и проверка кандидата
 
-1. Проверь новые ключи в `apps/web/src/i18n/translations/en.json` и лог сборки `[olympus-l10n]` (остатки английского, не должны ломать ключи протокола вроде `not_a_file_request` и защищённые ключи GT).
-2. Переведи новые видимые строки и расхождения формулировок по правилам `chronos-upstream-adopt` и глоссарию `C:\Users\zulut\.t3\caches\t3-customizations\ru-l10n\glossary.md` в `chronos/l10n/gt-additions.json` (при необходимости обнови `apps/web/src/chronos/olympus/l10n/catalog.ts`).
-3. Проверь, что формулировки Olympus не затёрты машинным `ru.json` T3.
+1. Разбери новые GT-ключи и видимые литералы по [chronos-l10n](../chronos-l10n/SKILL.md). Сверь русские подписи, используемые селекторами Olympus.
+2. В [version.json](../../version.json) обнови `upstream`, полный `upstreamCommit` и `revision`. Проверь `node chronos/scripts/chronos-version.mjs` и `node chronos/scripts/upstream-plan.mjs surface`. Обнови [карту интеграций](../../README.md) и отчёт по nightly.
+3. Отправь свою `upstream-sync/<дата>` и проверь её SHA по [chronos-ci](../chronos-ci/SKILL.md). Дождись Chronos checks, chronos-parity, desktop для всех платформ, smoke 14/14 по артефакту этого desktop (`require_services=true`, `require_provider=true`) и зелёного chronos-perf.yml. Когда perf workflow ещё недоступен, оставь ветку до появления подтверждённого результата.
+4. При доступном ПК сравни окно и wording по [chronos-parity-check](../chronos-parity-check/SKILL.md). Исправь регрессии в ветке, повтори затронутые проверки и разбери каждое расхождение.
 
-## 7. Версия, CI и проверка паритета
+## 7. Слияние, синхронизация скиллов и релиз
 
-1. Обнови `chronos/version.json`: `upstream` = новая версия, `upstreamCommit` = полный SHA тега, `revision` = следующий счётчик после `main`. Проверь `node chronos/scripts/chronos-version.mjs`, `node chronos/scripts/upstream-plan.mjs surface`, `git grep -n "chronos:"`.
-2. Обнови базу в `chronos/README.md` и (при нетривиальных изменениях) запиши отчёт в `chronos/parity/upstream-<build>.md`.
-3. Закоммить и запушь ветку `upstream-sync/<дата>` (`git push -u origin upstream-sync/<дата>`).
-4. Запусти и дождись зелёного статуса CI:
-   ```bash
-   gh workflow run chronos-checks.yml  --repo Zulut30/Chronos --ref upstream-sync/<дата>
-   gh workflow run chronos-parity.yml  --repo Zulut30/Chronos --ref upstream-sync/<дата>
-   gh workflow run chronos-desktop.yml --repo Zulut30/Chronos --ref upstream-sync/<дата>
-   ```
-   > `chronos-parity.yml` проверяет движок перевода на **зафиксированном ASAR 4774** — его зелёный статус сам по себе **не подтверждает** окно новой nightly.
-5. После зелёного `chronos-desktop.yml` (Windows x64 + macOS arm64 + macOS x64 + сверка упакованных `chronos-services`) запусти CI-smoke с сервисами:
-   ```bash
-   gh workflow run chronos-smoke.yml --repo Zulut30/Chronos --ref upstream-sync/<дата> \
-     -f desktop_run_id=<id_прогона_chronos-desktop> -f require_services=true
-   ```
-6. Проведи локальный полный smoke и сравнение с эталоном по `chronos-parity-check` (`smoke.mjs --strict-en` + `compare.py` по пикселям с масками и русским формулировкам). При падениях — чини в этой же ветке и повторяй прогон.
+После подтверждения всех условий проверь, что база main не ушла вперёд. При изменении базы сначала проверь объединённый кандидат. Влей проверенный SHA в main. **Ежедневная задача после слияния** в актуальном локальном checkout main выполняет `node chronos/scripts/sync-skills.mjs`. На удалённом CI-раннере команда обновила бы только его домашний каталог.
 
-## 8. Слияние в `main`, релиз и отчёт
-
-Если все проверки шага 7 зелёные, необъяснённых регрессий `0` и не сработали стоп-условия:
-
-1. Влей `upstream-sync/<дата>` в `main` и запушь `main`.
-2. Запусти на точном `HEAD` ветки `main` `chronos-checks.yml` и ручной `workflow_dispatch` `chronos-desktop.yml` (требуется job `release` в `.github/workflows/chronos-desktop.yml`), плюс `chronos-smoke.yml` (`require_services=true`) по свежему `desktop_run_id`.
-3. Выпусти тег `chronos-v*` и GitHub Release по `chronos-release`.
-
-В отчёте пользователю укажи:
-- база была → стала (теги, SHA, число коммитов) и ключевые новинки T3;
-- разрешённые конфликты, скрытые правки, удалённые патчи, новые переводы;
-- ссылки на прогоны `chronos-checks`, `chronos-parity`, `chronos-desktop`, `chronos-smoke` и итог локального `compare.py`;
-- итоговый статус: выпущен релиз `chronos-v*` (ссылка) или причина остановки в ветке `upstream-sync/<дата>`.
+На точном SHA main собери доказательства для релиза по [chronos-release](../chronos-release/SKILL.md), включая ручной desktop и smoke его артефакта. В отчёте укажи старую и новую базы, важные изменения и конфликты, ссылки на проверки и perf, итог локального сравнения и синхронизации скиллов, тег и ссылку на релиз либо причину остановки.

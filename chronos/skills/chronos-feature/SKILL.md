@@ -1,6 +1,6 @@
 ---
 name: chronos-feature
-description: Как добавлять и переносить функции в форк Chronos (Zulut30/Chronos) с сохранением паритета Olympus, встроенных сервисов, перевода, бренда и чистых слияний с апстримом T3. Используй перед любой правкой кода Chronos и по /chronos-feature.
+description: "Разработка функций и исправлений Chronos с сохранением паритета Olympus. Use for implementing features, fixing bugs and choosing upstream integration points."
 ---
 
 # Разработка функций и правок в Chronos
@@ -10,14 +10,12 @@ description: Как добавлять и переносить функции в
 ## Где размещать код
 
 1. **Изолированные каталоги форка:**
-   - **Веб-клиент:** `apps/web/src/chronos/<фича>/` (например, `issue-trello/`, `idleUnload/`, `perf/`). Модули Olympus лежат байт в байт в `apps/web/src/chronos/olympus/features/`, подключаются через `prologue.ts` и плагин `olympus/plugin.ts` (мимо React Compiler и переводчика) — правь их только точечно ради исправления бага.
+   - **Веб-клиент:** `apps/web/src/chronos/<фича>/` (например, `issue-trello/`, `idleUnload/`, `perf/`). Модули Olympus лежат байт в байт в `apps/web/src/chronos/olympus/features/`, подключаются через `prologue.ts` и плагин `olympus/plugin.ts` (мимо React Compiler и переводчика) — адаптацию делай в стыке вне этих файлов. Байты проверяет [тест паритета модулей](../../scripts/olympus-settings.test.mjs).
    - **Сервисы Olympus и sidecar-менеджер (`chronos/parity/services.md`):**
      - исходники 7 HTTP-сервисов (`4517–4524`: `skills-manager`, `tasks-service`, `files-service`, `studio-service`, `integrations-service`, `mcp-manager`, `olympus-hub`) и `openrouter-service` (stdio) — в `chronos/services/<имя>/`. Пути данных параметризуются через `CHRONOS_T3_HOME` и `CHRONOS_SERVICES_DATA` (фолбэк `~/.t3` при ручном запуске);
-     - запуск/остановка из Electron main — `apps/desktop/src/chronos/services/` (`ChronosServices.ts`, `Sidecars.ts` через `ELECTRON_RUN_AS_NODE=1` с проверкой порта до старта и логами в `<baseDir>/logs/services/`), упаковка в `resources/chronos-services/` через `scripts/build-desktop-artifact.ts`;
+     - [Sidecars.ts](../../../apps/desktop/src/chronos/services/Sidecars.ts) проверяет порты. Один [host.mjs](../../services/host.mjs) держит HTTP-сервисы в отдельных Worker, OpenRouter использует stdio. Тестируй управление жизненным циклом в CI или изолированном стенде; существующие службы пользователя продолжают работу;
      - сохранение `Origin: t3code://app` для CORS портов сервисов — `apps/desktop/src/chronos/services/ServiceOrigins.ts` (подключён в `RemoteRequestHeaders.ts`).
-   - **Перевод (`chronos/parity/l10n.md`, `chronos/parity/upstream-5209.md`):**
-     - словари и дополнения — `chronos/l10n/` (`ru-final.json`, `gt-additions.json`, `occurrence-contexts.json`);
-     - два Vite-хука в `apps/web/src/chronos/olympus/l10n/`: `catalog.ts` (`olympusCatalog` патчит `ru.json` GT до бандлинга) и `plugin.ts` (`olympusL10n` переводит AST-литералы и дописывает `runtime-translator.js`). Новые строки оформляй по глоссарию Olympus (`chronos-upstream-adopt`); формулировки Olympus главнее штатного `ru.json`.
+   - **Перевод.** Для каталогов GT, JS-литералов и динамических строк следуй [chronos-l10n](../chronos-l10n/SKILL.md).
    - **Бренд:** внутри окна единственное намеренное отличие от Olympus — знак в шапке сайдбара (`apps/web/src/chronos/brand/ChronosSidebarMark.tsx` → `SidebarChrome.tsx`). Иконки ОС/установщика — `chronos/brand/`; имя в системных диалогах и ссылках релизов — `apps/desktop/src/chronos/ChronosBrand.ts`, `ChronosUpdates.ts`, `apps/web/src/components/desktopUpdate.logic.ts`. Внешняя тема Olympus остаётся в `userdata/themes/`.
    - **Десктоп / сервер / пакеты:** `apps/desktop/src/chronos/`, `apps/server/src/chronos/`, `packages/{contracts,client-runtime}/src/chronos/`; в общих файлах апстрима — блок `// --- chronos: begin … // --- chronos: end ---` без лишних экспортов в `package.json`.
    - **Инструменты, отчёты, скиллы:** `chronos/{scripts,parity,skills}/`.
@@ -31,14 +29,6 @@ description: Как добавлять и переносить функции в
 - Публичные параметры Clerk/relay (`.env.example`), мобильный пейринг; при расширении общих контрактов (`UsageProviderKind` и т. п.) проверяй потребителей и в `apps/web`, и в `apps/mobile`.
 - Никогда не запускай тестовые сборки на живом `~/.t3` (миграции БД односторонние).
 
-## CI и проверка
+## Проверка изменения
 
-- Workflow форка — только `.github/workflows/chronos-*.yml`:
-  - `chronos-checks.yml` — `chronos-version`, `upstream-plan`, тесты сервисов/воркера под Electron `node:sqlite`, `vp lint apps/desktop/src/chronos`, typecheck (`contracts`, `shared`, `web`, `desktop`, `scripts`, `t3` — серверному typecheck нужен `--filter=@t3tools/scripts...`), юнит- и серверные регрессии;
-  - `chronos-desktop.yml` — сборки Windows x64, macOS arm64, macOS x64 (нативный `macos-26-intel`) + сверка упакованных `chronos-services`;
-  - `chronos-parity.yml` — сверка движка перевода на эталоне 4774;
-  - `chronos-smoke.yml` — функциональный CDP smoke на `windows-latest` (`require_services=true`);
-  - `chronos-upstream.yml` — ежедневный отчёт совместимости.
-- Перед пушем проверь поверхность правок: `node chronos/scripts/upstream-plan.mjs feature <база-ветки>`.
-- Тяжёлые сборки и полный монорепо-typecheck гоняй в CI; живое окно и паритет проверяй по `chronos-parity-check` и `chronos-ui-review`.
-- В `main` — по решению пользователя (для регулярной синхронизации с T3 действует постоянное правило из `chronos-upstream-sync`).
+Проверь поверхность патча командой `node chronos/scripts/upstream-plan.mjs feature <база-ветки>`. Для новой возможности проверь, что без включения или первого обращения она не запускает дополнительный процесс, наблюдатель или загрузку. Тяжёлые проверки и сборку выполняет [chronos-ci](../chronos-ci/SKILL.md). Для поведения готового пакета используй [chronos-live-verify](../chronos-live-verify/SKILL.md). Условия входа в main задаёт [chronos-router](../chronos-router/SKILL.md).
