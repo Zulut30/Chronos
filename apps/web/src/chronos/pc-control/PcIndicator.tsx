@@ -33,7 +33,7 @@ export function PcIndicator() {
         <Suspense fallback={null}>
           {state.pending.map((item) => <ApprovalRow key={item.id} item={item} send={send} />)}
         </Suspense>
-      )
+      )}
       {error && <p role="alert">{error}</p>}
     </aside>
   );
