@@ -36,6 +36,7 @@ jobs:
           sparse-checkout: |
             chronos/pc-control
             chronos/scripts/smoke
+            chronos/skills/chronos-pc-control
       - shell: pwsh
         run: |
           $tools = Join-Path $env:RUNNER_TEMP 'pc-tools'
