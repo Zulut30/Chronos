@@ -220,7 +220,9 @@ T3). Оставлены только workflow Chronos:
 Исходники скиллов в `chronos/skills/`:
 
 - `chronos-feature` — добавление правок без лишнего расхождения с апстримом и с сохранением паритета Olympus.
-- `chronos-upstream-sync` — оценка и слияние новых nightly T3.
+- `chronos-upstream-sync` — оценка, слияние, проверка и выпуск новых nightly T3.
+- `chronos-upstream-adopt` — оценка, разведение и перевод новых функций T3 рядом с модулями Olympus.
+- `chronos-parity-check` — запуск и разбор smoke, сравнения скриншотов/формулировок и обновление эталона.
 - `chronos-release` — версия, проверенный билд, тег `chronos-v*` и публикация релиза.
 - `chronos-ui` — правки UI и проверка рядом с T3.
 - `chronos-ui-review` — приёмка собранного окна Chronos и сравнение с Olympus LIVE.
