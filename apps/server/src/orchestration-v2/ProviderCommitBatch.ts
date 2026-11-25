@@ -1,3 +1,4 @@
+import { makeSnapshotSizer } from "../chronos/perf/snapshotBytes.ts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
@@ -18,7 +19,8 @@ const MAX_HOLD_NANOS = 100_000_000n;
 const STARVATION_MILLIS = 30_000;
 // Bounds snapshots held across stream queues; a full backlog makes streams wait to read more.
 const MAX_QUEUED = 4 * MAX_EVENTS;
-const encodeQueue = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+// chronos: share the size of an immutable snapshot across run queues.
+const snapshotBytes = makeSnapshotSizer();
 
 export const enabled = Config.Boolean("T3CODE_PROVIDER_COMMIT_BATCHING").pipe(
   Config.withDefault(true),
@@ -465,7 +467,7 @@ export const make = Effect.fn("ProviderCommitBatch.make")(function* (
               ? signal.event
               : undefined;
           if (snapshot !== undefined) {
-            const bytes = Buffer.byteLength(yield* encodeQueue(snapshot));
+            const bytes = yield* snapshotBytes(snapshot);
             reply = yield* enqueue(
               process(snapshot).pipe(Effect.as(false)),
               stream,
