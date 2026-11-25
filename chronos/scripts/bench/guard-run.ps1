@@ -11,6 +11,10 @@ if ($Stage -eq 'prepare') {
     $build = $target.run
     $dest = Join-Path $env:RUNNER_TEMP "package-$build"
     ./chronos/scripts/bench/unpack.ps1 -Run $build -Destination $dest
+    $marker = Join-Path $dest 'perf-source.txt'
+    if ($target.pinned -or (Test-Path -LiteralPath $marker)) {
+      if ((Get-Content -Raw -LiteralPath $marker).Trim() -cne $target.sha) { throw 'Packaged source does not match the planned SHA' }
+    }
     # An older baseline can have fewer feature switches than its candidate.
     $path = 'apps/web/src/chronos/olympus/featureFlags.ts'
     $uri = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/contents/${path}?ref=$($target.sha)"

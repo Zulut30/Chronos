@@ -15,33 +15,46 @@ async function api(path, body) {
   return response.status === 204 ? null : response.json();
 }
 const workflow = "/actions/workflows/chronos-desktop.yml";
-async function packageFor({ref, sha}) {
-  const runs = async () => (await api(workflow + "/runs?head_sha=" + sha + "&per_page=100")).workflow_runs;
-  let requested = false;
-  const deadline = Date.now() + 1000 * 60 * 100;
-  do {
-    const list = await runs();
-    for (const run of list) {
-      assert.equal(run.head_sha, sha, "Desktop build SHA differs from the planned package");
+async function packageFor(target) {
+  const { sha } = target;
+  const pinnedTitle = "Perf Windows " + sha;
+  const deadline = Date.now() + 1000 * 60 * 85;
+  let requestedAt = 0;
+  async function available(runs, pinned) {
+    for (const run of runs) {
       const { artifacts } = await api("/actions/runs/" + run.id + "/artifacts?per_page=100");
-      if (artifacts.some(a => a.name === "chronos-win-x64" && !a.expired)) return run.id;
+      if (artifacts.some(a => a.name === "chronos-win-x64" && !a.expired)) {
+        return { ...target, run: run.id, pinned };
+      }
     }
-    if (!list.some(r => r.status !== "completed")) {
-      if (requested) throw Error("No Windows package for " + ref + " " + sha);
-      assert.equal((await api("/commits/" + encodeURIComponent(ref))).sha, sha, "Branch moved before build dispatch");
-      await api(workflow + "/dispatches", { ref });
-      requested = true;
+  }
+  do {
+    const [normalList, pinnedList] = await Promise.all([
+      api(workflow + "/runs?head_sha=" + sha + "&per_page=100"),
+      api(workflow + "/runs?event=workflow_dispatch&branch=" + encodeURIComponent(env.GITHUB_REF_NAME) + "&per_page=100"),
+    ]);
+    const normal = normalList.workflow_runs.filter(r => r.head_sha === sha && !r.display_title.startsWith("Perf Windows "));
+    const pinned = pinnedList.workflow_runs.filter(r => r.display_title === pinnedTitle);
+    const packaged = await available(normal, false) ?? await available(pinned, true);
+    if (packaged) return packaged;
+    const inFlight = list => list.some(r => r.status !== "completed");
+    if (!inFlight(normal) && !inFlight(pinned)) {
+      if (!requestedAt) {
+        requestedAt = Date.now();
+        console.log("Requesting Windows-only build of immutable commit", sha);
+        await api(workflow + "/dispatches", { ref: env.GITHUB_REF_NAME, inputs: { perf_sha: sha } });
+      } else if (Date.now() - requestedAt > 120000) {
+        throw Error("Pinned Windows build failed for " + sha + " (run " + pinned[0]?.id + ")");
+      }
     }
     await sleep(30000);
   } while (Date.now() < deadline);
-  throw Error("Timed out waiting for exact Windows package: " + ref + " " + sha);
+  throw Error("Timed out waiting for Windows package: " + target.ref + " " + sha);
 }
 if (env.PAIR) {
   const pair = JSON.parse(env.PAIR);
-  const base = await packageFor(pair.base);
-  const head = pair.head.sha === pair.base.sha ? base : await packageFor(pair.head);
-  pair.base.run = base;
-  pair.head.run = head;
+  pair.base = await packageFor(pair.base);
+  pair.head = pair.head.sha === pair.base.sha ? { ...pair.base, ref: pair.head.ref } : await packageFor(pair.head);
   appendFileSync(env.GITHUB_OUTPUT, "pair=" + JSON.stringify(pair) + "\n");
 } else {
   const audit = env.AUDIT === "true" || (env.GITHUB_REF_NAME === "perf/guard" && env.COMMIT_MESSAGE?.includes("[perf-audit]"));
