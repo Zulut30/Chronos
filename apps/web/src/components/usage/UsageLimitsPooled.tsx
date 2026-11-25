@@ -11,7 +11,9 @@ import {
   remainingPercent,
   type ResetCreditChoice,
 } from "@t3tools/shared/usageLimits";
-import { T, useGT, useMessages } from "gt-react";
+// chronos: localize known server notices while preserving account labels.
+import { usageNotice } from "~/chronos/olympus/l10n/providerCopy";
+import { T, useGT, useLocale, useMessages } from "gt-react";
 import type { Popover as PopoverPrimitive } from "@base-ui/react/popover";
 import { normalizeProviderAccentColor } from "@t3tools/client-runtime/state/provider-instance-display";
 import { AlertTriangleIcon, ExternalLinkIcon, TicketIcon } from "lucide-react";
@@ -751,13 +753,14 @@ export function UsageLimitsPooled({
 }
 
 function LimitNotices({ notices }: { readonly notices: readonly string[] }) {
+  const locale = useLocale();
   if (notices.length === 0) return null;
   return (
     <Alert variant="warning" controlAlignment="first-line">
       <AlertTriangleIcon />
       {notices.map((notice) => (
         <AlertTitle key={notice} className="break-words">
-          {notice}
+          {usageNotice(notice, locale)}
         </AlertTitle>
       ))}
     </Alert>

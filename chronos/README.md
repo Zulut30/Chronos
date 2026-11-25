@@ -257,3 +257,5 @@ T3). Оставлены только workflow Chronos:
 - `chronos-release` — версия, проверенный билд, тег `chronos-v*` и публикация релиза.
 - `chronos-ui` — правки UI и проверка рядом с T3.
 - `chronos-ui-review` — приёмка собранного окна Chronos и сравнение с Olympus LIVE.
+
+Русская оболочка переводит уровни рассуждения и известные уведомления провайдеров через `apps/web/src/chronos/olympus/l10n/providerCopy.ts` в ComposerModelEffort, ProviderModelPicker и UsageLimitsPooled.
