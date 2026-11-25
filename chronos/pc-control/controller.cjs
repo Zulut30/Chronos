@@ -5,7 +5,7 @@ const { randomUUID } = require("node:crypto");
 const { makeNative } = require("./native.cjs");
 
 const defaults = { enabled: false, all: false, apps: [], mode: "risk" };
-const operations = ["open","attach","snapshot","expand","click","fill","close"];
+const operations = ["open","attach","snapshot","save","expand","click","fill","close"];
 const hotkey = "CommandOrControl+Alt+Shift+F12";
 function policy(input) {
   if (typeof input?.enabled !== "boolean" || typeof input.all !== "boolean" ||
@@ -124,7 +124,8 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
       if (q.window !== undefined && (typeof q.window !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(q.window))) throw new Error("Недопустимое окно.");
       if (op === "expand" && s.kind !== "desktop") throw new Error("Это действие доступно только в приложении.");
       const navigation = s.kind === "web" && op === "open" && new URL(q.target).href !== s.target + "/";
-      const risk = navigation || op === "fill" || op === "click" || (op === "close" && s.kind === "desktop" && s.private);
+      if (op === "save" && !s.document) throw new Error("Нет открытого временного документа.");
+      const risk = op === "save" || navigation || op === "fill" || op === "click" || (op === "close" && s.kind === "desktop" && s.private);
       const protectedField = op === "fill" && (s.kind === "web" ? await native(s,"field",{ref:q.ref},signal) : field.secure !== false);
       const manual = op === "fill" && (protectedField || q.value === undefined || /парол|password|passcode|pin|cvv|карт|card|iban/i.test(field.name));
       if (risk || settings.mode === "every" || (settings.mode === "risk" && opening)) {
@@ -140,7 +141,7 @@ function createController({ dir, tools, socket, key, shortcut, notify, native = 
           await native(s,op,q,signal);
         }
         if (signal.aborted) throw new Error("Действие остановлено.");
-        return { session:s.id };
+        return { session:s.id, ...(s.document ? {document:s.document} : {}) };
       }
       if (op === "close") { await release(s); return {}; }
       if (op === "snapshot") {

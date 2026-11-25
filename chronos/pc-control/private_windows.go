@@ -6,6 +6,7 @@ import (
     "io"
     "time"
     "os"
+    "strconv"
     "path/filepath"
     "strings"
     "syscall"
@@ -22,6 +23,14 @@ func run() error {
     desk, _, why := user.NewProc("CreateDesktopW").Call(uintptr(unsafe.Pointer(name)), 0, 0, 0, 0x1ff, 0)
     if desk == 0 { return fmt.Errorf("CreateDesktopW: %w", why) }
     defer user.NewProc("CloseDesktop").Call(desk)
+    if os.Args[2] == "save-note" {
+        if len(os.Args) != 5 || !strings.EqualFold(filepath.Clean(os.Args[3]),filepath.Join(os.Getenv("SystemRoot"),"System32","notepad.exe")) {
+            return fmt.Errorf("expected system Notepad")
+        }
+        pid, err := strconv.ParseUint(os.Args[4],10,32)
+        if err != nil { return err }
+        return saveNote(user,desk,uint32(pid))
+    }
     startup := syscall.StartupInfo{Desktop: name}
     startup.Cb = uint32(unsafe.Sizeof(startup))
     mode := os.Args[2]
@@ -76,6 +85,44 @@ func run() error {
     if code == 259 { syscall.TerminateProcess(proc.Process,1); return fmt.Errorf("desktop command timeout") }
     if code != 0 { return fmt.Errorf("desktop command exited %d",code) }
     return nil
+}
+
+// Classic Notepad exposes the editor to UIA but its menu provider can reject Expand on a
+// non-input desktop. Resolve Save by the menu's accelerator and deliver only that command.
+func saveNote(user *syscall.LazyDLL, desktop uintptr, pid uint32) error {
+    var window uintptr
+    callback := syscall.NewCallback(func(hwnd, unused uintptr) uintptr {
+        var owner uint32
+        user.NewProc("GetWindowThreadProcessId").Call(hwnd,uintptr(unsafe.Pointer(&owner)))
+        if owner != pid { return 1 }
+        var name [64]uint16
+        user.NewProc("GetClassNameW").Call(hwnd,uintptr(unsafe.Pointer(&name[0])),uintptr(len(name)))
+        if syscall.UTF16ToString(name[:]) == "Notepad" { window = hwnd; return 0 }
+        return 1
+    })
+    user.NewProc("EnumDesktopWindows").Call(desktop,callback,0)
+    if window == 0 { return fmt.Errorf("owned Notepad window unavailable") }
+    menu,_,_ := user.NewProc("GetMenu").Call(window)
+    count,_,_ := user.NewProc("GetMenuItemCount").Call(menu)
+    for i:=uintptr(0); i<count && i<64; i++ {
+        sub,_,_ := user.NewProc("GetSubMenu").Call(menu,i)
+        if sub == 0 { continue }
+        n,_,_ := user.NewProc("GetMenuItemCount").Call(sub)
+        for j:=uintptr(0); j<n && j<128; j++ {
+            var label [256]uint16
+            user.NewProc("GetMenuStringW").Call(sub,j,uintptr(unsafe.Pointer(&label[0])),uintptr(len(label)),0x400)
+            parts := strings.Split(syscall.UTF16ToString(label[:]),"\t")
+            if len(parts) != 2 || !strings.EqualFold(strings.TrimSpace(parts[1]),"Ctrl+S") { continue }
+            id,_,_ := user.NewProc("GetMenuItemID").Call(sub,j)
+            if uint32(id) == 0xffffffff || id == 0 { continue }
+            var result uintptr
+            ok,_,why := user.NewProc("SendMessageTimeoutW").Call(window,0x111,id,0,2,5000,uintptr(unsafe.Pointer(&result)))
+            if ok == 0 { return fmt.Errorf("Save: %w",why) }
+            fmt.Println("{\"ok\":true}")
+            return nil
+        }
+    }
+    return fmt.Errorf("Save command unavailable")
 }
 
 type basicLimit struct {

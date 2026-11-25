@@ -25,7 +25,7 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import serverPackageJson from "../../../server/package.json" with { type: "json" };
 
-import { pcAgentEnvironment } from "../chronos/pc-control/Host.ts"; // chronos: local agent CLI
+import { pcAgentEnvironment } from "../chronos/pc-control/AgentEnvironment.ts"; // chronos: local agent CLI
 import * as DesktopBackendManager from "./DesktopBackendManager.ts";
 import * as DesktopCliShim from "../app/DesktopCliShim.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";

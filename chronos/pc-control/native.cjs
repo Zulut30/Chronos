@@ -1,6 +1,7 @@
 const { spawn } = require("node:child_process");
-const { existsSync, mkdirSync, writeFileSync } = require("node:fs");
+const { existsSync, mkdirSync, mkdtempSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 
 function execute(file, args, { env, cwd, signal, stdin = "" }) {
   return new Promise((resolve, reject) => {
@@ -36,7 +37,7 @@ function execute(file, args, { env, cwd, signal, stdin = "" }) {
 
 function ownWindow(helper, desk, exe, session, opts) {
   return new Promise((resolve, reject) => {
-    const child = spawn(helper, [desk,"own",exe], { cwd:opts.cwd, env:opts.env, windowsHide:true, stdio:["pipe","pipe","pipe"] });
+    const child = spawn(helper, [desk,"own",exe,...(session.document ? [session.document] : [])], { cwd:opts.cwd, env:opts.env, windowsHide:true, stdio:["pipe","pipe","pipe"] });
     session.owner = child;
     const cancel = () => child.kill();
     const timer = setTimeout(cancel,10000).unref();
@@ -102,6 +103,11 @@ function makeNative(tools, stateDir) {
       if (op === "open") {
         if (win) {
           const exe = path.isAbsolute(session.target) ? session.target : path.join(process.env.SystemRoot, "System32", session.target);
+          if (request.tempNote === true) {
+            if (exe.toLowerCase() !== path.join(process.env.SystemRoot,"System32","notepad.exe").toLowerCase()) throw new Error("Временный документ доступен в системном Блокноте.");
+            session.document = path.join(mkdtempSync(path.join(os.tmpdir(),"chronos-note-")),"document.txt");
+            writeFileSync(session.document,"",{flag:"wx"});
+          }
           session.pid = await ownWindow(binary("private-desktop"),desk,exe,session,opts);
           session.app = path.basename(exe);
         } else {
@@ -113,6 +119,10 @@ function makeNative(tools, stateDir) {
       if (op === "snapshot") {
         const reply = await desktop(["snapshot","--app",session.app,"-i", ...(request.surface === "menu" ? ["--surface","menu"] : []), ...(request.window ? ["--window-id",request.window] : [])]);
         return desktopRefs(reply.data.tree);
+      }
+      if (op === "save") {
+        if (!win || !session.document || !session.owner || session.owner.exitCode !== null) throw new Error("Нет открытого временного документа.");
+        await execute(binary("private-desktop"),[desk,"save-note",path.join(process.env.SystemRoot,"System32","notepad.exe"),String(session.pid)],opts);
       }
       if (op === "click" || op === "expand") await desktop([op, request.ref]);
       if (op === "fill") await desktop(["set-value",request.ref,"--stdin"],request.value);

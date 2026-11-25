@@ -256,6 +256,9 @@ const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
 // chronos: include the Olympus controls in native settings search.
 export const SETTINGS_SEARCH_ITEMS = [
   ...olympusSearchItems,
+  // chronos: find local computer control by its Russian name and safety settings.
+  { id: "pc-control", title: msg("Управление ПК"), to: "/settings/general", desktopOnly: true,
+    searchTerms: [msg("Фоновый ввод, приложения, формы, подтверждения, аварийная остановка")] },
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",

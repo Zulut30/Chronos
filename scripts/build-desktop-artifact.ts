@@ -4212,7 +4212,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       appVersion,
       // chronos: add exactly the declared service files to the upstream Windows budget.
       fileLimit: WINDOWS_PACKAGED_PAYLOAD_FILE_LIMIT + (isChronosVersion(appVersion)
-        ? yield* countPayloadFiles(path.join(repoRoot, "chronos/services"), ".test.mjs")
+        ? (yield* countPayloadFiles(path.join(repoRoot, "chronos/services"), ".test.mjs")) +
+          (yield* countPayloadFiles(path.join(stageProdResourcesDir, "chronos-pc")))
         : 0),
       expectWslRuntime: bundlesWslRuntime({
         platform: options.platform,

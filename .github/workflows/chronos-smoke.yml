@@ -139,6 +139,7 @@ jobs:
             '--strict-en',
             '--no-screenshots',
             '--verify-chat-settings',
+            '--verify-pc-control',
             '--out', $outDir
           )
           if ($env:REQUIRE_PROVIDER -eq 'true') { $smokeArgs += '--require-provider' }
@@ -161,6 +162,18 @@ jobs:
             ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           }
           exit $exitCode
+
+      - name: Verify installed desktop control and measure the CLI
+        shell: pwsh
+        run: |
+          $tools = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/chronos-pc'
+          ./chronos/scripts/smoke/pc-desktop.ps1 $tools
+
+      - name: Verify installed web control with a local form
+        shell: pwsh
+        run: |
+          $tools = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/chronos-pc'
+          node chronos/scripts/smoke/pc-web.cjs $tools
 
       - name: Upload smoke report
         if: always()

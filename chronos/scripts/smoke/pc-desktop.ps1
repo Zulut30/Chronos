@@ -61,12 +61,8 @@ try {
   $text = 'Chronos background test'
   Invoke-Desktop @('set-value',$edit.ref_id,$text) | Out-Null
   if ([InputProbe]::Sample() -ne $baseline) { throw 'Writing changed focus or cursor' }
-  $fileRef = ($nodes | Where-Object { $_.name -eq 'File' -and $_.role -eq 'menuitem' } | Select-Object -First 1).ref_id
-  Invoke-Desktop @('expand',$fileRef) | Out-Null
-  $menu = Invoke-Desktop @('snapshot','--app','notepad.exe','--surface','menu','-i')
-  $save = (Nodes $menu.tree | Where-Object { $_.name -match '^&?Save(?:$|\s)' -and $_.name -notmatch 'As' } | Select-Object -First 1).ref_id
-  if (-not $save) { throw 'Save has no semantic menu ref' }
-  Invoke-Desktop @('click',$save) | Out-Null
+  $saved = & $private $deskName save-note $note $owned | ConvertFrom-Json
+  if (-not $saved.ok) { throw 'Save command unavailable on the private desktop' }
   if ([IO.File]::ReadAllText($doc).TrimEnd() -ne $text) { throw 'Notepad file failed independent readback' }
   Write-Host 'PASS Notepad saved the temporary document.'
 
