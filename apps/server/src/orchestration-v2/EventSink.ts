@@ -15,6 +15,7 @@ import {
   ThreadId,
 } from "@t3tools/contracts";
 import * as ProviderCommitBatch from "./ProviderCommitBatch.ts";
+import { makeThreadChannels } from "../chronos/perf/threadChannels.ts";
 import * as ThreadViewers from "./ThreadViewers.ts";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -292,6 +293,8 @@ const layerBase: Layer.Layer<
     const projectStore = yield* ProjectStore.ProjectStoreV2;
     const turnItemPositions = yield* TurnItemPositionStore.TurnItemPositionStoreV2;
     const liveEvents = yield* PubSub.unbounded<OrchestrationV2StoredEvent>();
+    // chronos: only open detail streams need a per-thread bus.
+    const detail = makeThreadChannels((stored: OrchestrationV2StoredEvent) => stored.event.threadId);
     const liveEventsByType = new Map<
       OrchestrationV2DomainEvent["type"],
       PubSub.PubSub<OrchestrationV2StoredEvent>
@@ -300,6 +303,7 @@ const layerBase: Layer.Layer<
       /* This helper runs for individual orchestration events; the enclosing operation owns the span. */
       Effect.fnUntraced(function* (events: ReadonlyArray<OrchestrationV2StoredEvent>) {
         yield* PubSub.publishAll(liveEvents, events);
+        yield* detail.publish(events);
         for (const [type, pubsub] of liveEventsByType) {
           yield* PubSub.publishAll(
             pubsub,
@@ -1033,7 +1037,10 @@ const layerBase: Layer.Layer<
       return Stream.unwrap(
         Effect.gen(function* () {
           let pubsub = liveEvents;
-          if (input?.eventType !== undefined) {
+          // chronos: acquire before the existing subscribe / high-water / replay handshake.
+          if (input?.threadId !== undefined) {
+            pubsub = yield* detail.acquire(input.threadId);
+          } else if (input?.eventType !== undefined) {
             const existing = liveEventsByType.get(input.eventType);
             if (existing !== undefined) {
               pubsub = existing;
