@@ -134,6 +134,7 @@ import { observeVisibleAnimation } from "~/lib/visibleAnimation";
 import { useThreadHasUnsentDraft } from "../../composerDraftStore";
 import { ThreadDetailsIssueRows } from "../chat/ThreadDetailsIssueRows";
 import { IssueGlyph, issueStatePresentation } from "../issue/issuePresentation";
+import { useThreadIntentPrefetch } from "./useThreadIntentPrefetch";
 
 // The fields thread rows show. Provider status pushes refresh `checkedAt`,
 // status and auth on every provider; leaving those out keeps each
@@ -888,6 +889,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     />
   );
 
+  const intentPrefetch = useThreadIntentPrefetch(threadRef);
   const handleClick = (event: ReactMouseEvent) => {
     onThreadClick(event, threadRef);
   };
@@ -1332,6 +1334,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   inFolder && "ps-9",
                 )}
                 onClick={handleClick}
+                onPointerEnter={intentPrefetch.onPointerEnter}
+                onPointerLeave={intentPrefetch.onPointerLeave}
+                onPointerDown={intentPrefetch.onPointerDown}
                 onDoubleClick={handleDoubleClick}
                 onKeyDown={handleKeyDown}
                 onContextMenu={handleContextMenu}
@@ -1531,6 +1536,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               aria-busy={isRegeneratingTitle || undefined}
               className={rowSurfaceClassName}
               onClick={handleClick}
+              onPointerEnter={intentPrefetch.onPointerEnter}
+              onPointerLeave={intentPrefetch.onPointerLeave}
+              onPointerDown={intentPrefetch.onPointerDown}
               onDoubleClick={handleDoubleClick}
               onKeyDown={handleKeyDown}
               onContextMenu={handleContextMenu}
