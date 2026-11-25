@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // MCP server (stdio, no dependencies) for T3 Studio: Excalidraw boards.
 // Talks to the local studio service at http://127.0.0.1:4520 (start-hidden.vbs). See AGENTS.md.
+import { artifactTools } from '../artifacts/tools.mjs'; // chronos: shared hub, lazy artifact store
 import readline from 'node:readline';
 
 const SVC = process.env.OLY_STUDIO_URL || 'http://127.0.0.1:4520';
@@ -24,6 +25,7 @@ const FORMAT = 'A board is a JSON file {"type":"excalidraw","version":2,"element
   + 'Colors: strokeColor/backgroundColor (hex), fillStyle "solid"|"hachure". An open board reloads live and normalizes skeletons to full elements.';
 
 const TOOLS = [
+  ...artifactTools,
   { name: 'studio_context', description: 'Current T3 context: open thread, its project and the folder where this project\'s boards live (<project>/.excalidraw, or the studio folder for threads without a project).', inputSchema: { type: 'object', properties: {} },
     run: async () => call('GET', '/api/context') },
   { name: 'list_boards', description: 'List Excalidraw boards (.excalidraw files). Without arguments: boards of the current T3 project. dir = a boards folder; all = true lists every known location (all T3 projects, the studio folder, added folders) plus recently opened boards.', inputSchema: { type: 'object', properties: { dir: { type: 'string', description: 'Absolute folder with .excalidraw files' }, all: { type: 'boolean' } } },
