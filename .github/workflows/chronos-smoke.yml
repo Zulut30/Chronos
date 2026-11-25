@@ -1,0 +1,135 @@
+# Functional CDP smoke checks for a built Windows Chronos installer on windows-latest.
+# Downloads the `chronos-win-x64` artifact from a `chronos-desktop.yml` run, installs
+# silently (/S), launches Chronos with --remote-debugging-port=9333 and runs functional
+# checks without screenshot comparison.
+name: Chronos smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      desktop_run_id:
+        description: "Run ID of chronos-desktop.yml that produced the chronos-win-x64 artifact"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: chronos-smoke-${{ github.ref }}-${{ inputs.desktop_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  smoke-windows:
+    name: Functional smoke (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Validate desktop_run_id input
+        shell: pwsh
+        env:
+          DESKTOP_RUN_ID: ${{ inputs.desktop_run_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:DESKTOP_RUN_ID -notmatch '^\d+$') {
+            throw "desktop_run_id must be a numeric GitHub Actions run ID, got: '$($env:DESKTOP_RUN_ID)'"
+          }
+
+      - name: Checkout smoke scripts
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: chronos/scripts/smoke
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download chronos-win-x64 artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          run-id: ${{ inputs.desktop_run_id }}
+          github-token: ${{ github.token }}
+          name: chronos-win-x64
+          path: ${{ runner.temp }}/chronos-installer
+
+      - name: Install Chronos silently
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'chronos-installer'
+          $installer = Get-ChildItem -LiteralPath $dir -Filter 'Chronos-*-x64.exe' | Select-Object -First 1
+          if (-not $installer) {
+            Get-ChildItem -LiteralPath $dir | Format-Table Name, Length
+            throw "No Chronos-*-x64.exe installer found in $dir"
+          }
+          Write-Host "Installing $($installer.Name) silently..."
+          $proc = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "Silent installer exited with code $($proc.ExitCode)"
+          }
+          # Ensure no background instance remained running after install before launching with CDP.
+          Get-Process -Name 'Chronos' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 2
+
+          $candidates = @(
+            (Join-Path $env:LOCALAPPDATA 'Programs\chronos\Chronos.exe'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Chronos\Chronos.exe')
+          )
+          $exe = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $exe) {
+            $found = Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Programs') -Recurse -Filter 'Chronos.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $exe = $found.FullName }
+          }
+          if (-not $exe) {
+            throw "Chronos.exe not found after silent install"
+          }
+          Write-Host "Installed Chronos executable: $exe"
+          "CHRONOS_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run functional smoke suite
+        shell: pwsh
+        env:
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+          CHRONOS_HOME: ${{ runner.temp }}\chronos-home
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $outDir = Join-Path $env:RUNNER_TEMP 'chronos-smoke-report'
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $env:CHRONOS_HOME | Out-Null
+
+          node chronos/scripts/smoke/smoke.mjs `
+            --launch "$env:CHRONOS_EXE" `
+            --port 9333 `
+            --launch-timeout 120000 `
+            --extra-arg "--disable-gpu" `
+            --allow-offline-services `
+            --no-screenshots `
+            --out $outDir
+          $exitCode = $LASTEXITCODE
+
+          $reportPath = Join-Path $outDir 'report.json'
+          if (Test-Path -LiteralPath $reportPath) {
+            $rep = Get-Content -Raw -LiteralPath $reportPath | ConvertFrom-Json
+            @(
+              "## Chronos smoke report",
+              "",
+              "- **App version:** ``$($rep.app.version)``",
+              "- **Result:** $(if ($rep.ok) { 'PASS' } else { 'FAIL' }) ($($rep.summary.passedChecks)/$($rep.summary.totalChecks) checks)",
+              "- **Globals:** $($rep.checks.globals.presentCount)/$($rep.checks.globals.expectedCount)",
+              "- **Scheme:** index=$($rep.checks.scheme.index.status), wasm=$($rep.checks.scheme.discoveredCount)",
+              "- **Errors:** $($rep.summary.totalErrors)",
+              "- **Unexpected English phrases:** $($rep.summary.unexpectedEnglishPhrases.Count)"
+            ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          }
+          exit $exitCode
+
+      - name: Upload smoke report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chronos-smoke-report-${{ inputs.desktop_run_id }}
+          path: ${{ runner.temp }}/chronos-smoke-report/report.json
+          if-no-files-found: warn
+          retention-days: 14
