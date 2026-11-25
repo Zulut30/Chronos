@@ -1,0 +1,230 @@
+{
+  "version": 1,
+  "rounds": 3,
+  "providers": {
+    "@anthropic-ai/claude-code": "2.1.328",
+    "@openai/codex": "0.170.0"
+  },
+  "rules": {
+    "unused.main.privateMiB": {
+      "unit": "MiB",
+      "delta": 12
+    },
+    "unused.main.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "unused.main.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "unused.renderer.privateMiB": {
+      "unit": "MiB",
+      "delta": 24
+    },
+    "unused.renderer.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "unused.renderer.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "unused.server.privateMiB": {
+      "unit": "MiB",
+      "delta": 16
+    },
+    "unused.server.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "unused.server.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "unused.olympus.privateMiB": {
+      "unit": "MiB",
+      "delta": 8
+    },
+    "unused.olympus.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "unused.olympus.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "unused.total.privateMiB": {
+      "unit": "MiB",
+      "delta": 32
+    },
+    "unused.total.cpuPct": {
+      "unit": "% core",
+      "delta": 2
+    },
+    "unused.total.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "disabled.main.privateMiB": {
+      "unit": "MiB",
+      "delta": 12
+    },
+    "disabled.main.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "disabled.main.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "disabled.renderer.privateMiB": {
+      "unit": "MiB",
+      "delta": 24
+    },
+    "disabled.renderer.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "disabled.renderer.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "disabled.server.privateMiB": {
+      "unit": "MiB",
+      "delta": 16
+    },
+    "disabled.server.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "disabled.server.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "disabled.olympus.privateMiB": {
+      "unit": "MiB",
+      "delta": 8
+    },
+    "disabled.olympus.cpuPct": {
+      "unit": "% core",
+      "delta": 1
+    },
+    "disabled.olympus.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "disabled.total.privateMiB": {
+      "unit": "MiB",
+      "delta": 32
+    },
+    "disabled.total.cpuPct": {
+      "unit": "% core",
+      "delta": 2
+    },
+    "disabled.total.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "claudeAgent.agent.privateMiB": {
+      "unit": "MiB",
+      "delta": 24
+    },
+    "claudeAgent.agent.cpuPct": {
+      "unit": "% core",
+      "delta": 2
+    },
+    "claudeAgent.agent.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "codex.agent.privateMiB": {
+      "unit": "MiB",
+      "delta": 24
+    },
+    "codex.agent.cpuPct": {
+      "unit": "% core",
+      "delta": 2
+    },
+    "codex.agent.count": {
+      "unit": "process",
+      "delta": 0
+    },
+    "ui0.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 650
+    },
+    "ui0.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 680
+    },
+    "ui0.inputMs.p95": {
+      "unit": "ms",
+      "delta": 16,
+      "relative": 0.25,
+      "max": 110
+    },
+    "ui8.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 670
+    },
+    "ui8.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 700
+    },
+    "ui8.inputMs.p95": {
+      "unit": "ms",
+      "delta": 16,
+      "relative": 0.25,
+      "max": 125
+    },
+    "ui8.timeline.fps": {
+      "unit": "FPS",
+      "direction": "min",
+      "delta": 3,
+      "min": 47
+    },
+    "ui16.firstMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 720
+    },
+    "ui16.readyMs.p50": {
+      "unit": "ms",
+      "delta": 45,
+      "relative": 0.15,
+      "max": 750
+    },
+    "ui16.inputMs.p95": {
+      "unit": "ms",
+      "delta": 16,
+      "relative": 0.25,
+      "max": 140
+    },
+    "ui16.timeline.fps": {
+      "unit": "FPS",
+      "direction": "min",
+      "delta": 3,
+      "min": 47
+    },
+    "storage.dbGrowthKiB": {
+      "unit": "KiB",
+      "delta": 16384,
+      "max": 53248
+    },
+    "storage.traceGrowthKiB": {
+      "unit": "KiB",
+      "delta": 160,
+      "max": 1024
+    }
+  }
+}

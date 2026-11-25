@@ -137,6 +137,8 @@ node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD
 
 ## Сборка и CI (GitHub Actions)
 
+Парный Windows-замер main и ветки, правила бюджета и формат отчёта описаны в [шлюзе производительности](parity/perf-guard.md).
+
 Апстримные workflow из `.github/workflows/` удалены (им нужны платные раннеры и расписание релизов
 T3). Оставлены только workflow Chronos:
 
