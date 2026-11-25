@@ -36,6 +36,8 @@ test('seven hosted HTTP modules and OpenRouter stdio', async () => {
   for (const key of Object.keys(env)) {
     if ((key.startsWith('OLY_') && key!=='OLY_FILES_DEST') || /API_KEY$/.test(key)) delete env[key];
   }
+  const tasksDir = process.platform === 'win32' ? path.join(tmp,'configured tasks') : path.join(data,'tasks');
+  if (process.platform === 'win32') env.Oly_Tasks_Dir = tasksDir;
   try {
     fs.mkdirSync(path.join(t3,'logs','services'),{recursive:true});
     for (const [name, variable, health] of httpServices) {
@@ -54,7 +56,7 @@ test('seven hosted HTTP modules and OpenRouter stdio', async () => {
         assert.ok(ready,name+' readiness');
         const get=async p=>{const r=await fetch(base+p);assert.equal(r.status,200,p);return r.json()};
         if(variable==='TASKS'){
-          assert.equal((await get(health)).data,path.join(data,'tasks'));
+          assert.equal((await get(health)).data,tasksDir);
           assert.ok((await get('/api/projects')).some(p=>p.id==='example'));
         }else if(variable==='SKILLS'){
           assert.ok((await get('/api/prompts')).prompts.length);

@@ -62,7 +62,8 @@ type Launch = (service: Service, onExit: OnExit) => void;
 export function createServiceHost(options: Options) {
   const env = { ...options.env };
   for (const key of Object.keys(env)) {
-    if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(key)) delete env[key];
+    const name = process.platform === "win32" ? key.toUpperCase() : key;
+    if (/^OLY_(?:.*_PORT|TASKS_DIR|T3_DB|STUDIO_DATA|PROMPTS_DIR|PROMPTS_TRASH|MCP_TEST_HOME|USAGE_ROOT)$/.test(name)) delete env[key];
   }
   const workers = new Map<string, OnExit>();
   let host: NodeChildProcess.ChildProcess | undefined;

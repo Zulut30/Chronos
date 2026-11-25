@@ -17,7 +17,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const T3_DB = path.join(t3Home, 'userdata', 'statev2.sqlite');
 const TRASH = path.join(servicesData, 'caches', 'skills-trash');
 const REGISTRY = path.join(servicesData, 'caches', 'skills-registry.json');
-const TAR = process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
+const TAR = process.platform === 'win32' ? path.join(process.env.SYSTEMROOT || 'C:\\Windows', 'System32', 'tar.exe') : 'tar';
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const HOST_RE = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
 const DIS = '.disabled'; // disabled skills live next to the skills folder: <…>/skills.disabled/<name>
