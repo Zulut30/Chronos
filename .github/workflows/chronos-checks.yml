@@ -101,7 +101,9 @@ jobs:
         run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
       - name: Claude idle unload and provider lifecycle
         working-directory: apps/server
-        run: vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
+        run: |
+          vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
+          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'resumes the native session on a fresh session instance|resumes an imported native session|resumes the session a /clear selected'
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
         run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts

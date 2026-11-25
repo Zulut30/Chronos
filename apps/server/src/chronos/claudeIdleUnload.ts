@@ -4,6 +4,7 @@ import type { ProviderAdapterV2SessionRuntime } from "@t3tools/provider-core/ser
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import { ProjectionStoreV2 } from "../orchestration-v2/ProjectionStore.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
@@ -14,6 +15,7 @@ interface IdleEntry {
   readonly attachedThreadIds: ReadonlySet<ThreadId>;
   readonly busyTurns: ReadonlySet<string>;
   readonly idleGeneration: number;
+  readonly chronosIdleSince?: number;
 }
 
 interface IdleRelease {
@@ -24,16 +26,16 @@ interface IdleRelease {
   readonly keepIf: Effect.Effect<boolean>;
 }
 
-// One clock for the live sessions. The weak keys also cover failed opens, detach and shutdown.
-export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
-  entries: Effect.Effect<ReadonlyMap<string, IdleEntry>>,
+// One clock for the live sessions. Removing a runtime also removes its deadline.
+export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends IdleEntry, E>(
+  sessions: Ref.Ref<Map<string, Entry>>,
   withOpenLock: (id: ProviderSessionId, effect: Effect.Effect<void, E>) => Effect.Effect<void, E>,
   release: (input: IdleRelease) => Effect.Effect<void, E>,
 ) {
   const settings = yield* Effect.serviceOption(ServerSettingsService);
   const terminals = yield* Effect.serviceOption(TerminalManager);
   const store = yield* ProjectionStoreV2;
-  const since = new WeakMap<ProviderAdapterV2SessionRuntime, { readonly at: number }>();
+  const entries = Ref.get(sessions);
   const minutes = Option.isSome(settings)
     ? settings.value.getSettings.pipe(
         Effect.map((s) => s.claudeIdleUnloadMinutes ?? 0),
@@ -43,9 +45,18 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
 
   const touch = (runtime: ProviderAdapterV2SessionRuntime) =>
     Clock.currentTimeMillis.pipe(
-      Effect.map((at) => {
-        since.set(runtime, { at });
-      }),
+      Effect.flatMap((at) =>
+        Ref.update(sessions, (live) => {
+          const key = String(runtime.providerSessionId);
+          const entry = live.get(key);
+          if (entry?.runtime !== runtime || entry.busyTurns.size > 0) return live;
+          return new Map(live).set(key, {
+            ...entry,
+            chronosIdleSince: at,
+            idleGeneration: entry.idleGeneration + 1,
+          });
+        }),
+      ),
     );
 
   const hasWork = Effect.fnUntraced(function* (entry: IdleEntry) {
@@ -85,15 +96,19 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
 
   const sweep = Effect.gen(function* () {
     const live = yield* entries;
-    if (live.size === 0) return;
+    if (
+      ![...live.values()].some(
+        (entry) => entry.chronosIdleSince !== undefined && entry.busyTurns.size === 0,
+      )
+    )
+      return;
     const delay = yield* minutes;
     if (delay === 0) return;
     const now = yield* Clock.currentTimeMillis;
     for (const entry of live.values()) {
       const { runtime } = entry;
-      const stamp = since.get(runtime);
-      if (stamp === undefined || entry.busyTurns.size > 0 || now - stamp.at < delay * 60_000)
-        continue;
+      const since = entry.chronosIdleSince;
+      if (since === undefined || entry.busyTurns.size > 0 || now - since < delay * 60_000) continue;
       const id = runtime.providerSessionId;
       // Hold the same lock as open through scope close and persistence. A queued opener
       // either refreshed the stamp first, or receives a new runtime after teardown.
@@ -104,7 +119,7 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
           if (
             current?.runtime !== runtime ||
             current.busyTurns.size ||
-            since.get(runtime) !== stamp
+            current.idleGeneration !== entry.idleGeneration
           )
             return;
           const keepIf = Effect.gen(function* () {
@@ -117,8 +132,9 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
             const timeout = yield* minutes;
             return (
               timeout === 0 ||
-              (yield* Clock.currentTimeMillis) - stamp.at < timeout * 60_000 ||
-              since.get(runtime) !== stamp
+              (yield* Clock.currentTimeMillis) - since < timeout * 60_000 ||
+              (runtime.hasPendingBackgroundWork !== undefined &&
+                (yield* runtime.hasPendingBackgroundWork))
             );
           }).pipe(Effect.catchCause(() => Effect.succeed(true)));
           yield* release({
@@ -132,9 +148,9 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <E>(
             yield* Effect.logInfo("chronos.claude.idle-unloaded", {
               providerSessionId: id,
               threadIds: [...current.attachedThreadIds],
-              idleMs: now - stamp.at,
+              idleMs: now - since,
             });
-          } else if (since.get(runtime) === stamp) {
+          } else if ((yield* entries).get(String(id))?.idleGeneration === current.idleGeneration) {
             yield* touch(runtime);
           }
         }),

@@ -2189,6 +2189,8 @@ it.effect.each([
         ],
       });
       yield* TestClock.adjust(wait * 60_000 - 1);
+      // Passive consumers can read the handle at the deadline.
+      assert.isTrue(Option.isSome(yield* manager.get(providerSessionId)));
       assert.isTrue(yield* manager.isLive(providerSessionId));
       yield* TestClock.adjust(1);
       assert.equal((yield* Ref.get(state)).closeCount, closes);
@@ -2209,6 +2211,26 @@ it.effect.each([
         assert.notStrictEqual(original, reopened);
         const resumed = yield* reopened.resumeThread({ ...input, providerThread });
         assert.deepEqual(resumed.nativeThreadRef, providerThread.nativeThreadRef);
+        const runId = idAllocator.derive.run({ threadId, ordinal: 2 });
+        yield* reopened.startTurn({
+          ...input,
+          runId,
+          providerThread: resumed,
+          appThread: records.thread,
+          runOrdinal: 2,
+          providerTurnOrdinal: 2,
+          attemptId: idAllocator.derive.runAttempt({ runId, attemptOrdinal: 1 }),
+          rootNodeId: idAllocator.derive.rootNode({ runId }),
+          message: {
+            createdBy: "user",
+            creationSource: "web",
+            messageId: yield* idAllocator.allocate.message({ threadId, ordinal: 2 }),
+            text: "continue",
+            attachments: [],
+          },
+        });
+        yield* TestClock.adjust(wait * 60_000);
+        assert.isTrue(yield* manager.isLive(providerSessionId));
         assert.equal((yield* Ref.get(state)).resumeCount, 1);
       }
     }).pipe(

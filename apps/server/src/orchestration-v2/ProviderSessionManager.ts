@@ -342,6 +342,7 @@ interface LiveSessionEntry {
   >;
   readonly requestEventPermit: Semaphore.Semaphore;
   readonly scope: Scope.Closeable;
+  readonly chronosIdleSince?: number; // chronos: deadline belongs to this exact runtime.
   readonly idleGeneration: number;
   readonly busyTurns: ReadonlySet<string>;
   readonly idleFiber: Fiber.Fiber<void, never> | null;
@@ -1644,7 +1645,7 @@ export const layerWithOptions = (
 
       // chronos: serialize idle shutdown and the next open, including release record writes.
       const claudeIdle = yield* makeClaudeIdleUnload(
-        Ref.get(sessions),
+        sessions,
         (id, use) => sessionOpen.withLock(id, use),
         releaseEntry,
       );
@@ -1775,15 +1776,8 @@ export const layerWithOptions = (
         }
 
         // chronos: Claude uses one settings-aware clock and never expires a background pin.
-        if (entry.runtime.canUnloadIdleSession !== undefined) {
-          yield* claudeIdle.touch(entry.runtime);
-          return yield* Ref.update(sessions, (live) => {
-            const current = live.get(key);
-            return current?.runtime === entry.runtime
-              ? new Map(live).set(key, { ...current, idleGeneration: current.idleGeneration + 1 })
-              : live;
-          });
-        }
+        if (entry.runtime.canUnloadIdleSession !== undefined)
+          return yield* claudeIdle.touch(entry.runtime);
         yield* cancelIdleFiber(entry.idleFiber);
         const generation = entry.idleGeneration + 1;
         const idleFiber = yield* Effect.sleep(Duration.millis(idleTimeoutFor(entry.runtime))).pipe(
@@ -3452,7 +3446,9 @@ export const layerWithOptions = (
             if (entry === undefined) {
               return Option.none<ProviderAdapter.ProviderAdapterV2SessionRuntime>();
             }
-            yield* touchActivity(providerSessionId);
+            // chronos: looking up a Claude handle is passive. Opens, turns and provider activity touch it.
+            if (entry.runtime.canUnloadIdleSession === undefined)
+              yield* touchActivity(providerSessionId);
             return Option.some(entry.exposedRuntime);
           },
           (effect, providerSessionId) =>

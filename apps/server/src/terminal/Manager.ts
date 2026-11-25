@@ -4002,7 +4002,9 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
   }) {
     // chronos: any open PTY pins idle unload, including managed terminals and interactive shells.
     if (input.includeOpenShells)
-      return (yield* sessionsForThread(input.threadId)).some((s) => s.status === "running");
+      return (yield* sessionsForThread(input.threadId)).some(
+        (s) => s.status === "running" || s.status === "starting",
+      );
     // Settling closes stopOnSettle sessions, so their work must not hold settlement back.
     const running = (yield* sessionsForThread(input.threadId)).filter(
       (session): session is TerminalSessionState & { pid: number } =>
