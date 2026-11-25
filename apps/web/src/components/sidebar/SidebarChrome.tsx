@@ -44,6 +44,11 @@ import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUp
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
 
+async function openGallery() {
+  const { openArtifactGallery } = await import("~/chronos/artifacts/gallery");
+  await openArtifactGallery();
+}
+
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
 }: {
@@ -279,7 +284,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
           <SidebarUtilityItem
             icon={<PanelsTopLeftIcon />}
             label="Артефакты"
-            onClick={() => void import("~/chronos/artifacts/gallery").then(({ openArtifactGallery }) => openArtifactGallery())}
+            onClick={openGallery}
           />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
