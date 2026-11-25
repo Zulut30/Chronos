@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Id)
+﻿param([Parameter(Mandatory)][string]$Id)
 $ErrorActionPreference = 'Stop'
 if (-not $env:RUNNER_TEMP -or -not $env:CHRONOS_HOME) { throw 'Windows CI profile required' }
 $Id = $Id.Trim()
@@ -22,7 +22,7 @@ foreach ($link in $desktop,$menu) {
   $null = $shortcut.GetIconLocation([ref]$iconPath)
   if (-not (Test-Path -LiteralPath $iconPath -PathType Leaf)) {throw "Missing shortcut icon [$iconPath]"}
 }
-if (Get-Process Chronos -ErrorAction SilentlyContinue | Where-Object MainWindowHandle) {throw 'A desktop window survived the smoke shutdown'}
+if (Get-Process Chronos -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle -ne [IntPtr]::Zero}) {throw 'A desktop window survived the smoke shutdown'}
 $env:ARTIFACT_PROBE_ID=$Id
 $env:ARTIFACT_PROBE_BASE=node -e "const p=require('node:path'),s=require(p.join(p.dirname(process.env.CHRONOS_EXE),'resources/chronos-services/artifacts/store.mjs')).openArtifacts(process.env.CHRONOS_HOME);console.log(s.documents(process.env.ARTIFACT_PROBE_ID,'get',{collection:'probe',key:'frame'}).opens);s.close()"
 if ($LASTEXITCODE) {exit $LASTEXITCODE}
@@ -34,7 +34,7 @@ try {
   $deadline = [DateTime]::UtcNow.AddSeconds(40)
   do {
     Start-Sleep -Milliseconds 250
-    $windows = @(Get-Process Chronos -ErrorAction SilentlyContinue | Where-Object {$_.Id -notin $baseline -and $_.MainWindowHandle})
+    $windows = @(Get-Process Chronos -ErrorAction SilentlyContinue | Where-Object {$_.Id -notin $baseline -and $_.MainWindowHandle -ne [IntPtr]::Zero})
     if ($windows.Count -eq 1 -and $windows[0].MainWindowTitle -eq $title) {$started=$windows[0];break}
   } while ([DateTime]::UtcNow -lt $deadline)
   if ($windows.Count -ne 1 -or $windows[0].MainWindowTitle -ne $title) {
