@@ -1,6 +1,7 @@
 // @effect-diagnostics globalTimers:off -- Helper timeouts run at child-process callback boundaries outside Effect fibers.
 // @effect-diagnostics nodeBuiltinImport:off -- This desktop-only helper owns a Node child process.
 
+import { makeStandbyProcess } from "../chronos/snapShot/StandbyProcess.ts";
 import * as NodeChildProcess from "node:child_process";
 
 import type {
@@ -133,28 +134,20 @@ export function startSnapShotAccessibilityProcess(workerPath: string): Accessibi
 }
 
 export function makeSnapShotAccessibilityProcessPool(workerPath: string): AccessibilityProcessPool {
-  let standby: AccessibilityProcess | undefined;
+  const standby = makeStandbyProcess(() => startSnapShotAccessibilityProcess(workerPath), process.platform === "win32" ? 60_000 : undefined);
   const active = new Set<AccessibilityProcess>();
   let closed = false;
 
   const warm = () => {
-    if (closed || standby?.alive) return;
-    standby = startSnapShotAccessibilityProcess(workerPath);
+    if (!closed) standby.warm();
   };
-  const cool = () => {
-    standby?.close();
-    standby = undefined;
-  };
-
+  const cool = standby.cool;
   return {
     warm,
     cool,
     read: (request) => {
       if (closed) return completedRead();
-      const workerProcess = standby?.alive
-        ? standby
-        : startSnapShotAccessibilityProcess(workerPath);
-      standby = undefined;
+      const workerProcess = standby.take();
       warm();
       active.add(workerProcess);
       const read = workerProcess.read(request);

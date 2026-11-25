@@ -1,5 +1,6 @@
 // @effect-diagnostics globalTimers:off -- Child-process deadlines run outside Effect fibers.
 // @effect-diagnostics nodeBuiltinImport:off -- This desktop-only helper owns a Node child process.
+import { makeStandbyProcess } from "../chronos/snapShot/StandbyProcess.ts";
 import * as NodeChildProcess from "node:child_process";
 
 import * as Electron from "electron";
@@ -135,17 +136,13 @@ export function makeRegionSnapShotPool(
   workerPath: string,
   start: (workerPath: string) => RegionSnapShotProcess = startRegionSnapShotProcess,
 ): RegionSnapShotPool {
-  let standby: RegionSnapShotProcess | undefined;
+  const standby = makeStandbyProcess(() => start(workerPath), process.platform === "win32" ? 60_000 : undefined);
   let inFlight: RegionSnapShotProcess | undefined;
   let closed = false;
   const warm = () => {
-    if (closed || standby?.alive) return;
-    standby = start(workerPath);
+    if (!closed) standby.warm();
   };
-  const cool = () => {
-    standby?.close();
-    standby = undefined;
-  };
+  const cool = standby.cool;
   return {
     warm,
     cool,
@@ -154,8 +151,7 @@ export function makeRegionSnapShotPool(
       if (inFlight?.alive) {
         throw new Error("Windows window capture is still in progress. Try again.");
       }
-      const current = standby?.alive ? standby : start(workerPath);
-      standby = undefined;
+      const current = standby.take();
       inFlight = current;
       try {
         return await current.capture(region);

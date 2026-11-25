@@ -1147,13 +1147,12 @@ export const make = Effect.gen(function* () {
       settings.snapShotIncludeAccessibility &&
       mode !== "unavailable"
     ) {
-      accessibilityProcessPool.warm();
+      // chronos: Windows starts standby helpers on first use.
+      if (environment.platform !== "win32") accessibilityProcessPool.warm();
     } else {
       accessibilityProcessPool.cool();
     }
-    if (settings.snapShotEnabled && environment.platform === "win32") {
-      regionSnapShotPool.warm();
-    } else {
+    if (!settings.snapShotEnabled || environment.platform !== "win32") {
       regionSnapShotPool.cool();
     }
     if (!settings.snapShotEnabled || !settings.snapShotFlash || mode === "unavailable") {
