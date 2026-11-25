@@ -247,7 +247,7 @@ parentPort.on("message", (request) => {
     parentPort.close();
     return;
   }
-  const { id, sql, params, cached, values, raw, safeIntegers, savepoints } = request;
+  const { id, sql, params, cached, values, raw, safeIntegers, received, savepoints } = request;
   let operation = "open";
   let iterator;
   try {
@@ -262,7 +262,7 @@ parentPort.on("message", (request) => {
       statement.setReturnArrays(values);
       let rows = [];
       let bytes = 0;
-      let received;
+      let pendingBatch = false;
       iterator = statement.iterate(...params);
       for (const row of iterator) {
         let rowBytes = 0;
@@ -273,21 +273,17 @@ parentPort.on("message", (request) => {
         }
         if (rows.length > 0 && (rows.length >= 16384 || bytes + rowBytes > 8 * 1024 * 1024)) {
           // Build the next batch during receipt, but allow only one unacknowledged message.
-          if (received) {
-            Atomics.wait(received, 0, 0);
-            Atomics.store(received, 0, 0);
-          } else {
-            // Most queries fit in one reply and need no shared acknowledgement.
-            received = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
-          }
-          parentPort.postMessage({ id, rows, received });
+          if (pendingBatch) Atomics.wait(received, 0, 0);
+          Atomics.store(received, 0, 0);
+          parentPort.postMessage({ id, rows, more: true });
           rows = [];
           bytes = 0;
+          pendingBatch = true;
         }
         rows.push(row);
         bytes += rowBytes;
       }
-      if (received) Atomics.wait(received, 0, 0);
+      if (pendingBatch) Atomics.wait(received, 0, 0);
       parentPort.postMessage({ id, rows });
     } else {
       // A discarded result is read as BigInt: see the same line in the in-process client.
@@ -327,7 +323,7 @@ type WorkerStartup =
   | ({ readonly type: "unavailable" } & WorkerFailure);
 
 type WorkerReply =
-  | { readonly id: number; readonly rows: ReadonlyArray<any>; readonly received?: Int32Array }
+  | { readonly id: number; readonly rows: ReadonlyArray<any>; readonly more?: boolean }
   | {
       readonly id: number;
       readonly error: WorkerFailure & { readonly operation: "open" | "prepare" | "execute" };
@@ -403,6 +399,7 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
       number,
       {
         readonly endsTransaction: boolean;
+        readonly received: Int32Array;
         readonly rows: Array<unknown>;
         readonly resume: (reply: WorkerReply) => void;
       }
@@ -429,10 +426,10 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
       }
       const request = pending.get(reply.id);
       if (request === undefined) return;
-      if ("rows" in reply && reply.received) {
+      if ("rows" in reply && reply.more) {
         for (const row of reply.rows) request.rows.push(row);
-        Atomics.store(reply.received, 0, 1);
-        Atomics.notify(reply.received, 0);
+        Atomics.store(request.received, 0, 1);
+        Atomics.notify(request.received, 0);
         return;
       }
       pending.delete(reply.id);
@@ -462,8 +459,10 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
         const safeIntegers = Boolean(Context.get(fiber.context, Client.SafeIntegers));
         const reply = Effect.callback<ReadonlyArray<any>, SqlError>((resume) => {
           const id = nextRequestId++;
+          const received = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
           pending.set(id, {
             endsTransaction,
+            received,
             rows: [],
             resume: (reply) =>
               resume(
@@ -479,6 +478,7 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
             safeIntegers,
             ...input,
             cached,
+            received,
             savepoints: [...pendingSavepoints],
           };
           // oxlint-disable-next-line unicorn/require-post-message-target-origin -- Node workers do not accept a target origin.
