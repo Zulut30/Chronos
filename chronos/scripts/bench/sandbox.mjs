@@ -1,5 +1,5 @@
 // Node 24+. Windows packaged Chronos, no install/build or provider credentials required.
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { execFileSync, spawn } from "node:child_process";
@@ -7,11 +7,11 @@ import { createServer } from "node:net";
 import { setTimeout as sleep } from "node:timers/promises";
 import assert from "node:assert/strict";
 
-
 export function createSandbox(frames, interval, workload = "paragraph", streamingMode = "paragraph") {
   const git = execFileSync("where.exe", ["git.exe"], { encoding: "utf8" }).trim().split(/\r?\n/)[0];
   assert(existsSync(git));
-  const root = mkdtempSync(join(tmpdir(), "chronos-bench-"));
+  const tempRoot = realpathSync(tmpdir());
+  const root = mkdtempSync(join(tempRoot, "chronos-bench-"));
   const home = join(root, "home"), userdata = join(home, "userdata"), work = join(root, "workspace");
   const fake = join(root, "user"), temp = join(root, "temp"), profile = join(root, "chrome");
   const children = [];
@@ -67,7 +67,7 @@ export function createSandbox(frames, interval, workload = "paragraph", streamin
   function close() {
     children.reverse().forEach(stop);
     const owned = resolve(root);
-    if (dirname(owned) === resolve(tmpdir()) && /^chronos-bench-[a-z0-9]+$/i.test(basename(owned))) {
+    if (dirname(owned) === resolve(tempRoot) && /^chronos-bench-[a-z0-9]+$/i.test(basename(owned))) {
       rmSync(owned, { recursive: true, force: true, maxRetries: 6, retryDelay: 200 });
     }
   }
