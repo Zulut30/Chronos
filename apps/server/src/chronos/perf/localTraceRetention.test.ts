@@ -9,6 +9,6 @@ it("keeps failed exits and warning/error logs even between sampled successes", (
     events: [["message", 0n, { "effect.logLevel": level }]],
   });
   expect(Array.from({ length: 32 }, () => keep(span("Info"))).filter(Boolean)).toHaveLength(2);
-  for (const level of ["Warning", "Error", "Fatal"]) expect(keep(span(level))).toBe(true);
+  for (const level of ["WARNING", "ERROR", "FATAL", "warn", "Warning"]) expect(keep(span(level))).toBe(true);
   expect(keep(span("Info", Exit.fail("late failure")))).toBe(true);
 });

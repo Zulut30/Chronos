@@ -11,7 +11,7 @@ export function makeLocalTraceRetention(): Retain {
     if (span.status._tag === "Ended" && span.status.exit._tag === "Failure") return true;
     for (const [, , attributes] of span.events) {
       const level = attributes["effect.logLevel"];
-      if (level === "Warning" || level === "Error" || level === "Fatal") return true;
+      if (typeof level === "string" && ["WARNING", "WARN", "ERROR", "FATAL"].includes(level.toUpperCase())) return true;
     }
     return successes++ % 16 === 0;
   };
