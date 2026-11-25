@@ -76,4 +76,4 @@ export function createServer(){return http.createServer(async(req,res)=>{
     send(res,404,{error:'Не найдено'});
   }catch(error){send(res,400,{error:error instanceof SyntaxError?'Некорректный JSON запроса':error.message})}
 })}
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))createServer().listen(PORT,'127.0.0.1',()=>console.log(`MCP manager: 127.0.0.1:${PORT}`));
+if(import.meta.main)createServer().listen(PORT,'127.0.0.1',()=>console.log(`MCP manager: 127.0.0.1:${PORT}`));

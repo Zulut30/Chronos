@@ -99,7 +99,9 @@ test('http_api_restricts_mutations_origins_and_ssh_targets',async()=>{
  await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));
  const port=socket.address().port;
  await new Promise(resolve=>socket.close(resolve));
- const server=spawn(process.execPath,[path.join(HERE,'server.mjs')],{env:{...f.env,OLY_MCP_TEST_HOME:f.home,OLY_MCP_PORT:String(port)},stdio:'ignore',windowsHide:true});
+ const link=path.join(f.home,'linked-resources');
+ fs.symlinkSync(HERE,link,'junction');
+ const server=spawn(process.execPath,[path.join(link,'server.mjs')],{env:{...f.env,OLY_MCP_TEST_HOME:f.home,OLY_MCP_PORT:String(port)},stdio:'ignore',windowsHide:true});
  try{
   let ready=false;for(let i=0;i<50;i++){try{ready=(await fetch('http://127.0.0.1:'+port+'/api/health')).ok;if(ready)break}catch{}await new Promise(r=>setTimeout(r,100))}
   assert.ok(ready);
