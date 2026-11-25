@@ -21,7 +21,7 @@ function seedChat(exe, home) {
   execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
   cli("project", "add", dir, "--title", "Пример");
   const { threadId, status } = JSON.parse(cli("thread", "start", dir, "Как выглядит встроенный код?",
-    "--title", "Оформление чата", "--provider", "palette", "--model", "graphite", "--wait", "--json"));
+    "--title", "Оформление чата", "--provider", "palette", "--model", "default", "--wait", "--json"));
   assert.equal(status, "completed");
   const { origin } = JSON.parse(readFileSync(join(home, "userdata/server-runtime.json"), "utf8"));
   return fetch(origin + "/.well-known/t3/environment").then((r) => r.json())

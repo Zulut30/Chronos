@@ -9,7 +9,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   if (method === "initialize") {
     result = { protocolVersion: 1, agentCapabilities: {}, authMethods: [], agentInfo: { name: "Палитра", version: "1" } };
   } else if (method === "session/new") {
-    result = { sessionId, models: { currentModelId: "graphite", availableModels: [{ modelId: "graphite", name: "Графит" }] } };
+    result = { sessionId, models: { currentModelId: "default", availableModels: [{ modelId: "default", name: "Графит" }] } };
   } else if (method === "session/prompt") {
     send({ method: "session/update", params: { sessionId, update: {
       sessionUpdate: "agent_message_chunk", content: { type: "text",
