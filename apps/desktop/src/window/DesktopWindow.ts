@@ -43,6 +43,8 @@ import * as DesktopClientSettings from "../settings/DesktopClientSettings.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import { m } from "../i18n/messages.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
+// chronos: native input belongs to the trusted main window.
+import { installKeyboardWindow } from "../chronos/keyboard/KeyboardWindow.ts";
 import { makeQuitShortcutHandler } from "./QuitHold.ts";
 import { copyContextMenuImage } from "./ContextMenuImage.ts";
 import { installMainWindowRemoteRequestHeaderPolicy } from "./RemoteRequestHeaders.ts";
@@ -507,6 +509,8 @@ export const make = Effect.gen(function* () {
       return Option.none();
     }
 
+    // chronos: install the lazy macro pad bridge.
+    installKeyboardWindow(window, environment, applicationUrl);
     pendingMainReveals.set(window, Effect.void);
     yield* rendererHistory.register(window.webContents, { surface: "main" });
     if (environment.platform === "darwin") {

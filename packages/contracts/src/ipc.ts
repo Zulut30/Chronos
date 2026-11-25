@@ -1108,7 +1108,11 @@ export const DesktopAppleSpeechTranscribeInputSchema = Schema.Struct({
 export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
+export type { KeyboardAction, KeyboardSnapshot, KeyboardProfile, KeyboardEventMessage } from './chronos/keyboard.ts';
+
 export interface DesktopBridge {
+  // chronos: optional local macro pad bridge.
+  keyboard?: import('./chronos/keyboard.ts').KeyboardBridge;
   getAppBranding: () => DesktopAppBranding | null;
   /** `null` until the desktop host has read the login shell's environment; ask again later. */
   getRelayTelemetryEnabled: () => boolean | null;
