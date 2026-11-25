@@ -6,7 +6,7 @@ import { SidebarCardContents } from "./SidebarCardContents";
 
 it("retains focused sidebar controls outside the viewport and restores the full card", async () => {
   const card = (visible: boolean) => <SidebarCardContents renderContents={visible} compact={false} title="Thread">
-    {() => <button>Open changes</button>}
+    <button>Open changes</button>
   </SidebarCardContents>;
   const view = await render(card(true));
   const button = page.getByRole("button", { name: "Open changes" });
