@@ -1,6 +1,5 @@
 import type * as DateTime from "effect/DateTime";
 import { msg } from "gt-react";
-import { streamingMarkdownAtom } from "~/chronos/perf/streamingMarkdown";
 import { useAtomValue } from "@effect/atom-react";
 import type {
   EnvironmentProject,
@@ -266,7 +265,7 @@ export function useAssistantMessageText(
   return useAtomValue(
     ref === null || itemId === undefined
       ? EMPTY_ASSISTANT_MESSAGE_TEXT_ATOM
-      : streamingMarkdownAtom(environmentThreadDetails.assistantMessageTextAtom(ref, itemId)),
+      : environmentThreadDetails.assistantMessageTextAtom(ref, itemId),
   );
 }
 
