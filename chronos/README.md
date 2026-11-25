@@ -7,7 +7,7 @@ Chronos — независимый форк [pingdotgg/t3code](https://github.co
 
 Проверка переноса с эталона 4774 на эту базу — в [отчёте по nightly 5209](parity/upstream-5209.md).
 
-Галерея артефактов открывается из SidebarChrome через штатный `openUrlInPreview` для треда и `__olyStudio.openInPanel` для диалога. Студия обслуживает карточки и подтверждение удаления, MCP вызывает тот же мост открытия. [Артефакты](parity/artifacts.md)
+Галерея артефактов открывается из SidebarChrome через штатный `openUrlInPreview` для треда и `__olyStudio.openInPanel` для диалога. Студия обслуживает карточки и подтверждение удаления, MCP передаёт открытие через процесс Студии и IPC главного окна. Для отдельно запущенного сервиса остаётся мост SSE Студии. [Артефакты](parity/artifacts.md)
 
 В настольном клиенте HostedBrowserWebview и диалог Студии создают отдельный guest. DesktopWindow связывает partition с обработчиком `chronos-artifact://` и preload из ресурсов. Документы страницы и MCP хранятся в одной SQLite.
 

@@ -1,9 +1,17 @@
-export async function openArtifactGallery() {
-  const studio = (window as Window & {
-    __olyStudio?: { openInPanel(url: string, options: { title: string }): Promise<unknown> };
-  }).__olyStudio;
-  const url = "http://127.0.0.1:4520/artifacts.html";
+interface Studio {
+  __olyStudio?: { openInPanel(url: string, options: { title: string }): Promise<unknown> };
+  __olyStudioShell?: {open(url: string,title: string):Promise<unknown>;close():void};
+}
+export async function openArtifactsUrl(url: string,title: string) {
   const { openArtifactTab } = await import("./panel");
-  if (await openArtifactTab(url)) return;
-  return studio?.openInPanel(url, { title: "Артефакты" });
+  const studio = window as Window & Studio;
+  if (await openArtifactTab(url)) {
+    studio.__olyStudioShell?.close();
+    return;
+  }
+  if (studio.__olyStudioShell) return studio.__olyStudioShell.open(url,title);
+  return studio.__olyStudio?.openInPanel(url,{title});
+}
+export function openArtifactGallery() {
+  return openArtifactsUrl("http://127.0.0.1:4520/artifacts.html","Артефакты");
 }

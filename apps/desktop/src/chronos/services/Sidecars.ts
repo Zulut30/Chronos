@@ -59,7 +59,7 @@ interface Options {
 type OnExit = (reason: string) => void;
 type Launch = (service: Service, onExit: OnExit) => void;
 
-export function createServiceHost(options: Options & { platform: NodeJS.Platform }) {
+export function createServiceHost(options: Options & { platform: NodeJS.Platform; showArtifact?: (id:string,confirmDelete:boolean)=>boolean }) {
   const env = { ...options.env };
   for (const key of Object.keys(env)) {
     const name = options.platform === "win32" ? key.toUpperCase() : key;
@@ -74,6 +74,13 @@ export function createServiceHost(options: Options & { platform: NodeJS.Platform
         CHRONOS_SERVICES_DATA: options.baseDir },
     });
     proc.on("message", (message) => {
+      if (typeof message === "object" && message && "kind" in message && message.kind === "artifact-open" &&
+          "request" in message && typeof message.request === "string" && "id" in message && typeof message.id === "string" &&
+          /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(message.id)) {
+        const delivered = options.showArtifact?.(message.id,"confirmDelete" in message && message.confirmDelete === true) ?? false;
+        if (proc.connected) proc.send({kind:"artifact-delivered",request:message.request,delivered},()=>{});
+        return;
+      }
       if (typeof message !== "string") return;
       const stopped = workers.get(message);
       workers.delete(message);

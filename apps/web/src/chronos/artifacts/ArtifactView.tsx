@@ -73,6 +73,14 @@ export function ArtifactView({id}:{id:string}) {
 // Studio falls back to its dialog when there is no active thread.
 export function watchArtifactDialog() {
   if (!window.desktopBridge) return;
+  const show = (event: Event) => {
+    const match = /^(open|delete)\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$/.exec(String((event as CustomEvent).detail));
+    if (!match) return;
+    const confirm = match[1] === "delete";
+    const url = origin+(confirm ? "/artifacts.html?delete=" : "/artifact-view.html?id=")+match[2];
+    void import("./gallery").then(({openArtifactsUrl})=>openArtifactsUrl(url,confirm ? "Артефакты" : "Просмотр артефакта"));
+  };
+  window.addEventListener("chronos:show-artifact",show);
   let current: HTMLIFrameElement | null = null;
   let dispose: (()=>void) | undefined;
   const observer = new MutationObserver(() => {
@@ -96,5 +104,5 @@ export function watchArtifactDialog() {
     }
   });
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  return () => {observer.disconnect();dispose?.();};
+  return () => {window.removeEventListener("chronos:show-artifact",show);observer.disconnect();dispose?.();};
 }

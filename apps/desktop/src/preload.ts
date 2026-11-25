@@ -46,6 +46,11 @@ try {
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Electron exposes the client platform in its sandboxed preload process.
 const clientPlatform = process.platform;
 
+// chronos: Studio delivers an artifact request to the trusted app frame over desktop IPC.
+ipcRenderer.on("chronos:show-artifact", (_event,id:string,confirmDelete:boolean) => {
+  window.dispatchEvent(new CustomEvent("chronos:show-artifact",{detail:(confirmDelete ? "delete/" : "open/")+id}));
+});
+
 // chronos: installation is available only in the trusted Windows shell.
 if (clientPlatform === "win32") {
   contextBridge.exposeInMainWorld("chronosArtifactInstaller", {

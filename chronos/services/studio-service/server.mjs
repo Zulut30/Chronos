@@ -317,6 +317,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/open') { // ask T3 windows to open something in the right panel
       const b = await B();
       let msg;
+      if (b.artifact) {
+        const {deliverToDesktop} = await import('../artifacts/desktop-bridge.mjs');
+        const delivery = deliverToDesktop(b.artifact,b.confirmDelete);
+        if (delivery) return json(res,req,200,{ok:true,delivered:await delivery});
+      }
       if (b.board) { const f = boardPath(b.board); if (!fs.existsSync(f)) return json(res, req, 404, { error: 'Доска не найдена' }); touchRecent(f); msg = { kind: 'board', path: f, title: boardName(f) }; }
       else if (b.hub === 'boards') msg = { kind: 'hub', tab: 'boards' };
       else if (typeof b.url === 'string' && /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(b.url)) msg = { kind: 'url', url: b.url };

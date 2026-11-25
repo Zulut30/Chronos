@@ -90,5 +90,12 @@ export async function verifyArtifacts(client, opts) {
     })()`));
     writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
     console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
+  } catch(error) {
+    const state=await evaluate(`({route:location.pathname,dialog:document.querySelector("dialog[open]")?.getAttribute("aria-label"),
+      guests:[...document.querySelectorAll("webview,dialog iframe")].map(el=>el.getAttribute("src")?.split("?")[0]),
+      bridge:Boolean(window.desktopBridge?.preview),studioSocket:window.__olyStudio?.ws?.readyState,
+      status:[...document.querySelectorAll('[role="status"]')].map(el=>el.textContent?.slice(0,180)).filter(Boolean)})`).catch(()=>null);
+    console.error("Artifact smoke UI",JSON.stringify(state));
+    throw error;
   } finally {store.close();}
 }

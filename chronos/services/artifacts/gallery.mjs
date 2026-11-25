@@ -20,7 +20,7 @@ export async function showArtifact(id, confirmDelete = false) {
   const url = new URL(confirmDelete ? "/artifacts.html" : "/artifact-view.html", svc);
   url.searchParams.set(confirmDelete ? "delete" : "id", id);
   const res = await fetch(new URL("/api/open",svc), {method:"POST", redirect:"error",
-    headers:{"content-type":"application/json","x-oly":"1"}, body:JSON.stringify({url:url.href})});
+    headers:{"content-type":"application/json","x-oly":"1"}, body:JSON.stringify({artifact:id,confirmDelete,url:url.href})});
   if (!res.ok) throw Error("Студия не смогла открыть панель");
   const {delivered} = await res.json();
   if (!delivered) throw Error("Откройте окно Chronos и повторите");
