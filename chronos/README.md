@@ -25,8 +25,9 @@ T3 Code 4774.
 - **Перевод и паритет** — перенос русского перевода Olympus и проверки паритета
   (`.github/workflows/chronos-parity.yml`).
 
-Тема Olympus остаётся внешней (как в Olympus LIVE — файлы в `userdata/themes/`), встроенной темы
-и переписанного JSX-каталога в `apps/web/src/chronos/` нет. Установщик включает семь HTTP-сервисов Olympus и OpenRouter MCP (stdio).
+При первом запуске релизный Chronos устанавливает внешнюю тему **Olympus** в
+`userdata/themes/olympus.json` и выбирает её для нового профиля. Днём используется исходный Olympus,
+ночью — «Графит». Правила обновления и палитра описаны в [отчёте по теме](parity/olympus-theme.md). Установщик включает семь HTTP-сервисов Olympus и OpenRouter MCP (stdio).
 Chronos проверяет локальные порты после готовности Electron и запускает свободные сервисы
 из ресурсов приложения. Профиль задаёт `CHRONOS_HOME`, по умолчанию `~/.chronos`.
 Подробности — в [отчёте по сервисам](parity/services.md).

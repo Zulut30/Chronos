@@ -2871,6 +2871,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),
         to: "chronos-services",
         filter: ["**/*", "!**/*.test.mjs"],
+      }, {
+        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/brand/themes/olympus.json"),
+        to: "chronos-themes/olympus.json",
       }] : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
