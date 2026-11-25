@@ -127,6 +127,32 @@ function install(tracing) {
       return center(el);
     },
     endScroll: () => state.endScroll(),
+    async fixedTimeline() {
+      const el = scroller(timeline());
+      const frame = () => new Promise(requestAnimationFrame);
+      const step = 24;
+      const count = 72;
+      // Let the virtual list measure the top of the seeded, completed chat before timing.
+      for (let i = 0; i < 12; i++) {
+        el.scrollTo({ top: 0, behavior: "instant" });
+        await frame();
+      }
+      if (el.scrollTop !== 0 || el.scrollHeight - el.clientHeight < step * count)
+        throw Error("Seeded timeline cannot fit the fixed scroll path");
+      const times = [await frame()];
+      let path = 0;
+      for (let i = 1; i <= count; i++) {
+        const previous = el.scrollTop;
+        if (Math.abs(previous - step * (i - 1)) > 1)
+          throw Error("Timeline anchor moved outside the fixed scroll path: " + previous);
+        el.scrollTo({ top: step * i, behavior: "instant" });
+        times.push(await frame());
+        path += Math.abs(el.scrollTop - previous);
+      }
+      if (Math.abs(path - step * count) > 1 || Math.abs(el.scrollTop - step * count) > 1)
+        throw Error("Incomplete fixed scroll path: " + path + " / " + el.scrollTop);
+      return { fps: (1000 * count) / (times.at(-1) - times[0]), frames: count, distance: path };
+    },
     end: () => [...state.tasks, ...observer.takeRecords().map((e) => e.duration)],
   };
 }
@@ -174,7 +200,9 @@ export async function measureUi({ page, evaluate, targets, streamingId, navigate
       distance,
     };
   }
-  const timeline = await scroll("timeline");
+  const timeline = process.env.BENCH_FIXED_SCROLL === "1"
+    ? await evaluate("uiBench.fixedTimeline()")
+    : await scroll("timeline");
   const sidebar = await scroll("sidebar");
   if (streamingId) {
     await navigate(streamingId);

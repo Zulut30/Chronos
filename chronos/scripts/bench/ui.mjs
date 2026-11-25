@@ -34,8 +34,9 @@ const targets = [crypto.randomUUID(), crypto.randomUUID()];
 const ids = Array.from({ length: n }, () => crypto.randomUUID());
 const stateFile = join(userdata, "server-runtime.json");
 let rpc, cdp, evaluate;
-try {
+async function benchmark() {
   let server;
+  const launched = Date.now();
   if (mode === "desktop") {
     start(
       exe,
@@ -100,6 +101,31 @@ try {
     mobile: false,
   });
   await page("Page.bringToFront");
+  if (action === "startup") {
+    assert.equal(mode, "desktop");
+    const surface = await wait("interactive startup surface", () => evaluate(`(() => {
+      if (!window.__TSR_ROUTER__ || !performance.getEntriesByName("first-contentful-paint").length) return false;
+      if (document.querySelector("[data-slot=composer-host] [contenteditable=true]")) return "composer";
+      const route = window.__TSR_ROUTER__.state.location.pathname;
+      const buttons = [...document.querySelectorAll("button")].filter(b => !b.disabled && b.getClientRects().length);
+      if (route === "/welcome" && buttons.some(b => /^(Начать|Запустить|Start|Пропустить|Skip)( |$)/i.test(b.innerText.trim()))) return "welcome";
+      if (buttons.some(b => /^(Добавить проект|Add project)$/i.test(b.innerText.trim()))) return "project";
+      return false;
+    })()`));
+    const startup = await evaluate(`new Promise(resolve => requestAnimationFrame(() => {
+      const paint = performance.getEntriesByName("first-contentful-paint")[0];
+      const scripts = performance.getEntriesByType("resource").filter(r => /\\.m?js($|[?#])/.test(r.name));
+      resolve({ route: window.__TSR_ROUTER__.state.location.pathname,
+        readyAt: performance.timeOrigin + performance.now(),
+        paintedAt: paint && performance.timeOrigin + paint.startTime,
+        scripts: scripts.map(r => ({ name: new URL(r.name).pathname.split("/").pop(), bytes: r.decodedBodySize })) });
+    }))`);
+    const result = { route: startup.route, surface, firstPaintMs: startup.paintedAt - launched,
+      readyMs: startup.readyAt - launched, scripts: startup.scripts };
+    assert(result.firstPaintMs > 0 && result.readyMs >= result.firstPaintMs);
+    writeFileSync(output, JSON.stringify(result, null, 2));
+    return;
+  }
   await page("Performance.enable");
   await page("Network.enable");
   const detailIds = new Set();
@@ -466,6 +492,9 @@ try {
       assert.equal(olympus.speedSamples, n, "Olympus lost a model throughput sample");
     }
   }
+}
+try {
+  await benchmark();
 } catch (error) {
   if (evaluate)
     console.error(
