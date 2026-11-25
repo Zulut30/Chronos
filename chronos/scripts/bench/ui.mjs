@@ -50,17 +50,7 @@ try {
   } else {
     server = start(
       exe,
-      [
-        entry,
-        "serve",
-        "--base-dir",
-        home,
-        "--port",
-        String(listen),
-        "--host",
-        "127.0.0.1",
-        "--no-browser",
-      ],
+      [entry, "serve", "--base-dir", home, "--port", String(listen), "--host", "127.0.0.1", "--no-browser"],
       nodeEnv,
     );
     start(
@@ -100,8 +90,7 @@ try {
   const page = (method, params) => cdp.call(method, params, sessionId);
   evaluate = async (expression) => {
     const r = await page("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-    if (r.exceptionDetails)
-      throw Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+    if (r.exceptionDetails) throw Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
     return r.result.value;
   };
   await page("Emulation.setDeviceMetricsOverride", {
@@ -171,9 +160,7 @@ try {
   );
   const { ticket } = await (await post("/api/auth/websocket-ticket/rpc", null, bearer)).json();
   rpc = await rpcClient(
-    origin.replace("http:", "ws:") +
-      "/ws?orchestrationProtocol=2&wsTicket=" +
-      encodeURIComponent(ticket),
+    origin.replace("http:", "ws:") + "/ws?orchestrationProtocol=2&wsTicket=" + encodeURIComponent(ticket),
   );
   const environment = (await (await fetch(origin + "/.well-known/t3/environment")).json()).environmentId;
   const common = {
@@ -220,9 +207,7 @@ try {
     .trim()
     .replace(/;$/, "");
   const navigate = async (id) => {
-    await evaluate(
-      "window.__TSR_ROUTER__.navigate({to:" + JSON.stringify(route(id)) + "}).then(()=>true)",
-    );
+    await evaluate("window.__TSR_ROUTER__.navigate({to:" + JSON.stringify(route(id)) + "}).then(()=>true)");
   };
   await wait("router", () => evaluate("Boolean(window.__TSR_ROUTER__?.navigate)"));
   await evaluate(probe + "('dismissOnboarding')");
@@ -342,6 +327,14 @@ try {
       ),
     );
     assert(rss > 0);
+    let concurrentApproval;
+    if (n && mode === "desktop") {
+      const busy = ids.filter((id) => !existsSync(join(root, id + ".txt"))).length;
+      assert(busy >= 4, "Need at least four busy background agents for the approval check");
+      const { verifyApproval } = await import("./ui-history.mjs");
+      concurrentApproval = { busy, ...(await verifyApproval({ rpc, evaluate, wait, launch })) };
+      await navigate(ids[0]);
+    }
     await wait(
       "all mocks finished writing",
       () => ids.every((id) => existsSync(join(root, id + ".txt"))),
@@ -364,7 +357,8 @@ try {
       await wait("final visible marker", () =>
         evaluate("uiBench.hasText(" + JSON.stringify("MARK_" + ids[0] + "_" + (frames - 1) + "_") + ")"),
       );
-    const readOlympus = () => evaluate(`(() => {
+    const readOlympus = () =>
+      evaluate(`(() => {
       const ids = ${JSON.stringify(ids)};
       const speed = globalThis.__olySpeed;
       const turns = Array.from(speed.turns.values());
@@ -380,7 +374,10 @@ try {
     if (mode === "desktop" && n) {
       // The server may finalize before Electron receives its last WebSocket chunk.
       const until = Date.now() + 5000;
-      while (Date.now() < until && (olympus.budgets.some(cost => cost !== 0.42) || olympus.speedSamples < n || olympus.speedTurns < n)) {
+      while (
+        Date.now() < until &&
+        (olympus.budgets.some((cost) => cost !== 0.42) || olympus.speedSamples < n || olympus.speedTurns < n)
+      ) {
         await sleep(100);
         olympus = await readOlympus();
       }
@@ -397,9 +394,7 @@ try {
       return row.closest("[data-thread-item]").getAttribute("data-thread-item").slice(-36);
     })()`);
     await wait("offscreen card", () =>
-      evaluate(
-        `!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`,
-      ),
+      evaluate(`!document.querySelector('[data-thread-item$="${farId}"] [data-sidebar-card-placeholder]')`),
     );
     await page("Input.dispatchKeyEvent", {
       type: "keyDown",
@@ -449,6 +444,7 @@ try {
       settingsMs,
       history,
       cadence,
+      concurrentApproval,
       rendererCount: pids.length,
       rendererRssMiB: rss / 1048576,
       heapMiB: after.JSHeapUsedSize / 1048576,
@@ -461,7 +457,11 @@ try {
     writeFileSync(output, JSON.stringify(result, null, 2) + "\n");
     console.log(result);
     if (mode === "desktop") {
-      assert.deepEqual(olympus.budgets, ids.map(() => 0.42), "Olympus lost a completed agent cost");
+      assert.deepEqual(
+        olympus.budgets,
+        ids.map(() => 0.42),
+        "Olympus lost a completed agent cost",
+      );
       assert.equal(olympus.speedTurns, n, "Olympus lost final per-turn token usage");
       assert.equal(olympus.speedSamples, n, "Olympus lost a model throughput sample");
     }

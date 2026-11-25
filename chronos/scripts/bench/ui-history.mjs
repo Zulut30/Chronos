@@ -59,16 +59,39 @@ export async function verifyHistoryAndApproval({ rpc, evaluate, navigate, wait, 
     20000,
   );
   console.log("Cold history verified", verified.size + 1);
-  const pendingBefore = await evaluate("__olyNotifications.waiting");
+  return {
+    earliestPageRestored: true,
+    completedTurns: turns + 1,
+    snapshotAssistantMessages: assistant.length,
+    openMs,
+    ...(await verifyApproval({ rpc, evaluate, wait, launch })),
+  };
+}
+
+export async function verifyApproval({ rpc, evaluate, wait, launch }) {
+  const get = (id) => rpc.call("orchestration.getThreadProjection", { threadId: id });
   const child = crypto.randomUUID();
   await launch(child, false, "APPROVAL_FIXTURE ");
   await wait("background approval", async () =>
     (await get(child)).runtimeRequests.find((r) => r.status === "pending"),
   );
-  await wait("Olympus notification for approval", () =>
-    evaluate("__olyNotifications.waiting > " + pendingBefore),
+  await wait("Olympus approval notification", () =>
+    evaluate(`(() => {
+      if (!document.querySelector(".oly-notify-menu")) {
+        const badge = document.querySelector(".oly-notify-badge");
+        const trigger = badge && !badge.hidden && badge.getClientRects().length ? badge : document.querySelector(".oly-notify-bell[data-waiting]");
+        trigger?.click();
+      }
+      const item = [...document.querySelectorAll(".oly-notify-menu button")].find(b =>
+        b.textContent.includes("${child.slice(0, 8)}") && b.querySelector(".oly-notify-status")?.textContent === "Нужно подтверждение");
+      if (!item) return false;
+      item.click();
+      return true;
+    })()`),
   );
-  await navigate(child);
+  await wait("requested thread opened from notification", () =>
+    evaluate("location.href.includes(" + JSON.stringify(child) + ")"),
+  );
   await wait("approval action", () =>
     evaluate(`(() => {
       const accept = [...document.querySelectorAll("button")].find(b =>
@@ -80,12 +103,5 @@ export async function verifyHistoryAndApproval({ rpc, evaluate, navigate, wait, 
   );
   await wait("approval response", async () => (await get(child)).runs.at(-1)?.status === "completed");
   await wait("approved answer", () => evaluate("uiBench.hasText('Bench permission granted.')"));
-  return {
-    earliestPageRestored: true,
-    completedTurns: turns + 1,
-    snapshotAssistantMessages: assistant.length,
-    openMs,
-    approval: true,
-    notification: true,
-  };
+  return { approval: true, notification: true };
 }
