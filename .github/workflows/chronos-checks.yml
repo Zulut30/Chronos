@@ -86,9 +86,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev pkg-config
 
-      - name: Shared release and theme regression tests
+      - name: Shared release, theme, markdown and tracing regressions
         working-directory: packages/shared
-        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts
+        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts src/observability.test.ts
 
       - name: Shell reducer and positional index
         working-directory: packages/client-runtime
