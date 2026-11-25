@@ -3,9 +3,13 @@ import type { IssueTrackerError } from "@t3tools/source-control-core/server/Issu
 import * as Effect from "effect/Effect";
 import type { SupportedProject } from "../../issue/IssueService.ts";
 
+type BoundProject = Omit<SupportedProject, "project"> & {
+  project: Pick<SupportedProject["project"], "id" | "title" | "workspaceRoot">;
+};
+
 // A card can move between boards without changing its URL. Only the current board grants writes.
 export const resolveTrelloLink = Effect.fn("Trello.resolveLink")(function* (
-  projects: ReadonlyArray<SupportedProject>,
+  projects: ReadonlyArray<BoundProject>,
   key: string,
   preferred?: ProjectId,
 ) {

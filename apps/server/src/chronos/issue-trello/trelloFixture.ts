@@ -1,8 +1,10 @@
 import { IssueTrackerHost } from "@t3tools/source-control-core/server/IssueTrackerHost";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import { make } from "./driver.ts";
+
+const decodeBody = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown));
 
 export const board = "650000000000000000000001";
 export const person = { id: "member1", username: "jane", fullName: "Jane" };
@@ -55,8 +57,7 @@ export const fixture = (respond?: (r: MockRequest) => unknown) => {
   const requests: MockRequest[] = [];
   const routes: Record<string, unknown> = {
     "members/me": person,
-    "members/me/boards": [{ id: board, name: "Roadmap", idOrganization: "org" }],
-    "members/me/organizations": [{ id: "org", displayName: "Acme" }],
+    "members/me/boards": [{ id: board, name: "Roadmap", organization: { displayName: "Acme" } }],
     [`boards/${board}/lists`]: [list],
     [`boards/${board}/cards`]: [card],
     [`boards/${board}/members`]: [person],
@@ -69,7 +70,7 @@ export const fixture = (respond?: (r: MockRequest) => unknown) => {
   };
   const tracker = make.pipe(
     Effect.provideService(IssueTrackerHost, {
-      credentials: { get: () => Effect.succeed(Option.some("key:token")) },
+      credentials: { get: () => Effect.succeedSome("key:token") },
     }),
     Effect.provideService(
       HttpClient.HttpClient,
@@ -81,7 +82,7 @@ export const fixture = (respond?: (r: MockRequest) => unknown) => {
             authorization: req.headers.authorization,
             body:
               req.body._tag === "Uint8Array"
-                ? (JSON.parse(new TextDecoder().decode(req.body.body)) as unknown)
+                ? decodeBody(new TextDecoder().decode(req.body.body))
                 : undefined,
           };
           requests.push(request);

@@ -230,6 +230,7 @@ describe("Trello issue toolkit", () => {
       scope: trelloTarget.scope, key: trelloTarget.key, writable: true, due: trelloCard.due,
       attachments: [{ name: "Design", url: "https://example.org/design" }],
     });
+    expect(yield* harness.call("read_issue", { key: trelloTarget.key, scope: trelloTarget.scope })).toMatchObject({ title: trelloCard.name });
     yield* harness.call("link_issue", { url });
     expect((yield* Ref.get(harness.links))[0]?.ref).toMatchObject({ scope: trelloTarget.scope, key: trelloTarget.key });
     yield* harness.call("create_issue", { scope: trelloTarget.scope, title: "New", labels: ["Bug"], assignees: ["jane"] });

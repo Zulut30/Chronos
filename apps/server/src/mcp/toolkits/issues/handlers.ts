@@ -118,7 +118,8 @@ const make = Effect.gen(function* () {
       return { ...resolved, url: input.url } satisfies ResolvedTarget;
     }
     if (input.key === undefined) return yield* new IssueTargetIncompleteError();
-    const scope = yield* requireProjectScope(input.projectId, { key: input.key });
+    // chronos: preserve the board when a project links multiple Trello boards.
+    const scope = yield* requireProjectScope(input.projectId, { key: input.key, scope: input.scope });
     return {
       ...scope,
       key: input.key,

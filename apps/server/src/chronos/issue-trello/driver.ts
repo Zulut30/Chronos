@@ -14,7 +14,6 @@ import {
   Label,
   List,
   Member,
-  Organization,
   CARD_QUERY,
   MEMBER_FIELDS,
   actor,
@@ -159,7 +158,12 @@ export const make = Effect.gen(function* () {
       const q = input.query?.trim().toLowerCase();
       const mention = input.involvement === "mentioned" ? "@" + input.viewer.toLowerCase() : null;
       const mentionsViewer = (text: string) =>
-        mention !== null && (text.toLowerCase().match(/@[\w-]+/g) ?? []).includes(mention);
+        mention !== null &&
+        (text
+          .toLowerCase()
+          .match(/@[\w-]+/g)
+          ?.includes(mention) ??
+          false);
       const mentionedInComments = new Set<string>();
       if (mention) {
         let before: string | undefined;
@@ -186,7 +190,11 @@ export const make = Effect.gen(function* () {
           before = last;
         }
       }
-      let before: string | undefined;
+      const cursorId = input.cursor?.split("/")[1];
+      if (input.cursor !== undefined && (!cursorId || !Schema.is(Id)(cursorId))) {
+        return yield* failure("list", "Неверный курсор карточек Trello.");
+      }
+      let before = input.sort === "created" ? cursorId : undefined;
       for (;;) {
         const page: ReadonlyArray<Card> = yield* rest(
           "list",
@@ -226,13 +234,16 @@ export const make = Effect.gen(function* () {
           const order = (input.sort === "created" ? row.createdAt : row.updatedAt) + "/" + c.id;
           if (!input.cursor || order < input.cursor) rows.push({ order, row });
         }
-        if (page.length < boardPageSize) break;
+        // Keep only the next slice when the REST order differs from the requested order.
+        rows.sort((a, b) => (a.order < b.order ? 1 : a.order > b.order ? -1 : 0));
+        if (rows.length > input.limit + 1) rows.length = input.limit + 1;
+        if (page.length < boardPageSize || (input.sort === "created" && rows.length > input.limit))
+          break;
         const last = page.at(-1)!.id;
         if (before && last >= before)
           return yield* failure("list", "Trello повторил страницу карточек.");
         before = last;
       }
-      rows.sort((a, b) => (a.order < b.order ? 1 : a.order > b.order ? -1 : 0));
       return {
         items: rows.slice(0, input.limit).map(({ row }) => row),
         nextCursor: rows.length > input.limit ? rows[input.limit - 1]!.order : null,
@@ -258,22 +269,17 @@ export const make = Effect.gen(function* () {
       });
       const boards = yield* rest("boards", "members/me/boards", Schema.Array(Board), {
         token,
-        query: { filter: "open", fields: "name,idOrganization" },
-      });
-      const orgs = yield* rest(
-        "workspaces",
-        "members/me/organizations",
-        Schema.Array(Organization),
-        {
-          token,
-          query: { fields: "displayName" },
+        query: {
+          filter: "open",
+          fields: "name",
+          organization: "true",
+          organization_fields: "displayName",
         },
-      );
-      const names = new Map(orgs.map((org) => [org.id, org.displayName]));
+      });
       return {
         account: me.username,
         scopes: boards.map((b) => {
-          const workspace = b.idOrganization && names.get(b.idOrganization);
+          const workspace = b.organization?.displayName;
           return { key: b.id, name: workspace ? workspace + " / " + b.name : b.name };
         }),
       };

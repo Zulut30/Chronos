@@ -1,4 +1,5 @@
 import * as S from "effect/Schema";
+import * as DateTime from "effect/DateTime";
 import type { IssueState } from "@t3tools/contracts";
 import type { TrackerIssueSummary } from "@t3tools/source-control-core/server/IssueTracker";
 
@@ -11,8 +12,11 @@ export const Member = S.Struct({
 });
 export const Label = S.Struct({ id: S.String, name: S.String, color: S.NullOr(S.String) });
 export const List = S.Struct({ id: S.String, name: S.String, closed: S.Boolean });
-export const Board = S.Struct({ id: Id, name: S.String, idOrganization: S.NullOr(S.String) });
-export const Organization = S.Struct({ id: S.String, displayName: S.String });
+export const Board = S.Struct({
+  id: Id,
+  name: S.String,
+  organization: S.optional(S.NullOr(S.Struct({ displayName: S.String }))),
+});
 export const Action = S.Struct({
   id: Id,
   type: S.String,
@@ -91,7 +95,9 @@ export function summary(card: Card, states: ReturnType<typeof listStates>): Trac
   const creator = card.actions?.find((a) =>
     ["createCard", "copyCard", "convertToCardFromCheckItem", "emailCard"].includes(a.type),
   )?.memberCreator;
-  const createdAt = new Date(parseInt(card.id.slice(0, 8), 16) * 1000).toISOString();
+  const createdAt = DateTime.formatIso(
+    DateTime.makeUnsafe(parseInt(card.id.slice(0, 8), 16) * 1000),
+  );
   return {
     key: card.shortLink,
     displayKey: "#" + card.idShort,

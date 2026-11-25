@@ -1,9 +1,49 @@
 import { describe, expect, it } from "@effect/vitest";
+import { ProjectId, IssueTrackerAccountId } from "@t3tools/contracts";
+import { resolveTrelloLink } from "./resolveLink.ts";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import { board, card, comment, fixture, list, target } from "./trelloFixture.ts";
 
 describe("Trello REST tracker", () => {
+  it.effect(
+    "prefers the account bound to the current board and marks a borrowed card read-only",
+    () =>
+      Effect.gen(function* () {
+        const first = fixture();
+        const second = fixture();
+        const api = yield* first.tracker;
+        const borrowed = {
+          tracker: api.kind,
+          host: "trello.com",
+          scope: "another",
+          accountId: null,
+          api,
+          project: { id: ProjectId.make("first"), title: "First", workspaceRoot: "/one" },
+        };
+        const own = {
+          ...borrowed,
+          scope: board,
+          api: yield* second.tracker,
+          accountId: IssueTrackerAccountId.make("second"),
+          project: { id: ProjectId.make("second"), title: "Second", workspaceRoot: "/two" },
+        };
+        const resolved = yield* resolveTrelloLink(
+          [borrowed, own],
+          card.shortLink,
+          borrowed.project.id,
+        );
+        expect(resolved).toMatchObject({ projectId: own.project.id, scope: board, writable: true });
+        expect(first.requests.length).toBeGreaterThan(0);
+        expect(second.requests.length).toBeGreaterThan(0);
+        expect(yield* resolveTrelloLink([borrowed], card.shortLink)).toMatchObject({
+          projectId: borrowed.project.id,
+          scope: board,
+          writable: false,
+        });
+      }),
+  );
+
   it.effect("probes both secrets before storing them and lists workspace-qualified boards", () =>
     Effect.gen(function* () {
       const fake = fixture();
@@ -22,7 +62,7 @@ describe("Trello REST tracker", () => {
       expect(yield* api.probeCredential("no-pair").pipe(Effect.flip)).toMatchObject({
         reason: "unauthenticated",
       });
-      expect(fake.requests).toHaveLength(3);
+      expect(fake.requests).toHaveLength(2);
     }),
   );
 

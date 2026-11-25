@@ -32,7 +32,7 @@ export const makeRest = Effect.gen(function* () {
     options: Options = {},
   ): Effect.fn.Return<A, IssueTrackerError> {
     const secret = options.token ?? Option.getOrUndefined(yield* host.credentials.get(kind));
-    const pair = /^([A-Za-z0-9_-]+):([A-Za-z0-9_=-]+)$/.exec(secret ?? "");
+    const pair = /^([A-Za-z0-9_-]+):([A-Za-z0-9._~+/=-]+)$/.exec(secret ?? "");
     if (!pair)
       return yield* failure(operation, "Укажите API key и token Trello.", "unauthenticated");
     const url = new URL("https://api.trello.com/1/" + path);

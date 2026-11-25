@@ -40,6 +40,8 @@ const dependencies = [
  * here is a checkout of that repository, read-only when none is.
  */
 export const IssueTargetInput = Schema.Struct({
+  // chronos: Trello short keys carry no board prefix; agents can pass the listed scope.
+  scope: Schema.optional(TrimmedNonEmptyString.annotate({ description: "Bound scope from list_issues when addressing a key, such as a Trello board ID." })),
   url: Schema.optional(
     TrimmedNonEmptyString.annotate({
       description: "The issue's web URL. Preferred when you have it.",
