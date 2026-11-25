@@ -9,6 +9,8 @@ Chronos — независимый форк [pingdotgg/t3code](https://github.co
 
 Галерея артефактов открывается из SidebarChrome через `__olyStudio.openInPanel`. Студия обслуживает карточки и подтверждение удаления, MCP вызывает тот же мост открытия. [Артефакты](parity/artifacts.md)
 
+В настольном клиенте HostedBrowserWebview и диалог Студии создают отдельный guest. DesktopWindow связывает partition с обработчиком `chronos-artifact://` и preload из ресурсов. Документы страницы и MCP хранятся в одной SQLite.
+
 ## Архитектура переноса Olympus (паритет 1:1)
 
 Предыдущая попытка на базе 4838 с переписыванием функций Olympus на React и отдельным i18n-слоем

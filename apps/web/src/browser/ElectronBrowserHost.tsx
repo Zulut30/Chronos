@@ -28,6 +28,7 @@ import { useEnvironmentScope } from "~/state/session";
 import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserDefaults } from "./browserDefaults";
 import { useBrowserPointerStore } from "./browserPointerStore";
+import { watchArtifactDialog } from "~/chronos/artifacts/ArtifactView"; // chronos: Studio dialog fallback
 import { HostedBrowserWebview } from "./HostedBrowserWebview";
 import { openUrlInPreview } from "./openFileInPreview";
 import { rendersServerTabNatively } from "./previewRuntime";
@@ -115,6 +116,7 @@ export function startElectronBrowserHost(): () => void {
   const preview = window.desktopBridge?.preview;
   if (!preview) return () => {};
   const disposers = [
+    watchArtifactDialog() ?? (() => {}), // chronos: bind Studio artifact dialogs
     startAnnotationThemeSync(preview),
     preview.onPointerEvent((event) => {
       useBrowserPointerStore.getState().apply(event);

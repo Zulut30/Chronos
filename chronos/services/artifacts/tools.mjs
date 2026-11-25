@@ -1,3 +1,5 @@
+import { documentMethods } from "./documents.mjs";
+import { capabilities } from "./policy.mjs";
 let opened;
 export async function artifactStore() {
   const { openArtifacts } = await import("./store.mjs");
@@ -12,6 +14,7 @@ function tool(name, description, properties, required, run) {
 export const artifactTools = [
   tool("publish", "Publish a local HTML file map. Re-read and merge on version conflict.",
     { source: string, title: string, description: string, icon: string, label: string,
+      capabilities: {type:"array",items:{type:"string",enum:capabilities}},
       expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: string } },
     ["source","title","description","icon","label","files"], async input => (await artifactStore()).publish(input)),
   tool("restore", "Восстановить сохранённую версию новой публикацией.",
@@ -24,6 +27,17 @@ export const artifactTools = [
       return showArtifact(id, action === "delete");
     })),
   tool("list", "List artifacts in this local profile.", {}, [], async () => (await artifactStore()).list()),
+  ...documentMethods.map(method => {
+    const fields = {id:string,collection:string,key:string,value:{type:"object"},where:{type:"object"},
+      limit:{type:"integer"},after:string,operations:{type:"array",items:{type:"object"}}};
+    const required = method === "batch" ? ["operations"] : ["collection",...(!["list","query"].includes(method) ? ["key"] : []),
+      ...(["set","update"].includes(method) ? ["value"] : []),...(method === "query" ? ["where"] : [])];
+    return tool("db_"+method,"Документная БД артефакта: "+method,fields,["id",...required],async ({id,...args}) => {
+      const db = await artifactStore();
+      if (!db.metadata(id).capabilities.includes("db")) throw Error("Артефакт не объявил db");
+      return db.documents(id,method,args);
+    });
+  }),
   tool("history", "List saved versions.", { id: string }, ["id"], async ({id}) => (await artifactStore()).history(id)),
   tool("pin", "Set sidebar pin preference.", { id: string, pinned: {type:"boolean"} }, ["id","pinned"],
     async ({id,pinned}) => {

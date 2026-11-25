@@ -8,6 +8,7 @@ import * as ElectronProtocol from "../electron/ElectronProtocol.ts";
  */
 export function restoreDesktopSchemePrivileges(): void {
   ElectronProtocol.registerDesktopSchemePrivilegesSync([
+    { scheme: "chronos-artifact", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
     {
       scheme: CHRONOS_SCHEME,
       privileges: {

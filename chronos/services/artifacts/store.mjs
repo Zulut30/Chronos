@@ -4,6 +4,9 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
+import { documentDatabase } from "./documents.mjs";
+import { declared } from "./policy.mjs";
+
 export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homedir(), ".chronos")) {
   const dir = path.join(home, "userdata", "artifacts");
   mkdirSync(dir, { recursive: true });
@@ -15,11 +18,12 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
     CREATE TABLE IF NOT EXISTS files(id TEXT, version INTEGER, name TEXT, content BLOB NOT NULL,
       PRIMARY KEY(id,version,name), FOREIGN KEY(id,version) REFERENCES versions ON DELETE CASCADE);`);
   const head = id => db.prepare("SELECT max(version) AS version FROM versions WHERE id=?").get(id).version ?? 0;
-  function publish({ source, expectedVersion = 0, title, description, icon, label, files }) {
+  function publish({ source, expectedVersion = 0, title, description, icon, label, files, capabilities = [] }) {
     if (!path.isAbsolute(source)) throw Error("Expected absolute source path");
     if (typeof title !== "string" || !/^\S+(?:\s+\S+){1,3}$/u.test(title) ||
         ![description, label, icon].every(value => typeof value === "string" && value.trim()) ||
         /\s/u.test(icon)) throw Error("Invalid metadata");
+    capabilities = declared(capabilities);
     const entries = Object.entries(files);
     if (!Object.hasOwn(files, "index.html") || entries.length > 255) throw Error("Invalid file map");
     for (const [name, content] of entries) {
@@ -37,7 +41,7 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       if (current !== expectedVersion) throw Error("Version conflict: read and merge");
       if (!current) db.prepare("INSERT INTO artifacts(id,source) VALUES (?,?)").run(id,key);
       const version = current + 1;
-      db.prepare("INSERT INTO versions VALUES (?,?,?)").run(id,version,JSON.stringify({title,description,icon,label}));
+      db.prepare("INSERT INTO versions VALUES (?,?,?)").run(id,version,JSON.stringify({title,description,icon,label,capabilities}));
       const insert = db.prepare("INSERT INTO files VALUES (?,?,?,?)");
       for (const [name, content] of entries) insert.run(id, version, name, Buffer.from(content));
       db.exec("COMMIT");
@@ -49,6 +53,15 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
   }
   return {
     publish,
+    documents: documentDatabase(db),
+    metadata(id) {
+      const row = db.prepare("SELECT metadata,version FROM versions WHERE id=? ORDER BY version DESC LIMIT 1").get(id);
+      if (!row) throw Error("Артефакт не найден");
+      return {capabilities:[],...JSON.parse(row.metadata),version:row.version};
+    },
+    file(id,name) {
+      return db.prepare("SELECT content FROM files WHERE id=? AND version=(SELECT max(version) FROM versions WHERE id=?) AND name=?").get(id,id,name)?.content;
+    },
     read(id, version = head(id)) {
       const row = db.prepare("SELECT metadata FROM versions WHERE id=? AND version=?").get(id,version);
       if (!row) throw Error("Unknown version");
