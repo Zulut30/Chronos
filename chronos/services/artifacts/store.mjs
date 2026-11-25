@@ -20,10 +20,10 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       PRIMARY KEY(id,version,name), FOREIGN KEY(id,version) REFERENCES versions ON DELETE CASCADE);`);
   const head = id => db.prepare("SELECT max(version) AS version FROM versions WHERE id=?").get(id).version ?? 0;
   function publish({ source, expectedVersion = 0, title, description, icon, label, files, capabilities = [] }) {
-    if (!path.isAbsolute(source)) throw Error("Expected absolute source path");
+    if (typeof source !== "string" || !path.isAbsolute(source)) throw Error("Укажите абсолютный путь к исходному файлу");
     if (typeof title !== "string" || !/^\S+(?:\s+\S+){1,3}$/u.test(title) ||
         ![description, label, icon].every(value => typeof value === "string" && value.trim()) ||
-        /\s/u.test(icon)) throw Error("Invalid metadata");
+        /\s/u.test(icon)) throw Error("Укажите название из 2–4 слов, описание, значок и подпись версии");
     capabilities = declared(capabilities);
     const {decoded,binaryFiles} = decodeFiles(files);
     db.exec("BEGIN IMMEDIATE");
@@ -31,7 +31,7 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       const key = path.normalize(source);
       const id = db.prepare("SELECT id FROM artifacts WHERE source=?").get(key)?.id ?? randomUUID();
       const current = head(id);
-      if (current !== expectedVersion) throw Error("Version conflict: read and merge");
+      if (current !== expectedVersion) throw Error("Версия изменилась. Прочитайте последнюю версию и объедините изменения");
       if (!current) db.prepare("INSERT INTO artifacts(id,source) VALUES (?,?)").run(id,key);
       const version = current + 1;
       db.prepare("INSERT INTO versions VALUES (?,?,?)").run(id,version,JSON.stringify({title,description,icon,label,capabilities,binaryFiles}));
@@ -56,9 +56,9 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       return db.prepare("SELECT content FROM files WHERE id=? AND version=(SELECT max(version) FROM versions WHERE id=?) AND name=?").get(id,id,name)?.content;
     },
     read(id, version = head(id)) {
-      const row = db.prepare("SELECT metadata FROM versions WHERE id=? AND version=?").get(id,version);
-      if (!row) throw Error("Unknown version");
-      return { id, version, ...JSON.parse(row.metadata), files: Object.fromEntries(
+      const row = db.prepare("SELECT a.source,v.metadata FROM artifacts a JOIN versions v ON v.id=a.id WHERE a.id=? AND v.version=?").get(id,version);
+      if (!row) throw Error("Версия не найдена");
+      return { id, source: row.source, version, ...JSON.parse(row.metadata), files: Object.fromEntries(
         db.prepare("SELECT name,content FROM files WHERE id=? AND version=?").all(id,version)
           .map(file => [file.name, Buffer.from(file.content)])) };
     },
@@ -69,14 +69,14 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
       WHERE v.version=(SELECT max(version) FROM versions WHERE id=a.id)
       ORDER BY pinned DESC,title COLLATE NOCASE,a.id`).all(),
     restore(id, version, expectedVersion) {
-      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw Error("Expected current version");
+      if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) throw Error("Укажите номер текущей версии");
       db.exec("BEGIN IMMEDIATE");
       try {
-        if (head(id) !== expectedVersion) throw Error("Version conflict: read and merge");
+        if (head(id) !== expectedVersion) throw Error("Версия изменилась. Откройте галерею заново и повторите восстановление");
         const next = expectedVersion + 1;
         const copied = db.prepare("INSERT INTO versions SELECT id,?,json_set(metadata,'$.label',?) FROM versions WHERE id=? AND version=?")
           .run(next,`Восстановлена версия ${version}`,id,version);
-        if (!copied.changes) throw Error("Unknown version");
+        if (!copied.changes) throw Error("Версия не найдена");
         db.prepare("INSERT INTO files SELECT id,?,name,content FROM files WHERE id=? AND version=?").run(next,id,version);
         db.exec("COMMIT");
         return {id, version:next};

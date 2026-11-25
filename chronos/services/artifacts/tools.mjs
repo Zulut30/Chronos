@@ -13,7 +13,7 @@ function tool(name, description, properties, required, run) {
 }
 
 export const artifactTools = [
-  tool("publish", "Publish a local HTML file map. Re-read and merge on version conflict.",
+  tool("publish", "Опубликовать HTML-страницу и файлы. При конфликте версий прочитайте текущую и объедините правки.",
     { source: string, title: string, description: string, icon: string, label: string,
       capabilities: {type:"array",items:{type:"string",enum:capabilities}},
       expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: {oneOf:[string,{type:"object",properties:{encoding:{const:"base64"},data:string},required:["encoding","data"],additionalProperties:false}]} } },
@@ -27,7 +27,7 @@ export const artifactTools = [
       const {showArtifact} = await import("./gallery.mjs");
       return showArtifact(id, action === "delete");
     })),
-  tool("list", "List artifacts in this local profile.", {}, [], async () => (await artifactStore()).list()),
+  tool("list", "Показать артефакты в текущем профиле.", {}, [], async () => (await artifactStore()).list()),
   ...documentMethods.map(method => {
     const fields = {id:string,collection:string,key:string,value:{type:"object"},where:{type:"object"},
       limit:{type:"integer"},after:string,operations:{type:"array",items:{type:"object"}}};
@@ -39,13 +39,13 @@ export const artifactTools = [
       return db.documents(id,method,args);
     });
   }),
-  tool("history", "List saved versions.", { id: string }, ["id"], async ({id}) => (await artifactStore()).history(id)),
-  tool("pin", "Set sidebar pin preference.", { id: string, pinned: {type:"boolean"} }, ["id","pinned"],
+  tool("history", "Показать сохранённые версии.", { id: string }, ["id"], async ({id}) => (await artifactStore()).history(id)),
+  tool("pin", "Закрепить или открепить артефакт в галерее.", { id: string, pinned: {type:"boolean"} }, ["id","pinned"],
     async ({id,pinned}) => {
-      if (typeof pinned !== "boolean") throw Error("Expected boolean");
+      if (typeof pinned !== "boolean") throw Error("Укажите логическое значение для закрепления");
       return (await artifactStore()).pin(id,pinned);
     }),
-  tool("read", "Read a version with UTF-8 sources and base64 binary assets.", {id:string,version:{type:"integer"}}, ["id"],
+  tool("read", "Прочитать версию с исходным путём, текстом UTF-8 и двоичными файлами в base64.", {id:string,version:{type:"integer"}}, ["id"],
     async ({id,version}) => {
       const data = (await artifactStore()).read(id,version);
       return encodeSnapshot(data);

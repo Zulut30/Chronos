@@ -7,7 +7,7 @@ export function decodeFiles(files) {
   const binaryFiles = [];
   let total = 0;
   const decoded = entries.map(([name,input]) => {
-    if (name.split("/").some(part => !part || part === "." || part === "..") || /[\\:#?%\x00-\x1f]/u.test(name)) throw Error("Invalid file name");
+    if (name.split("/").some(part => !part || part === "." || part === "..") || /[\\:#?%\x00-\x1f]/u.test(name)) throw Error("Недопустимое имя файла");
     let content;
     if (typeof input === "string") {
       if (Buffer.byteLength(input) > fileLimit) throw Error("Файл больше 15 МБ");
