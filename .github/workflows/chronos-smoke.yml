@@ -11,6 +11,11 @@ on:
         description: "Run ID of chronos-desktop.yml that produced the chronos-win-x64 artifact"
         required: true
         type: string
+      require_services:
+        description: "Fail when the bundled Olympus services do not answer (builds that ship chronos-services)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   actions: read
@@ -93,22 +98,25 @@ jobs:
         env:
           T3CODE_DISABLE_AUTO_UPDATE: "1"
           CHRONOS_HOME: ${{ runner.temp }}\chronos-home
+          REQUIRE_SERVICES: ${{ inputs.require_services }}
         run: |
           $ErrorActionPreference = 'Stop'
           $outDir = Join-Path $env:RUNNER_TEMP 'chronos-smoke-report'
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
           New-Item -ItemType Directory -Force -Path $env:CHRONOS_HOME | Out-Null
 
-          node chronos/scripts/smoke/smoke.mjs `
-            --launch "$env:CHRONOS_EXE" `
-            --port 9333 `
-            --launch-timeout 120000 `
-            --extra-arg "--disable-gpu" `
-            --profile clean `
-            --strict-en `
-            --allow-offline-services `
-            --no-screenshots `
-            --out $outDir
+          $smokeArgs = @(
+            '--launch', $env:CHRONOS_EXE,
+            '--port', '9333',
+            '--launch-timeout', '120000',
+            '--extra-arg', '--disable-gpu',
+            '--profile', 'clean',
+            '--strict-en',
+            '--no-screenshots',
+            '--out', $outDir
+          )
+          if ($env:REQUIRE_SERVICES -ne 'true') { $smokeArgs += '--allow-offline-services' }
+          node chronos/scripts/smoke/smoke.mjs @smokeArgs
           $exitCode = $LASTEXITCODE
 
           $reportPath = Join-Path $outDir 'report.json'
