@@ -25,6 +25,7 @@ import * as SynchronizedRef from "effect/SynchronizedRef";
 
 import serverPackageJson from "../../../server/package.json" with { type: "json" };
 
+import { pcAgentEnvironment } from "../chronos/pc-control/Host.ts"; // chronos: local agent CLI
 import * as DesktopBackendManager from "./DesktopBackendManager.ts";
 import * as DesktopCliShim from "../app/DesktopCliShim.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -577,6 +578,7 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
       cwd: environment.backendCwd,
       env: {
         ...backendChildEnvPatch(),
+        ...pcAgentEnvironment(), // chronos: only the local native backend gets the CLI capability
         // chronos: isolate the packaged Chronos backend from an active T3CODE_HOME.
         ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir } : {}),
         // chronos: only the matching packaged Windows helper implements the pipe-held sleep request.

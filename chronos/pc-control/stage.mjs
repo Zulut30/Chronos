@@ -35,7 +35,7 @@ try {
     execFileSync("go", ["build", "-trimpath", "-ldflags=-s -w", "-o", path.join(out, "private-desktop.exe"), path.join(root, "private_windows.go")],
       { env: { ...process.env, GOOS: "windows", GOARCH: "amd64", CGO_ENABLED: "0" }, stdio: "inherit" });
   }
-  for (const name of ["agent-desktop.LICENSE", "agent-browser.LICENSE"]) {
+  for (const name of ["agent-desktop.LICENSE", "agent-browser.LICENSE", "controller.cjs", "native.cjs"]) {
     await copyFile(path.join(root, name), path.join(out, name));
   }
   const bin = path.join(out, "bin");

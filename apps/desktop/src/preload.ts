@@ -103,6 +103,16 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
 
+// chronos: fixed channels, with the trusted main-frame guard in DesktopIpc.
+contextBridge.exposeInMainWorld("chronosPC", {
+  settings: (input: unknown) => ipcRenderer.invoke("chronos:pc-settings", input),
+  subscribe: (listener: () => void) => {
+    const changed = () => listener();
+    ipcRenderer.on("chronos:pc-changed", changed);
+    return () => { ipcRenderer.removeListener("chronos:pc-changed", changed); };
+  },
+});
+
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);

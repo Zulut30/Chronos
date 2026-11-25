@@ -246,6 +246,10 @@ T3). Оставлены только workflow Chronos:
 
 `apps/server/src/persistence/Sqlite.ts` ограничивает размер повторно используемого WAL 32 МиБ. Методика и все замеры приведены в [отчёте](parity/perf-resources-2.md).
 
+## Управление ПК
+
+Настройки и индикатор подключены в `SettingsPanels.tsx` и `routes/_chat.tsx`. Локальный backend получает путь к командному клиенту в `DesktopBackendConfiguration.ts`. Электронная оболочка подключает управление через `DesktopApp.ts`, защищённый IPC и `preload.ts`. Нативные инструменты упаковывает `scripts/build-desktop-artifact.ts`. [Возможности и проверка](parity/pc-control.md) · [Скилл для агента](skills/chronos-pc-control/SKILL.md).
+
 ## Скиллы
 
 Исходники скиллов в `chronos/skills/`:

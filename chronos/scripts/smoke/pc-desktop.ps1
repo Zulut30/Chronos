@@ -35,6 +35,8 @@ $baseline = [InputProbe]::Sample()
 $owned = (& $private $deskName launch $note $doc | ConvertFrom-Json).pid
 if (-not $owned) { throw 'Notepad failed to start' }
 try {
+  Write-Host "Windows session $([Diagnostics.Process]::GetCurrentProcess().SessionId), foreground/cursor $baseline"
+  Get-Process -Id $owned | Select-Object ProcessName,SessionId,Responding,HasExited | Out-Host
   $until = [DateTime]::UtcNow.AddSeconds(15)
   do {
     try { $snap = Invoke-Desktop @('snapshot','--app','notepad.exe','-i'); break }

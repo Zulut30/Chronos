@@ -46,6 +46,8 @@ func run() error {
     defer syscall.CloseHandle(proc.Thread)
     defer syscall.CloseHandle(proc.Process)
     if !wait {
+        // Keep the desktop handle alive until USER32 connects the new GUI process.
+        user.NewProc("WaitForInputIdle").Call(uintptr(proc.Process), 5000)
         fmt.Printf("{\"pid\":%d}\n",proc.ProcessId)
         return nil
     }
