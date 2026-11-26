@@ -16,8 +16,10 @@ export async function measureAcp({ launch, rpc, sb, threadId, expectUnload }) {
       p.turnItems.some(i => i.type === "assistant_message" && i.text?.trim() === text) && p;
   });
   const marker = crypto.randomUUID();
+  const start = performance.now();
   await launch(threadId, "SEED_" + marker + " bench-" + threadId);
   const first = await waitAnswer("Fixture answer", 1);
+  const firstResponseMs = performance.now() - start;
   const nativeId = first.providerThreads.at(-1)?.nativeThreadRef?.nativeId;
   assert.match(nativeId, /^[a-f0-9-]{36}$/);
   const currentOwner = () => JSON.parse(readFileSync(join(sb.root, nativeId + ".pids"), "utf8").trim().split("\n").at(-1));
@@ -44,7 +46,9 @@ export async function measureAcp({ launch, rpc, sb, threadId, expectUnload }) {
     messageId: crypto.randomUUID(), createdBy: "user", creationSource: "web",
     dispatchMode: { type: "start_immediately" }, attachments: [], text: text + " bench-" + threadId,
   }).then(() => waitAnswer(marker, count));
+  const resume = performance.now();
   const resumed = await respond("RECALL_FIXTURE", 2);
+  const nextResponseMs = performance.now() - resume;
   assert.equal(resumed.providerThreads.at(-1)?.nativeThreadRef?.nativeId, nativeId);
   const reopened = currentOwner();
   assert.equal(reopened.method, expectUnload ? "restore" : "new");
@@ -67,5 +71,5 @@ export async function measureAcp({ launch, rpc, sb, threadId, expectUnload }) {
   const unarchived = await respond("RECALL_FIXTURE", 3);
   assert.equal(unarchived.providerThreads.at(-1)?.nativeThreadRef?.nativeId, nativeId);
   const settled = await checkClose("thread.settle", currentOwner());
-  return { before, after, archive, settled, nativeHistoryVerified: true };
+  return { before, after, archive, settled, firstResponseMs, nextResponseMs, nativeHistoryVerified: true };
 }

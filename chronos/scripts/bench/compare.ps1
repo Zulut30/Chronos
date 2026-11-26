@@ -13,6 +13,9 @@ if ($env:SUITE -eq 'server') {
   if ($shell.Count -ne 1) { throw "Expected one headless shell, found $($shell.Count)" }
   $env:BENCH_CHROME = $shell[0].FullName
 }
+if ($env:SUITE -in 'claude-idle','acp-idle' -and ($builds.Count -ne 2 -or $builds[0] -eq $builds[1])) {
+  throw 'Idle comparison requires distinct base and candidate packages'
+}
 if ($env:SUITE -in 'claude-runtime','claude-idle') {
   $version = (Get-Content -Raw "$PSScriptRoot/../../perf-budget.json" | ConvertFrom-Json).providers.'@anthropic-ai/claude-code'
   $vendor = Join-Path $env:RUNNER_TEMP 'claude-fixture'
@@ -21,7 +24,6 @@ if ($env:SUITE -in 'claude-runtime','claude-idle') {
   $env:BENCH_CLAUDE = (Get-Item "$vendor/node_modules/@anthropic-ai/claude-code-win32-x64/claude.exe").FullName
   if ($builds.Count -ne 2) { throw 'Expected two package IDs' }
   if ($env:SUITE -eq 'claude-runtime' -and $builds[0] -ne $builds[1]) { throw 'Runtime comparison requires the same package twice' }
-  if ($env:SUITE -eq 'claude-idle' -and $builds[0] -eq $builds[1]) { throw 'Idle comparison requires base and candidate packages' }
 }
 foreach ($build in ($builds | Select-Object -Unique)) {
   $destination = Join-Path $env:RUNNER_TEMP "ui-package-$build"
@@ -42,7 +44,9 @@ $env:BENCH_FIXED_SCROLL = if ($env:SUITE -eq 'wheel') { 'wheel' } else { '1' }
 $errors = @()
 foreach ($pass in 1..3) {
   $order = $builds.Clone()
-  if ($pass % 2 -eq 0) { [array]::Reverse($order) }
+  # Check the candidate in the first lifecycle trial; alternate order on the same VM.
+  $candidateFirst = $env:SUITE -in 'claude-idle','acp-idle'
+  if (($pass % 2 -eq 0) -xor $candidateFirst) { [array]::Reverse($order) }
   if ($env:SUITE -eq 'claude-runtime') { $order = @($builds[0]) }
   foreach ($build in $order) {
     $pkg = Join-Path $env:RUNNER_TEMP "ui-package-$build/pkg"

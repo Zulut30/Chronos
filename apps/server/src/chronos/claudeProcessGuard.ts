@@ -1,3 +1,7 @@
+import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, isAbsolute, join } from "node:path";
+import { promisify } from "node:util";
 import * as Effect from "effect/Effect";
 import type { ProcessRunner } from "../processRunner.ts";
 
@@ -86,6 +90,34 @@ export const idleProcessGuard = (
         ),
       );
 
+const execFileAsync = promisify(execFile);
+
+function windowsTreeReader(systemRoot: string, pid: number) {
+  // The packaged desktop resolves its matching monitor at startup. A bundled server
+  // launched directly in Electron has the same monitor beside its resources.
+  const monitor = [
+    process.env.CHRONOS_WINDOWS_INHIBITOR,
+    process.versions.electron && join(dirname(process.execPath), "resources", "resource-monitor", "t3-resource-monitor.exe"),
+  ].find((candidate): candidate is string => !!candidate && isAbsolute(candidate) && existsSync(candidate));
+  traceIdleUnload("windows-reader", { source: monitor ? "resource-monitor" : "cim" });
+  const command = monitor ?? join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+  const args = monitor ? ["--chronos-process-tree", String(pid)] : [
+    "-NoProfile", "-NonInteractive", "-Command",
+    "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
+  ];
+  return Effect.tryPromise({
+    try: async (signal) => {
+      const result = execFileAsync(command, args, {
+        encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 2 * 1024 * 1024, signal,
+      });
+      result.child.stdin?.end();
+      const { stdout } = await result;
+      return processTree(stdout, pid);
+    },
+    catch: () => "snapshot unavailable",
+  }).pipe(Effect.orElseSucceed(() => undefined));
+}
+
 export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   runner: ProcessRunner["Service"],
   windows: boolean,
@@ -98,42 +130,17 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
     traceIdleUnload("process-baseline", { available: false, reason: "missing-pid" });
     return Effect.succeed(false);
   }
-  const command = windows
-    ? {
-        command: systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        args: [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
-        ],
-      }
-    : {
-        command: "ps",
-        args: [
-          "-A",
-          "-ww",
-          "-o",
-          unit === undefined ? "pid=,ppid=,pgid=,lstart=" : "pid=,ppid=,pgid=,lstart=,cgroup=",
-        ],
-      };
-  const read = runner
-    .run({ ...command, timeout: "5 seconds", maxOutputBytes: 2 * 1024 * 1024 })
-    .pipe(
-      Effect.map((out) => {
-        if (out.code !== 0 || out.stdoutTruncated) {
-          traceIdleUnload("process-read", { code: out.code, truncated: out.stdoutTruncated });
-          return undefined;
-        }
-        return windows
-          ? processTree(out.stdout, pid)
-          : posixIdleTree(out.stdout, pid, tracked(), unit);
-      }),
-      Effect.catch((error) => {
-        traceIdleUnload("process-read", { error: error._tag });
-        return Effect.succeed(undefined);
-      }),
-    );
+  const read = windows ? windowsTreeReader(systemRoot, pid) : runner.run({
+    command: "ps",
+    args: ["-A", "-ww", "-o", unit === undefined ? "pid=,ppid=,pgid=,lstart=" : "pid=,ppid=,pgid=,lstart=,cgroup="],
+    timeout: "5 seconds",
+    maxOutputBytes: 2 * 1024 * 1024,
+  }).pipe(
+    Effect.map((out) =>
+      out.code === 0 && !out.stdoutTruncated ? posixIdleTree(out.stdout, pid, tracked(), unit) : undefined,
+    ),
+    Effect.orElseSucceed(() => undefined),
+  );
   const initial = yield* read;
   traceIdleUnload("process-baseline", { available: initial !== undefined, count: initial?.size });
   return idleProcessGuard(initial, read);

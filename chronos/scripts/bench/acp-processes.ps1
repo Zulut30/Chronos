@@ -6,7 +6,12 @@ function Member([int]$id, [string]$born) {
   if (!$p) { return }
   $identity = [string]$p.StartTime.ToUniversalTime().Ticks
   if ($born -and $born -ne $identity) { return }
-  return @{ born=$identity; privateMiB=$p.PrivateMemorySize64/1MB; wsMiB=$p.WorkingSet64/1MB }
+  return @{
+    born = $identity
+    privateMiB = $p.PrivateMemorySize64 / 1MB
+    wsMiB = $p.WorkingSet64 / 1MB
+    cpuSeconds = $p.TotalProcessorTime.TotalSeconds
+  }
 }
 $rows = @{ agent=(Member $Agent $AgentBorn); bridge=(Member $Bridge $BridgeBorn) }
 $alive = @($rows.Values | Where-Object { $_ })
