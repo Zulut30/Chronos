@@ -371,7 +371,6 @@ const scheduleUnrefTimeout = (fn: () => void, ms: number): ReturnType<typeof set
   return timer;
 };
 const clearUnrefTimeout = (timer: ReturnType<typeof setTimeout> | undefined): void => {
-  // @effect-diagnostics-next-line globalTimers:off
   if (timer !== undefined) clearTimeout(timer);
 };
 const WRITER_WORKER_RESOURCE_LIMITS: NodeWorkerThreads.ResourceLimits = {
@@ -911,7 +910,7 @@ const startCheckpointWorker = Effect.fnUntraced(function* (filename: string) {
       const open = worker;
       worker = undefined;
       retireCurrent = undefined;
-      return open === undefined ? Promise.resolve() : open.terminate();
+      return open === undefined ? Promise.resolve() : open.terminate().then(() => undefined);
     }),
   );
   let scheduled = false;
