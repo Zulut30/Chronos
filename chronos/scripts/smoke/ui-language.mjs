@@ -37,8 +37,8 @@ export async function verifyUiLanguage(client) {
     await click("[data-ui-language-picker]");
     await click("[role=option][data-ui-language=" + next + "]");
     await until("persisted " + next, () => evaluate(
-      "(async () => !!window.__TSR_ROUTER__ && document.documentElement.lang === " + JSON.stringify(next) +
-      " && window.__chronosShellLanguage === " + JSON.stringify(next) + " && (await window.desktopBridge.getClientSettings()).language === " + JSON.stringify(next) + ")()"));
+      "(async () => document.readyState !== 'loading' && !!window.__TSR_ROUTER__ && document.documentElement?.lang === " + JSON.stringify(next) +
+      " && window.__chronosShellLanguage === " + JSON.stringify(next) + " && (await window.desktopBridge.getClientSettings())?.language === " + JSON.stringify(next) + ")()"));
   }
   const userContent = [
     "script", "style", "[translate=no]:not(html)", ".chat-markdown", "[data-user-message-bubble]",
@@ -85,9 +85,15 @@ export async function verifyUiLanguage(client) {
   // Reload twice to cover hydration as well as a reconnect that republishes the same theme.
   await evaluate("(() => {const theme=" + JSON.stringify(original) + ";const night=theme.appearance==='dark'?theme.colors:theme.variants.dark;const copies=[{...theme,id:'smoke-olympus-a',colors:{...theme.colors,canvas:'#012345'}}, {...theme,id:'smoke-olympus-b',label:'Imported Graphite',appearance:'dark',colors:night,variants:undefined}];localStorage.setItem('t3code:themes:v1',JSON.stringify(copies));localStorage.setItem('t3code:theme',copies[0].id);localStorage.setItem('t3code:theme-halves:v1',JSON.stringify({light:copies[0].id,dark:copies[1].id}));})()");
   for (let pass = 0; pass < 2; pass++) {
+    const previousDocument = await evaluate("performance.timeOrigin");
     await client.send("Page.reload");
-    await until("theme migration after reload", () => evaluate(
-      "document.documentElement.lang==='en' && !!document.querySelector('[data-theme-library-card=olympus]') && localStorage.getItem('t3code:theme')==='olympus' && Object.values(JSON.parse(localStorage.getItem('t3code:theme-halves:v1'))).every(id=>id==='olympus')"));
+    await until("theme migration in the new document", () => evaluate(
+      `(() => {
+        if (performance.timeOrigin === ${JSON.stringify(previousDocument)} || document.readyState === 'loading' ||
+            document.documentElement?.lang !== 'en' || !document.querySelector('[data-theme-library-card=olympus]')) return false;
+        const halves = JSON.parse(localStorage.getItem('t3code:theme-halves:v1'));
+        return localStorage.getItem('t3code:theme') === 'olympus' && halves?.light === 'olympus' && halves?.dark === 'olympus';
+      })()`));
     const ids = await evaluate("Array.from(document.querySelectorAll('[data-theme-library-card]'),e=>e.dataset.themeLibraryCard)");
     assert.equal(new Set(ids).size, ids.length);
     assert(!ids.includes("smoke-olympus-b"));

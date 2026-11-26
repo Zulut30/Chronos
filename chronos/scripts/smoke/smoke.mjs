@@ -270,7 +270,7 @@ class CdpClient {
       } catch (error) {
         // A service iframe can swap into another renderer between describeNode and
         // createIsolatedWorld. Restart discovery from the page so its text is still checked.
-        const staleFrame = /No (?:frame|target|node) (?:for|with) given id|(?:session|context) with (?:given|specified) id|Execution context was destroyed|Visible iframe has no document/i;
+        const staleFrame = /No (?:frame|target|node) (?:for|with) given id|(?:session|context) with (?:given|specified) id|Execution context was destroyed|Visible iframe has no document|Visible document is loading/i;
         if (!staleFrame.test(String(error)) || Date.now() >= deadline) throw error;
         await sleep(50);
       }
@@ -286,6 +286,7 @@ class CdpClient {
     };
     const { value } = await evaluate(`(() => {
       const exclude = ${JSON.stringify(excludeUserContent)};
+      if (!document.body) return { loading: true };
       const lines = exclude ? [] : document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
       const visible = el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
         && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
@@ -319,6 +320,7 @@ class CdpClient {
       const selector = ${JSON.stringify(documentSelector)};
       return { lines: !selector || document.querySelector(selector) ? lines : [], frames };
     })()`, true);
+    if (value.loading) throw new Error("Visible document is loading");
     const lines = new Set(value.lines);
     const frameTree = value.frames.length ? (await send("Page.getFrameTree", {})).frameTree : null;
     for (const index of value.frames) {
