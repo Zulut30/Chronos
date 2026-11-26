@@ -77,10 +77,10 @@ html[data-theme-id]
   :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field[data-slot="input-group"]) {
   border-color: var(--muted-foreground);
 }
-[data-chronos-settings] #pc-control [data-slot="switch"][data-unchecked] {
+[data-chronos-settings] :is(#pc-control, [id^="olympus-"]) [data-slot="switch"][data-unchecked] {
   background-color: var(--muted-foreground);
 }
-[data-chronos-settings] #pc-control [data-slot="switch"][data-unchecked] [data-slot="switch-thumb"] {
+[data-chronos-settings] :is(#pc-control, [id^="olympus-"]) [data-slot="switch"][data-unchecked] [data-slot="switch-thumb"] {
   background-color: var(--background);
 }
 [data-chronos-settings] :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane, .oly-mcp-pane)

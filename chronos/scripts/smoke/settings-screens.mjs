@@ -28,8 +28,9 @@ export async function captureSettings(client, out, ready) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height || r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) continue;
       const s = getComputedStyle(el);
-      const label = (el.getAttribute("aria-label") || el.innerText || el.getAttribute("placeholder") || el.tagName).trim().slice(0,75);
-      visible[[el.tagName, el.dataset.slot || "", label].join("/")] = {
+      const label = (el.getAttribute("aria-label") || el.labels?.[0]?.innerText || el.innerText || el.getAttribute("placeholder") || el.tagName).trim().slice(0,75);
+      const field = el.matches("input,select,textarea") ? el : el.querySelector("input,select,textarea");
+      visible[[el.tagName, el.dataset.slot || "", field?.name || label].join("/")] = {
         label, slot: el.dataset.slot || "", role: el.getAttribute("role"), tag: el.tagName,
         x:r.x,y:r.y,w:r.width,h:r.height,fg:rgb(s.color),border:rgb(s.borderTopColor),bg:rgb(s.backgroundColor),
         focus:el.matches(":focus-visible"), disabled:el.matches(":disabled,[aria-disabled=true]")
@@ -98,6 +99,7 @@ export async function captureSettings(client, out, ready) {
         await wait(loaded);
         const guest = id === "mcp" ? {selector: loaded, prefix: "http://127.0.0.1:4523/", ready: "#search"} : null;
         await capture(id, panel, null, guest);
+        if (id === "api-keys") await capture("api-focus", panel, "[data-oly-ik-input]");
         if (id === "prompts") {
           await act({ type: "click", text: "Новый шаблон", selector: ".oly-ps-pane button" });
           await capture("prompt-editor", panel);
