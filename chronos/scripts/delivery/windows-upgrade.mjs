@@ -95,7 +95,7 @@ async function withRpc(callback) {
   try { return await callback(rpc, post); } finally { rpc.close(); }
 }
 async function shellState() {
-  const result = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+  const result = JSON.parse(execFileSync("pwsh.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
     path.join(import.meta.dirname, "upgrade-shell.ps1"), "-Executable", exe, "-ArtifactId", artifactId], { encoding: "utf8", windowsHide: true }));
   const expected = (await realpath(exe)).toLowerCase();
   for (const target of [result.protocolTarget, ...result.shortcuts.map(s => s.target)]) assert.equal((await realpath(target)).toLowerCase(), expected);
