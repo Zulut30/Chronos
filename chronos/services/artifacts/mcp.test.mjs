@@ -4,6 +4,7 @@ import { mkdtempSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { artifactStore } from "./tools.mjs";
+import { allowed } from "./policy.mjs";
 import { handleRequest } from "../studio-service/mcp.mjs";
 
 test("MCP discovers tools lazily, publishes and reads", async t => {
@@ -28,11 +29,21 @@ test("MCP discovers tools lazily, publishes and reads", async t => {
     assert.ok(!result.isError,result.content[0].text);
     return JSON.parse(result.content[0].text);
   }
+  const guide = await call("artifact_guide",{});
+  const loader = "https://cdn.jsdelivr.net/npm/@ui-sdk/web@0.1.0-beta.17/browser/web.js";
+  assert.ok(guide.quickstart.includes(loader));
+  const example = await call("artifact_example",{});
+  const script = new URL(/<script type="module" src="([^"]+)"/.exec(example.files["index.html"])[1]);
+  assert.equal(script.href,new URL("web/tabs.js",loader).href);
+  assert.equal(allowed(script,"test",false,"script"),true);
+  assert.equal(allowed(new URL(script.href.replace("0.1.0-beta.17","latest")),"test",false,"script"),false);
+  assert.equal(existsSync(path.join(root,"userdata")),false);
   const {writeFileSync} = await import("node:fs");
   const source=path.join(root,"local.html");
   writeFileSync(source,"<title>Локальный файл</title>");
   const created=await call("artifact_publish",{source,title:"Локальный файл",description:"Пример страницы.",icon:"book",label:"Из файла"});
   assert.match(created.quickstart,/:root/);
+  assert.equal(created.quickstart,guide.quickstart);
   assert.ok(created.markdown.includes(created.id));
   assert.equal((await call("artifact_read",{id:created.id})).files["index.html"],"<title>Локальный файл</title>");
   const {id} = await call("artifact_publish",{source:path.join(root,"index.html"),title:"Test page",
