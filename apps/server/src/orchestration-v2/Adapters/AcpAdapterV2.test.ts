@@ -5348,8 +5348,10 @@ describe("AcpAdapterV2", () => {
           cwd: process.cwd(),
         });
         const modelSelection = { instanceId, model: "default" } as const;
+        let processTreeIsIdle = false;
         const runtime = yield* adapter.openSession({
           threadId,
+          captureIdleProcessGuard: () => Effect.succeed(Effect.sync(() => processTreeIsIdle)),
           providerSessionId: ProviderSessionId.make("provider-session-acp-eager-resume"),
           modelSelection,
           runtimePolicy,
@@ -5362,6 +5364,10 @@ describe("AcpAdapterV2", () => {
         });
 
         assert.equal(providerThread.nativeThreadRef?.nativeId, "persisted-session");
+        assert.isDefined(runtime.canUnloadIdleSession);
+        assert.isFalse(yield* runtime.canUnloadIdleSession!);
+        processTreeIsIdle = true;
+        assert.isTrue(yield* runtime.canUnloadIdleSession!);
         assert.isNull(providerThread.nativeMetadata);
         const startupMethods = yield* pollProtocolMethods(protocolEvents);
         assert.include(startupMethods, "session/resume");

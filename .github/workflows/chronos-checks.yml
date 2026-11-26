@@ -16,7 +16,7 @@ on:
         description: "Focused same-VM package comparison (three alternating passes)"
         type: choice
         default: full
-        options: [full, scroll, wheel, startup, renderer, server, idle, ssh]
+        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, claude-runtime, claude-idle, acp-idle]
   push:
     branches:
       - main
@@ -167,10 +167,11 @@ jobs:
           vp test run src/terminal/Manager.test.ts -t 'opens the available Windows shell'
           vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options|prepares a worktree in the selected project'
 
-      - name: Claude idle unload and provider lifecycle
+      - name: Claude and ACP idle unload and native resume
         working-directory: apps/server
         run: |
           vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
+          vp test run src/orchestration-v2/Adapters/AcpAdapterV2.test.ts -t 'loads the persisted ACP session during startup'
           vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'resumes the native session on a fresh session instance|resumes an imported native session|resumes the session a /clear selected'
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
@@ -242,9 +243,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          sparse-checkout: |
-            chronos/scripts/bench
-            chronos/scripts/smoke
+          sparse-checkout: chronos
       - uses: actions/setup-node@v4
         with:
           node-version: "24"

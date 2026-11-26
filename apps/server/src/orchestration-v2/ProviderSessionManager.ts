@@ -370,6 +370,7 @@ export interface ProviderSessionManagerV2LayerOptions {
   readonly idleTimeoutMs?: number;
   readonly maxIdlePinMs?: number;
   readonly configureMcp?: boolean;
+  readonly claudeMemoryIsLow?: () => boolean; // chronos: inject Windows pressure in clock tests.
 }
 
 function releaseStatusFor(
@@ -1651,6 +1652,7 @@ export const layerWithOptions = (
         sessions,
         (id, use) => sessionOpen.withLock(id, use),
         releaseEntry,
+        options.claudeMemoryIsLow,
       );
 
       const releaseIfStillIdle = Effect.fn("ProviderSessionManager.releaseIfStillIdle")(
@@ -1778,7 +1780,7 @@ export const layerWithOptions = (
           return;
         }
 
-        // chronos: Claude uses one settings-aware clock and never expires a background pin.
+        // chronos: resumable Claude and ACP sessions share one clock and never expire a background pin.
         if (entry.runtime.canUnloadIdleSession !== undefined)
           return yield* claudeIdle.touch(entry.runtime);
         yield* cancelIdleFiber(entry.idleFiber);
@@ -3327,6 +3329,7 @@ export const layerWithOptions = (
                 .execute(
                   input.modelSelection.instanceId,
                   adapter.openSession({
+                    captureIdleProcessGuard: claudeIdle.capture, // chronos: scoped ACP process ownership.
                     threadId: input.threadId,
                     providerSessionId: input.providerSessionId,
                     modelSelection: input.modelSelection,

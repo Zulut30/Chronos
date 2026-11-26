@@ -1199,6 +1199,12 @@ export class AcpSessionRuntime extends Context.Service<
       },
     ) => Effect.Effect<EffectAcpSchema.PromptResponse, EffectAcpErrors.AcpError>;
     readonly cancel: Effect.Effect<void, EffectAcpErrors.AcpError>;
+    /** chronos: a cgroup needs its full membership checked; omit the guard when unavailable. */
+    readonly idleProcessTree?: {
+      readonly pid: number;
+      readonly tracked: () => ReadonlyArray<number>;
+      readonly unit?: string;
+    };
     readonly terminateProcessGroup?: Effect.Effect<void, AcpProcessGroupTerminationError>;
     readonly setMode: (
       modeId: string,
@@ -2461,7 +2467,8 @@ export const make = Effect.fn("AcpSessionRuntime.make")(function* (
         sessionId = options.resumeSessionId;
         if (
           initializeResult.agentCapabilities?.loadSession === true &&
-          options.resumeMethod !== "resume"
+          (options.resumeMethod !== "resume" ||
+            initializeResult.agentCapabilities?.sessionCapabilities?.resume == null)
         ) {
           const loadPayload = {
             sessionId,
@@ -2958,6 +2965,13 @@ export const make = Effect.fn("AcpSessionRuntime.make")(function* (
       options.cancelBehavior === "wait-for-prompt" || options.interruptPromptOnCancel === false
         ? promptDispatchSemaphore.withPermit(cancel)
         : cancel,
+    ...(linuxCgroupLease === undefined ? {
+      idleProcessTree: {
+        pid: Number(child.pid),
+        tracked: () => [...posixOwnershipLedger.values()].map((row) => row.pid),
+        ...(scopeUnit === undefined ? {} : { unit: scopeUnit }),
+      },
+    } : {}),
     ...(options.ownDetachedProcessGroup === true ? { terminateProcessGroup } : {}),
     // A session's mode is its `category: "mode"` config option. ACP v1 agents
     // that only advertise `modes` (gemini-cli) take `session/set_mode`

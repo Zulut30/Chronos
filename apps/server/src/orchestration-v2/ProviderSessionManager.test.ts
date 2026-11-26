@@ -55,6 +55,7 @@ import {
   normalizeCodexThreadLoadModelSelection,
 } from "./Adapters/CodexAdapterV2.ts";
 import * as EffectOutbox from "./EffectOutbox.ts";
+import * as ThreadViewers from "./ThreadViewers.ts";
 import * as EventSink from "./EventSink.ts";
 import * as EventStore from "./EventStore.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
@@ -695,6 +696,7 @@ function layerTest(input: {
   readonly eventStreamsEnded?: Queue.Queue<ProviderSessionId>;
   readonly releaseRecorded?: Deferred.Deferred<void>;
   readonly openTerminal?: Effect.Effect<boolean>;
+  readonly claudeMemoryIsLow?: () => boolean;
   readonly serverSettingsLayer?: ReturnType<typeof ServerSettings.layerTest>;
   readonly projectServiceLayer?: Layer.Layer<ProjectService.ProjectService>;
   readonly installationGateLayer?: Layer.Layer<ProviderInstallationGate.ProviderInstallationGate>;
@@ -778,16 +780,19 @@ function layerTest(input: {
   return Layer.mergeAll(
     layerTestStores,
     layerConfiguredEventSink,
+    ThreadViewers.layer,
     EffectOutbox.layer.pipe(Layer.provide(layerTestDatabase)),
     IdAllocator.layer,
     layerConfiguredMcpRegistry,
     McpProviderSessions.layer,
     ProviderSessionManager.layerWithOptions({
+      ...(input.claudeMemoryIsLow === undefined ? {} : { claudeMemoryIsLow: input.claudeMemoryIsLow }),
       ...(input.idleTimeoutMs === undefined ? {} : { idleTimeoutMs: input.idleTimeoutMs }),
       ...(input.maxIdlePinMs === undefined ? {} : { maxIdlePinMs: input.maxIdlePinMs }),
     }).pipe(
       Layer.provide(
         Layer.mergeAll(
+          ThreadViewers.layer,
           layerRegistry.pipe(Layer.provideMerge(McpProviderSessions.layer)),
           CommandOutputHub.layer.pipe(
             Layer.provide(Layer.merge(layerConfiguredEventSink, layerTestStores)),
@@ -2152,6 +2157,45 @@ it.effect.each([
         assert.isFalse(yield* manager.isLive(providerSessionId));
       }).pipe(Effect.provide(layerTest({ state, capabilities })));
     }),
+);
+
+// chronos: a viewer or recovered memory during the guarded probe vetoes an early close.
+it.effect.each(["hidden", "viewed", "recovered", "disabled"] as const)(
+  "Claude pressure sweep preserves the ordinary deadline for %s",
+  (scenario) => Effect.gen(function* () {
+    const state = yield* Ref.make(emptyState);
+    let pressure = true;
+    yield* Effect.gen(function* () {
+      const manager = yield* ProviderSessionManager.ProviderSessionManagerV2;
+      const idAllocator = yield* IdAllocator.IdAllocatorV2;
+      const sink = yield* EventSink.EventSinkV2;
+      const threadId = ThreadId.make("claude-memory-pressure");
+      const providerSessionId = yield* idAllocator.allocate.providerSession({
+        providerInstanceId: modelSelection.instanceId, threadId,
+      });
+      yield* sink.write({
+        events: [yield* makeThreadCreatedEvent({ idAllocator, threadId, now: yield* DateTime.now })],
+      });
+      if (scenario === "viewed") yield* (yield* ThreadViewers.ThreadViewers).view(threadId);
+      yield* manager.open({ threadId, providerSessionId, modelSelection, runtimePolicy });
+      yield* TestClock.adjust("30 seconds");
+      assert.isTrue(yield* manager.isLive(providerSessionId));
+      yield* TestClock.adjust("30 seconds");
+      assert.equal(yield* manager.isLive(providerSessionId), scenario !== "hidden");
+      if (scenario !== "hidden") {
+        yield* TestClock.adjust("9 minutes");
+        assert.equal(yield* manager.isLive(providerSessionId), scenario === "disabled");
+      }
+    }).pipe(Effect.provide(layerTest({
+      state,
+      claudeMemoryIsLow: () => pressure,
+      canUnloadIdleSession: Effect.sync(() => {
+        if (scenario === "recovered") pressure = false;
+        return true;
+      }),
+      serverSettingsLayer: ServerSettings.layerTest({ claudeIdleUnloadMinutes: scenario === "disabled" ? 0 : 10 }),
+    })), Effect.scoped);
+  }),
 );
 
 // chronos: real projection store, manager, scoped close and test clock with a resumable adapter.
