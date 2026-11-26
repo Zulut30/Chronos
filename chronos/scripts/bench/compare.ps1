@@ -47,6 +47,10 @@ foreach ($pass in 1..3) {
           if ($LASTEXITCODE) { $errors += "Server $build N=$n pass $pass" }
         }
       }
+      'ram' {
+        node "$PSScriptRoot/ram-audit.mjs" $pkg "$out/ram-audit.json"
+        if ($LASTEXITCODE) { $errors += "Ram $build pass $pass" }
+      }
       default { throw "Unknown benchmark suite $env:SUITE" }
     }
   }

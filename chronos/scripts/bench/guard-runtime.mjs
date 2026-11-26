@@ -118,7 +118,19 @@ try {
   const args = ["-NoProfile", "-File", join(import.meta.dirname, "guard-process.ps1"), "-RootPid", String(app.pid), "-ServerPid", String(state.pid)];
   if (binary) args.push("-AgentExe", binary);
   const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
-  if (idle) sample.pcControl = pcControl ?? "unavailable";
+  if (idle) {
+    sample.pcControl = pcControl ?? "unavailable";
+    try {
+      const usage = await cdp.call("Runtime.getHeapUsage");
+      const dom = await cdp.call("Memory.getDOMCounters");
+      sample.rendererMemory = {
+        usedMiB: usage.usedSize / 1048576,
+        capacityMiB: usage.totalSize / 1048576,
+        embedderMiB: (usage.embedderHeapUsedSize ?? 0) / 1048576,
+        ...dom,
+      };
+    } catch { /* CDP heap read is diagnostic only */ }
+  }
   writeFileSync(output, JSON.stringify(sample, null, 2) + "\n");
 } finally {
   rpc?.close();

@@ -122,8 +122,10 @@ try {
     assert(pids.every(Number.isSafeInteger));
     const rss = measureMemory ? Number(execFileSync("powershell.exe", ["-NoProfile","-Command",
       "(Get-Process -Id " + pids.join(",") + " | Measure-Object WorkingSet64 -Sum).Sum"], { encoding:"utf8", windowsHide:true }).trim()) : 0;
+    const priv = measureMemory ? Number(execFileSync("powershell.exe", ["-NoProfile","-Command",
+      "(Get-Process -Id " + pids.join(",") + " | Measure-Object PrivateMemorySize64 -Sum).Sum"], { encoding:"utf8", windowsHide:true }).trim()) : 0;
     if (measureMemory) assert(rss > 0);
-    return { time, cpu: group.reduce((v,p) => v+p.cpuTime,0), rss, pids };
+    return { time, cpu: group.reduce((v,p) => v+p.cpuTime,0), rss, priv, pids };
   }
   async function probe(name) {
     const marker = join(root, "probe-"+name);
@@ -140,6 +142,8 @@ try {
   writeFileSync(join(root, "go"), "");
   await wait("terminal events", () => { rpc.check(); return complete.size === n; }, 120000);
   const end = await probe("end"), after = await renderer(true);
+  const serverPrivateBytes = Number(execFileSync("powershell.exe", ["-NoProfile","-Command",
+    "(Get-Process -Id " + server.pid + ").PrivateMemorySize64"], { encoding:"utf8", windowsHide:true }).trim());
   let frameP95Ms;
   if (process.env.BENCH_FRAME_TIMES === "1") {
     const sample = await page("Runtime.evaluate", {expression:`(()=>{
@@ -167,7 +171,10 @@ try {
     serverVersion:state.serverVersion, sampleCount:latency.length,
     elapsedMs:elapsed, eventP95Ms:latency[Math.ceil(latency.length*0.95)-1], lagP95Ms:Math.max(0,end.p95),
     lagSamples:end.count, serverCpuPct:(end.cpu-begin.cpu)/elapsed/10, serverRssMiB:end.rss/1048576,
+    serverPrivateMiB:serverPrivateBytes/1048576,
+    serverMemoryMiB: end.memory ? Object.fromEntries(Object.entries(end.memory).map(([k,v]) => [k, v/1048576])) : undefined,
     rendererCpuPct:(after.cpu-before.cpu)*100000/(after.time-before.time), rendererRssMiB:after.rss/1048576,
+    rendererPrivateMiB:after.priv/1048576,
     dbGrowthKiB:(diskAfter.db-diskBefore.db)/1024, traceGrowthKiB:(diskAfter.trace-diskBefore.trace)/1024,
     databaseBefore, databaseAfter:databaseSample(), frameP95Ms, optimizeForSize:process.env.BENCH_V8_SIZE === "1",
     completed:complete.size, rendererCount:after.pids.length, verifiedTexts:n, visibleFinal:true };
