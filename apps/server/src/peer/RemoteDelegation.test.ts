@@ -645,7 +645,24 @@ const boxClaude: ServerProvider = {
   auth: { status: "authenticated" },
   checkedAt: "2026-09-13T00:00:00.000Z",
   models: [
-    { slug: "claude-sonnet-4-6", name: "Claude Sonnet", isCustom: false, capabilities: null },
+    {
+      slug: "claude-sonnet-4-6",
+      name: "Claude Sonnet",
+      isCustom: false,
+      capabilities: {
+        optionDescriptors: [
+          {
+            id: "effort",
+            type: "select",
+            label: "Effort",
+            options: [
+              { id: "low", label: "Low" },
+              { id: "max", label: "Max" },
+            ],
+          },
+        ],
+      },
+    },
   ],
   slashCommands: [],
   skills: [],
@@ -1326,9 +1343,10 @@ it.effect("a task naming another driver there never runs its model on the parent
         },
       });
       expect(result.isError).toBe(false);
-      expect((yield* Ref.get(thread.launchedWith))?.modelSelection.instanceId).toBe(
-        boxClaude.instanceId,
-      );
+      expect((yield* Ref.get(thread.launchedWith))?.modelSelection).toMatchObject({
+        instanceId: boxClaude.instanceId,
+        options: [{ id: "effort", value: "max" }],
+      });
     }),
   ).pipe(Effect.provide(NodeHttpServer.layerTest)),
 );

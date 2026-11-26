@@ -67,11 +67,7 @@ import {
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
 } from "@t3tools/contracts";
-import {
-  REASONING_EFFORT_OPTION_IDS,
-  getProviderOptionCurrentValue,
-  withLegacyUltracodeEffort,
-} from "@t3tools/shared/model";
+import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -138,6 +134,7 @@ import {
   interactionModeRank,
   resolveInteractionMode,
   resolveRuntimeMode,
+  delegatedReasoning,
   runtimeModeRank,
   taskPrompt,
 } from "./delegatedTaskModes.ts";
@@ -396,6 +393,9 @@ function capabilityModelOption(descriptor: ProviderOptionDescriptor): Orchestrat
   const defaultValue = getProviderOptionCurrentValue(descriptor);
   return {
     id: descriptor.id,
+    ...(descriptor.type === "select" && descriptor.role === "reasoning"
+      ? { role: descriptor.role }
+      : {}),
     values:
       descriptor.type === "boolean" ? [false, true] : descriptor.options.map((choice) => choice.id),
     ...(defaultValue === undefined ? {} : { default: defaultValue }),
@@ -1827,34 +1827,14 @@ const make = Effect.gen(function* () {
       !inheritsOptions &&
       !antigravityTarget
     ) {
-      const reasoning =
-        descriptors?.find((d) => d.type === "select" && d.role === "reasoning") ??
-        descriptors?.find((d) => d.type === "select" && REASONING_EFFORT_OPTION_IDS.includes(d.id));
-      if (reasoning?.type === "select") {
-        const parentDescriptors = advertisedModel(provider, inheritedSelection.model)?.capabilities
-          ?.optionDescriptors;
-        const parentReasoning = parentDescriptors?.find(
-          (d) => d.type === "select" && d.role === "reasoning",
-        );
-        const inheritedValue =
-          inheritedSelection.options?.find(
-            (o) => o.id === parentReasoning?.id || REASONING_EFFORT_OPTION_IDS.includes(o.id),
-          )?.value ??
-          getProviderOptionCurrentValue(
-            parentReasoning ??
-              parentDescriptors?.find((d) => REASONING_EFFORT_OPTION_IDS.includes(d.id)),
-          );
-        const levels = reasoning.options.map((choice) => choice.id);
-        const preferred =
-          instanceId === inheritedSelection.instanceId &&
-          typeof inheritedValue === "string" &&
-          levels.includes(inheritedValue)
-            ? inheritedValue
-            : (["high", "ultra", "max", "xhigh", "medium", "low"].find((level) =>
-                levels.includes(level),
-              ) ?? levels.at(-1));
-        if (preferred !== undefined) options = [{ id: reasoning.id, value: preferred }];
-      }
+      options = delegatedReasoning(
+        inheritedSelection,
+        instanceId === inheritedSelection.instanceId,
+        descriptors?.map(capabilityModelOption),
+        advertisedModel(provider, inheritedSelection.model)?.capabilities?.optionDescriptors?.map(
+          capabilityModelOption,
+        ),
+      );
     }
     if (requestedOptions !== undefined || antigravityTarget !== undefined) {
       const selections = new Map(

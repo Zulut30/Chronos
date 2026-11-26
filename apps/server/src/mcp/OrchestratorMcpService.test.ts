@@ -4804,7 +4804,11 @@ describe("OrchestratorMcpService provider resolution", () => {
           {
             name: "change model",
             target: { model: "other-model" },
-            expected: { instanceId: codexInstanceId, model: "other-model" },
+            expected: {
+              instanceId: codexInstanceId,
+              model: "other-model",
+              options: [inherited.options[0]],
+            },
           },
           {
             name: "same provider chooses another reasoning model",

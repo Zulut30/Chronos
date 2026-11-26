@@ -654,6 +654,7 @@ export type OrchestratorMcpCapabilitiesInput = typeof OrchestratorMcpCapabilitie
 
 export const OrchestratorMcpModelOption = Schema.Struct({
   id: Schema.String,
+  role: Schema.optional(Schema.Literal("reasoning")),
   values: Schema.Array(ProviderOptionSelectionValue),
   default: Schema.optional(ProviderOptionSelectionValue),
 });

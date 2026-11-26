@@ -1,5 +1,6 @@
 import {
   type ModelSelection,
+  type OrchestratorMcpModelOption,
   OrchestratorMcpFailure,
   type OrchestratorMcpDelegateTaskInput,
   type OrchestratorMcpInteractionMode,
@@ -8,6 +9,34 @@ import {
   type RuntimeMode,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import { REASONING_EFFORT_OPTION_IDS } from "@t3tools/shared/model";
+
+export function delegatedReasoning(
+  selection: ModelSelection,
+  sameProvider: boolean,
+  target: ReadonlyArray<OrchestratorMcpModelOption> | undefined,
+  source?: ReadonlyArray<OrchestratorMcpModelOption>,
+) {
+  const reasoning = (options: ReadonlyArray<OrchestratorMcpModelOption> | undefined) =>
+    options?.find((o) => o.role === "reasoning") ??
+    options?.find((o) => REASONING_EFFORT_OPTION_IDS.includes(o.id));
+  const from = reasoning(source);
+  const inherited =
+    selection.options?.find((o) => o.id === from?.id) ??
+    selection.options?.find((o) => REASONING_EFFORT_OPTION_IDS.includes(o.id));
+  const descriptor = reasoning(target);
+  if (!descriptor)
+    return sameProvider && target === undefined && inherited ? [inherited] : undefined;
+  const levels = descriptor.values.filter((v) => typeof v === "string");
+  const parentLevel = inherited?.value ?? from?.default;
+  const value =
+    sameProvider && typeof parentLevel === "string" && levels.includes(parentLevel)
+      ? parentLevel
+      : levels.includes("high")
+        ? "high"
+        : levels.at(-1);
+  return value === undefined ? undefined : [{ id: descriptor.id, value }];
+}
 
 /** How much a runtime mode allows, narrowest first. */
 export function runtimeModeRank(mode: RuntimeMode): number {
