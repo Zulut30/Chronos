@@ -130,8 +130,7 @@ import {
   useAcknowledgeThreadWoke,
   useThreadActions,
 } from "../hooks/useThreadActions";
-// chronos: dispatch learned pad gestures through the current sidebar context.
-import { usePadActions } from "../chronos/keyboard/usePadActions";
+import { useOpenPrLink } from "../lib/openPullRequestLink";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useOrderWhileOpen } from "../hooks/useOrderWhileOpen";
 import { useProjectPin } from "../hooks/useProjectGroupUpdate";
@@ -1611,6 +1610,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   };
 
   const readOpensPullRequestsInRightPanel = useStableCallback(() => routeThreadRef !== null);
+  // chronos: all rows use the same link preferences and supply the clicked thread at dispatch.
+  const openPrLink = useStableCallback(useOpenPrLink());
   const handleThreadClick = (event: ReactMouseEvent, threadRef: ScopedThreadRef) => {
     if (isSidebarNestedLinkClick(event.target)) return;
     const isMac = isMacPlatform(navigator.platform);
@@ -2969,22 +2970,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       handleThreadContextMenu(threadRef, position, source, true),
   );
 
-  // chronos: share row ordering and navigation with keyboard shortcuts.
-  const navigateToRowKey = (targetRowKey: string | null) => {
-    if (!targetRowKey) return false;
-    const targetDraftId = draftIdByRowKey.get(targetRowKey);
-    const targetThread = threadByKey.get(targetRowKey);
-    if (targetDraftId !== undefined) navigateToDraft(targetDraftId);
-    else if (targetThread) navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
-    else return false;
-    return true;
-  };
-  usePadActions(
-    () => resolveThreadActionProjectRef({...newThreadContext,activeThread:newThreadContext.activeThread ?? undefined}),
-    handleNewThread,
-    direction => navigateToRowKey(resolveAdjacentThreadId({threadIds:orderedRowKeys,currentThreadId:routeRowKey,direction})),
-  );
-
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to window keydown for thread navigation shortcuts using the current thread list
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -2995,14 +2980,21 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         platform: navigator.platform,
         context: threadShortcutContext(routeThreadRef),
       });
-      const navigateRow = (target: string | null) => {
-        if (!navigateToRowKey(target)) return;
+      const navigateToRowKey = (targetRowKey: string | null) => {
+        if (!targetRowKey) return false;
+        const targetDraftId = draftIdByRowKey.get(targetRowKey);
+        const targetThread = threadByKey.get(targetRowKey);
+        if (targetDraftId === undefined && !targetThread) return false;
         event.preventDefault();
         event.stopPropagation();
+        if (targetDraftId !== undefined) navigateToDraft(targetDraftId);
+        else if (targetThread)
+          navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
+        return true;
       };
       const traversalDirection = threadTraversalDirectionFromCommand(command);
       if (traversalDirection !== null) {
-        navigateRow(
+        navigateToRowKey(
           resolveAdjacentThreadId({
             threadIds: orderedRowKeys,
             currentThreadId: routeRowKey,
@@ -3013,7 +3005,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       }
       const jumpIndex = threadJumpIndexFromCommand(command ?? "");
       if (jumpIndex === null) return;
-      navigateRow(orderedRowKeys[jumpIndex] ?? null);
+      navigateToRowKey(orderedRowKeys[jumpIndex] ?? null);
     };
     window.addEventListener("keydown", onWindowKeyDown);
     return () => window.removeEventListener("keydown", onWindowKeyDown);
@@ -3589,6 +3581,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             }
                             isRouteThread={routeThreadKey === threadKey}
                             readOpensPullRequestsInRightPanel={readOpensPullRequestsInRightPanel}
+                            openPrLink={openPrLink}
                             jumpLabel={
                               showJumpHints ? (jumpLabelByKey.get(threadKey) ?? null) : null
                             }

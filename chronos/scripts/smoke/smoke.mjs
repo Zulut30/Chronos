@@ -455,32 +455,12 @@ async function verifyPcControl(client) {
   await wait(state + '.then(s => !s.settings.enabled && s.history.some(e => e.op === "stop"))');
 }
 
-async function verifyKeyboardSettings(client) {
-  const action = (input) => client.probe("performAction", input);
-  const navigate = await action({ type: "navigate", to: "/settings/keyboards" });
-  if (!navigate.ok) throw new Error(navigate.detail);
-  const toggle = "#keyboards input[type=checkbox]:enabled";
-  const positions = [
-    ...Array.from({length: 9}, (_, i) => "Клавиша " + (i + 1)),
-    ...["Верхняя", "Нижняя"].flatMap(knob =>
-      ["Влево", "Нажать", "Вправо"].map(move => knob + " ручка · " + move)),
-  ].map(name => '#keyboards button[aria-label="' + name + '"]');
-  const waitForSwitch = async (checked) => {
-    const allSelectors = [...positions, toggle + (checked ? ":checked" : ":not(:checked)")];
-    const result = await waitUntilReady(client, {allSelectors});
-    if (!result.ready) throw new Error("Keyboard settings: " + JSON.stringify(result));
-  };
-  await waitForSwitch(false);
-  for (const checked of [true, false]) {
-    const click = await action({type: "click", selector: toggle});
-    if (!click.ok) throw new Error(click.detail);
-    await waitForSwitch(checked);
-  }
-}
-
 async function verifyChatSettings(client) {
-  const rows = ["#olympus-88-rich-text", "#olympus-40-files"];
-  const globals = ["__olyRichText", "__olyFiles"];
+  // Notifications depend on budget. Turn notifications off first and restore them last.
+  const rows = ["88-rich-text", "40-files", "20-speed", "26-notifications", "22-budget",
+    "10-plan-mode", "93-chat-panels", "15-lang-icons"].map(id => "#olympus-" + id);
+  const globals = ["__olyRichText", "__olyFiles", "__olySpeed", "__olyNotifications", "__olyBudget",
+    "__olyPlanUi", "__olyPanels", "__olyLangIcons"];
   async function waitFor(description, check) {
     const deadline = Date.now() + 15_000;
     while (!await check()) {
@@ -491,6 +471,12 @@ async function verifyChatSettings(client) {
   async function openSettings(checked) {
     const action = await client.probe("performAction", { type: "navigate", to: "/settings/appearance" });
     if (!action.ok) throw new Error(action.detail);
+    const advanced = "#appearance-interface [data-slot=collapsible-trigger]";
+    await waitFor("advanced settings", async () => (await client.probe("checkReady", { allSelectors: [advanced] })).ready);
+    if ((await client.probe("checkReady", { allSelectors: [advanced + '[aria-expanded="false"]'] })).ready) {
+      const opened = await client.probe("performAction", { type: "click", selector: advanced });
+      if (!opened.ok) throw new Error(opened.detail);
+    }
     const allSelectors = rows.map((id) => id + ` [role=switch][aria-checked=${checked}]`);
     await waitFor("switches " + checked, async () => (await client.probe("checkReady", { allSelectors })).ready);
   }
@@ -504,8 +490,8 @@ async function verifyChatSettings(client) {
       return info.hasRouter && info.hasOlyCore && info.bodyTextLength > 0;
     });
   }
-  async function clickSwitches() {
-    for (const id of rows) {
+  async function clickSwitches(enabled) {
+    for (const id of enabled ? rows : [...rows].reverse()) {
       const action = await client.probe("performAction", { type: "click", selector: id + " [role=switch]" });
       if (!action.ok) throw new Error(action.detail);
     }
@@ -514,10 +500,10 @@ async function verifyChatSettings(client) {
   for (const enabled of [true, false]) {
     console.log("Checking switches " + enabled + " -> " + !enabled);
     await openSettings(enabled);
-    await clickSwitches();
+    await clickSwitches(enabled);
     await openSettings(!enabled);
     const before = await client.probe("checkGlobals", { expected: globals });
-    if (before.presentCount !== (enabled ? 2 : 0)) throw new Error("Module changed before reload");
+    if (before.presentCount !== (enabled ? globals.length : 0)) throw new Error("Module changed before reload: " + JSON.stringify(before.missing));
     console.log("Reloading with switches " + !enabled);
     await reloadWindow();
     await openSettings(!enabled);
@@ -933,17 +919,6 @@ async function run() {
       unexpectedEnglishPhrases: allUnexpectedEnglish,
     };
     report.ok = report.summary.failedChecks === 0;
-    if (opts.verifyChatSettings && opts.launch && process.platform === "win32") {
-      try {
-        await verifyKeyboardSettings(client);
-        report.keyboardSettings = {ok:true};
-        console.log("[PASS] keyboard settings: 15 positions and native listener switch");
-      } catch(error) {
-        report.keyboardSettings = {ok:false,error:String(error)};
-        report.ok = false;
-        console.log("[FAIL] keyboard settings: "+error);
-      }
-    }
     if (opts.verifyChatSettings) {
       try {
         await verifyChatSettings(client);

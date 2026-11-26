@@ -3,6 +3,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { SettingsSection } from "../../components/settings/settingsLayout";
+import { desktopError } from "../desktopError";
 
 type Mode = "every" | "risk" | "none";
 interface Settings {
@@ -45,7 +46,7 @@ const labels: Record<string, string> = {
   close: "Завершить сессию",
   stop: "Аварийная остановка",
 };
-function subscribeToControl(setState: (state: State) => void) {
+function subscribeToControl(setState: (state: State) => void, report: (message: string) => void) {
   const api = window.chronosPC;
   if (!api) return;
   let generation = 0;
@@ -57,7 +58,9 @@ function subscribeToControl(setState: (state: State) => void) {
       .then((value) => {
         if (id === generation) setState(value);
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (id === generation) report(desktopError(err, "Не удалось загрузить настройки управления ПК."));
+      });
   }
   const remove = api.subscribe(refresh);
   refresh();
@@ -70,13 +73,13 @@ function subscribeToControl(setState: (state: State) => void) {
 function useControl() {
   const [state, setState] = useState<State>();
   const [error, setError] = useState("");
-  useEffect(() => subscribeToControl(setState), []);
+  useEffect(() => subscribeToControl(setState, setError), []);
   async function send(input: unknown) {
     try {
       await window.chronosPC?.settings(input);
       setError("");
     } catch (err) {
-      setError(String(err instanceof Error ? err.message : err));
+      setError(desktopError(err, "Не удалось выполнить действие. Проверьте настройки управления ПК."));
     }
   }
   return { state, send, error };
@@ -238,7 +241,12 @@ function Editor({
 
 export function PcSettings() {
   const { state, send, error } = useControl();
-  if (!state) return null;
+  if (!window.chronosPC) return null;
+  if (!state) return (
+    <SettingsSection id="pc-control" title="Управление ПК">
+      <p className="p-4 text-sm" role={error ? "alert" : "status"}>{error || "Загрузка настроек…"}</p>
+    </SettingsSection>
+  );
   return (
     <SettingsSection id="pc-control" title="Управление ПК">
       <div className="space-y-4 p-4 text-sm">
@@ -259,6 +267,7 @@ export function PcSettings() {
         {error && <p role="alert">{error}</p>}
         <details>
           <summary>Журнал действий ({state.history.length})</summary>
+          {!state.history.length && <p className="mt-2 text-muted-foreground">В журнале пока нет действий.</p>}
           <ol className="mt-2 max-h-60 overflow-auto">
             {state.history
               .slice()

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { chatMarkdownImageSources } from "@t3tools/shared/markdownPipeline";
 
 import { guestHostImageType, repliesShowImage } from "./guestAttachments.ts";
 
@@ -37,7 +38,8 @@ describe("guest host images", () => {
     ["![a](/w/a.svg)", "/w/a.svg", null],
     ["![a](/w/a.constructor)", "/w/a.constructor", null],
   ])("%j serves %j as %j", (text, path, type) => {
-    const served = guestHostImageType(path) !== null && repliesShowImage(path, [{ text }]);
+    const served = guestHostImageType(path) !== null &&
+      repliesShowImage(path, [{ text }], (reply) => chatMarkdownImageSources(reply.text));
     expect(served ? guestHostImageType(path) : null).toBe(type);
   });
 });

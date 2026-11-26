@@ -238,10 +238,11 @@ async function benchmark() {
   await wait("router", () => evaluate("Boolean(window.__TSR_ROUTER__?.navigate)"));
   await evaluate(probe + "('dismissOnboarding')");
   await navigate(targets[1]);
-  await wait("expanded rows", async () =>
+  await wait("expanded sidebar and both switch targets", async () =>
     evaluate(`(() => {
     for (const b of document.querySelectorAll('[data-testid=sidebar-project-folder] button[aria-expanded=false]')) b.click();
-    return document.querySelectorAll('[data-thread-item]').length >= ${rows};
+    return document.querySelectorAll('[data-thread-item]').length >= ${rows} &&
+      ${JSON.stringify(targets)}.every(id => document.querySelector('[data-thread-item$="' + id + '"] [data-sidebar-row]'));
   })()`),
   );
   if (action === "smoke") {
@@ -353,6 +354,20 @@ async function benchmark() {
       ),
     );
     assert(rss > 0);
+    let retainedHeap;
+    if (rows === 1000 && n === 16) {
+      // Sample beyond the timed UI interval; the following barrier still requires 16 live mocks.
+      await page("HeapProfiler.collectGarbage");
+      const usage = await page("Runtime.getHeapUsage");
+      const dom = await page("Memory.getDOMCounters");
+      assert(usage.usedSize > 0 && usage.totalSize >= usage.usedSize && dom.nodes > 0);
+      retainedHeap = {
+        usedMiB: usage.usedSize / 1048576,
+        capacityMiB: usage.totalSize / 1048576,
+        embedderMiB: usage.embedderHeapUsedSize / 1048576,
+        ...dom,
+      };
+    }
     let concurrentApproval;
     if (n && mode === "desktop") {
       const busy = ids.filter((id) => !existsSync(join(root, id + ".txt"))).length;
@@ -494,6 +509,7 @@ async function benchmark() {
       rendererCount: pids.length,
       rendererRssMiB: rss / 1048576,
       heapMiB: after.JSHeapUsedSize / 1048576,
+      ...(retainedHeap ? { retainedHeap } : {}),
       layoutMs: (after.LayoutDuration - before.LayoutDuration) * 1000,
       scriptMs: (after.ScriptDuration - before.ScriptDuration) * 1000,
       rendererAgentSubscriptions: ids.filter((id) => detailIds.has(id)).length,

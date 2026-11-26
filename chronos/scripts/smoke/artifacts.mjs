@@ -5,6 +5,53 @@ import {pathToFileURL} from "node:url";
 import {setTimeout as delay} from "node:timers/promises";
 import {writeFileSync} from "node:fs";
 
+async function verifyStudioGallery(client, id) {
+  const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
+  const target = await waitFor("gallery document", async () => {
+    const { frameTree } = await client.send("Page.getFrameTree");
+    const frame = frameTree.childFrames?.find(node => match(node.frame.url));
+    if (frame) {
+      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"gallery-smoke"});
+      return { contextId:executionContextId };
+    }
+    const { targetInfos } = await client.send("Target.getTargets");
+    const guest = targetInfos.find(info => match(info.url));
+    if (guest) return client.send("Target.attachToTarget",{targetId:guest.targetId,flatten:true});
+  });
+  const evaluate = async expression => {
+    const reply = await client.send("Runtime.evaluate",{expression,contextId:target.contextId,returnByValue:true,awaitPromise:true},30000,target.sessionId);
+    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description || reply.exceptionDetails.text);
+    return reply.result.value;
+  };
+  try {
+    const card = `document.querySelector('article[data-id="${id}"]')`;
+    await waitFor("gallery card",()=>evaluate(card + " !== null"));
+    assert.equal(await evaluate("document.documentElement.style.colorScheme"),"light");
+    const search = value => evaluate(`document.querySelector("#search").value=${JSON.stringify(value)};document.querySelector("#search").dispatchEvent(new Event("input"));true`);
+    await search("несуществующий артефакт");
+    assert.equal(await evaluate('document.querySelector("#status").textContent'),"Ничего не найдено");
+    await search("полировка");
+    await evaluate(card+'.querySelector("[data-pin]").click()');
+    await waitFor("pin and focus",()=>evaluate(card+'.querySelector("[data-pin]") === document.activeElement && document.activeElement.textContent === "Открепить"'));
+    await evaluate(card+'.querySelector("summary").click()');
+    await waitFor("two versions",()=>evaluate(card+'.querySelectorAll("li").length === 2'));
+    await evaluate(card+'.querySelector("li button").click()');
+    await waitFor("restored version",()=>evaluate(card+'.querySelectorAll("li").length === 3'));
+    await evaluate(card+'.querySelector("nav button:last-child").focus();document.activeElement.click()');
+    assert.equal(await evaluate('document.activeElement.value'),"cancel");
+    await evaluate('document.querySelector("button[value=cancel]").click()');
+    assert.equal(await evaluate(card+'.querySelector("nav button:last-child") === document.activeElement'),true);
+    await evaluate(card+'.querySelector("nav button:last-child").click()');
+    await evaluate('document.querySelector("button[value=delete]").click()');
+    await waitFor("deletion",()=>evaluate(card+' === null && document.activeElement.id === "search"'));
+    await evaluate('document.querySelector("#status button").click()');
+    await waitFor("undo preserves the restored history",()=>evaluate(card+' !== null && '+card+'.querySelector("[data-pin]") === document.activeElement'));
+    await search("");
+  } finally {
+    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
+  }
+}
+
 async function waitFor(label,test) {
   const end=Date.now()+45000;
   let last;
@@ -39,8 +86,21 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       }).observe({type:"paint",buffered:true});
       </script></html>`}};
     const {id}=store.publish(input);
+    const sample={...input,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
+    const temporary=store.publish(sample);
+    store.publish({...sample,expectedVersion:1,label:"Вторая версия"});
     await client.probe("performAction",{type:"navigate",to:"/"});
     await waitFor("gallery link",()=>evaluate(`Boolean(document.querySelector('button[aria-label="Артефакты"]'))`));
+    // Exercise the HTML gallery used by the browser fallback as well as the native desktop gallery.
+    await evaluate(`(() => {
+      const frame=document.createElement("iframe");
+      frame.id="artifact-fallback-smoke";frame.src="http://127.0.0.1:4520/artifacts.html#theme=light";
+      frame.style.cssText="position:fixed;inset:0;width:100%;height:100%;z-index:99999";
+      document.body.append(frame);
+    })()`);
+    try {await verifyStudioGallery(client,temporary.id);}
+    finally {await evaluate("document.querySelector('#artifact-fallback-smoke')?.remove()");}
+    assert.equal(store.history(temporary.id).length,3);
     await evaluate(`document.querySelector('button[aria-label="Артефакты"]').click()`);
     await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('[data-artifact-gallery] .art-card'))`));
     await waitFor("static gallery snapshot",()=>evaluate(`Boolean(document.querySelector('.art-cover img[src^="data:image/jpeg"]')) && !document.querySelector('[data-artifact-gallery] iframe,[data-artifact-gallery] webview')`));
@@ -54,7 +114,19 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       return Math.abs(r-55)<8 && Math.abs(g-101)<8 && Math.abs(b-160)<8;
     })()`));
     assert.equal(store.documents(id,"get",{collection:"probe",key:"frame"}),null);
-    await evaluate(`document.querySelector('.art-cover').click()`);
+    const sampleCard=`document.querySelector('article[data-id="${temporary.id}"]')`;
+    const removeCard=sampleCard+`.querySelector('[aria-label="В корзину"]')`;
+    await evaluate(removeCard+".focus();document.activeElement.click()");
+    await waitFor("native confirmation defaults to cancel",()=>evaluate('document.activeElement.value==="cancel"'));
+    await evaluate("document.activeElement.click()");
+    await waitFor("native cancel restores invoking button",()=>evaluate(removeCard+"===document.activeElement"));
+    await evaluate(removeCard+".click()");
+    await waitFor("native trash confirmation",()=>evaluate('!!document.querySelector(".art-confirm[open]")'));
+    await evaluate(`document.querySelector('.art-confirm [value="delete"]').click()`);
+    await waitFor("native trash preserves search focus",()=>evaluate(sampleCard+"===null && document.activeElement.matches('.art-filter input')"));
+    assert.equal(store.list(true).some(card=>card.id===temporary.id),true);
+    assert.equal(store.history(temporary.id).length,3);
+    await evaluate(`document.querySelector('article[data-id="${id}"] .art-cover').click()`);
     const row=await waitFor("isolated page wrote to MCP database",()=>store.documents(id,"get",{collection:"probe",key:"frame"}));
     assert.equal(row.host,id);
     assert.equal(row.node,"undefined");
@@ -63,8 +135,19 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     assert.ok(["light","dark"].includes(row.mode));
     await evaluate(`[...document.querySelectorAll(".art-segment button")].find(b=>b.textContent==="Код").click()`);
     await waitFor("version source",()=>evaluate(`document.querySelector(".art-code pre")?.textContent.includes("PerformanceObserver")`));
-    await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
-    await evaluate(`[...document.querySelectorAll("button")].find(b=>b.textContent==="Установить как приложение").click()`);
+    async function shortcutAction(label) {
+      await waitFor("actions menu closed",()=>evaluate('!document.querySelector(".art-menu")'));
+      await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
+      const button=`[...document.querySelectorAll(".art-menu button")].find(b=>!b.disabled && b.textContent===${JSON.stringify(label)})`;
+      await waitFor(label,()=>evaluate("Boolean("+button+")"));
+      await evaluate(button+".click()");
+    }
+    await shortcutAction("Установить как приложение");
+    await shortcutAction("Обновить ярлыки");
+    await shortcutAction("Удалить ярлыки");
+    await waitFor("both shortcuts removed",()=>evaluate(`window.chronosArtifactInstaller.installed("${id}").then(value=>!value)`));
+    assert.equal(store.history(id).length,1);
+    await shortcutAction("Установить как приложение");
     await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
     // Use the app's own authenticated session to create an empty local thread; no model turn is run.
     await evaluate(`(async()=>{

@@ -119,6 +119,20 @@ try {
   if (binary) args.push("-AgentExe", binary);
   const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
   if (idle) sample.pcControl = pcControl ?? "unavailable";
+  if (idle && process.env.BENCH_IDLE_MODULES === "1") {
+    // Inspect the existing page only after the OS process sample has finished.
+    const heap = await cdp.call("Runtime.getHeapUsage");
+    const scripts = new Set();
+    const unsubscribe = cdp.listen(({ method, params }) => {
+      if (method === "Debugger.scriptParsed" && params.url.startsWith("t3code://app/")) {
+        scripts.add(new URL(params.url).pathname);
+      }
+    });
+    await cdp.call("Debugger.enable");
+    unsubscribe();
+    sample.rendererHeap = { usedMiB: heap.usedSize / 1048576, capacityMiB: heap.totalSize / 1048576 };
+    sample.appScripts = [...scripts].sort();
+  }
   writeFileSync(output, JSON.stringify(sample, null, 2) + "\n");
 } finally {
   rpc?.close();

@@ -84,6 +84,54 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     assert.deepEqual(result.unexpectedEnglish, [], name + " English: " + JSON.stringify(result.unexpectedEnglish));
   }
 
+  async function focus(selector) {
+    await wait({ selector });
+    const result = await client.send("Runtime.evaluate", {
+      expression: `document.querySelector(${JSON.stringify(selector)}).focus()`,
+    });
+    assert.ok(!result.exceptionDetails);
+  }
+  async function press(key, windowsVirtualKeyCode, modifiers = 0) {
+    for (const type of ["rawKeyDown", "keyUp"]) {
+      await client.send("Input.dispatchKeyEvent", { type, key, code: key, windowsVirtualKeyCode, modifiers });
+    }
+  }
+
+  await act({ type: "navigate", to: "/settings/general" });
+  await wait({ selector: "[data-oly-ps-nav-button]" });
+  await focus("[data-settings-section='/settings/providers']");
+  for (const selector of ["[data-oly-ik-nav] button", "[data-oly-mcp-nav] button", "[data-oly-ps-nav-button]"]) {
+    await press("ArrowDown", 40);
+    await wait({ selector: selector + ":focus" });
+  }
+  await press("ArrowUp", 38);
+  await wait({ selector: "[data-oly-mcp-nav] button:focus" });
+
+  // Select each injected panel through the native search, including consecutive results on the same route.
+  const settingsSearch = "nav[data-workspace-area=settings-nav] input[role=combobox]";
+  for (const [name, result, pane, navButton] of [
+    ["API-ключи", "olympus-api-keys", ".oly-ik-panel", "[data-oly-ik-nav] button"],
+    ["Серверы MCP", "olympus-mcp", ".oly-mcp-pane", "[data-oly-mcp-nav] button"],
+    ["Шаблоны промптов", "olympus-prompts", ".oly-ps-pane", "[data-oly-ps-nav-button]"],
+  ]) {
+    await focus(settingsSearch);
+    await client.send("Input.insertText", { text: name });
+    await wait({ selector: `#settings-search-result-${result}[aria-selected=true]` });
+    await press("Enter", 13);
+    await wait({ allSelectors: [pane, `${navButton}[aria-current=page]`] });
+  }
+
+  await act({ type: "navigate", to: "/" });
+  await focus("[data-oly-tasks]");
+  await act({ type: "click", selector: "[data-oly-tasks]" });
+  await wait({ allSelectors: [".oly-tk-dialog:focus-within", ".oly-tk-dialog [data-sel='all']"] });
+  await press("Tab", 9, 8); // Shift+Tab from the dialog goes to its last control.
+  await wait({ selector: ".oly-tk-dialog :focus" });
+  await press("Tab", 9);
+  await wait({ selector: ".oly-tk-dialog [data-sel='all']:focus" });
+  await press("Escape", 27);
+  await wait({ selector: "[data-oly-tasks]:focus" });
+
   for (const dark of [false, true]) {
     await act({ type: "navigate", to: "/" });
     await wait({ selector: "button[aria-label='День / ночь']" });
@@ -106,8 +154,17 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     }
   }
   const thread = await seedChat(opts.launch, home);
+  // Pin the file manager in the disposable profile even when the runner has other editors.
+  const preference = await client.send("Runtime.evaluate", {
+    expression: 'localStorage.setItem("t3code:last-editor", JSON.stringify("file-manager"))',
+  });
+  assert.ok(!preference.exceptionDetails);
   await act({ type: "navigate", to: thread });
   await wait({ selector: "[data-message-role=assistant] .chat-markdown :not(pre) > code" });
+  await wait({ assertions: [{
+    selector: "button[data-toolbar-control][aria-label='Открыть в Проводнике']",
+    text: "Открыть в Проводнике",
+  }] });
   for (const dark of [true, false]) {
     await scheme(dark);
     await capture("chat", dark);

@@ -16,6 +16,17 @@ export async function openArtifactsUrl(url:string) {
       __olyStudioShell?:{open(url:string,title:string):Promise<unknown>};
       __olyStudio?:{openInPanel(url:string,options:{title:string}):Promise<unknown>};
     };
+    const target = new URL(url);
+    if (target.pathname === "/artifacts.html") {
+      const root = document.documentElement;
+      const colors = getComputedStyle(root);
+      const theme = new URLSearchParams({theme:root.classList.contains("dark") ? "dark" : "light"});
+      for (const [key, token] of Object.entries({bg:"background",fg:"foreground",panel:"card",border:"border",accent:"accent",primary:"primary"})) {
+        theme.set(key,colors.getPropertyValue("--"+token).trim());
+      }
+      target.hash = theme.toString();
+      url = target.href;
+    }
     const title = artifactId(url) ? artifactWords.viewer : artifactWords.library;
     if (studio.__olyStudioShell) await studio.__olyStudioShell.open(url,title);
     else if (studio.__olyStudio) await studio.__olyStudio.openInPanel(url,{title});
@@ -23,13 +34,19 @@ export async function openArtifactsUrl(url:string) {
     return;
   }
   const {openArtifactTab} = await import("./panel");
-  if (await openArtifactTab(url)) return;
+  if (await openArtifactTab(url)) {
+    const frame=document.querySelector<HTMLIFrameElement>("[data-oly-studio-overlay] iframe");
+    if (frame && (artifactId(frame.src) || frame.src.startsWith(galleryUrl))) {
+      (window as Window & {__olyStudioShell?:{close():void}}).__olyStudioShell?.close();
+    }
+    return;
+  }
   const {openLibraryDialog} = await import("./Library");
   openLibraryDialog(url);
 }
 export const openArtifactGallery = () => openArtifactsUrl(galleryUrl);
 export function onArtifactRequest(event:Event) {
-  const [action,id] = String((event as CustomEvent).detail).split("/");
-  if (!id || !uuid.test(id)) return;
+  const [action,id,...extra] = String((event as CustomEvent).detail).split("/");
+  if (extra.length || (action !== "open" && action !== "delete") || !id || !uuid.test(id)) return;
   void openArtifactsUrl(action === "delete" ? galleryUrl+"?delete="+id : viewer+id);
 }

@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld("chronosArtifactLibrary", {
 if (clientPlatform === "win32") {
   contextBridge.exposeInMainWorld("chronosArtifactInstaller", {
     metadata: (id: string) => ipcRenderer.invoke("chronos:artifact-icon", id),
+    installed: (id: string) => ipcRenderer.invoke("chronos:artifact-shortcuts", id),
+    remove: (id: string) => ipcRenderer.invoke("chronos:artifact-uninstall", id),
     install: (id: string, icon: string, theme: unknown) => ipcRenderer.invoke("chronos:artifact-install", id, icon, theme),
   });
 }
@@ -131,15 +133,6 @@ contextBridge.exposeInMainWorld("chronosPC", {
 });
 
 contextBridge.exposeInMainWorld("desktopBridge", {
-  // chronos: the local main window accepts only profile operations and normalized events.
-  ...(clientPlatform === "win32" ? {keyboard: {
-    request: (op: string, payload?: unknown) => ipcRenderer.invoke("chronos:keyboard", op, payload),
-    subscribe: (cb: (msg: import("@t3tools/contracts").KeyboardEventMessage) => void) => {
-      const handle = (_event: Electron.IpcRendererEvent, msg: import("@t3tools/contracts").KeyboardEventMessage) => cb(msg);
-      ipcRenderer.on("chronos:keyboard-event", handle);
-      return () => { ipcRenderer.off("chronos:keyboard-event", handle); };
-    },
-  }} : {}),
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
     if (typeof result !== "object" || result === null) {

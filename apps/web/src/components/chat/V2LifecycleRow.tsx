@@ -1,4 +1,5 @@
-import { T, Var, msg, useGT, useMessages } from "gt-react";
+import { T, Var, msg, useGT, useLocale, useMessages } from "gt-react";
+import { serverMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: localize the server's standard stop reason.
 import { ThreadHoverCardPopup } from "../ThreadHoverCard";
 import { AgentElapsed } from "./AgentElapsed";
 import { projectedSubagentsToRuntime } from "@t3tools/client-runtime/state/subagentRuntime";
@@ -85,11 +86,12 @@ export function V2LifecycleRow(props: {
 }) {
   const { item } = props;
   const gt = useGT();
+  const locale = useLocale();
   if (item.type === "run_interrupt_result") {
     return (
       <TimelineSystemDivider
         label={gt("Run interrupted")}
-        detail={item.message}
+        detail={serverMessage(item.message, locale)}
         icon={CircleStopIcon}
         wrapDetail
       />

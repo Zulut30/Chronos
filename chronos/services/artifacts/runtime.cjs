@@ -20,10 +20,18 @@ function trustedArtifact(event,id) {
   return db().metadata(id);
 }
 ipcMain.handle("chronos:artifact-icon",(event,id)=>trustedArtifact(event,id).icon);
+ipcMain.handle("chronos:artifact-shortcuts",(event,id)=>{
+  trustedArtifact(event,id);
+  return require("./install.cjs").ownedLinks(id,db().titles(id)).size > 0;
+});
+ipcMain.handle("chronos:artifact-uninstall",(event,id)=>{
+  trustedArtifact(event,id);
+  require("./install.cjs").remove(id,db().titles(id));
+});
 ipcMain.handle("chronos:artifact-install",(event,id,image,theme)=>{
   const metadata=trustedArtifact(event,id);
   if (typeof image !== "string" || image.length > 96000 || !image.startsWith("data:image/png;base64,")) throw Error("Некорректный значок");
-  return require("./install.cjs").install(id,metadata,image,theme);
+  return require("./install.cjs").install(id,metadata,image,theme,db().titles(id));
 });
 const fileDialogs = new WeakSet();
 ipcMain.handle("chronos:artifact-api",async (event,method,args = {}) => {

@@ -45,3 +45,11 @@
 .art-bottom button,.art-notice button {background:var(--secondary);color:var(--secondary-foreground)}
 .art-notice,.art-empty {padding:10px;color:var(--muted-foreground)}
 .art-notice button {margin-left:8px;padding:3px 7px;border-radius:4px}
+
+.art-confirm {margin:auto;max-width:min(28rem,90%);padding:18px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--foreground);overflow-wrap:anywhere}
+.art-confirm::backdrop {background:#0005}
+.art-confirm p {margin:8px 0;color:var(--muted-foreground)}
+.art-confirm div {display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.art-confirm button {padding:5px 10px;border:1px solid var(--border);border-radius:5px}
+.art-menu button:disabled {opacity:.55}
+.art-shell h2,.art-summary p {overflow-wrap:anywhere}

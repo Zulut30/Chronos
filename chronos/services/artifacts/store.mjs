@@ -67,6 +67,7 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
   return {
     publish,
     documents: documentDatabase(db),
+    titles: id => db.prepare("SELECT DISTINCT json_extract(metadata,'$.title') AS title FROM versions WHERE id=?").all(id).map(row => row.title),
     origin(id) {
       const {thread,environment} = active(id);
       return thread && environment ? {threadId:thread,environmentId:environment} : null;

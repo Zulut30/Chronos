@@ -13,7 +13,7 @@ test("independent clients preserve history and reject stale writes", t => {
     description: "A demo.", label: "First", files: { "index.html": "one" } };
   const { id } = a.publish(input);
   assert.throws(() => b.publish(input), /Версия изменилась/);
-  b.publish({ ...input, expectedVersion: 1, files: { "index.html": "two" } });
+  b.publish({ ...input, title:"Renamed page", expectedVersion: 1, files: { "index.html": "two" } });
   assert.equal(a.read(id,1).files["index.html"].toString(), "one");
   assert.equal(a.read(id).files["index.html"].toString(), "two");
   assert.equal(a.history(id).length, 2);
@@ -22,6 +22,7 @@ test("independent clients preserve history and reject stale writes", t => {
   assert.equal(b.read(id).files["index.html"].toString(),"one");
   assert.equal(b.read(id,2).files["index.html"].toString(),"two");
   assert.equal(b.list()[0].title,input.title);
+  assert.deepEqual(b.titles(id).sort(),["Demo page","Renamed page"]);
   assert.throws(() => a.publish({ ...input, files: { ...input.files, "../x": "bad" } }), /имя файла/);
 });
 
