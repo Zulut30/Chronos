@@ -44,7 +44,7 @@ export function documentDatabase(db) {
   }
   return (id, method, args) => {
     if (!documentMethods.includes(method)) throw Error("Неизвестная операция БД");
-    if (!db.prepare("SELECT 1 FROM artifacts WHERE id=?").get(id)) throw Error("Артефакт не найден");
+    if (!db.prepare("SELECT 1 FROM library WHERE id=? AND trashed=0").get(id)) throw Error("Артефакт не найден");
     if (method !== "batch" && !writes.has(method)) return apply(id,method,args);
     db.exec("BEGIN IMMEDIATE");
     try {

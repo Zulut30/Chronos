@@ -42,7 +42,7 @@ function button(label, action) {
 function askDelete(a) {
   pending = a;
   dialog.querySelector("h2").textContent = "Удалить «" + a.title + "»?";
-  dialog.querySelector("p").textContent = "Будут удалены все версии и сохранённые данные приложения.";
+  dialog.querySelector("p").textContent = "Артефакт можно восстановить из корзины вместе с версиями и данными.";
   dialog.returnValue = "";
   dialog.showModal();
 }
@@ -56,6 +56,11 @@ dialog.querySelector("form").onsubmit = event => {
     await request("delete",{id:a.id,expectedVersion:a.version});
     await refresh();
     search.focus();
+    status.replaceChildren(element("span","Артефакт в корзине "),button("Отменить",async()=>{
+      await request("recover",{id:a.id});
+      await refresh();
+      cards.querySelector(`article[data-id="${CSS.escape(a.id)}"] [data-pin]`)?.focus();
+    }));
   });
 };
 function render() {

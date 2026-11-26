@@ -28,7 +28,7 @@ import { useEnvironmentScope } from "~/state/session";
 import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserDefaults } from "./browserDefaults";
 import { useBrowserPointerStore } from "./browserPointerStore";
-import { watchArtifactDialog } from "~/chronos/artifacts/ArtifactView"; // chronos: Studio dialog fallback
+import { onArtifactRequest } from "~/chronos/artifacts/gallery"; // chronos: Studio dialog fallback
 import { HostedBrowserWebview } from "./HostedBrowserWebview";
 import { openUrlInPreview } from "./openFileInPreview";
 import { rendersServerTabNatively } from "./previewRuntime";
@@ -115,8 +115,9 @@ function openLinkInPreview({ tabId, url, background }: DesktopPreviewOpenLinkEve
 export function startElectronBrowserHost(): () => void {
   const preview = window.desktopBridge?.preview;
   if (!preview) return () => {};
+  window.addEventListener("chronos:show-artifact",onArtifactRequest);
   const disposers = [
-    watchArtifactDialog() ?? (() => {}), // chronos: bind Studio artifact dialogs
+    () => window.removeEventListener("chronos:show-artifact",onArtifactRequest), // chronos: bind Studio artifact dialogs
     startAnnotationThemeSync(preview),
     preview.onPointerEvent((event) => {
       useBrowserPointerStore.getState().apply(event);

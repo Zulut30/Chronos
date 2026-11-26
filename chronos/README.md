@@ -284,3 +284,5 @@ node chronos/scripts/sync-skills.mjs
 Русская оболочка переводит уровни рассуждения и известные уведомления провайдеров через `apps/web/src/chronos/olympus/l10n/providerCopy.ts` в ComposerModelEffort, ProviderModelPicker и UsageLimitsPooled.
 
 Инструменты локальных артефактов зарегистрированы в MCP Студии. [Хранилище и состояние реализации](parity/artifacts.md).
+
+Карточки ссылок в ChatMarkdown, локальная библиотека и инструмент сессии `artifact_studio` описаны в [отчёте об артефактах](parity/artifacts.md).
