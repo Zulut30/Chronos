@@ -151,11 +151,7 @@ export function workEntryDisplayLabel(
   workspaceRoot: string | undefined,
   resolve: MessageResolver = m,
 ) {
-  if (entry.itemType === "system_notice") {
-    return entry.label === "Approved automatically: full access"
-      ? resolve(msg("Approved automatically: full access"))
-      : entry.label;
-  }
+  if (entry.itemType === "system_notice") return entry.label;
   if (entry.itemType === "reasoning" || entry.tone === "thinking") {
     const thought = entry.detail?.trim().replace(/\s+/g, " ");
     return thought || entry.label;

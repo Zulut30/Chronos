@@ -28,7 +28,6 @@ import {
   unknownRecord,
   type AcpRuntimePolicy,
 } from "@t3tools/provider-acp/server/clientPolicy";
-import type { AcpAdapterV2RuntimeInput } from "@t3tools/provider-acp/server/adapter";
 import type { AcpSessionModeState } from "@t3tools/provider-acp/server/runtimeModel";
 import { T3_MCP_TOOL_NAMES } from "@t3tools/shared/t3McpToolPresentation";
 import packageJson from "../../../package.json" with { type: "json" };
@@ -154,19 +153,7 @@ export const makeAntigravityAcpRuntime = Effect.fn("makeAntigravityAcpRuntime")(
   return yield* Effect.service(AcpSessionRuntime.AcpSessionRuntime).pipe(Effect.provide(context));
 });
 
-// chronos: apply the selected host policy only to interactive, unrestricted full-access turns.
-export function antigravityUsesHostShell(
-  policy: AcpAdapterV2RuntimeInput["runtimePolicy"] | undefined,
-) {
-  return (
-    policy?.runtimeMode === "full-access" &&
-    policy.interactionMode !== "plan" &&
-    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
-    (policy.maxRuntimeMode === undefined || policy.maxRuntimeMode === "full-access") &&
-    (policy.sandboxPolicy === undefined ||
-      unknownRecord(policy.sandboxPolicy)?.type === "dangerFullAccess")
-  );
-}
+export { hasUnrestrictedToolAccess as antigravityUsesHostShell } from "@t3tools/provider-core/server/ProviderAdapter";
 
 export function antigravityPermissionMode(runtimeMode: RuntimeMode): string {
   switch (runtimeMode) {

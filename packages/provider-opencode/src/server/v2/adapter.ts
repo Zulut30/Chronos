@@ -102,7 +102,11 @@ import {
 } from "@t3tools/provider-core/server/subagentProjection";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import { turnScopedSelectionTransition } from "@t3tools/provider-core/server/selectionTransition";
-import { OPENCODE_PROVIDER, openCodePermissionRequestKind } from "../adapter.ts";
+import {
+  OPENCODE_PROVIDER,
+  openCodePermissionRequestKind,
+  openCodePreapprovedLocalTool,
+} from "../adapter.ts";
 import {
   openCodeCodeModeHtmlRenders,
   openCodeCodeModeSentMessages,
@@ -2760,9 +2764,42 @@ export const make = Effect.fn("OpenCode2Adapter.make")(function* (instanceId: Pr
     });
 
     const onPermissionAsked = Effect.fnUntraced(function* (data: Permission.Request) {
-      const turn = threads.get(data.sessionID)?.active;
+      const state = threads.get(data.sessionID);
+      const turn = state?.active;
       const toolName =
         data.source === undefined ? undefined : turn?.tools.get(data.source.id)?.name;
+      const approvalNoticeId = `full-access-approval:${data.id}`;
+      if (turn?.ordinals.has(approvalNoticeId)) return;
+      if (
+        state &&
+        turn &&
+        openCodePreapprovedLocalTool(turn.input.runtimePolicy, data.action, toolName) &&
+        state.rules?.some(
+          (rule) => rule.action === "*" && rule.resource === "*" && rule.effect === "allow",
+        ) &&
+        state.rules.every((rule) => rule.effect === "allow" || rule.action.startsWith("t3-code-"))
+      ) {
+        const accepted = yield* deliver(
+          client.permission.reply({
+            sessionID: data.sessionID,
+            requestID: data.id,
+            decision: "once",
+          }),
+        );
+        if (accepted) {
+          const now = yield* DateTime.now;
+          yield* emit({
+            type: "turn_item.updated",
+            driver,
+            turnItem: {
+              ...itemBase(state, turn, approvalNoticeId, "completed", now, now, now),
+              ...ProviderAdapter.fullAccessApprovalNotice,
+              nodeId: turn.input.rootNodeId,
+            },
+          });
+          return;
+        }
+      }
       const save = data.save ?? [];
       yield* showRequest(
         data.sessionID,

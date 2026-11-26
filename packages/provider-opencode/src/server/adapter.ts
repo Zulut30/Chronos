@@ -594,6 +594,23 @@ type OpenCodePermissionRequestKind = Extract<
   "command" | "file-read" | "file-change"
 >;
 
+// A residual callback for a known local tool can use the permission already installed for this run.
+// Form questions, external access and requests from unidentified tools have separate scopes.
+export function openCodePreapprovedLocalTool(
+  policy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
+  action: string,
+  tool: string | undefined,
+): boolean {
+  return (
+    ProviderAdapter.hasUnrestrictedToolAccess(policy) &&
+    tool !== undefined &&
+    ["bash", "shell", "read", "edit", "write", "patch", "apply_patch"].includes(action) &&
+    (action === tool ||
+      (action === "edit" && (tool === "write" || tool === "apply_patch")) ||
+      (action === "shell" && tool === "bash"))
+  );
+}
+
 export function openCodePermissionRequestKind(
   permission: string,
   toolName?: string,
@@ -2068,6 +2085,54 @@ export const makeOpenCodeAdapterV2 = Effect.fn("makeOpenCodeAdapterV2")(function
                   .get(request.value.sessionID)
                   ?.activeTurn?.toolNamesByCallId.get(request.value.tool.callID)
               : undefined;
+          if (
+            request.type === "permission" &&
+            !subagent &&
+            openCodePreapprovedLocalTool(
+              turn.runtimePolicy,
+              request.value.permission,
+              permissionToolName,
+            ) &&
+            state.permission.some(
+              (rule) => rule.permission === "*" && rule.pattern === "*" && rule.action === "allow",
+            ) &&
+            state.permission.every((rule) => rule.action === "allow")
+          ) {
+            const accepted = yield* sdkCall(
+              "permission.reply",
+              { requestID: nativeRequestId, reply: "once" },
+              (signal) =>
+                client.permission.reply({ requestID: nativeRequestId, reply: "once" }, { signal }),
+            ).pipe(Effect.timeout("10 seconds"), Effect.exit);
+            if (Exit.isSuccess(accepted)) {
+              rememberSettledRequest(nativeRequestId);
+              yield* emitProviderEvent({
+                type: "turn_item.updated",
+                driver: OPENCODE_PROVIDER,
+                turnItem: {
+                  ...ProviderAdapter.fullAccessApprovalNotice,
+                  id: turnItemId,
+                  nodeId: turn.rootNodeId,
+                  threadId: turn.threadId,
+                  runId: turn.runId,
+                  providerThreadId: turn.providerThreadId,
+                  providerTurnId: turn.providerTurnId,
+                  nativeItemRef: {
+                    driver: OPENCODE_PROVIDER,
+                    nativeId: nativeRequestId,
+                    strength: "weak",
+                  },
+                  parentItemId: null,
+                  ordinal: itemOrdinal(turn, nativeRequestId),
+                  status: "completed",
+                  startedAt: now,
+                  completedAt: now,
+                  updatedAt: now,
+                },
+              });
+              return;
+            }
+          }
           const permissionRequestKind =
             request.type === "permission"
               ? openCodePermissionRequestKind(request.value.permission, permissionToolName)

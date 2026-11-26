@@ -83,7 +83,7 @@ export function ProviderSetupSection(props: ProviderSetupSectionProps) {
       <SettingsRow
         title={gt("Terminal sandbox")}
         description={gt(
-          "Full access uses the host terminal. Auto uses the Antigravity sandbox when available. Other modes apply the thread approval rules.",
+          "Full access uses the host terminal. Windows may ask you to approve administrator access. Auto uses the Antigravity sandbox when available. Other modes use the thread approval rules.",
         )}
         status={
           runningThreads.length ? (

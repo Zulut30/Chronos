@@ -56,13 +56,13 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
     if (options === DEFAULT_APPROVAL_OPTIONS) return m(label);
     switch (label) {
       case "Approve":
-        return m(DEFAULT_APPROVAL_OPTIONS[3].label);
+        return m(msg("Approve", { $context: "verb, response to an approval request" }));
       case "Decline":
-        return m(DEFAULT_APPROVAL_OPTIONS[1].label);
+        return m(msg("Decline", { $context: "verb, response to an approval request" }));
       case "Cancel":
-        return m(DEFAULT_APPROVAL_OPTIONS[0].label);
+        return m(msg("Cancel", { $context: "verb, response to an approval request" }));
       case "Always allow this session":
-        return m(DEFAULT_APPROVAL_OPTIONS[2].label);
+        return m(msg("Always allow this session"));
       default:
         return label;
     }

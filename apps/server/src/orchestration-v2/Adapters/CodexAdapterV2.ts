@@ -847,20 +847,6 @@ const isProviderAdapterRuntimeRequestResponseError = Schema.is(
   ProviderAdapter.ProviderAdapterRuntimeRequestResponseError,
 );
 
-function fullAccessAllowsLocalTools(
-  policy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
-): boolean {
-  return (
-    policy.runtimeMode === "full-access" &&
-    policy.interactionMode !== "plan" &&
-    (policy.maxRuntimeMode ?? "full-access") === "full-access" &&
-    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
-    (policy.sandboxPolicy === undefined ||
-      (Schema.is(CodexSchema.V2TurnStartParams__SandboxPolicy)(policy.sandboxPolicy) &&
-        policy.sandboxPolicy.type === "dangerFullAccess"))
-  );
-}
-
 function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
   readonly approvalPolicy: CodexSchema.V2TurnStartParams__AskForApproval;
   readonly approvalsReviewer: CodexSchema.V2TurnStartParams__ApprovalsReviewer;
@@ -2704,10 +2690,8 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               nativeItemRef: { ...codexNativeItemRef(nativeItemId), strength: "weak" },
               parentItemId: null,
               ordinal,
-              type: "system_notice",
+              ...ProviderAdapter.fullAccessApprovalNotice,
               status: "completed",
-              title: "Approved automatically: full access",
-              message: "Approved automatically: full access",
               startedAt,
               completedAt: startedAt,
               updatedAt: startedAt,
@@ -6345,7 +6329,7 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
             }
             // Older app-server versions can forward a command approval even under never.
             if (
-              fullAccessAllowsLocalTools(context.input.runtimePolicy) &&
+              ProviderAdapter.hasUnrestrictedToolAccess(context.input.runtimePolicy) &&
               payload.networkApprovalContext == null &&
               (payload.proposedNetworkPolicyAmendments ?? []).length === 0
             ) {
@@ -6425,7 +6409,10 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
             }
             const allowance = sessionAllowance(payload.threadId, context);
-            if (fullAccessAllowsLocalTools(context.input.runtimePolicy) && !payload.grantRoot) {
+            if (
+              ProviderAdapter.hasUnrestrictedToolAccess(context.input.runtimePolicy) &&
+              !payload.grantRoot
+            ) {
               yield* recordFullAccessApproval(context, payload.itemId);
               return {
                 decision: "acceptForSession",

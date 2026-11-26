@@ -5220,7 +5220,11 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
          */
         const emitNotice = Effect.fnUntraced(function* (
           context: ActiveAcpTurn,
-          notice: { readonly title: string; readonly description?: string },
+          notice: {
+            readonly title: string;
+            readonly description?: string;
+            readonly level?: "info";
+          },
         ) {
           const nativeItemId = `${context.nativeTurnId}:notice:${context.itemOrdinals.size}`;
           const now = yield* DateTime.now;
@@ -5239,6 +5243,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               ordinal: yield* resolveItemOrdinal(context, nativeItemId),
               type: "system_notice",
               status: "completed",
+              ...(notice.level === undefined ? {} : { level: notice.level }),
               title: notice.title,
               message:
                 notice.description === undefined
@@ -7677,9 +7682,10 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                     const optionId = selectAutoApprovedPermissionOption(answerableParams);
                     if (
                       optionId !== undefined &&
-                      context?.input.runtimePolicy.runtimeMode === "full-access"
+                      context &&
+                      ProviderAdapter.hasUnrestrictedToolAccess(context.input.runtimePolicy)
                     ) {
-                      yield* emitNotice(context, { title: "Approved automatically: full access" });
+                      yield* emitNotice(context, ProviderAdapter.fullAccessApprovalNotice);
                     }
                     return {
                       _tag: "Immediate" as const,
