@@ -138,14 +138,87 @@ async function runAcpMcpBridgeDiag() {
   const sb = createSandbox(1, 1);
   let server, child;
   try {
+    const pendingStreams = new Map();
+    let sessionReplayed = false;
+    let protocolReplayed = false;
+    let cancelForwarded = false;
     server = createServer((req, res) => {
       const chunks = [];
       req.on("data", (c) => chunks.push(c));
       req.on("end", () => {
+        if (req.headers.authorization !== "Bearer ram-audit") {
+          res.writeHead(401).end();
+          return;
+        }
         const msg = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-        const result = msg.method === "initialize" ? { protocolVersion: "2025-06-18" } : { tools: [] };
-        res.writeHead(200, { "content-type": "application/json", "mcp-session-id": "ram-audit-session" });
-        res.end(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result }));
+        if (msg.method === "initialize") {
+          res.writeHead(200, { "content-type": "application/json", "mcp-session-id": "ram-audit-session" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18" } }));
+          return;
+        }
+        if (req.headers["mcp-session-id"] === "ram-audit-session") sessionReplayed = true;
+        if (req.headers["mcp-protocol-version"] === "2025-06-18") protocolReplayed = true;
+        if (msg.method === "notifications/initialized") {
+          res.writeHead(202).end();
+          return;
+        }
+        if (msg.method === "tools/list") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({
+            jsonrpc: "2.0",
+            id: msg.id,
+            result: { tools: [{ name: "t3_thread_list" }, { name: "tool_search" }, { name: "slow_tool" }] },
+          }));
+          return;
+        }
+        if (msg.method === "tools/call" && msg.params?.name === "t3_thread_list") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({
+            jsonrpc: "2.0",
+            id: msg.id,
+            result: { structuredContent: { threads: [] }, content: [] },
+          }));
+          return;
+        }
+        if (msg.method === "tools/call" && msg.params?.name === "tool_search") {
+          res.writeHead(200, { "content-type": "text/event-stream" });
+          res.write('data: {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}\n\n');
+          res.write(`data: ${JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { structuredContent: { tools: [{ name: "preview_open" }] } } })}\n\n`);
+          res.end();
+          return;
+        }
+        if (msg.method === "tools/call" && msg.params?.name === "missing_tool") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({
+            jsonrpc: "2.0",
+            id: msg.id,
+            error: { code: -32602, message: "Tool not found" },
+          }));
+          return;
+        }
+        if (msg.method === "tools/call" && msg.params?.name === "slow_tool") {
+          res.writeHead(200, { "content-type": "text/event-stream" });
+          res.write('data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progress":1}}\n\n');
+          pendingStreams.set(msg.id, res);
+          return;
+        }
+        if (msg.method === "notifications/cancelled") {
+          const reqId = msg.params?.requestId;
+          const stream = pendingStreams.get(reqId);
+          if (stream) {
+            cancelForwarded = true;
+            pendingStreams.delete(reqId);
+            stream.end();
+          }
+          res.writeHead(202).end();
+          return;
+        }
+        if (msg.method === "ping") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: {} }));
+          return;
+        }
+        res.writeHead(404).end();
       });
     });
     await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -167,12 +240,45 @@ async function runAcpMcpBridgeDiag() {
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { err = (err + d).slice(-800); });
-    child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" }) + "\n");
-    child.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }) + "\n");
+    const parsed = () => {
+      const lines = out.split(/\r?\n/);
+      lines.pop();
+      return lines.filter(Boolean).map((line) => JSON.parse(line));
+    };
+    const send = (msg) => child.stdin.write(JSON.stringify(msg) + "\n");
+    send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "ram-audit", version: "1.0.0" } } });
+    send({ jsonrpc: "2.0", method: "notifications/initialized" });
+    send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+    send({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "t3_thread_list", arguments: {} } });
+    send({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "tool_search", arguments: { query: "preview" } } });
+    send({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "missing_tool", arguments: {} } });
+    send({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "slow_tool", arguments: {} } });
+    await sb.wait("acp-mcp-bridge slow_tool open", () => {
+      if (child.exitCode !== null) throw Error("acp-mcp-bridge exited early: " + child.exitCode + " " + err);
+      return parsed().some((m) => m.method === "notifications/progress");
+    }, 15000);
+    send({ jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 6, reason: "ram-audit" } });
+    send({ jsonrpc: "2.0", id: 7, method: "ping", params: {} });
     await sb.wait("acp-mcp-bridge replies", () => {
       if (child.exitCode !== null) throw Error("acp-mcp-bridge exited early: " + child.exitCode + " " + err);
-      return out.trim().split(/\r?\n/).filter(Boolean).length >= 2;
+      const msgs = parsed();
+      return cancelForwarded && [1, 2, 3, 4, 5, 7].every((id) => msgs.some((m) => m.id === id));
     }, 15000);
+    const msgs = parsed();
+    const verified = {
+      sessionReplayed,
+      protocolReplayed,
+      jsonToolOk: Array.isArray(msgs.find((m) => m.id === 3)?.result?.structuredContent?.threads),
+      sseToolOk:
+        msgs.some((m) => m.method === "notifications/tools/list_changed") &&
+        msgs.find((m) => m.id === 4)?.result?.structuredContent?.tools?.[0]?.name === "preview_open",
+      errorPropagated: msgs.find((m) => m.id === 5)?.error?.code === -32602,
+      cancelForwarded,
+      postCancelPingOk: Boolean(msgs.find((m) => m.id === 7)?.result),
+    };
+    for (const [k, v] of Object.entries(verified)) {
+      assert.equal(v, true, "acp-mcp-bridge check failed: " + k);
+    }
     await sleep(3000);
     const mem = sampleTree(child.pid, 0);
     child.stdin.end();
@@ -182,7 +288,10 @@ async function runAcpMcpBridgeDiag() {
     return {
       privateMiB: mem.total.privateMiB,
       wsMiB: mem.total.wsMiB,
+      processCount: mem.total.count,
       threads: mem.total.threads,
+      processes: mem.processes,
+      verified,
     };
   } finally {
     if (child && child.exitCode === null) {
