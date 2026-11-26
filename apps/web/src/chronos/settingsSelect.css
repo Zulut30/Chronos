@@ -8,3 +8,8 @@
   background-color: var(--foreground);
   color: var(--background);
 }
+
+[data-chronos-settings-options] [data-slot="select-item"][data-highlighted]:focus-visible {
+  outline: 2px solid var(--background);
+  outline-offset: -2px;
+}
