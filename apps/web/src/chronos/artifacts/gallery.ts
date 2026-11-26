@@ -9,6 +9,17 @@ export function artifactId(raw: string | null | undefined) {
 export function artifactUrl(id:string) {return viewer+id;}
 
 export async function openArtifactsUrl(url:string) {
+  if (!window.desktopBridge) {
+    const studio = window as Window & {
+      __olyStudioShell?:{open(url:string,title:string):Promise<unknown>};
+      __olyStudio?:{openInPanel(url:string,options:{title:string}):Promise<unknown>};
+    };
+    const title = artifactId(url) ? "Просмотр артефакта" : "Артефакты";
+    if (studio.__olyStudioShell) await studio.__olyStudioShell.open(url,title);
+    else if (studio.__olyStudio) await studio.__olyStudio.openInPanel(url,{title});
+    else window.open(url,"_blank","noopener");
+    return;
+  }
   const {openArtifactTab} = await import("./panel");
   if (await openArtifactTab(url)) return;
   const {openLibraryDialog} = await import("./Library");

@@ -17,9 +17,12 @@ export function protectArtifact(contents: Electron.WebContents) {
   return runtime?.protect(contents) ?? false;
 }
 
-// The registry costs no connection, database or renderer until the first UI request.
-Electron.ipcMain.handle("chronos:artifact-library",(event, action: string, args: unknown) => {
-  if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame ||
-      !event.senderFrame.url.startsWith("t3code://app/")) throw Error("Откройте библиотеку в Chronos");
-  return require(NodePath.join(process.resourcesPath,"chronos-services","artifacts","library.cjs")).request(action,args);
-});
+export function registerArtifactLibrary() {
+  const channel = "chronos:artifact-library";
+  Electron.ipcMain.handle(channel, (event, action: string, args: unknown) => {
+    if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame ||
+        !event.senderFrame.url.startsWith("t3code://app/")) throw Error("Откройте библиотеку в Chronos");
+    return require(NodePath.join(process.resourcesPath,"chronos-services","artifacts","library.cjs")).request(action,args);
+  });
+  return () => Electron.ipcMain.removeHandler(channel);
+}
