@@ -604,7 +604,8 @@
       "80",
       "90",
       "91"
-    ]
+    ],
+    "compiled": "settings-nav"
   },
   {
     "selector": "nav.nextElementSibling",
@@ -614,7 +615,8 @@
       "80",
       "90",
       "91"
-    ]
+    ],
+    "compiled": "data-chronos-settings-content"
   },
   {
     "selector": "[data-workspace-focus-key^=\"details:\"]",
@@ -622,7 +624,8 @@
     "marker": "details:${threadRef.environmentId}",
     "modules": [
       "25"
-    ]
+    ],
+    "compiled": "details:"
   },
   {
     "selector": "#thread-details-usage-heading",
@@ -654,13 +657,105 @@
     "marker": "window={",
     "modules": [
       "24"
-    ]
+    ],
+    "compiled": "window"
   },
   {
     "selector": "instanceEntries / Fiber",
     "owner": "apps/web/src/components/chat/ProviderModelPicker.tsx",
     "marker": "instanceEntries={props.instanceEntries}",
     "modules": [
+      "28"
+    ],
+    "compiled": "instanceEntries"
+  },
+  {
+    "selector": "div.grid p.truncate.text-sm.font-medium",
+    "owner": "apps/web/src/components/settings/EnvironmentRow.tsx",
+    "marker": "<p className=\"truncate text-sm font-medium text-foreground\"",
+    "compiled": "truncate text-sm font-medium",
+    "modules": [
+      "50"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-effort] .ms-auto",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "ms-auto min-w-0 truncate text-muted-foreground",
+    "compiled": "ms-auto min-w-0 truncate",
+    "modules": [
+      "20"
+    ]
+  },
+  {
+    "selector": "[data-effort-level] .flex-1",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "flex min-w-0 flex-1 flex-col",
+    "compiled": "flex min-w-0 flex-1 flex-col",
+    "modules": [
+      "20"
+    ]
+  },
+  {
+    "selector": "[data-chronos-settings-layout]",
+    "owner": "apps/web/src/routes/_chat.settings.tsx",
+    "marker": "data-chronos-settings-layout=\"\"",
+    "compiled": "data-chronos-settings-layout",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ]
+  },
+  {
+    "selector": "[data-chronos-settings-nav]",
+    "owner": "apps/web/src/components/settings/SettingsSidebarNav.tsx",
+    "marker": "data-chronos-settings-nav=\"\"",
+    "compiled": "data-chronos-settings-nav",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ]
+  },
+  {
+    "selector": "[data-chronos-editor]",
+    "owner": "apps/web/src/components/ComposerPromptEditorTiptap.tsx",
+    "marker": "\"data-chronos-editor\": \"\"",
+    "compiled": "data-chronos-editor",
+    "modules": [
+      "05",
+      "55",
+      "60"
+    ]
+  },
+  {
+    "selector": "[data-chronos-markdown]",
+    "owner": "apps/web/src/components/ChatMarkdown.tsx",
+    "marker": "data-chronos-markdown=\"\"",
+    "compiled": "data-chronos-markdown",
+    "modules": [
+      "05",
+      "88"
+    ]
+  },
+  {
+    "selector": "[data-chronos-thread-details]",
+    "owner": "apps/web/src/components/chat/ThreadDetailsCard.tsx",
+    "marker": "data-chronos-thread-details=\"\"",
+    "compiled": "data-chronos-thread-details",
+    "modules": [
+      "24",
+      "25"
+    ]
+  },
+  {
+    "selector": "[data-chronos-model-picker]",
+    "owner": "apps/web/src/components/chat/ModelPickerContent.tsx",
+    "marker": "data-chronos-model-picker=\"\"",
+    "compiled": "data-chronos-model-picker",
+    "modules": [
+      "20",
       "28"
     ]
   }

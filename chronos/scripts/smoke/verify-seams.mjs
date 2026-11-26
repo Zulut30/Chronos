@@ -43,3 +43,21 @@ export async function verifyAnchors(ready, client, screen) {
     NodeAssert.ok(result.ready, "Olympus " + owner + " / " + screen + " / " + selector + ": " + result.detail);
   }
 }
+
+// Module 28 ascends at most 60 React owners from its own content element.
+export async function verifyPickerContext(client) {
+  const reply = await client.send("Runtime.evaluate", {
+    expression: `(() => {
+      const root = document.querySelector("[data-model-picker-content]");
+      const key = root && Object.keys(root).find(key => key.startsWith("__reactFiber$"));
+      let fiber = key && root[key];
+      for (let i = 0; fiber && i < 60; i++, fiber = fiber.return) {
+        const p = fiber.memoizedProps;
+        if (typeof p?.environmentId === "string" && Array.isArray(p.instanceEntries)) return true;
+      }
+      return false;
+    })()`,
+    returnByValue: true,
+  });
+  NodeAssert.ok(reply.result?.value, "Olympus 28 / [data-model-picker-content] / Fiber environmentId and instanceEntries");
+}

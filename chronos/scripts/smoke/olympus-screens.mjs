@@ -1,4 +1,4 @@
-import { verifyAnchors, globals } from "./verify-seams.mjs";
+import { verifyAnchors, verifyPickerContext, globals } from "./verify-seams.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -182,6 +182,7 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
 
   await act({ type: "click", selector: "[data-chat-provider-model-picker]" });
   await verifyAnchors(ready, client, "picker");
+  await verifyPickerContext(client);
   await press("Escape", 27);
   return results;
 }
