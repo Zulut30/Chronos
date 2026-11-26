@@ -1652,13 +1652,30 @@ export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure |
   const latestRun =
     usageLimitRunPresentedAsLatest(projection.runs, projection.turnItems, sessionError) ??
     latestUnheldRun(projection.runs.filter((run) => !liveRunIds.has(run.id)));
+  // chronos: agy explicitly reports the waits that survive session/prompt in the same run.
+  const liveWaits =
+    projection.providerThreads
+      .find(
+        (thread) =>
+          thread.id === projection.thread.activeProviderThreadId && thread.driver === "antigravity",
+      )
+      ?.pendingBackgroundTasks?.filter(
+        (task) => task.awaited && task.runId && liveRunIds.has(task.runId),
+      ) ?? [];
+  const liveWaitIds = new Set(liveWaits.map((task) => task.taskId));
   return [
+    ...liveWaits.map((task) =>
+      task.kind === "background_task" &&
+      (task.description === "Run schedule" || task.description === "Running schedule")
+        ? { ...task, description: m(msg("Antigravity timer")) }
+        : task,
+    ),
     ...derivePendingBackgroundWork({
       latestRun,
       providerThreads: projection.providerThreads.map((thread) => ({
         ...thread,
         pendingBackgroundTasks: thread.pendingBackgroundTasks?.filter(
-          (task) => !foregroundTaskIds.has(task.taskId),
+          (task) => !foregroundTaskIds.has(task.taskId) && !liveWaitIds.has(task.taskId),
         ),
       })),
       turnItems: projection.turnItems.filter(

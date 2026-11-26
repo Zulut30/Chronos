@@ -447,6 +447,7 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
             h.profileDirectory,
             "--app-data-dir",
             "antigravity-acp",
+            ...(runtimeMode === "full-access" ? ["--sandbox=false"] : []),
           ]);
           expect(
             (yield* h.readRequests)

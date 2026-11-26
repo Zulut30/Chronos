@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import { Trash2Icon } from "lucide-react";
 
 import { ensureLocalApi } from "../../localApi";
+import { useThreadShells } from "../../state/entities";
 import { useEnvironmentQuery } from "../../state/query";
 import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
@@ -50,6 +51,13 @@ export function readAntigravityAuthMethod(config: unknown): AntigravityAuthMetho
 
 export function ProviderSetupSection(props: ProviderSetupSectionProps) {
   const gt = useGT();
+  const runningThreads = useThreadShells().filter(
+    (thread) =>
+      thread.environmentId === props.environmentId &&
+      thread.providerInstanceId === props.instanceId &&
+      thread.runtime?.activeRunId != null &&
+      thread.archivedAt === null,
+  );
   return (
     <section
       aria-label={gt("Antigravity setup")}
@@ -70,6 +78,31 @@ export function ProviderSetupSection(props: ProviderSetupSectionProps) {
               </Button>
             ) : null}
           </div>
+        }
+      />
+      <SettingsRow
+        title={gt("Terminal sandbox")}
+        description={gt(
+          "Full access uses the host terminal. Auto uses the Antigravity sandbox when available. Other modes apply the thread?s approval rules.",
+        )}
+        status={
+          runningThreads.length ? (
+            <ul>
+              {runningThreads.map((thread) => (
+                <li key={thread.id}>
+                  {thread.title} ?{" "}
+                  {thread.interactionMode === "plan"
+                    ? gt("Plan mode")
+                    : thread.runtimeMode === "full-access"
+                      ? gt("Host terminal")
+                      : thread.runtimeMode === "auto" &&
+                          props.provider?.supportedRuntimeModes?.includes("auto")
+                        ? gt("Automatic sandbox")
+                        : gt("Thread approval rules")}
+                </li>
+              ))}
+            </ul>
+          ) : undefined
         }
       />
       {props.readOnly ? (

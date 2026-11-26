@@ -10,6 +10,31 @@ import { setTimeout as sleep } from "node:timers/promises";
 const [root, frames, interval, workload] = process.argv.slice(2);
 let sessionId = crypto.randomUUID();
 const lifecycle = workload === "acp-lifecycle";
+const background = workload === "antigravity-background";
+let wakeTimer;
+function cancelWake() {
+  clearInterval(wakeTimer);
+  wakeTimer = undefined;
+}
+function startWake() {
+  let started = false;
+  const update = update => send({ method: "session/update", params: { sessionId, update } });
+  wakeTimer = setInterval(() => {
+    if (!started && existsSync(join(root, "wake"))) {
+      started = true;
+      update({ sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "Checking results." } });
+      update({ sessionUpdate: "tool_call", toolCallId: "timer", title: "Run schedule", kind: "other",
+        status: "in_progress", rawInput: { DurationSeconds: 560 } });
+    }
+    if (started && existsSync(join(root, "finish"))) {
+      cancelWake();
+      update({ sessionUpdate: "tool_call_update", toolCallId: "timer", status: "completed" });
+      update({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "Fixture checks finished." } });
+      update({ sessionUpdate: "usage_update", used: 100, size: 1000 });
+    }
+  }, 15);
+  wakeTimer.unref();
+}
 let bridge;
 async function connectBridge(params) {
   assert.equal(process.env.CHRONOS_BENCH_LIFECYCLE, "1");
@@ -57,6 +82,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     pendingPermission = undefined;
     continue;
   }
+  if (background && (method === "session/cancel" || method === "session/close")) cancelWake();
   if (id == null) continue;
   if (lifecycle && method) appendFileSync(join(root, "acp-fixture.log"), method + "\n");
   let result = {};
@@ -64,8 +90,8 @@ for await (const line of createInterface({ input: process.stdin })) {
     result = {
       protocolVersion: 1,
       agentCapabilities: lifecycle ? { loadSession: true, sessionCapabilities: { resume: {} } } : {},
-      authMethods: [],
-      agentInfo: { name: "chronos-bench", version: "1" },
+      authMethods: background ? [{ id: "oauth-personal", name: "Fixture" }] : [],
+      agentInfo: { name: "chronos-bench", version: background ? "1.5.12" : "1" },
     };
   } else if (lifecycle && (method === "session/load" || method === "session/resume")) {
     sessionId = params.sessionId;
@@ -77,10 +103,17 @@ for await (const line of createInterface({ input: process.stdin })) {
     if (lifecycle) await connectBridge(params);
     result = {
       sessionId,
+      ...(background ? { modes: { currentModeId: "yolo", availableModes: [{ id: "yolo", name: "Fixture" }] } } : {}),
       models: { currentModelId: "bench", availableModels: [{ modelId: "bench", name: "Bench" }] },
     };
-  } else if (lifecycle && method === "session/set_config_option") {
+  } else if ((lifecycle || background) && method === "session/set_config_option") {
     result = { configOptions: [] };
+  } else if (background && method === "session/prompt") {
+    assert.equal(wakeTimer, undefined, "a native wake does not take another prompt");
+    appendFileSync(join(root, "prompts"), "prompt\n");
+    send({ id, result: { stopReason: "end_turn" } });
+    startWake();
+    continue;
   } else if (method === "session/prompt") {
     const thread = JSON.stringify(params.prompt).match(/bench-([a-f0-9-]{36})/)?.[1];
     if (!thread) throw Error("Missing workload ID");
