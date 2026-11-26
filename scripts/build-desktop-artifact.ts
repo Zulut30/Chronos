@@ -45,6 +45,7 @@ import {
   resolveWebAssetBrandForChannel,
   type WebAssetBrand,
 } from "./lib/brand-assets.ts";
+import { chronosResources } from "./lib/chronos-resources.ts";
 import { getDefaultBuildArch } from "./lib/build-target-arch.ts";
 import {
   findInlinedExternalPackages,
@@ -2872,17 +2873,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       : { asarUnpack: ["**/node_modules/@transcribe-cpp/**/*.{dylib,so,so.*}"] }),
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
-      // chronos: platform-specific, SHA256-verified native automation tools.
-      ...(isChronosVersion(version) ? [{ from: "apps/desktop/prod-resources/chronos-pc", to: "chronos-pc" }] : []),
-      // chronos: stage the runtime allowlist from the checkout outside the app archive.
-      ...(isChronosVersion(version) ? [{
-        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),
-        to: "chronos-services",
-        filter: ["**/*", "!**/*.test.mjs"],
-      }, {
-        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/brand/themes/olympus.json"),
-        to: "chronos-themes/olympus.json",
-      }] : []),
+      ...(isChronosVersion(version) ? chronosResources(yield* RepoRoot, yield* Path.Path) : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "mac" ? MAC_APPLE_SPEECH_EXTRA_RESOURCES : []),
