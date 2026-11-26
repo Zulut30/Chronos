@@ -5616,5 +5616,7 @@
   "bec67d0ed485f885": "{count, plural, one {{count} appareil s’est connecté} other {{count} appareils se sont connectés}} via {product}. Si ce n’était pas vous, supprimez-les dans Paramètres → Accès de T3 Code sur cet ordinateur.",
   "a560fd7a855648e6": "Run one missed occurrence on next startup",
   "9cca3054224a1637": "Run one missed occurrence on next startup",
-  "66b87c703a8cd62e": "Skipped: the app was closed"
+  "66b87c703a8cd62e": "Skipped: the app was closed",
+  "02e86b138ee62faf": "Continue after reset",
+  "2ad87b89a63c188b": "Antigravity subscription quota reached"
 }

@@ -5622,5 +5622,7 @@
   "bec67d0ed485f885": "{count, plural, one {{count} enhet} other {{count} enheter}} anslöt via {product}. Om det inte var du, ta bort dem under Inställningar → Åtkomst i T3 Code på den datorn.",
   "a560fd7a855648e6": "Run one missed occurrence on next startup",
   "9cca3054224a1637": "Run one missed occurrence on next startup",
-  "66b87c703a8cd62e": "Skipped: the app was closed"
+  "66b87c703a8cd62e": "Skipped: the app was closed",
+  "02e86b138ee62faf": "Continue after reset",
+  "2ad87b89a63c188b": "Antigravity subscription quota reached"
 }

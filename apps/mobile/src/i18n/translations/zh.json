@@ -5606,5 +5606,7 @@
   "bec67d0ed485f885": "{count, plural, other {{count} 台设备}}已通过 {product} 连接。如果不是你本人，请在那台电脑的 T3 Code 中前往 设置 → 访问权限 将其移除。",
   "a560fd7a855648e6": "Run one missed occurrence on next startup",
   "9cca3054224a1637": "Run one missed occurrence on next startup",
-  "66b87c703a8cd62e": "Skipped: the app was closed"
+  "66b87c703a8cd62e": "Skipped: the app was closed",
+  "02e86b138ee62faf": "Continue after reset",
+  "2ad87b89a63c188b": "Antigravity subscription quota reached"
 }

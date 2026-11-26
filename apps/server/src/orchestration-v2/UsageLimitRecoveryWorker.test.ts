@@ -93,6 +93,24 @@ const failedThread = (failedAgoMs: number, resetAgoMs: number) => {
 };
 
 describe("limitRecoveryCommand arming", () => {
+  it("continues an Antigravity quota failure only after the user arms this run", () => {
+    const thread = { ...failedThread(HOUR_MS, 0), lastErrorCode: "ANTIGRAVITY_INDIVIDUAL_QUOTA" };
+    assert.isNull(limitRecoveryCommand(thread, true, nowMs));
+    const armed = {
+      ...thread,
+      limitRecovery: {
+        runId: thread.latestRunId!,
+        resetAt: thread.usageLimitResetAt!,
+        autoResume: true,
+      },
+    };
+    assert.isNull(limitRecoveryCommand(armed, false, nowMs - 1));
+    assert.deepInclude(limitRecoveryCommand(armed, false, nowMs), {
+      type: "message.dispatch",
+      text: "продолжай",
+    });
+  });
+
   it("does not freshly arm a failure whose reset passed days ago", () => {
     const thread = failedThread(5 * 24 * HOUR_MS, 4 * 24 * HOUR_MS);
     assert.isNull(limitRecoveryCommand(thread, true, nowMs));

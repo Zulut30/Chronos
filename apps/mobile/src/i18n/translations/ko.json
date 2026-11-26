@@ -5602,5 +5602,7 @@
   "bec67d0ed485f885": "{count, plural, other {기기 {count}대}}가 {product}를 통해 연결되었습니다. 본인이 아니라면 해당 컴퓨터의 T3 Code에서 설정 → 액세스에서 제거하세요.",
   "a560fd7a855648e6": "Run one missed occurrence on next startup",
   "9cca3054224a1637": "Run one missed occurrence on next startup",
-  "66b87c703a8cd62e": "Skipped: the app was closed"
+  "66b87c703a8cd62e": "Skipped: the app was closed",
+  "02e86b138ee62faf": "Continue after reset",
+  "2ad87b89a63c188b": "Antigravity subscription quota reached"
 }

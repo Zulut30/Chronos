@@ -12800,5 +12800,7 @@
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
   "d0b0f9c83b3f739e": "Edit machine names",
   "7cd354570f9e8e68": "Skipped: the app was closed",
-  "9cca3054224a1637": "Run one missed occurrence on next startup"
+  "9cca3054224a1637": "Run one missed occurrence on next startup",
+  "a9d9eb4b919f9f92": "Antigravity subscription quota reached",
+  "02e86b138ee62faf": "Continue after reset"
 }
