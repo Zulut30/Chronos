@@ -7,6 +7,7 @@
 //
 // See chronos/scripts/smoke/README.md for full documentation.
 
+import { runFeatureChecks, checkArtifactsAfterReport } from "./features.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -429,91 +430,6 @@ async function maybeDismissOnboarding(client, readyProvider) {
   return { dismissed: false, detail: "Still on /welcome after clicking skip button" };
 }
 
-async function verifyPcControl(client) {
-  const navigation = await client.probe("performAction", { type:"navigate", to:"/settings/general" });
-  if (!navigation.ok) throw new Error(navigation.detail);
-  const evaluate = async expression => {
-    const response = await client.send("Runtime.evaluate",{expression,awaitPromise:true,returnByValue:true});
-    if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? "Ошибка интерфейса");
-    return response.result.value;
-  };
-  const wait = async expression => {
-    const deadline = Date.now()+10000;
-    while (!await evaluate(expression)) {
-      if (Date.now() > deadline) throw new Error("Не достигнуто состояние " + expression);
-      await sleep(80);
-    }
-  };
-  const state = 'window.chronosPC.settings({op:"state"})';
-  await wait('!!document.querySelector("#pc-control form")');
-  const initial = await evaluate(state);
-  if (initial.settings.enabled) throw new Error("Управление включено в новом профиле");
-  await evaluate('document.querySelector("#pc-control input[type=checkbox]").click()');
-  await evaluate('document.querySelector("#pc-control button[type=submit]").click()');
-  await wait(state + '.then(s => s.settings.enabled)');
-  await evaluate('document.querySelector("#pc-control [data-pc-stop]").click()');
-  await wait(state + '.then(s => !s.settings.enabled && s.history.some(e => e.op === "stop"))');
-}
-
-async function verifyChatSettings(client) {
-  // Notifications depend on budget. Turn notifications off first and restore them last.
-  const rows = ["88-rich-text", "40-files", "20-speed", "26-notifications", "22-budget",
-    "10-plan-mode", "93-chat-panels", "15-lang-icons"].map(id => "#olympus-" + id);
-  const globals = ["__olyRichText", "__olyFiles", "__olySpeed", "__olyNotifications", "__olyBudget",
-    "__olyPlanUi", "__olyPanels", "__olyLangIcons"];
-  async function waitFor(description, check) {
-    const deadline = Date.now() + 15_000;
-    while (!await check()) {
-      if (Date.now() >= deadline) throw new Error("Timed out waiting for " + description);
-      await sleep(150);
-    }
-  }
-  async function openSettings(checked) {
-    const action = await client.probe("performAction", { type: "navigate", to: "/settings/appearance" });
-    if (!action.ok) throw new Error(action.detail);
-    const advanced = "#appearance-interface [data-slot=collapsible-trigger]";
-    await waitFor("advanced settings", async () => (await client.probe("checkReady", { allSelectors: [advanced] })).ready);
-    if ((await client.probe("checkReady", { allSelectors: [advanced + '[aria-expanded="false"]'] })).ready) {
-      const opened = await client.probe("performAction", { type: "click", selector: advanced });
-      if (!opened.ok) throw new Error(opened.detail);
-    }
-    const allSelectors = rows.map((id) => id + ` [role=switch][aria-checked=${checked}]`);
-    await waitFor("switches " + checked, async () => (await client.probe("checkReady", { allSelectors })).ready);
-  }
-  async function reloadWindow() {
-    client.clearEvents();
-    await client.send("Page.reload");
-    // The old surface disappears during reload. Wait for the new main document before probing it.
-    await waitFor("new document", () => client.events.some((event) => event.method === "Page.loadEventFired"));
-    await waitFor("new router", async () => {
-      const info = await client.probe("appInfo");
-      return info.hasRouter && info.hasOlyCore && info.bodyTextLength > 0;
-    });
-  }
-  async function clickSwitches(enabled) {
-    for (const id of enabled ? rows : [...rows].reverse()) {
-      const action = await client.probe("performAction", { type: "click", selector: id + " [role=switch]" });
-      if (!action.ok) throw new Error(action.detail);
-    }
-  }
-  await client.send("Page.bringToFront");
-  for (const enabled of [true, false]) {
-    console.log("Checking switches " + enabled + " -> " + !enabled);
-    await openSettings(enabled);
-    await clickSwitches(enabled);
-    await openSettings(!enabled);
-    const before = await client.probe("checkGlobals", { expected: globals });
-    if (before.presentCount !== (enabled ? globals.length : 0)) throw new Error("Module changed before reload: " + JSON.stringify(before.missing));
-    console.log("Reloading with switches " + !enabled);
-    await reloadWindow();
-    await openSettings(!enabled);
-    const after = await client.probe("checkGlobals", { expected: [...globals, "__olyCore", "__olyReferences"] });
-    if (JSON.stringify(after.missing) !== JSON.stringify(enabled ? globals : [])) {
-      throw new Error("Unexpected modules after reload: " + JSON.stringify(after.missing));
-    }
-  }
-}
-
 function extractVersionFromUserAgent(ua) {
   if (!ua) return null;
   const m = /Chronos(?:Nightly)?\/([^\s]+)/i.exec(ua);
@@ -919,45 +835,9 @@ async function run() {
       unexpectedEnglishPhrases: allUnexpectedEnglish,
     };
     report.ok = report.summary.failedChecks === 0;
-    if (opts.verifyChatSettings) {
-      try {
-        await verifyChatSettings(client);
-        report.chatSettings = { ok: true };
-        console.log("[PASS] chat settings: switched off, reloaded, re-enabled and reloaded");
-      } catch (error) {
-        report.chatSettings = { ok: false, error: String(error) };
-        report.ok = false;
-        console.log("[FAIL] chat settings: " + error);
-      }
-    }
-
-    if (opts.verifyOlympus) {
-      try {
-        const { verifyOlympusScreens } = await import("./olympus-screens.mjs");
-        const screens = await verifyOlympusScreens({
-          client, opts, checks, ready: waitUntilReady, settle: settleScreen, classify: classifyEvents,
-        });
-        report.olympus = { ok: true, screenshots: screens.length };
-      } catch (error) {
-        report.olympus = { ok: false, error: String(error.stack || error) };
-        report.ok = false;
-        console.error("[FAIL] Olympus:", error);
-      }
-    }
-
-    if (opts.verifyPcControl) {
-      report.summary.totalChecks++;
-      try {
-        await verifyPcControl(client);
-        report.checks.pcControl = {ok:true};
-        report.summary.passedChecks++;
-      } catch (error) {
-        report.checks.pcControl = {ok:false,error:String(error)};
-        report.summary.failedChecks++;
-        report.ok = false;
-        console.log("[FAIL] Управление ПК: " + error);
-      }
-    }
+    await runFeatureChecks({
+      client, opts, checks, report, ready: waitUntilReady, settle: settleScreen, classify: classifyEvents,
+    });
     writeFileSync(join(opts.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
     console.log("");
@@ -973,10 +853,7 @@ async function run() {
     );
     console.log(`Report saved to: ${join(opts.outDir, "report.json")}`);
 
-    if (report.ok && process.env.CHRONOS_VERIFY_ARTIFACTS === "1") {
-      const {verifyArtifacts} = await import("./artifacts.mjs");
-      await verifyArtifacts(client,opts,launchedChild.pid);
-    }
+    await checkArtifactsAfterReport(client, opts, report, launchedChild);
     process.exitCode = report.ok ? 0 : 1;
   } finally {
     if (client) {

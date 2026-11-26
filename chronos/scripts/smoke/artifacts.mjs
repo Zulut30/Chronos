@@ -1,63 +1,12 @@
 import assert from "node:assert/strict";
-import {execFileSync,spawn} from "node:child_process";
+import { verifyWarmLaunch } from "./features/artifact-warm-launch.mjs";
 import path from "node:path";
 import {pathToFileURL} from "node:url";
-import {setTimeout as delay} from "node:timers/promises";
 import {writeFileSync} from "node:fs";
 
-async function verifyGallery(client, id) {
-  const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
-  const target = await waitFor("gallery document", async () => {
-    const { frameTree } = await client.send("Page.getFrameTree");
-    const frame = frameTree.childFrames?.find(node => match(node.frame.url));
-    if (frame) {
-      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"gallery-smoke"});
-      return { contextId:executionContextId };
-    }
-    const { targetInfos } = await client.send("Target.getTargets");
-    const guest = targetInfos.find(info => match(info.url));
-    if (guest) return client.send("Target.attachToTarget",{targetId:guest.targetId,flatten:true});
-  });
-  const evaluate = async expression => {
-    const reply = await client.send("Runtime.evaluate",{expression,contextId:target.contextId,returnByValue:true,awaitPromise:true},30000,target.sessionId);
-    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description || reply.exceptionDetails.text);
-    return reply.result.value;
-  };
-  try {
-    const card = `document.querySelector('article[data-id="${id}"]')`;
-    await waitFor("gallery card",()=>evaluate(card + " !== null"));
-    const search = value => evaluate(`document.querySelector("#search").value=${JSON.stringify(value)};document.querySelector("#search").dispatchEvent(new Event("input"));true`);
-    await search("несуществующий артефакт");
-    assert.equal(await evaluate('document.querySelector("#status").textContent'),"Ничего не найдено");
-    await search("полировка");
-    await evaluate(card+'.querySelector("[data-pin]").click()');
-    await waitFor("pin and focus",()=>evaluate(card+'.querySelector("[data-pin]") === document.activeElement && document.activeElement.textContent === "Открепить"'));
-    await evaluate(card+'.querySelector("summary").click()');
-    await waitFor("two versions",()=>evaluate(card+'.querySelectorAll("li").length === 2'));
-    await evaluate(card+'.querySelector("li button").click()');
-    await waitFor("restored version",()=>evaluate(card+'.querySelectorAll("li").length === 3'));
-    await evaluate(card+'.querySelector("nav button:last-child").focus();document.activeElement.click()');
-    assert.equal(await evaluate('document.activeElement.value'),"cancel");
-    await evaluate('document.querySelector("button[value=cancel]").click()');
-    assert.equal(await evaluate(card+'.querySelector("nav button:last-child") === document.activeElement'),true);
-    await evaluate(card+'.querySelector("nav button:last-child").click()');
-    await evaluate('document.querySelector("button[value=delete]").click()');
-    await waitFor("deletion",()=>evaluate(card+' === null && document.activeElement.id === "search"'));
-    await search("");
-  } finally {
-    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
-  }
-}
+import { verifyGallery } from "./features/artifact-gallery.mjs";
+import { waitFor } from "./features/artifact-wait.mjs";
 
-async function waitFor(label,test) {
-  const end=Date.now()+45000;
-  let last;
-  do {
-    try {const result=await test();if (result) return result;} catch(e) {last=e;}
-    await delay(200);
-  } while(Date.now()<end);
-  throw Error(label+" timed out"+(last ? ": "+last.message : ""));
-}
 export async function verifyArtifacts(client, opts, desktopPid) {
   if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated Windows CI install");
   const services=path.join(path.dirname(opts.launch),"resources","chronos-services");
@@ -149,31 +98,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       const r=guest?.getBoundingClientRect();
       return !!r && r.width>100 && r.height>100 && r.right>0 && r.left<innerWidth && !document.querySelector('dialog[open] webview');
     })()`));
-    const footprint=()=>JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",
-      path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
-    const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});
-    await waitFor("panel first paint",()=>readFrame()?.opens>=2);
-    // Tab transitions may leave short-lived Chromium helpers. Sample after the tree settles.
-    let baseline=footprint();
-    for(let round=0; round<5; round++) {
-      await delay(1000);
-      const sample=footprint();
-      const stable=sample.processes===baseline.processes && Math.abs(sample.privateBytes-baseline.privateBytes)<4*1024**2;
-      baseline=sample;
-      if(stable) break;
-    }
-    const start=Date.now();
-    const child=spawn(opts.launch,["--chronos-artifact="+id],{stdio:"ignore",windowsHide:true});
-    const exited=new Promise((resolve,reject)=>{child.once("error",reject);child.once("exit",resolve);});
-    const packageFrame=await waitFor("warm installed window first paint",()=>{
-      const frame=readFrame();return frame?.firstPaintAt>=start ? frame : null;
-    });
-    assert.equal(await exited,0);
-    await delay(1500);
-    const observed=footprint();
-    console.log("PACKAGED_WARM",JSON.stringify({firstPaintMs:Math.round(packageFrame.firstPaintAt-start),
-      privateBytes:observed.privateBytes-baseline.privateBytes,workingSet:observed.workingSet-baseline.workingSet,
-      before:baseline,after:observed}));
+    await verifyWarmLaunch(store, id, desktopPid, opts);
     writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
     console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
   } catch(error) {
