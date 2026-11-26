@@ -8,10 +8,16 @@ import { pathToFileURL } from "node:url";
 import { connectCdp, rpcClient } from "./client.mjs";
 import { createSandbox } from "./sandbox.mjs";
 
-const [distribution, scenario, output] = process.argv.slice(2);
+const [distribution, scenario, output, claudeExperiment] = process.argv.slice(2);
 assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
 assert.equal(process.platform, "win32");
 assert(["unused", "disabled", "claudeAgent", "codex"].includes(scenario));
+if (claudeExperiment) {
+  assert.equal(scenario, "claudeAgent");
+  assert(["default", "smol", "gc", "idle-base", "idle-head"].includes(claudeExperiment));
+}
+const idleExperiment = claudeExperiment?.startsWith("idle-");
+let experimentResult;
 const idle = ["unused", "disabled"].includes(scenario);
 const sb = createSandbox(1, 1);
 const exe = resolve(distribution, "Chronos.exe");
@@ -34,7 +40,12 @@ try {
   if (!idle) {
     binary = process.env[scenario === "codex" ? "BENCH_CODEX" : "BENCH_CLAUDE"];
     assert(binary && existsSync(binary), "Expected pinned vendor executable");
+    const { claudeMock } = claudeExperiment ? await import("./claude-experiment.mjs") : {};
     mock = createServer((req, res) => {
+      if (claudeExperiment && req.method === "POST" && /^\/v1\/messages(\?|$)/.test(req.url)) {
+        void claudeMock(req, res).catch(error => { console.error(error); res.destroy(); });
+        return;
+      }
       req.resume();
       if (req.method === "POST" && /\/(responses|messages)(\?|$)/.test(req.url)) {
         invoked = true; // Hold the native session open at its first model request.
@@ -50,6 +61,13 @@ try {
       CLAUDE_CODE_GIT_BASH_PATH: join(process.env.ProgramFiles, "Git/bin/bash.exe"),
       HTTP_PROXY: "http://127.0.0.1:9", HTTPS_PROXY: "http://127.0.0.1:9", NO_PROXY: "localhost,127.0.0.1",
     });
+    if (claudeExperiment === "smol") env.BUN_OPTIONS = "--smol";
+    if (claudeExperiment === "gc") env.BUN_JSC_aggressiveHeapThresholdInMB = "64";
+    if (idleExperiment) {
+      // Simulate the threshold crossing without starving the VM or changing OS state.
+      env.CHRONOS_CLAUDE_LOW_MEMORY_MIB = "1048576";
+      settings.claudeIdleUnloadMinutes = 10;
+    }
     mkdirSync(env.CODEX_HOME, { recursive: true });
     writeFileSync(join(env.CODEX_HOME, "config.toml"), 'model_provider = "bench"\n[model_providers.bench]\nname = "bench"\nwire_api = "responses"\nbase_url = "' + api + '/v1"\n');
     writeFileSync(join(env.CODEX_HOME, "auth.json"), JSON.stringify({ OPENAI_API_KEY: "bench-local" }));
@@ -104,20 +122,28 @@ try {
     await post("/api/projects/mutate", { type: "project.create", commandId: crypto.randomUUID(), projectId, title: "Guard", workspaceRoot: sb.work }, bearer);
     const { ticket } = await (await post("/api/auth/websocket-ticket/rpc", {}, bearer)).json();
     rpc = await rpcClient(origin.replace("http:", "ws:") + "/ws?orchestrationProtocol=2&wsTicket=" + encodeURIComponent(ticket));
-    await rpc.call("orchestration.launchThread", { commandId: crypto.randomUUID(), threadId, projectId, title: "Guard", generateTitle: false, modelSelection: settings.defaultModelSelection, runtimeMode: "approval-required", interactionMode: "default", workspaceStrategy: { type: "root" }, initialMessage: { text: "Say OK", attachments: [] } });
-    await sb.wait("native " + scenario + " model request", async () => {
-      if (invoked) return true;
-      const { runs } = await rpc.call("orchestration.getThreadProjection", { threadId });
-      const run = runs.at(-1);
-      if (run && ["failed", "completed", "interrupted"].includes(run.status)) throw Error(JSON.stringify(run).slice(-1600));
-      await sleep(500);
-      return false;
-    }, 90000);
-    await sleep(2000);
+    const launch = (id, text) => rpc.call("orchestration.launchThread", { commandId: crypto.randomUUID(), threadId: id, projectId, title: "Guard", generateTitle: false, modelSelection: settings.defaultModelSelection, runtimeMode: "approval-required", interactionMode: "default", workspaceStrategy: { type: "root" }, initialMessage: { text, attachments: [] } });
+    if (claudeExperiment) {
+      const { measureClaude } = await import("./claude-experiment.mjs");
+      experimentResult = await measureClaude({ launch, rpc, sb, app, binary, threadId, idleExperiment, expectUnload: claudeExperiment === "idle-head" });
+    } else {
+      await launch(threadId, "Say OK");
+      await sb.wait("native " + scenario + " model request", async () => {
+        if (invoked) return true;
+        const { runs } = await rpc.call("orchestration.getThreadProjection", { threadId });
+        const run = runs.at(-1);
+        if (run && ["failed", "completed", "interrupted"].includes(run.status)) throw Error(JSON.stringify(run).slice(-1600));
+        await sleep(500);
+        return false;
+      }, 90000);
+      await sleep(2000);
+    }
   }
   const args = ["-NoProfile", "-File", join(import.meta.dirname, "guard-process.ps1"), "-RootPid", String(app.pid), "-ServerPid", String(state.pid)];
   if (binary) args.push("-AgentExe", binary);
-  const sample = JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
+  if (claudeExperiment) args.push("-MemoryMap");
+  const sample = idleExperiment ? {} : JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
+  if (claudeExperiment) Object.assign(sample, { claudeExperiment }, experimentResult);
   if (idle) sample.pcControl = pcControl ?? "unavailable";
   if (idle && process.env.BENCH_IDLE_MODULES === "1") {
     // Inspect the existing page only after the OS process sample has finished.

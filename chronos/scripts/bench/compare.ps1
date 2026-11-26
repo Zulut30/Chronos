@@ -13,6 +13,16 @@ if ($env:SUITE -eq 'server') {
   if ($shell.Count -ne 1) { throw "Expected one headless shell, found $($shell.Count)" }
   $env:BENCH_CHROME = $shell[0].FullName
 }
+if ($env:SUITE -in 'claude-runtime','claude-idle') {
+  $version = (Get-Content -Raw "$PSScriptRoot/../../perf-budget.json" | ConvertFrom-Json).providers.'@anthropic-ai/claude-code'
+  $vendor = Join-Path $env:RUNNER_TEMP 'claude-fixture'
+  npm.cmd install --prefix $vendor --ignore-scripts --no-audit --no-fund "@anthropic-ai/claude-code-win32-x64@$version"
+  if ($LASTEXITCODE) { throw 'Pinned Claude download failed' }
+  $env:BENCH_CLAUDE = (Get-Item "$vendor/node_modules/@anthropic-ai/claude-code-win32-x64/claude.exe").FullName
+  if ($builds.Count -ne 2) { throw 'Expected two package IDs' }
+  if ($env:SUITE -eq 'claude-runtime' -and $builds[0] -ne $builds[1]) { throw 'Runtime comparison requires the same package twice' }
+  if ($env:SUITE -eq 'claude-idle' -and $builds[0] -eq $builds[1]) { throw 'Idle comparison requires base and candidate packages' }
+}
 foreach ($build in ($builds | Select-Object -Unique)) {
   $destination = Join-Path $env:RUNNER_TEMP "ui-package-$build"
   & "$PSScriptRoot/unpack.ps1" -Run $build -Destination $destination
@@ -33,11 +43,26 @@ $errors = @()
 foreach ($pass in 1..3) {
   $order = $builds.Clone()
   if ($pass % 2 -eq 0) { [array]::Reverse($order) }
+  if ($env:SUITE -eq 'claude-runtime') { $order = @($builds[0]) }
   foreach ($build in $order) {
     $pkg = Join-Path $env:RUNNER_TEMP "ui-package-$build/pkg"
     $out = Join-Path $results "$build/pass-$pass"
     New-Item -ItemType Directory -Force $out | Out-Null
     switch ($env:SUITE) {
+      'claude-runtime' {
+        $profiles = switch ($pass) {
+          1 { 'default','smol','gc' }; 2 { 'smol','gc','default' }; 3 { 'gc','default','smol' }
+        }
+        foreach ($profile in $profiles) {
+          node "$PSScriptRoot/guard-runtime.mjs" $pkg claudeAgent "$out/$profile.json" $profile
+          if ($LASTEXITCODE) { throw "Runtime profile $profile failed" }
+        }
+      }
+      'claude-idle' {
+        $profile = if ($build -eq $builds[0]) { 'idle-base' } else { 'idle-head' }
+        node "$PSScriptRoot/guard-runtime.mjs" $pkg claudeAgent "$out/$profile.json" $profile
+        if ($LASTEXITCODE) { throw "Idle workload $profile failed" }
+      }
       'idle' {
         $env:BENCH_IDLE_MODULES = '1'
         foreach ($scenario in 'unused','disabled') {
