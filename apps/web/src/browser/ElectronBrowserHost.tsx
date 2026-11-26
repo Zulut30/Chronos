@@ -8,7 +8,7 @@ import {
 } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { runAtomCommand } from "@t3tools/client-runtime/state/runtime";
-import { type ComponentProps, lazy, Suspense, useState } from "react";
+import { type ComponentProps, useState } from "react";
 
 import { primaryEnvironmentIdAtom } from "~/state/primaryEnvironment";
 
@@ -29,14 +29,10 @@ import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserDefaults } from "./browserDefaults";
 import { useBrowserPointerStore } from "./browserPointerStore";
 import { watchArtifactDialog } from "~/chronos/artifacts/ArtifactView"; // chronos: Studio dialog fallback
+import { HostedBrowserWebview } from "./HostedBrowserWebview";
 import { openUrlInPreview } from "./openFileInPreview";
 import { rendersServerTabNatively } from "./previewRuntime";
 import { previewRuntimeTabId } from "./previewRuntimeTabId";
-
-// chronos: keep the guest, viewport editor and recording UI out of windows with no preview tab.
-const HostedBrowserWebview = lazy(() =>
-  import("./HostedBrowserWebview").then(({ HostedBrowserWebview }) => ({ default: HostedBrowserWebview })),
-);
 
 /** Every session this window renders as a hosted webview, in a fixed (non-display) order. */
 function hostedBrowserSessions(
@@ -181,11 +177,7 @@ function AuthorizedBrowserWebview(props: ComponentProps<typeof HostedBrowserWebv
     AuthPreviewOperateScope,
   );
   const profileId = useTabProfileId(props.profileId);
-  return canOperatePreview ? (
-    <Suspense fallback={null}>
-      <HostedBrowserWebview {...props} profileId={profileId} />
-    </Suspense>
-  ) : null;
+  return canOperatePreview ? <HostedBrowserWebview {...props} profileId={profileId} /> : null;
 }
 
 // Latch after hydration: Electron fixes the partition when the guest attaches.

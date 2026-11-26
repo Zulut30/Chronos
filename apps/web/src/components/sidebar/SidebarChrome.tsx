@@ -15,6 +15,7 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { openArtifactGallery } from "~/chronos/artifacts/gallery"; // chronos: Studio gallery
 import { PanelsTopLeftIcon } from "lucide-react";
 import { ChronosSidebarMark } from "~/chronos/brand/ChronosSidebarMark";
 import {
@@ -43,11 +44,6 @@ import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
-
-async function openGallery() {
-  const { openArtifactGallery } = await import("~/chronos/artifacts/gallery");
-  await openArtifactGallery();
-}
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
@@ -281,11 +277,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             onClick={handleSettingsClick}
           />
           {/* chronos: open the artifact gallery through the Studio panel. */}
-          <SidebarUtilityItem
-            icon={<PanelsTopLeftIcon />}
-            label="Артефакты"
-            onClick={openGallery}
-          />
+          <SidebarUtilityItem icon={<PanelsTopLeftIcon />} label="Артефакты" onClick={() => void openArtifactGallery()} />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
