@@ -52,5 +52,7 @@ T3). Оставлены только workflow Chronos:
 - Канал: сборка Chronos фиксирована на канале `nightly` (`nightly.yml` / `nightly-mac.yml`) и
   принимает только версии Chronos (`isChronosVersion`).
 - Windows: стандартное обновление через NSIS.
-- macOS: неподписанные сборки не могут обновляться через Squirrel.Mac — «Скачать» открывает
-  страницу последнего релиза Chronos в браузере.
+- macOS: ad-hoc подпись в CI (`chronos/scripts/macos-after-pack.cjs` с `ElectronAsarIntegrity`), поэтому
+  Squirrel.Mac не может ставить обновления на месте — проверка новой версии работает штатно, а кнопка
+  «Скачать DMG» открывает в браузере прямую загрузку `.dmg` под текущую архитектуру (`arm64` / `x64`).
+  Подробнее — в [chronos/parity/macos.md](../parity/macos.md).

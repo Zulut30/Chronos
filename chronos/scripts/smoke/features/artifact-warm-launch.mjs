@@ -4,11 +4,9 @@ import * as NodePath from "node:path";
 import * as NodeTimersPromises from "node:timers/promises";
 import { waitFor } from "./artifact-wait.mjs";
 
-export async function verifyWarmLaunch(store, id, desktopPid, opts) {
+export async function verifyWarmLaunch(readFrame, id, desktopPid, opts) {
   const footprint=()=>JSON.parse(NodeChildProcess.execFileSync("powershell.exe",["-NoProfile","-File",
     NodePath.join(import.meta.dirname,"../artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
-  const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});
-  await waitFor("panel first paint",()=>readFrame()?.opens>=2);
   // Tab transitions may leave short-lived Chromium helpers. Sample after the tree settles.
   let baseline=footprint();
   for(let round=0; round<5; round++) {

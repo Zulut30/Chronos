@@ -61,7 +61,10 @@ async function ensureService() {
     spawn(process.execPath, ['server.mjs'], { cwd: HERE, detached: true, stdio: 'ignore', windowsHide: true }).unref();
     for (let i = 0; i < 20; i++) { await new Promise((r) => setTimeout(r, 400)); if (await health()) return; }
   }
-  throw new Error(`Менеджер скиллов не отвечает на ${BASE}. Запустите его: ${path.join(HERE, 'start-hidden.vbs')} (или node server.mjs в этой папке), затем повторите.`);
+  const launchHint = process.platform === 'win32'
+    ? `Запустите его: ${path.join(HERE, 'start-hidden.vbs')} (или node server.mjs в этой папке)`
+    : `Перезапустите Chronos или запустите «node ${path.join(HERE, 'server.mjs')}»`;
+  throw new Error(`Менеджер скиллов не отвечает на ${BASE}. ${launchHint}, затем повторите.`);
 }
 function hint(status, msg) {
   if (msg === 'not found') return 'Менеджер скиллов запущен в старой версии без этой функции. Перезапустите службу skills-manager (или T3) и повторите.';

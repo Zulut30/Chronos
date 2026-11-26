@@ -25,6 +25,7 @@ T3 Code 4774.
 - **Упаковка Chronos** (`chronos/parity/packaging.md`) — отдельная идентичность на уровне ОС
   (имя продукта, иконки, заголовок окна, установка рядом с T3, профиль, `CHRONOS_HOME`,
   `chronos://`, `~/.chronos/bin/t3`, CI и лента обновлений). Не меняет содержимое внутри окна.
+  Подробности сборки, первого запуска, обновления и ограничений для MacBook — в [отчёте по macOS](../parity/macos.md).
 - **Клиентские модули Olympus** — перенос модулей и клиентских native-правок Olympus как есть. [Навигация между панелями настроек](../parity/client.md#навигация-в-настройках) подключена в `SettingsSidebarNav.tsx`. Фокус модальной доски задач удерживает [taskBoardFocus.ts](../../apps/web/src/chronos/olympus/taskBoardFocus.ts), подключённый из `appInit.tsx`.
 - **Серверные правки и контракты** — перенос серверных и контрактных патчей Olympus как есть
   (OpenRouter в статистике, лимит CSS темы `THEME_CSS_MAX_LENGTH`, адаптер Antigravity CLI/children).

@@ -1,7 +1,4 @@
-import { runAtomCommand } from "@t3tools/client-runtime/state/runtime";
-import { openUrlInPreview } from "~/browser/openFileInPreview";
-import { appAtomRegistry } from "~/rpc/atomRegistry";
-import { previewEnvironment } from "~/state/preview";
+import { rightPanelHostRef, useRightPanelStore } from "~/rightPanelStore";
 import { resolveThreadRouteTarget } from "~/threadRoutes";
 
 export async function openArtifactTab(url: string) {
@@ -10,9 +7,6 @@ export async function openArtifactTab(url: string) {
   }).__TSR_ROUTER__?.state.matches.at(-1);
   const target = resolveThreadRouteTarget(route?.params ?? {});
   if (target?.kind !== "server" || !window.desktopBridge) return false;
-  const opened = await openUrlInPreview({
-    url, threadRef:target.threadRef,
-    openPreview: input => runAtomCommand(appAtomRegistry,previewEnvironment.open,input),
-  });
-  return opened._tag === "Success";
+  useRightPanelStore.getState().openArtifacts(rightPanelHostRef(target.threadRef),url);
+  return true;
 }

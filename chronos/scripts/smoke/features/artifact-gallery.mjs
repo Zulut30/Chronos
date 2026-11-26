@@ -1,7 +1,7 @@
 import * as NodeAssert from "node:assert/strict";
 import { waitFor } from "./artifact-wait.mjs";
 
-export async function verifyGallery(client, id) {
+export async function verifyStudioGallery(client, id) {
   const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
   const target = await waitFor("gallery document", async () => {
     const { frameTree } = await client.send("Page.getFrameTree");
@@ -22,6 +22,7 @@ export async function verifyGallery(client, id) {
   try {
     const card = `document.querySelector('article[data-id="${id}"]')`;
     await waitFor("gallery card",()=>evaluate(card + " !== null"));
+    NodeAssert.equal(await evaluate("document.documentElement.style.colorScheme"),"light");
     const search = value => evaluate(`document.querySelector("#search").value=${JSON.stringify(value)};document.querySelector("#search").dispatchEvent(new Event("input"));true`);
     await search("несуществующий артефакт");
     NodeAssert.equal(await evaluate('document.querySelector("#status").textContent'),"Ничего не найдено");
@@ -39,6 +40,8 @@ export async function verifyGallery(client, id) {
     await evaluate(card+'.querySelector("nav button:last-child").click()');
     await evaluate('document.querySelector("button[value=delete]").click()');
     await waitFor("deletion",()=>evaluate(card+' === null && document.activeElement.id === "search"'));
+    await evaluate('document.querySelector("#status button").click()');
+    await waitFor("undo preserves the restored history",()=>evaluate(card+' !== null && '+card+'.querySelector("[data-pin]") === document.activeElement'));
     await search("");
   } finally {
     if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
