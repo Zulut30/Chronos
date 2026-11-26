@@ -1132,7 +1132,8 @@
     "Загрузка доски…": "Loading board…",
     "Доска не найдена": "Board not found",
     "Доска — файл Excalidraw в папке студии. Агенты в чате читают и правят её, а вы видите изменения сразу.": "A board is an Excalidraw file in the Studio folder. Agents can read and edit it in chat, and changes appear immediately.",
-    "Доски студии": "Studio boards"
+    "Доски студии": "Studio boards",
+    "задан вне T3 (системная переменная)": "set outside T3 (environment variable)"
   },
   "templates": {
     "Режим следующего сообщения: {1}": "Next message mode: {1}",
@@ -1258,20 +1259,20 @@
     "Изменить шаблон !{1}": "Edit template !{1}",
     "Шаблон !{1}": "Template !{1}",
     "Переместить шаблон !{1} в корзину?": "Move template !{1} to trash?",
-    "Проект «{1}» — только для вас": "Project “{1}Shared",
+    "Проект «{1}» — только для вас": "Project “{1}” — only you",
     "Проект «{1}»": "Project “{1}”",
-    "{1} из {2} вкл.": "{1} of {2} Could not load list",
-    "Подключение по сетевому адресу ({1})": "Values hidden{1})",
-    "Значения скрыты{1}": "keys:{1}",
-    "ключи: {1}": "keys {1}",
+    "{1} из {2} вкл.": "{1} of {2} enabled",
+    "Подключение по сетевому адресу ({1})": "Connect via network address ({1})",
+    "Значения скрыты{1}": "Values hidden{1}",
+    "ключи: {1}": "keys: {1}",
     "Сервер {1}": "Server {1}",
     "Удалить {1}": "Delete {1}",
-    "«{1}» {2} Изменение подхватят новые сессии агента.": "“{1}” {2} Delete “",
-    "Удалить «{1}»?": "The server will be removed from settings{1}”?",
-    "Сервер будет удалён из настроек {1}: {2}.": "Deleting… {1}: {2}.",
-    "«{1}» удалён. Резервная копия настроек сохранена.": "“{1}Unclosed quotation mark in the command",
-    "«{1}» указан дважды": "“{1}Enter a server name",
-    "Сервер «{1}» уже есть в этих настройках": "” already exists in these settings{1}Additional fields must be valid JSON, e.g. {\"startup_timeout_sec\": 20}",
+    "«{1}» {2} Изменение подхватят новые сессии агента.": "“{1}” {2}. New agent sessions will use this change.",
+    "Удалить «{1}»?": "Delete “{1}”?",
+    "Сервер будет удалён из настроек {1}: {2}.": "The server will be removed from the {1} settings: {2}.",
+    "«{1}» удалён. Резервная копия настроек сохранена.": "“{1}” was removed. A backup of the settings was saved.",
+    "«{1}» указан дважды": "“{1}” is listed twice",
+    "Сервер «{1}» уже есть в этих настройках": "Server “{1}” already exists in these settings",
     "Проект {1}": "Project {1}",
     "Выбрано: {1}": "Selected: {1}",
     "{1} {2} {3} — их скиллы не показаны.": "{1} {2} {3} — their skills are hidden.",
@@ -1346,6 +1347,7 @@
     "Доски проекта «{1}»": "Boards in project “{1}”",
     "Доска — файл Excalidraw в папке папки «{1}». Агенты в чате читают и правят её, а вы видите изменения сразу.": "A board is an Excalidraw file in folder “{1}”. Agents can read and edit it in chat, and changes appear immediately.",
     "в папке папки «{1}»": "in folder “{1}”",
-    "Доски папки «{1}»": "Boards in folder “{1}”"
+    "Доски папки «{1}»": "Boards in folder “{1}”",
+    "сохранён {1}": "saved {1}"
   }
 }

@@ -80,7 +80,11 @@ export function installEnglish({ exact, templates }) {
     if (!el || el.closest(skip)) return;
     if (node.nodeType === Node.TEXT_NODE) {
       if (el.matches("textarea, input") || (!embedded && !el.closest(chrome))) return;
-      const value = translate(node.data);
+      // The immutable API key panel puts the masked key state and the service rate
+      // in a single text node beside the environment variable. Each field is UI copy.
+      const value = el.matches(".oly-ik-meta")
+        ? node.data.split(/(\s*·\s*)/u).map(translate).join("")
+        : translate(node.data);
       if (value !== node.data) node.data = value;
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       if (!embedded && !el.closest(chrome) &&

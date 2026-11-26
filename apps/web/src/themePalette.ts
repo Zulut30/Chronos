@@ -1441,9 +1441,11 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   }
   const library = getWritableCustomThemeLibrary();
   const existingLibrary = themeLibrary(library.themes);
+  // Saving an edit of a published theme keeps its ID. That local definition then owns the single row.
+  const collisions = [existingLibrary.matchingName(theme), existingLibrary.matchingContent(theme)];
   if (
     BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||
-    existingLibrary.matchingName(theme) || existingLibrary.matchingContent(theme) ||
+    collisions.some(other => other !== undefined && other.id !== theme.id) ||
     library.storedThemes.some((storedTheme) => storedThemeHasId(storedTheme, theme.id))
   ) {
     throw new Error(

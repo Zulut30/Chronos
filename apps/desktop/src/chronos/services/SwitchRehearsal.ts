@@ -19,9 +19,17 @@ export function isolateRehearsalRequests(backendPort: string | undefined) {
     }
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) return Response.error();
     url.port = String(port + rehearsalOffset);
-    const forwarded = new Request(url, request);
-    forwarded.headers.set("Origin", "t3code://app");
-    return session.fetch(forwarded, { bypassCustomProtocolHandlers: true, redirect: "manual" });
+    // A subframe document has mode "navigate", which the Request constructor rejects
+    // when copied into RequestInit. Forward only the fields used by these read-only requests.
+    const headers = new Headers(request.headers);
+    headers.set("Origin", "t3code://app");
+    return session.fetch(url.href, {
+      method: request.method,
+      headers,
+      signal: request.signal,
+      bypassCustomProtocolHandlers: true,
+      redirect: "manual",
+    });
   });
   session.webRequest.onBeforeRequest(
     { urls: ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"] },

@@ -44,7 +44,7 @@ export async function verifyUiLanguage(client) {
     "script", "style", "[translate=no]:not(html)", ".chat-markdown", "[data-user-message-bubble]",
     "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
     ".oly-tk-card .t", ".oly-tk-card .d", ".oly-tk-item[data-sel^='p:'] > span", ".oly-tk-item[data-sel^='g:'] > span",
-    "[data-oly-ps-name] h3", "[data-oly-ps-name] p", ".card[data-path] .cap .name", "[data-thumb] svg",
+    "[data-oly-ps-name] h3", "[data-oly-ps-name] p", "[data-oly-ps-name] .oly-ps-cmd", ".card[data-path] .cap .name", "[data-thumb] svg",
     "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint",
     "[data-open] .name > span:first-child", ".subh .lbl", "button.mname[data-open]",
   ].join(",");
