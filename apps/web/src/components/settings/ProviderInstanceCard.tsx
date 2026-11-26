@@ -17,7 +17,8 @@ import {
 import * as Arr from "effect/Array";
 import * as Result from "effect/Result";
 import { Fragment, useState, type ReactElement, type ReactNode } from "react";
-import { T, useGT, useMessages, Var } from "gt-react";
+import { T, useGT, useLocale, useMessages, Var } from "gt-react";
+import { serverMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: match the model picker's status detail.
 import {
   isProviderDriverKind,
   resolveProviderInstanceEnabled,
@@ -810,6 +811,7 @@ export function ProviderInstanceCard({
 }: ProviderInstanceCardProps) {
   const gt = useGT();
   const m = useMessages();
+  const locale = useLocale();
   const enabled = projectOverride?.effectiveEnabled ?? resolveProviderInstanceEnabled(instance);
   const effectiveProvider = liveProvider && { ...liveProvider, enabled };
   const compatibility = enabled ? liveProvider?.compatibilityAdvisory : undefined;
@@ -1018,14 +1020,15 @@ export function ProviderInstanceCard({
       <span className={cn("size-1.5 shrink-0 rounded-full", statusStyle.dot)} aria-hidden />
     ) : null;
   const needsAttention = statusKey === "warning" || statusKey === "error";
-  const statusDiagnostic = hasCompatibilityWarning && needsAttention ? summary.detail : null;
+  const detail = summary.detail && serverMessage(summary.detail, locale);
+  const statusDiagnostic = hasCompatibilityWarning && needsAttention ? detail : null;
   const inlineStatusDetail = hasCompatibilityWarning
     ? compatibility?.status === "broken"
       ? gt("Incompatible")
       : compatibility?.status === "unsupported"
         ? gt("Unsupported")
         : gt("Limited support")
-    : summary.detail;
+    : detail;
   const editorStatusNode =
     isAuthenticated && authEmail ? (
       <>

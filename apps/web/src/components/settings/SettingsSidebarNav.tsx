@@ -143,7 +143,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const activePath = SETTINGS_DETAIL_PAGE_PARENTS[pathname] ?? pathname;
-  const navRef = useOlympusSettingsNav(activePath); // chronos: coordinate Olympus panels with the native selection.
+  const navRef = useOlympusSettingsNav(activePath, currentHash); // chronos: route search results to Olympus panels.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.

@@ -238,10 +238,11 @@ async function benchmark() {
   await wait("router", () => evaluate("Boolean(window.__TSR_ROUTER__?.navigate)"));
   await evaluate(probe + "('dismissOnboarding')");
   await navigate(targets[1]);
-  await wait("expanded rows", async () =>
+  await wait("expanded sidebar and both switch targets", async () =>
     evaluate(`(() => {
     for (const b of document.querySelectorAll('[data-testid=sidebar-project-folder] button[aria-expanded=false]')) b.click();
-    return document.querySelectorAll('[data-thread-item]').length >= ${rows};
+    return document.querySelectorAll('[data-thread-item]').length >= ${rows} &&
+      ${JSON.stringify(targets)}.every(id => document.querySelector('[data-thread-item$="' + id + '"] [data-sidebar-row]'));
   })()`),
   );
   if (action === "smoke") {
