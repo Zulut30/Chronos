@@ -2715,104 +2715,121 @@ describe("OrchestratorMcpService provider resolution", () => {
     }),
   );
 
-  it.effect("gives a worktree child in a project whose folder holds several repositories", () =>
-    Effect.gen(function* () {
-      // A plain project folder: Git finds no repository at its root, only in a/ and b/.
-      const workspaceRoot = "/work/several-repos";
-      const commands: Array<unknown> = [];
-      const task = {
-        id: taskId,
-        threadId: parentThreadId,
-        origin: "app_owned",
-        childThreadId,
-        providerInstanceId: codexInstanceId,
-        model: "gpt-5.4",
-        status: "running",
-        result: null,
-      };
-      const dependencies = Layer.mergeAll(
-        NodeServices.layer,
-        NodeCrypto.layer,
-        Layer.mock(ThreadManagementService.ThreadManagementService)({
-          hasReceipt: () => Effect.succeed(false),
-          getThreadRecords: (threadId) =>
-            Effect.succeed(
-              threadId === parentThreadId
-                ? (() => {
-                    const parent = parentProjection(commands.length > 0 ? [task] : []);
-                    return {
-                      ...parent,
-                      thread: { ...parent.thread, worktreePath: null },
-                    } as OrchestrationV2ThreadProjection;
-                  })()
-                : childProjection,
-            ),
-          dispatch: (command) =>
-            Effect.sync(() => {
-              commands.push(command);
-              return {
-                sequence: 1,
-                storedEvents: [{ event: { type: "subagent.updated", payload: task } }],
-              } as never;
+  it.effect.each([false, true])(
+    "prepares a worktree in the selected project (cross-project %s)",
+    (crossProject) =>
+      Effect.gen(function* () {
+        // A plain project folder: Git finds no repository at its root, only in a/ and b/.
+        const destination = crossProject ? ProjectId.make("project:other") : projectId;
+        const workspaceRoot = "/work/several-repos";
+        const commands: Array<unknown> = [];
+        const task = {
+          id: taskId,
+          threadId: parentThreadId,
+          origin: "app_owned",
+          childThreadId,
+          providerInstanceId: codexInstanceId,
+          model: "gpt-5.4",
+          status: "running",
+          result: null,
+        };
+        const dependencies = Layer.mergeAll(
+          NodeServices.layer,
+          NodeCrypto.layer,
+          Layer.mock(ThreadManagementService.ThreadManagementService)({
+            hasReceipt: () => Effect.succeed(false),
+            getThreadRecords: (threadId) =>
+              Effect.succeed(
+                threadId === parentThreadId
+                  ? (() => {
+                      const parent = parentProjection(commands.length > 0 ? [task] : []);
+                      return {
+                        ...parent,
+                        thread: { ...parent.thread, archivedAt: null, worktreePath: null },
+                      } as OrchestrationV2ThreadProjection;
+                    })()
+                  : childProjection,
+              ),
+            dispatch: (command) =>
+              Effect.sync(() => {
+                commands.push(command);
+                return {
+                  sequence: 1,
+                  storedEvents: [{ event: { type: "subagent.updated", payload: task } }],
+                } as never;
+              }),
+          }),
+          ServerSettings.layerTest(),
+          providerRegistryLayer([
+            providerSnapshot({
+              instanceId: codexInstanceId,
+              driver: ProviderDriverKind.make("codex"),
+              model: "gpt-5.4",
             }),
-        }),
-        ServerSettings.layerTest(),
-        providerRegistryLayer([
-          providerSnapshot({
-            instanceId: codexInstanceId,
-            driver: ProviderDriverKind.make("codex"),
-            model: "gpt-5.4",
+          ]),
+          adapterRegistryLayer([codexInstanceId]),
+          Layer.mock(ProjectService.ProjectService)({
+            getById: (id) => Effect.succeedSome({ id, title: "project", workspaceRoot } as never),
           }),
-        ]),
-        adapterRegistryLayer([codexInstanceId]),
-        Layer.mock(ProjectService.ProjectService)({
-          getById: () =>
-            Effect.succeedSome({ id: projectId, title: "parent", workspaceRoot } as never),
-        }),
-        Layer.mock(SecretRequests.SecretRequests)({}),
-        Layer.mock(RemoteDelegation.RemoteDelegation)({}),
-        Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
-      );
-      const notARepository = (cwd: string) =>
-        new GitCommandError({
-          operation: "GitVcsDriver.resolveCommit",
-          command: "git rev-parse --verify HEAD^{commit}",
-          cwd,
-          detail: "fatal: not a git repository (or any of the parent directories): .git",
-        });
-      const layerService = OrchestratorMcpService.layer.pipe(
-        Layer.provide(
-          Layer.mock(ThreadLaunchService.ThreadLaunchService)({
-            isNonGitProject: () => Effect.succeed(true),
-          }),
-        ),
-        Layer.provide(
-          Layer.mock(GitVcsDriver.GitVcsDriver)({
-            resolveCommit: ({ cwd }) => Effect.fail(notARepository(cwd)),
-          }),
-        ),
-        Layer.provide(dependencies),
-      );
-      yield* Effect.gen(function* () {
-        const service = yield* OrchestratorMcpService.OrchestratorMcpService;
-        const result = yield* service
-          .delegateTask(scope, {
-            task: "Add a line to a/README.md.",
-            isolation: "worktree",
-            mode: "async",
-            clientRequestId: "worktree-several-repos",
-          })
-          .pipe(Effect.result);
-        assert.isTrue(
-          Result.isSuccess(result),
-          `worktree isolation was refused: ${Result.isFailure(result) ? result.failure.message : ""}`,
+          Layer.mock(SecretRequests.SecretRequests)({}),
+          Layer.mock(RemoteDelegation.RemoteDelegation)({}),
+          Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
         );
-        assert.equal(
-          (commands[0] as { workspaceStrategy?: { type: string } }).workspaceStrategy?.type,
-          "worktree",
+        const notARepository = (cwd: string) =>
+          new GitCommandError({
+            operation: "GitVcsDriver.resolveCommit",
+            command: "git rev-parse --verify HEAD^{commit}",
+            cwd,
+            detail: "fatal: not a git repository (or any of the parent directories): .git",
+          });
+        const layerService = OrchestratorMcpService.layer.pipe(
+          Layer.provide(
+            Layer.mock(ThreadLaunchService.ThreadLaunchService)({
+              isNonGitProject: (id) => Effect.succeed(id === projectId),
+            }),
+          ),
+          Layer.provide(
+            Layer.mock(GitVcsDriver.GitVcsDriver)({
+              resolvePrimaryRemoteName: () => Effect.succeed("origin"),
+              resolveDefaultBranchName: () => Effect.succeed("trunk"),
+              resolveCommit: ({ cwd, revision }) =>
+                cwd === workspaceRoot && revision === "refs/remotes/origin/trunk"
+                  ? Effect.succeed({ commitSha: "abc" } as never)
+                  : Effect.fail(notARepository(cwd)),
+            }),
+          ),
+          Layer.provide(dependencies),
         );
-      }).pipe(Effect.provide(layerService));
-    }),
+        yield* Effect.gen(function* () {
+          const service = yield* OrchestratorMcpService.OrchestratorMcpService;
+          const result = yield* service
+            .delegateTask(scope, {
+              task: "Add a line to a/README.md.",
+              isolation: "worktree",
+              ...(crossProject ? { target: { projectId: destination } } : {}),
+              mode: "async",
+              clientRequestId: "worktree-several-repos",
+            })
+            .pipe(Effect.result);
+          assert.isTrue(
+            Result.isSuccess(result),
+            `worktree isolation was refused: ${Result.isFailure(result) ? result.failure.message : ""}`,
+          );
+          if (crossProject)
+            assert.deepInclude(commands[0], {
+              projectId: destination,
+              workspaceStrategy: {
+                type: "worktree",
+                baseRef: "origin/trunk",
+                startFromOrigin: true,
+              },
+            });
+          assert.equal(
+            (commands[0] as { workspaceStrategy?: { type: string } }).workspaceStrategy?.type,
+            "worktree",
+          );
+        }).pipe(Effect.provide(layerService));
+      }),
   );
 
   it.effect("rejects delegation to a provider without a registered adapter", () =>
@@ -4787,7 +4804,29 @@ describe("OrchestratorMcpService provider resolution", () => {
           {
             name: "change model",
             target: { model: "other-model" },
-            expected: { instanceId: codexInstanceId, model: "other-model" },
+            expected: {
+              instanceId: codexInstanceId,
+              model: "other-model",
+              options: [inherited.options[0]],
+            },
+          },
+          {
+            name: "same provider chooses another reasoning model",
+            target: { model: "ultracode-model" },
+            expected: {
+              instanceId: codexInstanceId,
+              model: "ultracode-model",
+              options: [{ id: "effort", value: "high" }],
+            },
+          },
+          {
+            name: "cross-provider reasoning defaults to high",
+            target: { providerInstanceId: antigravityId },
+            expected: {
+              instanceId: antigravityId,
+              model: "gemini-4-neon",
+              options: [{ id: "thought_level", value: "high" }],
+            },
           },
           {
             name: "change provider with override",

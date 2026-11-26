@@ -163,7 +163,7 @@ function browserExecutable() {
   return candidates.find((file) => existsSync(file));
 }
 
-function makeNative(tools, stateDir) {
+function makeNative(tools, stateDir, runBrowser = execute) {
   const win = process.platform === "win32";
   const binary = (name) => path.join(tools, name + (win ? ".exe" : ""));
   // Start with OS facilities only. Provider credentials and user CLI configuration do not belong in controlled apps.
@@ -278,7 +278,7 @@ function makeNative(tools, stateDir) {
     ];
     if (chrome) args.push("--executable-path", chrome);
     const exec = (extra, stdin) =>
-      execute(binary("agent-browser"), [...args, ...extra], {
+      runBrowser(binary("agent-browser"), [...args, ...extra], {
         ...opts,
         stdin,
         env: {
@@ -288,6 +288,9 @@ function makeNative(tools, stateDir) {
         },
       });
     if (op === "open") {
+      // A single navigate shares the CLI's 30s IPC deadline with implicit Chromium startup.
+      // A bare open acknowledges launch first, without visiting the target twice.
+      await exec(["open"]);
       await exec(["open", request.target]);
       if (new URL((await exec(["get", "url"])).data.url).origin !== session.target)
         throw new Error("Сайт перешёл на другой адрес.");

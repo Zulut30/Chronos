@@ -55,6 +55,7 @@ export function scheduledTaskDefaultModel(
 export type ScheduleDraft = {
   readonly mode: "fixed_time" | "once" | "interval" | "webhook";
   readonly timeOfDay: string;
+  readonly catchUp?: boolean;
   /** ISO time for a one-time run. Empty until the user picks the "Once" mode. */
   readonly runAt: string;
   readonly weekdays: ReadonlyArray<number>;
@@ -90,6 +91,7 @@ export function scheduleDraftForTask(task: Pick<ScheduledTask, "schedule">): Sch
       return {
         ...DEFAULT_SCHEDULE,
         timeOfDay: task.schedule.timeOfDay,
+        ...(task.schedule.catchUp ? { catchUp: true } : {}),
         weekdays: task.schedule.weekdays?.length
           ? [...new Set(task.schedule.weekdays)].sort((a, b) => a - b)
           : [0, 1, 2, 3, 4, 5, 6],
@@ -193,6 +195,7 @@ export function scheduleFromDraft(draft: ScheduleDraft): ScheduledTaskUpsertSche
   return {
     type: "fixed_time",
     timeOfDay: draft.timeOfDay,
+    ...(draft.catchUp ? { catchUp: true } : {}),
     ...(weekdays.length === 7 ? {} : { weekdays }),
   };
 }
@@ -229,6 +232,7 @@ function draftSignature(draft: ScheduledTaskDraft): string {
       .map((option) => [option.id, option.value]),
     draft.schedule.mode,
     draft.schedule.timeOfDay,
+    draft.schedule.catchUp === true,
     draft.schedule.runAt,
     [...draft.schedule.weekdays].sort((a, b) => a - b),
     draft.schedule.intervalMinutes,

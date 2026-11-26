@@ -34,6 +34,11 @@ const ScheduledTaskIntervalSchedule = Schema.Struct({
 const ScheduledTaskFixedTimeSchedule = Schema.Struct({
   type: Schema.Literal("fixed_time"),
   timeOfDay: TimeOfDay,
+  catchUp: Schema.optional(
+    Schema.Boolean.annotate({
+      description: "Run one missed occurrence on next startup. Default: false.",
+    }),
+  ),
   weekdays: Schema.optional(
     Schema.Array(
       Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 6 })).annotate({
@@ -214,7 +219,13 @@ export const ScheduledTaskUpsertSchedule = Schema.Union([
 ]);
 export type ScheduledTaskUpsertSchedule = typeof ScheduledTaskUpsertSchedule.Type;
 
-export const ScheduledTaskRunStatus = Schema.Literals(["never", "running", "succeeded", "failed"]);
+export const ScheduledTaskRunStatus = Schema.Literals([
+  "never",
+  "running",
+  "succeeded",
+  "failed",
+  "missed",
+]);
 export type ScheduledTaskRunStatus = typeof ScheduledTaskRunStatus.Type;
 
 export const ScheduledTaskWebhookEndpoint = Schema.Struct({

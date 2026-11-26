@@ -972,6 +972,8 @@ export const layer = Layer.effect(
       if (updated.length > 0) yield* notifyChanged;
     });
 
+    const serverStartedAt = yield* localNow;
+
     const runTask = Effect.fn("ScheduledTaskService.runTask")(function* (
       task: ScheduledTask,
       trigger: "scheduled" | "manual" | "webhook",
@@ -1017,6 +1019,19 @@ export const layer = Layer.effect(
             Option.isNone(parsedNextRunAt) ||
             DateTime.toEpochMillis(parsedNextRunAt.value) > DateTime.toEpochMillis(startedAt))
         ) {
+          return { task: active, threadId: null, dispatchFailed: false };
+        }
+        if (
+          trigger === "scheduled" &&
+          active.schedule.type === "fixed_time" &&
+          Option.isSome(parsedNextRunAt) &&
+          isMissedFixedTimeRun(active.schedule, parsedNextRunAt.value, startedAt) &&
+          !(
+            active.schedule.catchUp &&
+            DateTime.toEpochMillis(parsedNextRunAt.value) <= DateTime.toEpochMillis(serverStartedAt)
+          )
+        ) {
+          yield* rescheduleMissedRun(active, startedAt, "missed", null);
           return { task: active, threadId: null, dispatchFailed: false };
         }
         // A thread that stays busy would otherwise collect one copy of the
@@ -1273,8 +1288,8 @@ export const layer = Layer.effect(
     const rescheduleMissedRun = Effect.fn("ScheduledTaskService.rescheduleMissedRun")(function* (
       task: ScheduledTask,
       now: DateTime.DateTime,
-      reason = "missed",
-      runError?: string,
+      reason: string,
+      runError?: string | null,
     ) {
       const next = nextRunAt(task, now);
       yield* Effect.logInfo("Skipping schedule task run", {
@@ -1293,7 +1308,7 @@ export const layer = Layer.effect(
                 ? sql``
                 : sql`, last_run_status = CASE
                     WHEN last_run_status IS ${task.lastRunStatus} AND last_run_error IS ${task.lastRunError}
-                    THEN 'failed' ELSE last_run_status END,
+                    THEN ${runError === null ? "missed" : "failed"} ELSE last_run_status END,
                   last_run_error = CASE
                     WHEN last_run_status IS ${task.lastRunStatus} AND last_run_error IS ${task.lastRunError}
                     THEN ${runError} ELSE last_run_error END`
@@ -1337,22 +1352,10 @@ export const layer = Layer.effect(
       const tasks = yield* listDueTasks(now).pipe(
         Effect.mapError((cause) => taskError("Could not list schedule tasks.", { cause })),
       );
-      const due = tasks.flatMap((task) =>
-        task.nextRunAt === null ? [] : [{ task, dueAt: DateTime.makeUnsafe(task.nextRunAt) }],
-      );
       yield* Effect.forEach(
-        due,
-        ({ task, dueAt }) =>
-          Effect.suspend(() =>
-            isMissedFixedTimeRun(task.schedule, dueAt, now)
-              ? rescheduleMissedRun(
-                  task,
-                  now,
-                  "missed",
-                  "Missed a scheduled run because the server was not running at that time.",
-                )
-              : runTask(task, "scheduled"),
-          ).pipe(
+        tasks,
+        (task) =>
+          runTask(task, "scheduled").pipe(
             Effect.catch((cause) =>
               Effect.logWarning("Scheduled task run failed", { taskId: task.id, cause }),
             ),
@@ -1364,6 +1367,13 @@ export const layer = Layer.effect(
     // Recover crash-left running rows that the due-task filter would otherwise skip forever.
     yield* Effect.gen(function* () {
       const rows = yield* selectAllRows();
+      const legacyMiss = "Missed a scheduled run because the server was not running at that time.";
+      if (
+        rows.some((row) => row.last_run_status === "failed" && row.last_run_error === legacyMiss)
+      ) {
+        yield* sql`UPDATE scheduled_tasks SET last_run_status = 'missed', last_run_error = NULL
+          WHERE last_run_status = 'failed' AND last_run_error = ${legacyMiss}`;
+      }
       const stuck = rows.filter((row) => row.last_run_status === "running");
       if (stuck.length === 0) return;
       const now = yield* localNow;

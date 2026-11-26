@@ -268,6 +268,11 @@ export function QueuedRunsControl({
           count: items.length,
         })}
       </span>
+      {workflow?.activeRun && !workflow.isHeld ? (
+        <p className="text-right text-xs text-muted-foreground" role="status">
+          <T>Queued · will be sent after the current turn</T>
+        </p>
+      ) : null}
       <ol className="flex flex-col items-end gap-3" id={queueListId}>
         {visibleItems.map((item, position) => {
           const previewText = isAttachmentOnlyBootstrapPrompt(item.text)

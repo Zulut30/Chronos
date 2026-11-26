@@ -4,6 +4,7 @@ import * as NodePath from "node:path";
 import * as NodeSqlite from "node:sqlite";
 
 import type { OrchestrationV2ProviderFailure } from "@t3tools/contracts";
+import { ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE } from "@t3tools/shared/usageLimits";
 import { makeProviderFailure } from "@t3tools/provider-core/server/failure";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -152,12 +153,15 @@ function turnFailure(
   const apiError = API_ERROR.exec(text) ?? statusError(text);
   const reusable = (failure: OrchestrationV2ProviderFailure) =>
     ({ failure, threadDisposition: "reusable" }) as const;
-  if (stopReason === "refusal" || QUOTA_EXHAUSTED.test(text)) {
+  const individualQuota = /\bIndividual quota reached\./i.test(text);
+  if (individualQuota || stopReason === "refusal" || QUOTA_EXHAUSTED.test(text)) {
     return reusable(
       makeProviderFailure({
         class: "usage_limit",
         message: "You have reached your Antigravity quota for this period.",
-        code: apiError?.[3] ?? "QUOTA_EXHAUSTED",
+        code: individualQuota
+          ? ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+          : (apiError?.[3] ?? "QUOTA_EXHAUSTED"),
         retryable: true,
         resetAt: resetAtFrom(text, now) ?? null,
       }),
