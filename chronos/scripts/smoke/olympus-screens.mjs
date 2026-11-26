@@ -154,8 +154,17 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     }
   }
   const thread = await seedChat(opts.launch, home);
+  // Pin the file manager in the disposable profile even when the runner has other editors.
+  const preference = await client.send("Runtime.evaluate", {
+    expression: 'localStorage.setItem("t3code:last-editor", JSON.stringify("file-manager"))',
+  });
+  assert.ok(!preference.exceptionDetails);
   await act({ type: "navigate", to: thread });
   await wait({ selector: "[data-message-role=assistant] .chat-markdown :not(pre) > code" });
+  await wait({ assertions: [{
+    selector: "button[data-toolbar-control][aria-label='Открыть в Проводнике']",
+    text: "Открыть в Проводнике",
+  }] });
   for (const dark of [true, false]) {
     await scheme(dark);
     await capture("chat", dark);

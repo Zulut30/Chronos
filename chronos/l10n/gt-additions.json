@@ -11,6 +11,10 @@
     "Trello credentials": "Данные доступа Trello"
   },
   "messages": {
+    "Open in {editor}": "Открыть в {editor, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{editor}}}",
+    "Opened in {editor}": "Открыто в {editor, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{editor}}}",
+    "Open in {fileManager}": "Открыть в {fileManager, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{fileManager}}}",
+    "Open in {app}": "Открыть в {app, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{app}}}",
     "Issues": "Задачи трекеров",
     "Issues breadcrumb": "Навигация по задачам трекеров",
     "Issues Assigned to Me": "Назначенные мне задачи",
