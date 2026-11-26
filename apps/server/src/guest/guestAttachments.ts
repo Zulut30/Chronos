@@ -4,7 +4,6 @@ import {
   isProviderSendTurnSupportedImageMimeType,
 } from "@t3tools/contracts";
 import { markdownDestinationHostPath } from "@t3tools/shared/markdownLinks";
-import { chatMarkdownImageSources } from "@t3tools/shared/markdownPipeline";
 import { isAbsolutePath, isNetworkPath } from "@t3tools/shared/path";
 
 /** A file from a guest's message request, saved by the multipart parser to a temporary path. */
@@ -76,8 +75,7 @@ export function guestHostImageType(path: string): string | null {
 export function repliesShowImage<Reply extends { readonly text: string }>(
   path: string,
   replies: ReadonlyArray<Reply>,
-  imageSources: (reply: Reply) => ReadonlyArray<string> = (reply) =>
-    chatMarkdownImageSources(reply.text),
+  imageSources: (reply: Reply) => ReadonlyArray<string>,
 ) {
   // Parsing is the slow part; a reply with no image syntax shows no image.
   return replies.some(
