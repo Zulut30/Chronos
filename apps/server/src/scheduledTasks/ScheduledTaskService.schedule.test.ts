@@ -438,77 +438,79 @@ it.effect(
     }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );
 
-it.effect("a fixed-time slot missed while the server was off shows on the task", () =>
-  Effect.gen(function* () {
-    const at = (hour: number, minute = 0, day = 1) =>
-      DateTime.makeZonedUnsafe(
-        { year: 2026, month: 7, day, hour, minute, second: 0, millisecond: 0 },
-        { timeZone: DateTime.zoneMakeLocal(), adjustForTimeZone: true },
-      );
-    yield* TestClock.setTime(DateTime.toEpochMillis(at(8)));
-    const launches = yield* Ref.make(0);
-    const layerDependencies = Layer.mergeAll(
-      NodeCrypto.layer,
-      Scheduler.layer,
-      ManagedPolicy.layerTest(),
-      Layer.mock(ThreadLaunchService.ThreadLaunchService)({
-        launch: () =>
-          Ref.update(launches, (count) => count + 1).pipe(
-            Effect.as({ threadId: "thread-missed-slot", resumed: false } as never),
-          ),
-      }),
-      Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
-        namedProjectsRoot: "/projects",
-        isScratchProject: () => Effect.succeed(false),
-      }),
-      Layer.mock(ThreadManagementService.ThreadManagementService)({}),
-      Layer.mock(SecretRequests.SecretRequests)({}),
-    );
-    const withServer = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-      effect.pipe(
-        Effect.provide(ScheduledTaskService.layer.pipe(Layer.provide(layerDependencies))),
-      );
-
-    const taskId = yield* withServer(
-      Effect.gen(function* () {
-        const service = yield* ScheduledTaskService.ScheduledTaskService;
-        const { task } = yield* service.upsert(
-          yield* decodeUpsertInput({
-            title: "Morning bookkeeping",
-            prompt: "Update yesterday's notes.",
-            enabled: true,
-            schedule: { type: "fixed_time", timeOfDay: "09:00" },
-            projectId: "project-missed-slot",
-            workspaceStrategy: { type: "root" },
-            modelSelection: { instanceId: "codex", model: "gpt-5.4" },
-            runtimeMode: "full-access",
-            interactionMode: "default",
-          }),
+it.effect.each([false, true])(
+  "recovers multiple missed fixed-time slots once with catch-up %s",
+  (catchUp) =>
+    Effect.gen(function* () {
+      const at = (hour: number, minute = 0, day = 1) =>
+        DateTime.makeZonedUnsafe(
+          { year: 2026, month: 7, day, hour, minute, second: 0, millisecond: 0 },
+          { timeZone: DateTime.zoneMakeLocal(), adjustForTimeZone: true },
         );
-        yield* service.runNow({ id: task.id });
-        return task.id;
-      }),
-    );
+      yield* TestClock.setTime(DateTime.toEpochMillis(at(8)));
+      const launches = yield* Ref.make(0);
+      const layerDependencies = Layer.mergeAll(
+        NodeCrypto.layer,
+        Scheduler.layer,
+        ManagedPolicy.layerTest(),
+        Layer.mock(ThreadLaunchService.ThreadLaunchService)({
+          launch: () =>
+            Ref.update(launches, (count) => count + 1).pipe(
+              Effect.as({ threadId: "thread-missed-slot", resumed: false } as never),
+            ),
+        }),
+        Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
+          namedProjectsRoot: "/projects",
+          isScratchProject: () => Effect.succeed(false),
+        }),
+        Layer.mock(ThreadManagementService.ThreadManagementService)({}),
+        Layer.mock(SecretRequests.SecretRequests)({}),
+      );
+      const withServer = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        effect.pipe(
+          Effect.provide(ScheduledTaskService.layer.pipe(Layer.provide(layerDependencies))),
+        );
 
-    // The server is off across the 09:00 slot and comes back at 09:30.
-    yield* TestClock.setTime(DateTime.toEpochMillis(at(9, 30)));
-    const [listed] = yield* withServer(
-      Effect.gen(function* () {
-        const service = yield* ScheduledTaskService.ScheduledTaskService;
-        yield* TestClock.adjust("6 seconds");
-        return (yield* service.list()).tasks;
-      }),
-    );
+      const taskId = yield* withServer(
+        Effect.gen(function* () {
+          const service = yield* ScheduledTaskService.ScheduledTaskService;
+          const { task } = yield* service.upsert(
+            yield* decodeUpsertInput({
+              title: "Morning bookkeeping",
+              prompt: "Update yesterday's notes.",
+              enabled: true,
+              schedule: {
+                type: "fixed_time",
+                timeOfDay: "09:00",
+                ...(catchUp ? { catchUp: true } : {}),
+              },
+              projectId: "project-missed-slot",
+              workspaceStrategy: { type: "root" },
+              modelSelection: { instanceId: "codex", model: "gpt-5.4" },
+              runtimeMode: "full-access",
+              interactionMode: "default",
+            }),
+          );
+          return task.id;
+        }),
+      );
 
-    expect(listed?.id).toBe(taskId);
-    expect(yield* Ref.get(launches)).toBe(1);
-    expect(listed?.nextRunAt).toBe(DateTime.formatIso(DateTime.toUtc(at(9, 0, 2))));
-    // The skipped slot must not read as the earlier manual run's clean success.
-    expect({ status: listed?.lastRunStatus, error: listed?.lastRunError }).not.toEqual({
-      status: "succeeded",
-      error: null,
-    });
-  }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+      yield* TestClock.setTime(DateTime.toEpochMillis(at(9, 30, 4)));
+      const [listed] = yield* withServer(
+        Effect.gen(function* () {
+          const service = yield* ScheduledTaskService.ScheduledTaskService;
+          yield* TestClock.adjust("6 seconds");
+          return (yield* service.list()).tasks;
+        }),
+      );
+
+      expect(listed?.id).toBe(taskId);
+      yield* withServer(TestClock.adjust("12 seconds"));
+      expect(yield* Ref.get(launches)).toBe(catchUp ? 1 : 0);
+      expect(listed?.nextRunAt).toBe(DateTime.formatIso(DateTime.toUtc(at(9, 0, 5))));
+      expect(listed?.lastRunStatus).toBe(catchUp ? "succeeded" : "missed");
+      expect(listed?.lastRunError).toBeNull();
+    }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
 );
 
 it.effect(

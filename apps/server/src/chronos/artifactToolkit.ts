@@ -11,7 +11,13 @@ import * as Threads from "../orchestration-v2/ThreadManagementService.ts";
 
 export const artifactModule = process.env.CHRONOS_ARTIFACT_TOOLS;
 const tool = Tool.make("artifact_studio", {
-  description: "Create, update or reopen private Chronos HTML artifacts. Start with action guide for tool schemas. Publish from source file or files; update by id and expectedVersion. Use the same 2–4 words for title and <title>, one sentence description, one word icon. Define :root tokens, explicit body background, dark theme and responsive phone layout without horizontal scroll. External scripts only from cdnjs.cloudflare.com, cdn.jsdelivr.net or unpkg.com pinned to exact versions. Return the publication markdown card in chat.",
+  description: [
+    "Create, update or reopen private Chronos HTML artifacts. Use guide for schemas or example for a working UI SDK tabs page.",
+    "Publish from a file or files. Update by id and expectedVersion. Match title and <title> (2–4 words), describe in one sentence, use a one-word icon.",
+    "Define :root tokens, explicit body background, dark theme and phone layout without horizontal scroll. Pin CDN assets to exact versions on cdn.jsdelivr.net, unpkg.com or cdnjs.cloudflare.com.",
+    "For menus, selects, dialogs, tabs, lists and drag and drop, prefer UI SDK web components over hand-written ARIA roles. Load https://cdn.jsdelivr.net/npm/@ui-sdk/web@0.1.0-beta.17/browser/web.js as a module.",
+    "Name every control. Style data-slot and state attributes such as data-selected. Check 4.5:1 text and 3:1 control, focus and state contrast in both themes. Return the publication markdown card in chat.",
+  ].join(" "),
   parameters: Schema.Struct({
     action: Schema.String,
     input: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),

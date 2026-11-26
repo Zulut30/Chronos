@@ -1,16 +1,16 @@
 {
   "en": {
-    "title": "Unload idle Claude threads",
-    "description": "Minutes after the last activity before Chronos closes Claude. The next message resumes the conversation. Set to 0 to disable.",
+    "title": "Unload idle Claude and ACP threads",
+    "description": "Minutes of inactivity before Chronos closes Claude or a resumable ACP agent such as Antigravity. The next message resumes the conversation. Set to 0 to disable.",
     "decrease": "Decrease idle time",
-    "input": "Claude idle time in minutes",
+    "input": "Provider idle time in minutes",
     "increase": "Increase idle time"
   },
   "ru": {
-    "title": "Выгружать Claude при простое",
-    "description": "Через сколько минут простоя закрывать процесс Claude. Следующее сообщение продолжит тот же разговор. Значение 0 отключает выгрузку.",
+    "title": "Выгружать Claude и ACP при простое",
+    "description": "Через сколько минут простоя закрывать Claude или ACP-агент с нативным возобновлением, включая Antigravity. Следующее сообщение продолжит тот же разговор. Значение 0 отключает выгрузку.",
     "decrease": "Уменьшить время простоя",
-    "input": "Время простоя Claude в минутах",
+    "input": "Время простоя провайдера в минутах",
     "increase": "Увеличить время простоя"
   }
 }

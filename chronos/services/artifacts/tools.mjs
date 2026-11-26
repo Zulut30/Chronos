@@ -7,7 +7,14 @@ export async function artifactStore() {
   return opened ??= openArtifacts(process.env.CHRONOS_SERVICES_DATA || process.env.CHRONOS_HOME);
 }
 
-export const quickstart = "Публикуйте приватно из HTML-файла или карты files с index.html. Название и <title> — одинаковые 2–4 слова, описание — одно предложение, icon — одно слово. Задайте viewport, токены на :root, явный фон body, [data-theme=dark] и prefers-color-scheme. На ширине 360 px всё должно помещаться без горизонтальной прокрутки. Внешние скрипты только HTTPS с точной версией на cdnjs.cloudflare.com, cdn.jsdelivr.net или unpkg.com. Для обновления передайте id и expectedVersion. Вставьте возвращённый markdown в ответ, чтобы в чате появилась карточка.";
+export const quickstart = [
+  "Публикуйте приватно из HTML-файла или карты files с index.html. Название и <title> — одинаковые 2–4 слова, описание — одно предложение, icon — одно слово.",
+  "Задайте viewport, токены на :root, явный фон body, [data-theme=dark] и prefers-color-scheme. На ширине 360 px всё должно помещаться без горизонтальной прокрутки.",
+  "Внешние зависимости подключайте по HTTPS с точной версией на cdnjs.cloudflare.com, cdn.jsdelivr.net или unpkg.com.",
+  "Для меню, селектов, диалогов, вкладок, интерактивных списков и перетаскивания выбирайте веб-компоненты UI SDK вместо самописных role=. Готовый модуль: https://cdn.jsdelivr.net/npm/@ui-sdk/web@0.1.0-beta.17/browser/web.js (type=module), необязательные стили — web.css рядом. Для одних вкладок достаточно browser/web/tabs.js из того же пакета.",
+  "Дайте каждому контролу доступное имя. Оформляйте data-slot и атрибуты состояния, например [data-selected] и [data-open]. В обеих темах проверьте клавиатуру, фокус и контраст: текст 4.5:1, границы, индикаторы фокуса и выбранные состояния 3:1.",
+  "Действие example возвращает пример с вкладками. Для обновления передайте id и expectedVersion. Вставьте возвращённый markdown в ответ, чтобы в чате появилась карточка.",
+].join(" ");
 async function publish(input, context = {}) {
   let files = input.files;
   if (files === undefined) {
@@ -46,6 +53,12 @@ function tool(name, description, properties, required, run) {
 
 export const artifactTools = [
   tool("guide", quickstart, {}, [], async () => ({quickstart})),
+  tool("example", "Получить HTML-пример «План недели» с вкладками UI SDK для адаптации и публикации.", {}, [], async () => {
+    const {readFile} = await import("node:fs/promises");
+    const html = await readFile(new URL("./examples/week-plan.html", import.meta.url), "utf8");
+    return {title:"План недели", description:"Задачи и встречи команды на неделю.", icon:"calendar",
+      label:"Первая версия", capabilities:["theme"], files:{"index.html":html}};
+  }),
   tool("publish", quickstart,
     { id: string, source: string, origin: {type:"object",description:"Тред-источник при прямом вызове Студии. В artifact_studio определяется автоматически.",
       properties:{threadId:string,environmentId:string},required:["threadId","environmentId"]}, title: string, description: string, icon: string, label: string,

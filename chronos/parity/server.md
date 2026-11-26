@@ -106,3 +106,10 @@
    - `apps/server/src/usage/UsageService.test.ts:2364` ожидает `sourcesFor("opencode").length === 1`, что также затронет N13.
    - `apps/server/src/provider/antigravityUsageLimits.test.ts:657-665` (`missingToken: true`) на машине с реальной записью `gemini:antigravity` в системном keyring попадёт в CLI-ветку вместо `unsupported` (на чистом CI runner записи нет).
    - Полная компиляция `effect-tsgo`, `vp lint`, `knip:check`, сборка и прогон vitest **не выполнялись** (недоказано до прогона CI).
+
+## Оркестрация агентов
+
+- `ScheduledTaskService` хранит состояние `missed`. Настройка `fixed_time.catchUp` разрешает один запуск за время отсутствия сервера. Старые задачи сохраняют прежнее поведение.
+- `OrchestratorMcpService` и `RemoteDelegation` выбирают глубину через `delegatedReasoning`. Для локального `target.projectId` сервис подготовки треда использует репозиторий целевого проекта. `ThreadManagementService` проверяет доступность провайдера в обоих проектах.
+- `AntigravityTurnOutcome` помечает исчерпание индивидуальной квоты. `UsageLimitRecoveryWorker` читает этот признак из проекции и отправляет продолжение после явного согласия в треде.
+- `QueuedRunsControl` показывает ожидающую отправку и действие отмены. Ответ `t3_thread_send` возвращает статус доставки. Windows-терминал в `terminal/Manager.ts` проверяет путь оболочки до запуска PTY.

@@ -460,6 +460,7 @@ describe("orchestrator MCP toolkit", () => {
           queuedFollowupCall.structuredContent,
         ).pipe(Effect.orDie);
         expect(queuedFollowup).toMatchObject({
+          note: "Queued. This message will be sent after the current turn.",
           status: "queued",
           delivery: "queued",
         });

@@ -12866,5 +12866,17 @@
   "6b36ce3cce36a70a": "Could not save this setting on this device.",
   "3b3e0dcd9fa14b5d": "Machine names in mentions",
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
-  "d0b0f9c83b3f739e": "Edit machine names"
+  "d0b0f9c83b3f739e": "Edit machine names",
+  "7cd354570f9e8e68": "Skipped: the app was closed",
+  "9cca3054224a1637": "Run one missed occurrence on next startup",
+  "a9d9eb4b919f9f92": "Antigravity subscription quota reached",
+  "02e86b138ee62faf": "Continue after reset",
+  "e3adedbb19f4f3c8": "Queued · will be sent after the current turn",
+  "cc5b5b737ee87aa8": "Terminal sandbox",
+  "799d74fdf16baa66": "Host terminal",
+  "5aaf55ebc6d75c3e": "Automatic sandbox",
+  "8dfffc716ee299a3": "Thread approval rules",
+  "6c65fcd2980c7d68": "Antigravity timer",
+  "51660ea573583eb0": "Full access uses the host terminal. Windows may ask you to approve administrator access. Auto uses the Antigravity sandbox when available. Other modes use the thread approval rules.",
+  "a9ff74720000da9f": "Approved automatically: full access"
 }

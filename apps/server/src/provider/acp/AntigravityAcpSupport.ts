@@ -153,6 +153,8 @@ export const makeAntigravityAcpRuntime = Effect.fn("makeAntigravityAcpRuntime")(
   return yield* Effect.service(AcpSessionRuntime.AcpSessionRuntime).pipe(Effect.provide(context));
 });
 
+export { hasUnrestrictedToolAccess as antigravityUsesHostShell } from "@t3tools/provider-core/server/ProviderAdapter";
+
 export function antigravityPermissionMode(runtimeMode: RuntimeMode): string {
   switch (runtimeMode) {
     case "full-access":

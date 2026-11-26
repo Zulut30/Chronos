@@ -1331,6 +1331,7 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
   steering?: { readonly agentVersion: string; readonly holdsFirstPrompt: boolean },
   options?: {
     readonly profileDirectory?: string;
+    readonly benchDirectory?: string;
     readonly initialToolCalls?: ReadonlyArray<EffectAcpSchema.SessionUpdate>;
   },
 ) {
@@ -1339,6 +1340,9 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
   const crypto = yield* SecureRandom.SecureRandom;
   const mockAgentPath = yield* path.fromFileUrl(
     new URL("../../../scripts/acp-mock-agent.ts", import.meta.url),
+  );
+  const benchAgent = yield* path.fromFileUrl(
+    new URL("../../../../../chronos/scripts/bench/agent.mjs", import.meta.url),
   );
   type RuntimeService = AcpSessionRuntime.AcpSessionRuntime["Service"];
   let sessionUpdate: Parameters<RuntimeService["handleSessionUpdate"]>[0] | undefined;
@@ -1379,7 +1383,9 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
         childProcessSpawner,
         spawn: {
           command: process.execPath,
-          args: [mockAgentPath],
+          args: options?.benchDirectory
+            ? [benchAgent, options.benchDirectory, "0", "0", "antigravity-background"]
+            : [mockAgentPath],
           cwd: input.cwd,
           env: {
             T3_ACP_ANTIGRAVITY: "1",
@@ -1390,9 +1396,11 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
         Effect.provideService(SecureRandom.SecureRandom, crypto),
         Effect.map((runtime): RuntimeService => ({
           ...runtime,
-          cancel: Effect.sync(() => {
-            cancels += 1;
-          }),
+          cancel: options?.benchDirectory
+            ? runtime.cancel
+            : Effect.sync(() => {
+                cancels += 1;
+              }),
           handleSessionUpdate: (handler) =>
             Effect.sync(() => {
               sessionUpdate = handler;
@@ -1404,6 +1412,7 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
           prompt: (payload, promptOptions) =>
             Effect.gen(function* () {
               prompts.push({ prompt: payload.prompt, released: promptOptions?.released });
+              if (options?.benchDirectory) return yield* runtime.prompt(payload, promptOptions);
               if (promptOptions?.dispatched !== undefined) {
                 yield* Deferred.succeed(promptOptions.dispatched, undefined);
               }
@@ -1470,7 +1479,10 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
     interactionMode: "default",
     cwd: process.cwd(),
   });
-  const modelSelection = { instanceId, model: "gemini-test-low" } as const;
+  const modelSelection = {
+    instanceId,
+    model: options?.benchDirectory ? "antigravity-default" : "gemini-test-low",
+  } as const;
   const session = yield* adapter.openSession({
     threadId,
     providerSessionId: ProviderSessionId.make("provider-session-antigravity-wake"),
@@ -1576,6 +1588,57 @@ const openSessionWithRunningCommand = Effect.fn("openSessionWithRunningCommand")
 });
 
 describe("AntigravityAdapterV2 work after the prompt ends", () => {
+  it.live.each(["finish", "stop"] as const)(
+    "projects native ACP activity after end_turn and can %s",
+    (ending) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const directory = yield* fs.makeTempDirectoryScoped({ prefix: "agy-background-" });
+        const h = yield* openSessionWithRunningCommand({}, undefined, undefined, {
+          benchDirectory: directory,
+        });
+        yield* h.startTurn(1, false);
+        yield* h.throughTerminal;
+        yield* fs.writeFileString(path.join(directory, "wake"), "");
+        while (h.offers.length === 0) yield* Effect.sleep("10 millis");
+        yield* h.offers[0]!.dispatchIfCurrent!(Effect.void);
+        yield* h.startTurn(2, true);
+        const working = yield* h.until(
+          (event) =>
+            event.type === "provider_thread.updated" &&
+            event.providerThread.pendingBackgroundTasks?.some(
+              (task) => task.taskId === "timer" && task.awaited,
+            ) === true,
+        );
+        const turn = working.find((event) => event.type === "provider_turn.updated");
+        if (turn?.type !== "provider_turn.updated") return assert.fail("continuation turn missing");
+        assert.include(JSON.stringify(working), "Fixture checks resumed");
+        assert.include(JSON.stringify(working), "Checking results.");
+        assert.isTrue(yield* h.session.hasPendingBackgroundWork!);
+        if (ending === "stop") {
+          yield* h.session.interruptTurn({
+            providerThread: h.providerThread,
+            providerTurnId: turn.providerTurn.id,
+            requestRuntimeRestart: true,
+          });
+        }
+        yield* fs.writeFileString(path.join(directory, "finish"), "");
+        const completed = yield* h.throughTerminal;
+        const terminal = completed.at(-1);
+        assert.equal(
+          terminal?.type === "turn.terminal" && terminal.status,
+          ending === "stop" ? "interrupted" : "completed",
+        );
+        if (ending === "finish")
+          assert.include(JSON.stringify(completed), "Fixture checks finished.");
+        assert.isFalse(yield* h.session.hasPendingBackgroundWork!);
+        assert.equal(yield* fs.readFileString(path.join(directory, "prompts")), "prompt\n");
+        assert.lengthOf(h.offers, 1);
+      }).pipe(Effect.provide(layerSession), Effect.timeout("18 seconds")),
+    20_000,
+  );
+
   // agy sets `IsDaemon` on a command it does not wait for. When it exits, the agent replies
   // with no prompt open.
   it.effect("continues in one run when a finished daemon wakes the agent", () =>
@@ -1691,7 +1754,7 @@ describe("AntigravityAdapterV2 work after the prompt ends", () => {
   // an empty pending list and a finished reply above Stop.
   it.effect("settles a silent background command after the post-settle hold timeout", () =>
     Effect.gen(function* () {
-      const { command, offers, startTurn, until, throughPromptSettled } =
+      const { session, command, offers, startTurn, until, throughPromptSettled } =
         yield* openSessionWithRunningCommand({ WaitMsBeforeAsync: 10000 });
       yield* startTurn(1, false);
       const prompt = yield* throughPromptSettled;
@@ -1715,9 +1778,10 @@ describe("AntigravityAdapterV2 work after the prompt ends", () => {
           event.turnItem.nativeItemRef?.nativeId === command.toolCallId,
       );
       assert.isTrue(
-        commandItem?.type === "turn_item.updated" && commandItem.turnItem.status === "completed",
-        "the silent command is no longer left as live activity on a settled run",
+        commandItem?.type === "turn_item.updated" && commandItem.turnItem.status === "running",
+        "the quiet command remains visible until its actual exit",
       );
+      assert.isTrue(yield* session.hasPendingBackgroundWork!);
     }).pipe(Effect.provide(layerSession)),
   );
 
@@ -2455,6 +2519,14 @@ describe("AntigravityAdapterV2 work after the prompt ends", () => {
         const terminal = (yield* opened.throughTerminal).at(-1);
         assert.equal(terminal?.type === "turn.terminal" && terminal.status, status);
         assert.equal(opened.cancels(), cancels);
+        if (ending === "Stop") {
+          yield* opened.send({
+            sessionUpdate: "agent_thought_chunk",
+            content: { type: "text", text: "late" },
+          });
+          assert.lengthOf(opened.offers, 0);
+          assert.isFalse(yield* opened.session.hasPendingBackgroundWork!);
+        }
       }).pipe(Effect.provide(layerSession)),
   );
 });
@@ -2738,7 +2810,8 @@ describe("AntigravityAdapterV2 runtime mode ceiling", () => {
         }),
         ["default"],
       );
-      // A narrower mode is still the user's to pick.
+      assert.deepEqual(yield* modesSetFor("auto", { runtimeMode: "full-access" }), ["yolo"]);
+      // A narrower mode is still the user's to pick for approval-based policies.
       assert.deepEqual(yield* modesSetFor("default", { runtimeMode: "auto-accept-edits" }), [
         "auto_edit",
         "default",

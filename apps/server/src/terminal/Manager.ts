@@ -2816,10 +2816,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     const shellCommand = candidate.shell.includes("/")
       ? path.resolve(session.cwd, candidate.shell)
       : candidate.shell;
-    const executable =
-      platform !== "win32"
-        ? yield* Effect.promise(async () => resolveExecutable(shellCommand, platform, lookupEnv))
-        : candidate.shell;
+    // chronos: probe Windows candidates too, before ConPTY attempts to launch a missing shell.
+    const executable = yield* Effect.promise(async () =>
+      resolveExecutable(shellCommand, platform, lookupEnv),
+    );
     if (executable === undefined) {
       return yield* trySpawn(
         shellCandidates,

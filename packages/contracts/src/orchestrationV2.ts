@@ -3778,6 +3778,7 @@ export const OrchestrationV2Command = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("delegated_task.request"),
     ...OrchestrationV2CreationFields,
+    projectId: Schema.optional(ProjectId),
     commandId: CommandId,
     parentThreadId: ThreadId,
     parentRunId: RunId,

@@ -814,15 +814,22 @@ const make = Effect.gen(function* () {
           ),
         );
       case "delegated_task.request":
-        return orchestrator.getThreadRecords(command.parentThreadId, []).pipe(
-          Effect.flatMap((parent) =>
-            assertProviderInstanceEnabled({
-              projectId: parent.thread.projectId,
-              commandId: command.commandId,
-              instanceId: command.modelSelection.instanceId,
-            }),
-          ),
-        );
+        return orchestrator
+          .getThreadRecords(command.parentThreadId, [])
+          .pipe(
+            Effect.flatMap((parent) =>
+              Effect.forEach(
+                new Set([parent.thread.projectId, command.projectId ?? parent.thread.projectId]),
+                (projectId) =>
+                  assertProviderInstanceEnabled({
+                    projectId,
+                    commandId: command.commandId,
+                    instanceId: command.modelSelection.instanceId,
+                  }),
+                { discard: true },
+              ),
+            ),
+          );
       case "prepared-run.release":
       case "prepared-run.retry":
         return orchestrator

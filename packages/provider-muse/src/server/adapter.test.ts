@@ -62,6 +62,10 @@ const runtimePolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
   interactionMode: "default",
   cwd: null,
 });
+const supervisedPolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
+  ...runtimePolicy,
+  runtimeMode: "approval-required",
+});
 const modelSelection = (instanceId = INSTANCE_ID) => ({
   instanceId,
   model: MODEL,
@@ -783,7 +787,14 @@ describe("MuseAdapterV2", () => {
   it.effect("settles partial messages and pending approvals before a provider failure", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeMuse();
-      const harness = yield* makeHarness(fake);
+      const harness = yield* makeHarness(
+        fake,
+        INSTANCE_ID,
+        undefined,
+        undefined,
+        undefined,
+        supervisedPolicy,
+      );
       const { nativeId } = yield* startConversation(harness, fake);
       yield* fake.emit("item/started", {
         turnId: nativeId,
@@ -939,7 +950,14 @@ describe("MuseAdapterV2", () => {
           connectionClosed = true;
         });
         yield* Effect.gen(function* () {
-          const harness = yield* makeHarness(fake);
+          const harness = yield* makeHarness(
+            fake,
+            INSTANCE_ID,
+            undefined,
+            undefined,
+            undefined,
+            supervisedPolicy,
+          );
           const { nativeId } = yield* startConversation(harness, fake);
           yield* fake.emit("approval/requested", approval(nativeId));
           yield* harness.takeEvent(
@@ -994,7 +1012,14 @@ describe("MuseAdapterV2", () => {
   it.effect("settles an active turn once when both the connection and host exit unexpectedly", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeMuse();
-      const harness = yield* makeHarness(fake);
+      const harness = yield* makeHarness(
+        fake,
+        INSTANCE_ID,
+        undefined,
+        undefined,
+        undefined,
+        supervisedPolicy,
+      );
       const first = yield* startConversation(harness, fake);
       yield* fake.emit("item/started", {
         turnId: first.nativeId,
@@ -1082,10 +1107,54 @@ describe("MuseAdapterV2", () => {
     }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 
+  it.effect(
+    "accepts an ordinary root approval for the session in full access and records a quiet notice",
+    () =>
+      Effect.gen(function* () {
+        const fake = yield* makeFakeMuse();
+        const harness = yield* makeHarness(fake);
+        const { nativeId } = yield* startConversation(harness, fake);
+        const root = approval(nativeId);
+        yield* fake.emit("approval/requested", {
+          ...root,
+          availableChoices: [
+            ...root.availableChoices,
+            {
+              choiceId: "session",
+              label: "Allow this session",
+              decision: "approvedForSession",
+              scope: "session",
+            },
+          ],
+        });
+        const answer = yield* fake.takeCall("approval/decide");
+        assert.strictEqual(answer.params.choiceId, "session");
+        yield* fake.emit("approval/resolved", { approvalId: root.approvalId, turnId: nativeId });
+        const notice = yield* harness.takeEvent(
+          "turn_item.updated",
+          (event) => event.turnItem.type === "system_notice",
+        );
+        assert.strictEqual(notice.turnItem.title, ProviderAdapter.fullAccessApprovalNotice.title);
+        assert.isFalse(
+          harness.allEvents.some(
+            (event) =>
+              event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+          ),
+        );
+      }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
+
   it.effect("uses the latest native approval requirement and waits for its resolution event", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeMuse();
-      const harness = yield* makeHarness(fake);
+      const harness = yield* makeHarness(
+        fake,
+        INSTANCE_ID,
+        undefined,
+        undefined,
+        undefined,
+        supervisedPolicy,
+      );
       const { nativeId } = yield* startConversation(harness, fake);
       yield* fake.emit("approval/requested", approval(nativeId));
       const first = yield* harness.takeEvent(
@@ -1133,7 +1202,14 @@ describe("MuseAdapterV2", () => {
   it.effect("keeps the user's decision when Muse settles before acknowledging it", () =>
     Effect.gen(function* () {
       const fake = yield* makeFakeMuse();
-      const harness = yield* makeHarness(fake);
+      const harness = yield* makeHarness(
+        fake,
+        INSTANCE_ID,
+        undefined,
+        undefined,
+        undefined,
+        supervisedPolicy,
+      );
       const { nativeId } = yield* startConversation(harness, fake);
       yield* fake.emit("approval/requested", approval(nativeId));
       const pending = yield* harness.takeEvent(
@@ -1171,7 +1247,7 @@ describe("MuseAdapterV2", () => {
         undefined,
         undefined,
         undefined,
-        runtimePolicy,
+        supervisedPolicy,
         { continuationRequests: { offer: (request) => Effect.sync(() => offers.push(request)) } },
       );
       yield* fake.emit("turn/started", { turnId: "report-1" });
@@ -1227,6 +1303,7 @@ describe("MuseAdapterV2", () => {
         if (!turnEnded) {
           const parent = {
             ...approval(nativeId),
+            subject: { kind: "network", host: "example.com" },
             approvalId: "parent-approval",
             currentRequirementId: { approvalId: "parent-approval", sourceIndex: 0 },
           };

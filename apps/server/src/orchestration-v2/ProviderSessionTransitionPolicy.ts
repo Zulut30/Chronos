@@ -70,7 +70,12 @@ export function decideProviderSessionTransition(input: {
         break;
     }
   }
-  if (instanceChanged || runtimeChanged || workspaceChanged) {
+  // agy reads terminal and approval flags at process start.
+  const antigravityPlanChanged =
+    target.driver === "antigravity" &&
+    target.runtimeMode === "full-access" &&
+    current.interactionMode !== target.interactionMode;
+  if (instanceChanged || runtimeChanged || workspaceChanged || antigravityPlanChanged) {
     return { type: "restart_and_resume" };
   }
 

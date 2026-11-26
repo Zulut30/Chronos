@@ -16,7 +16,7 @@ on:
         description: "Focused same-VM package comparison (three alternating passes)"
         type: choice
         default: full
-        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, ram]
+        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, ram, claude-runtime, claude-idle, acp-idle]
   push:
     branches:
       - main
@@ -73,6 +73,9 @@ jobs:
         with:
           install-args: --filter=@t3tools/contracts... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/shared... --filter=@t3tools/scripts... --filter=@t3tools/oxlint-plugin-t3code...
 
+      - name: Exercise the Windows differential updater
+        run: node --test chronos/scripts/delivery/*.test.mjs
+
       - name: Olympus feature gates and chat preferences
         run: node --test chronos/scripts/olympus-settings.test.mjs chronos/scripts/provider-copy.test.mjs chronos/scripts/smoke/olympus-theme.test.mjs
 
@@ -119,6 +122,7 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
+          vp test run --project browser src/components/chat/QueuedRunsControl.browser.test.tsx
           vp test run --project browser src/lib/openPullRequestLink.browser.test.tsx
 
       - name: Trello card link recognition
@@ -152,15 +156,50 @@ jobs:
           # The server tsconfig includes ../../scripts/lib, whose imports resolve from @t3tools/scripts.
           install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
+        id: server_types
         run: vp run --filter t3 typecheck
+      - name: Diagnose provider and server type errors at their source
+        if: failure() && steps.server_types.outcome == 'failure'
+        run: |
+          for package in packages/provider-core packages/provider-acp packages/provider-opencode apps/server; do
+            echo "::group::TypeScript diagnostics for $package"
+            pnpm exec effect-tsgo tsc --noEmit --pretty false -p "$package/tsconfig.json" || true
+            echo "::endgroup::"
+          done
       - name: Auth, migrations, projection index and WSL keep awake
         working-directory: apps/server
         run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
-      - name: Claude idle unload and provider lifecycle
+      - name: Scheduled runs, terminal shells and agent orchestration
+        working-directory: apps/server
+        run: |
+          vp test run src/provider/acp/AntigravityTurnOutcome.test.ts src/orchestration-v2/UsageLimitRecoveryWorker.test.ts
+          vp test run src/mcp/OrchestratorMcpToolkit.integration.test.ts -t 'reports distinct child results'
+          vp test run src/scheduledTasks/ScheduledTaskService.schedule.test.ts
+          vp test run src/peer/RemoteDelegation.test.ts -t 'a task naming another driver there'
+          vp test run src/terminal/Manager.test.ts -t 'opens the available Windows shell'
+          vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options|prepares a worktree in the selected project'
+
+      - name: Claude and ACP idle unload and native resume
         working-directory: apps/server
         run: |
           vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
+          vp test run src/orchestration-v2/Adapters/AcpAdapterV2.test.ts -t 'loads the persisted ACP session during startup'
           vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'resumes the native session on a fresh session instance|resumes an imported native session|resumes the session a /clear selected'
+      - name: Antigravity background work and runtime policy (offline ACP)
+        working-directory: apps/server
+        run: vp test run src/orchestration-v2/Adapters/AntigravityAdapterV2.test.ts src/provider/Drivers/AntigravityDriver.test.ts src/provider/antigravityAuthSupport.test.ts
+      - name: Provider access modes and command approvals (offline)
+        working-directory: apps/server
+        run: |
+          vp test run src/orchestration-v2/ProviderSessionTransitionPolicy.test.ts
+          vp test run src/orchestration-v2/Adapters/CodexAdapterV2.test.ts -t 'derives concrete Codex turn policies|full access asks about|Codex file-change approval paths|handles MCP access approvals'
+          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'maps default full-access policy|keeps approval-required mode interactive|marks asks that full access|adds nothing to ordinary approvals|asks before restricted Full access'
+          vp test run src/orchestration-v2/Adapters/OpenCode2AdapterV2.test.ts src/orchestration-v2/Adapters/AcpRegistryAdapterV2.test.ts src/orchestration-v2/Adapters/KiroAdapterV2.test.ts src/orchestration-v2/Adapters/GrokAdapterV2.test.ts src/orchestration-v2/Adapters/FxAdapterV2.test.ts -t 'permission|approval|runtime mode|autopilot|[Ff]ull access'
+          (cd ../../packages/provider-acp && vp test run src/server/clientPolicy.test.ts)
+          (cd ../../packages/provider-opencode && vp test run src/server/adapter.test.ts -t 'maps runtime modes|enforces non-interactive|identified local tool')
+          (cd ../../packages/provider-muse && vp test run src/server/adapter.test.ts src/server/sdk.test.ts src/server/protocol.test.ts)
+          (cd ../../packages/provider-pi && vp test run src/server/mcpExtensionSource.test.ts)
+          (cd ../../packages/provider-cursor && vp test run src/server/adapter.test.ts -t 'maps runtime modes to the SDK sandbox')
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
         run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts
@@ -193,7 +232,7 @@ jobs:
           sparse-checkout: chronos
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Compare two packaged SSH servers on the same Linux VM
         shell: bash
         env:
@@ -231,9 +270,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          sparse-checkout: |
-            chronos/scripts/bench
-            chronos/scripts/smoke
+          sparse-checkout: chronos
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
