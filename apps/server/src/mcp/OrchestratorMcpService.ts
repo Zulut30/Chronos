@@ -67,7 +67,11 @@ import {
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
 } from "@t3tools/contracts";
-import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
+import {
+  REASONING_EFFORT_OPTION_IDS,
+  getProviderOptionCurrentValue,
+  withLegacyUltracodeEffort,
+} from "@t3tools/shared/model";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import { runRanAfter } from "@t3tools/shared/orchestrationV2ThreadError";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -1710,6 +1714,7 @@ const make = Effect.gen(function* () {
     readonly providers: ReadonlyArray<ServerProvider>;
     /** Receipt replays bypass current settings because they start no work. Dispatch must reuse the checked command ID. */
     readonly skipProjectEnablementFilter?: boolean;
+    readonly delegated?: boolean;
   }): Effect.fn.Return<ResolvedTarget, OrchestratorMcpFailure> {
     const requestedInstanceId = input.target?.providerInstanceId;
     const requestedDriver = input.target?.driverKind;
@@ -1816,6 +1821,41 @@ const make = Effect.gen(function* () {
           descriptors,
         )
       : undefined;
+    if (
+      input.delegated &&
+      requestedOptions === undefined &&
+      !inheritsOptions &&
+      !antigravityTarget
+    ) {
+      const reasoning =
+        descriptors?.find((d) => d.type === "select" && d.role === "reasoning") ??
+        descriptors?.find((d) => d.type === "select" && REASONING_EFFORT_OPTION_IDS.includes(d.id));
+      if (reasoning?.type === "select") {
+        const parentDescriptors = advertisedModel(provider, inheritedSelection.model)?.capabilities
+          ?.optionDescriptors;
+        const parentReasoning = parentDescriptors?.find(
+          (d) => d.type === "select" && d.role === "reasoning",
+        );
+        const inheritedValue =
+          inheritedSelection.options?.find(
+            (o) => o.id === parentReasoning?.id || REASONING_EFFORT_OPTION_IDS.includes(o.id),
+          )?.value ??
+          getProviderOptionCurrentValue(
+            parentReasoning ??
+              parentDescriptors?.find((d) => REASONING_EFFORT_OPTION_IDS.includes(d.id)),
+          );
+        const levels = reasoning.options.map((choice) => choice.id);
+        const preferred =
+          instanceId === inheritedSelection.instanceId &&
+          typeof inheritedValue === "string" &&
+          levels.includes(inheritedValue)
+            ? inheritedValue
+            : (["high", "ultra", "max", "xhigh", "medium", "low"].find((level) =>
+                levels.includes(level),
+              ) ?? levels.at(-1));
+        if (preferred !== undefined) options = [{ id: reasoning.id, value: preferred }];
+      }
+    }
     if (requestedOptions !== undefined || antigravityTarget !== undefined) {
       const selections = new Map(
         (requestedOptions?.length === 0 ? [] : (options ?? [])).map((selection) => [
@@ -2959,7 +2999,13 @@ const make = Effect.gen(function* () {
       });
       const isRetryOfAcceptedDelegation = yield* threadManagement.hasReceipt(commandId);
       const target = yield* resolveTargetRechecking({
-        parent,
+        parent: {
+          thread: {
+            ...parent.thread,
+            modelSelection: parentRun.modelSelection ?? parent.thread.modelSelection,
+          },
+        },
+        delegated: true,
         target: input.target,
         providers,
         cwd: yield* parentWorkspaceCwd(parent),

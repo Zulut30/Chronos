@@ -110,7 +110,7 @@ export const OrchestratorMcpTarget = Schema.Struct({
   options: Schema.optional(
     OrchestratorMcpTargetOptions.annotate({
       description:
-        "Ids vary by provider; see `orchestrator_capabilities`. Given values override inherited. [] or {} clears.",
+        "Without options a delegate inherits reasoning on the same provider, or uses high (highest available) on another. Explicit values override defaults. [] or {} clears.",
     }),
   ),
   environmentId: Schema.optional(

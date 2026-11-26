@@ -4790,6 +4790,24 @@ describe("OrchestratorMcpService provider resolution", () => {
             expected: { instanceId: codexInstanceId, model: "other-model" },
           },
           {
+            name: "same provider chooses another reasoning model",
+            target: { model: "ultracode-model" },
+            expected: {
+              instanceId: codexInstanceId,
+              model: "ultracode-model",
+              options: [{ id: "effort", value: "high" }],
+            },
+          },
+          {
+            name: "cross-provider reasoning defaults to high",
+            target: { providerInstanceId: antigravityId },
+            expected: {
+              instanceId: antigravityId,
+              model: "gemini-4-neon",
+              options: [{ id: "thought_level", value: "high" }],
+            },
+          },
+          {
             name: "change provider with override",
             target: { providerInstanceId: peerId, options: { reasoningEffort: "max" } },
             expected: { instanceId: peerId, model: inherited.model, options: override },

@@ -38,6 +38,7 @@ import {
   getProviderOptionCurrentLabel,
   getProviderOptionStatedValue,
   resolveSelectableModel,
+  REASONING_EFFORT_OPTION_IDS,
   withLegacyUltracodeEffort,
 } from "@t3tools/shared/model";
 import { unsentManualContinuationSource } from "@t3tools/shared/orchestrationV2ManualContinuation";
@@ -305,15 +306,7 @@ export function deriveReportedModelSelection(projection: ThreadStructure): Model
   return providerThread?.nativeMetadata?.modelSelection ?? null;
 }
 
-export const REASONING_EFFORT_OPTION_IDS: ReadonlyArray<string> = [
-  "reasoningEffort",
-  "effort",
-  "reasoning",
-  "variant",
-  "reasoning_effort",
-  "thinking_level",
-  "thought_level",
-];
+export { REASONING_EFFORT_OPTION_IDS } from "@t3tools/shared/model";
 
 export function formatModelSelectionEffort(
   selection: ModelSelection,
