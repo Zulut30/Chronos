@@ -101,7 +101,7 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
       };
       if (updatesOnly) {
         await act({type:"navigate",to:"/settings/about"});
-        await capture("macos-updates", "#updates");
+        await capture("macos-updates", "#app-version");
         continue;
       }
       await act({ type: "navigate", to: "/settings/general" });
