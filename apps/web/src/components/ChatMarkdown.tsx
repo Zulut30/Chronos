@@ -2113,8 +2113,11 @@ function ChatMarkdown({
   return (
     <Root
       ref={bindMarkdownRef}
+      data-chronos-markdown=""
       className={cn(
-        "chat-markdown w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]",
+        // chronos: Olympus uses this class for copy and for skipping already rendered text.
+        "chat-markdown" +
+          " w-full min-w-0 [overflow-wrap:anywhere] [word-break:break-word]",
         !inline &&
           "text-sm leading-relaxed text-foreground/[calc(90%+var(--appearance-contrast-boost)/10)]",
         className,

@@ -64,11 +64,19 @@ if (env.PAIR) {
   appendFileSync(env.GITHUB_OUTPUT, "pair=" + JSON.stringify(pair) + "\n");
 } else {
   const audit = env.AUDIT === "true" || (env.GITHUB_REF_NAME === "perf/guard" && env.COMMIT_MESSAGE?.includes("[perf-audit]"));
-  const refs = audit ? ["main", "feature/artifacts", "feature/pc-control", "perf/round-3", "fix/stability-2026-11-25"] : [env.TARGET || env.GITHUB_REF_NAME];
+  // Historical audit tips, reachable from main after their branches were retired.
+  const auditTips = {
+    "feature/artifacts": "74dc71fdcfbda5a8e7925346c3159f21cfa0ba45",
+    "feature/pc-control": "7c3fe21852f87b117c5c0c5bef840520d20e92b0",
+    "perf/round-3": "1ea16cbfa900dac9e42528e5ad9a8174e3b0a985",
+    "fix/stability-2026-11-25": "4fa969e79ace1dbc133256661380202118dff8c7"
+  };
+  const refs = audit ? ["main", ...Object.keys(auditTips)] : [env.TARGET || env.GITHUB_REF_NAME];
   const targets = new Map();
   for (const ref of new Set(["main", ...refs])) {
     assert.match(ref, /^[\w./-]+$/);
-    const sha = !audit && !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : (await api("/commits/" + encodeURIComponent(ref))).sha;
+    const pinned = audit ? auditTips[ref] : !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : undefined;
+    const sha = pinned ?? (await api("/commits/" + encodeURIComponent(ref))).sha;
     targets.set(ref, { ref, sha });
   }
   const onMainPush = env.GITHUB_EVENT_NAME === "push" && env.GITHUB_REF_NAME === "main";

@@ -99,6 +99,12 @@ jobs:
       - name: Typecheck
         run: vp run --filter @t3tools/contracts --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
+      - name: Check Olympus module and translation contracts
+        run: |
+          node chronos/scripts/parity/feature-seams.mjs
+          node chronos/scripts/parity/host-seams.mjs
+          node chronos/scripts/parity/check-catalog.mjs
+
       - name: Linux native test dependencies
         run: |
           sudo apt-get update
