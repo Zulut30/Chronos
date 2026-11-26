@@ -50,10 +50,9 @@ foreach ($pass in 1..3) {
     New-Item -ItemType Directory -Force $out | Out-Null
     switch ($env:SUITE) {
       'claude-runtime' {
-        $profiles = switch ($pass) {
-          1 { 'default','smol','gc' }; 2 { 'smol','gc','default' }; 3 { 'gc','default','smol' }
-        }
+        $profiles = if ($pass % 2) { 'default','smol' } else { 'smol','default' }
         foreach ($profile in $profiles) {
+          $env:BENCH_CLAUDE_DIAGNOSTICS = if ($profile -eq 'default' -and $pass -eq 1) { '1' } else { $null }
           node "$PSScriptRoot/guard-runtime.mjs" $pkg claudeAgent "$out/$profile.json" $profile
           if ($LASTEXITCODE) { throw "Runtime profile $profile failed" }
         }

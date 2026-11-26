@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -38,7 +39,7 @@ export async function measureClaude({ launch, rpc, sb, app, binary, threadId, id
   const get = id => rpc.call("orchestration.getThreadProjection", { threadId: id });
   const waitAnswer = (id, text) => sb.wait("assistant response", async () => {
     const p = await get(id);
-    if (p.runs.at(-1)?.status === "failed") throw Error(JSON.stringify(p.runs.at(-1)));
+    if (p.runs.at(-1)?.status === "failed") throw Error(JSON.stringify({ run: p.runs.at(-1), session: p.providerSessions.at(-1)?.lastError, items: p.turnItems.slice(-3) }).slice(-2500));
     return p.turnItems.some(item => item.type === "assistant_message" && item.text?.trim() === text);
   });
   const list = () => JSON.parse(execFileSync("pwsh", [
@@ -88,4 +89,38 @@ export async function measureClaude({ launch, rpc, sb, app, binary, threadId, id
   assert.equal(resumed.length, 3);
   assert.equal(resumed.includes(hidden[0]), !expectUnload);
   return { firstResponseMs, before: before.length, after: after.length, resumed: resumed.length, nextResponseMs, nativeHistoryVerified: true };
+}
+
+// Run the vendor's diagnostic after timing in the disposable, credential-free home.
+// Retain only numeric memory counters. The heap snapshot stays in the VM sandbox.
+export async function heapDiagnostics(rpc, threadId, home) {
+  const desktop = join(home, "Desktop");
+  mkdirSync(desktop, { recursive: true });
+  await rpc.call("orchestration.dispatchCommand", {
+    type: "message.dispatch", createdBy: "user", creationSource: "web",
+    commandId: crypto.randomUUID(), messageId: crypto.randomUUID(), threadId,
+    text: "/heapdump", attachments: [], dispatchMode: { type: "start_immediately" },
+  });
+  const until = Date.now() + 15000;
+  while (Date.now() < until) {
+    for (const dir of [desktop, home]) {
+      const name = readdirSync(dir).find(n => n.endsWith("-diagnostics.json"));
+      if (!name || !existsSync(join(dir, name))) continue;
+      let data;
+      try { data = JSON.parse(readFileSync(join(dir, name), "utf8")); } catch { continue; }
+      const counters = {};
+      function walk(value, path) {
+        if (typeof value === "number" && /heap|rss|external|buffer|resident|allocated|footprint/i.test(path)) counters[path] = value;
+        else if (value && typeof value === "object" && !Array.isArray(value)) {
+          for (const [key, child] of Object.entries(value)) {
+            if (/^[a-z][a-z0-9_]*$/i.test(key)) walk(child, path ? path + "." + key : key);
+          }
+        }
+      }
+      walk(data, "");
+      return { available: true, counters };
+    }
+    await sleep(250);
+  }
+  return { available: false };
 }

@@ -18,6 +18,7 @@ if (claudeExperiment) {
 }
 const idleExperiment = claudeExperiment?.startsWith("idle-");
 let experimentResult;
+let experimentThreadId;
 const idle = ["unused", "disabled"].includes(scenario);
 const sb = createSandbox(1, 1);
 const exe = resolve(distribution, "Chronos.exe");
@@ -125,6 +126,7 @@ try {
     const launch = (id, text) => rpc.call("orchestration.launchThread", { commandId: crypto.randomUUID(), threadId: id, projectId, title: "Guard", generateTitle: false, modelSelection: settings.defaultModelSelection, runtimeMode: "approval-required", interactionMode: "default", workspaceStrategy: { type: "root" }, initialMessage: { text, attachments: [] } });
     if (claudeExperiment) {
       const { measureClaude } = await import("./claude-experiment.mjs");
+      experimentThreadId = threadId;
       experimentResult = await measureClaude({ launch, rpc, sb, app, binary, threadId, idleExperiment, expectUnload: claudeExperiment === "idle-head" });
     } else {
       await launch(threadId, "Say OK");
@@ -144,6 +146,10 @@ try {
   if (claudeExperiment) args.push("-MemoryMap");
   const sample = idleExperiment ? {} : JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
   if (claudeExperiment) Object.assign(sample, { claudeExperiment }, experimentResult);
+  if (claudeExperiment === "default" && process.env.BENCH_CLAUDE_DIAGNOSTICS === "1") {
+    const { heapDiagnostics } = await import("./claude-experiment.mjs");
+    sample.heapDiagnostics = await heapDiagnostics(rpc, experimentThreadId, env.USERPROFILE);
+  }
   if (idle) sample.pcControl = pcControl ?? "unavailable";
   if (idle && process.env.BENCH_IDLE_MODULES === "1") {
     // Inspect the existing page only after the OS process sample has finished.

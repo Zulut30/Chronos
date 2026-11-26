@@ -370,6 +370,7 @@ export interface ProviderSessionManagerV2LayerOptions {
   readonly idleTimeoutMs?: number;
   readonly maxIdlePinMs?: number;
   readonly configureMcp?: boolean;
+  readonly claudeMemoryIsLow?: () => boolean; // chronos: inject Windows pressure in clock tests.
 }
 
 function releaseStatusFor(
@@ -1651,6 +1652,7 @@ export const layerWithOptions = (
         sessions,
         (id, use) => sessionOpen.withLock(id, use),
         releaseEntry,
+        options.claudeMemoryIsLow,
       );
 
       const releaseIfStillIdle = Effect.fn("ProviderSessionManager.releaseIfStillIdle")(

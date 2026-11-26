@@ -154,6 +154,7 @@ const layerProviderSessionManagerProvided = ProviderSessionManager.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
       layerCommandOutputHubProvided,
+      ThreadViewers.layer, // chronos: pressure unload uses the same viewers as WS subscriptions.
       ProviderAdapterRegistry.layerFromProviderInstanceRegistry,
       layerEventSink,
       IdAllocator.layer,
