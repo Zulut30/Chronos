@@ -149,9 +149,10 @@ jobs:
           # The server tsconfig includes ../../scripts/lib, whose imports resolve from @t3tools/scripts.
           install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
+        id: server_types
         run: vp run --filter t3 typecheck
       - name: Diagnose provider and server type errors at their source
-        if: failure()
+        if: failure() && steps.server_types.outcome == 'failure'
         run: |
           for package in packages/provider-core packages/provider-acp packages/provider-opencode apps/server; do
             echo "::group::TypeScript diagnostics for $package"
