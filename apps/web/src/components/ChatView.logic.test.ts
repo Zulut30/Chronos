@@ -614,8 +614,8 @@ describe("resolveThreadSwitchTimeline", () => {
     ).toBe(false);
   });
 
-  it("caps remembered timelines to the 6 most recent threads and clears them on memory trim", () => {
-    for (let index = 1; index <= 8; index += 1) {
+  it("retains up to 16 remembered timelines and clears them on memory trim", () => {
+    for (let index = 1; index <= 18; index += 1) {
       rememberReadyThreadTimeline({
         threadKey: `env-1:thread-${index}`,
         entries: [`entry-${index}`],
@@ -624,11 +624,11 @@ describe("resolveThreadSwitchTimeline", () => {
     expect(peekRememberedThreadTimeline<string[]>("env-1:thread-1")).toBeNull();
     expect(peekRememberedThreadTimeline<string[]>("env-1:thread-2")).toBeNull();
     expect(peekRememberedThreadTimeline<string[]>("env-1:thread-3")).toEqual(["entry-3"]);
-    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-8")).toEqual(["entry-8"]);
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-18")).toEqual(["entry-18"]);
 
     runMemoryTrim();
     expect(peekRememberedThreadTimeline<string[]>("env-1:thread-3")).toBeNull();
-    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-8")).toBeNull();
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-18")).toBeNull();
   });
 });
 

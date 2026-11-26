@@ -29,14 +29,14 @@ import {
 import { reportMarkdownActionFailure } from "./markdownActionFailure";
 import { PierreEntryIcon } from "./PierreEntryIcon";
 
-// chronos: bound highlighted HTML cache and release it on minimize/hide memory trim.
-const MAX_HIGHLIGHT_CACHE_ENTRIES = 200;
-const MAX_HIGHLIGHT_CACHE_MEMORY_BYTES = 16 * 1024 * 1024;
+const MAX_HIGHLIGHT_CACHE_ENTRIES = 500;
+const MAX_HIGHLIGHT_CACHE_MEMORY_BYTES = 50 * 1024 * 1024;
 
 const highlightedCodeCache = new LRUCache<string>(
   MAX_HIGHLIGHT_CACHE_ENTRIES,
   MAX_HIGHLIGHT_CACHE_MEMORY_BYTES,
 );
+// chronos: release highlighted HTML cache on minimize/hide memory trim.
 registerMemoryTrimmer(() => {
   highlightedCodeCache.clear();
 });

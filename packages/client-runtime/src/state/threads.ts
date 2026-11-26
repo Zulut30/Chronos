@@ -69,7 +69,7 @@ import {
 const THREAD_SUBSCRIPTION_RETRY_DELAY = "250 millis";
 // chronos: cap retained inactive thread snapshots and drop them on desktop memory trim.
 const CHRONOS_MEMORY_TRIM_EVENT = "chronos:memory-trim";
-const MAX_RETAINED_INACTIVE_THREAD_SNAPSHOTS = 6;
+const MAX_RETAINED_INACTIVE_THREAD_SNAPSHOTS = 20;
 
 function statusWithoutLiveData(
   data: Option.Option<OrchestrationV2ThreadProjection>,
@@ -1291,7 +1291,7 @@ export function createEnvironmentThreadStateAtoms<R, E>(
     E
   >,
 ) {
-  // chronos: track inactive thread resume caches via WeakRef for 6-entry LRU and minimize trim.
+  // chronos: track inactive thread resume caches via WeakRef for bounded LRU and minimize trim.
   const inactiveEntries = new Map<string, WeakRef<ThreadResumeCache>>();
   const markActive = (key: string): void => {
     inactiveEntries.delete(key);

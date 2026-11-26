@@ -353,8 +353,7 @@ export type HeldThreadTimeline<T extends readonly unknown[]> = {
   entries: T;
 };
 
-// chronos: cap remembered thread timelines to 6 and clear them on desktop memory trim.
-const MAX_REMEMBERED_THREAD_TIMELINES = 6;
+const MAX_REMEMBERED_THREAD_TIMELINES = 16;
 
 let rememberedThreadTimelines = new Map<string, HeldThreadTimeline<readonly unknown[]>>();
 let rememberedThreadTimelineOrder: string[] = [];
@@ -399,6 +398,7 @@ export function resetHeldThreadTimeline(): void {
   rememberedThreadTimelineOrder = [];
 }
 
+// chronos: clear remembered thread timelines on minimize/hide memory trim.
 registerMemoryTrimmer(resetHeldThreadTimeline);
 
 export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input: {

@@ -18,8 +18,7 @@ interface MarkdownRendererOptions {
 // Elements are immutable, so a remount (a thread switch, a row scrolled back into view)
 // reuses one instead of parsing again. Parsing is most of the cost of rendering markdown.
 // An element and the hast it keeps hold about 20 bytes per source character, so ~10 MB.
-// chronos: cap retained markdown parse trees and release them on desktop memory trim.
-const MAX_CACHED_CHARS = 250_000;
+const MAX_CACHED_CHARS = 500_000;
 interface Rendered {
   readonly tree: Root;
   element?: ReactElement;
@@ -27,6 +26,7 @@ interface Rendered {
 const rendered = new Map<string, Rendered>();
 let cachedChars = 0;
 let nextRendererId = 0;
+// chronos: release retained markdown parse trees on desktop memory trim.
 registerMemoryTrimmer(() => {
   rendered.clear();
   cachedChars = 0;

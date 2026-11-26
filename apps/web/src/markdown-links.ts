@@ -46,10 +46,10 @@ export function isLocalEditorFileHref(href: string): boolean {
 }
 
 // Every message resolves its links and code spans more than once while rendering.
-// chronos: bound link resolution caches and clear them on desktop memory trim.
-const MAX_MEMOIZED = 2_000;
+const MAX_MEMOIZED = 4_000;
 const inlineCodeMetas = new Map<string, MarkdownFileLinkMeta | null>();
 const linkMetas = new Map<string, MarkdownFileLinkMeta | null>();
+// chronos: clear link resolution caches on desktop memory trim.
 registerMemoryTrimmer(() => {
   inlineCodeMetas.clear();
   linkMetas.clear();

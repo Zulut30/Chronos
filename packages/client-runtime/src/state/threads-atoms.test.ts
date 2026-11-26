@@ -408,10 +408,10 @@ describe("createEnvironmentThreadStateAtoms", () => {
     }),
   );
 
-  it.effect("caps retained inactive thread snapshots at 6 and evicts the oldest", () =>
+  it.effect("caps retained inactive thread snapshots at 20 and evicts the oldest", () =>
     Effect.gen(function* () {
       const h = yield* makeHarness();
-      const atoms = Array.from({ length: 8 }, (_, index) =>
+      const atoms = Array.from({ length: 22 }, (_, index) =>
         h.details.stateAtom({
           environmentId: TARGET.environmentId,
           threadId: ThreadId.make(`thread-lru-${index}`),
@@ -436,7 +436,7 @@ describe("createEnvironmentThreadStateAtoms", () => {
       yield* Deferred.await(oldestSub.closed);
       yield* Effect.yieldNow;
 
-      const unmountRecent = h.registry.mount(atoms[7]!);
+      const unmountRecent = h.registry.mount(atoms[21]!);
       const recentSub = yield* Queue.take(h.subscriptions);
       expect(recentSub.afterSequence).toBe(SNAPSHOT.snapshotSequence);
       expect(h.counts().diskLoads).toBe(loadsBefore + 1);

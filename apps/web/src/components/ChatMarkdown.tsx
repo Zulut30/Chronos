@@ -510,10 +510,10 @@ function blockFileLinkSources(
 }
 
 // Links and code spans never cross blocks: a streamed reply rescans only its open last block.
-// chronos: cap finished-block link cache and drop it on minimize/hide memory trim.
-const MAX_CACHED_BLOCK_CHARS = 500_000;
+const MAX_CACHED_BLOCK_CHARS = 2_000_000;
 const finishedBlockFileLinkSources = new Map<string, BlockFileLinkSources>();
 let cachedBlockChars = 0;
+// chronos: drop finished-block link cache on minimize/hide memory trim.
 registerMemoryTrimmer(() => {
   finishedBlockFileLinkSources.clear();
   cachedBlockChars = 0;
