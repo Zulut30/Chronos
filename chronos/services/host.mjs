@@ -5,6 +5,13 @@ import { Worker } from "node:worker_threads";
 const services = new Set(["skills-manager", "tasks-service", "files-service", "studio-service",
   "integrations-service", "mcp-manager", "olympus-hub"]);
 const running = new Set();
+if (process.env.CHRONOS_SWITCH_REHEARSAL === "1") {
+  for (const [key, port] of Object.entries({ SKILLS:4517, TASKS:4518, FILES:4519, STUDIO:4520,
+    INTEGRATIONS:4522, MCP:4523, HUB:4524 })) {
+    process.env["OLY_" + key + "_PORT"] = String(port + 20_000);
+    process.env["OLY_" + key + "_URL"] = "http://127.0.0.1:" + (port + 20_000);
+  }
+}
 let studio;
 // Worker copies on Windows have case-sensitive keys. Service settings use uppercase,
 // and each worker still needs a private copy for changes such as API-key updates.

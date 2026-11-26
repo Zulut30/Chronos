@@ -7,7 +7,11 @@ import type {
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
 import { waitForHttpReady as waitForHttpReadyShared } from "@t3tools/shared/httpReadiness";
-import { chronosUpstreamVersion, isChronosVersion, sshArchiveReleaseUrl } from "@t3tools/shared/cliRelease";
+import {
+  chronosUpstreamVersion,
+  isChronosVersion,
+  sshArchiveReleaseUrl,
+} from "@t3tools/shared/cliRelease";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import * as NetService from "@t3tools/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@t3tools/shared/schemaJson";
@@ -108,6 +112,8 @@ const REMOTE_LAUNCH_TIMEOUT_MS =
   REMOTE_LAUNCH_BASE_TIMEOUT_MS;
 
 export interface RemoteT3RunnerOptions {
+  // chronos: borrowing a saved connection must never install, restart or stop a remote CLI.
+  readonly existingServerOnly?: boolean;
   readonly nodeScriptPath?: string | null;
   readonly nodeEngineRange?: string | null;
   readonly archiveVersion?: string | null;
@@ -115,6 +121,7 @@ export interface RemoteT3RunnerOptions {
 }
 
 export interface SshEnvironmentManagerOptions {
+  readonly confirmManagedLaunch?: (target: DesktopSshEnvironmentTarget) => Effect.Effect<boolean>;
   readonly resolveCliRunner?: Effect.Effect<RemoteT3RunnerOptions>;
   // Identifies this install to the remote across edits of a connection; null when unknown.
   readonly resolveLauncherId?: Effect.Effect<string | null>;
@@ -1207,6 +1214,45 @@ export function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string 
 }
 
 export function buildRemoteLaunchScript(input?: RemoteT3RunnerOptions): string {
+  if (input?.existingServerOnly)
+    return `set -eu
+if ! command -v node >/dev/null 2>&1; then
+  exec python3 - <<'PY'
+import json, os, sys
+from pathlib import Path
+from urllib.parse import urlsplit
+try:
+    record = json.loads((Path.home() / ".t3/userdata/server-runtime.json").read_bytes())
+    pid, port = record["pid"], record["port"]
+    origin = urlsplit(record["origin"])
+    if type(pid) is not int or pid <= 0 or type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError()
+    if origin.scheme != "http" or origin.hostname not in ("127.0.0.1", "localhost", "::1") or (origin.port or 80) != port:
+        raise ValueError()
+    os.kill(pid, 0)
+    print(json.dumps({"remotePort":port, "serverKind":"external"}))
+except (KeyError, ValueError, OSError):
+    sys.exit("No running local T3 server found. Remote management is disabled.")
+PY
+fi
+exec node - <<'NODE'
+const fs = require("node:fs");
+const path = require("node:path");
+try {
+  const record = JSON.parse(fs.readFileSync(path.join(process.env.HOME, ".t3", "userdata", "server-runtime.json"), "utf8"));
+  const url = new URL(record.origin);
+  if (!Number.isSafeInteger(record.pid) || record.pid <= 0 ||
+      !Number.isInteger(record.port) || record.port < 1 || record.port > 65535 ||
+      url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) ||
+      Number(url.port || 80) !== record.port) throw Error();
+  process.kill(record.pid, 0);
+  console.log(JSON.stringify({remotePort:record.port, serverKind:"external"}));
+} catch {
+  console.error("Chronos could not find an existing local T3 server. Remote management is disabled.");
+  process.exitCode = 1;
+}
+NODE
+`;
   const version = input?.archiveVersion?.trim() ?? "";
   return applyScriptPlaceholders(REMOTE_LAUNCH_SCRIPT, {
     CHRONOS_ARCHIVE: shellSingleQuote(isChronosVersion(version) ? version : ""),
@@ -1289,7 +1335,9 @@ export const launchOrReuseRemoteServer = Effect.fn("ssh/tunnel.launchOrReuseRemo
       stateKey,
     });
     const result = yield* runSshCommand(target, {
-      remoteCommandArgs: remoteLoginShellArgs(launchArgs),
+      remoteCommandArgs: runner?.existingServerOnly
+        ? ["sh", "-s"]
+        : remoteLoginShellArgs(launchArgs),
       stdin: buildRemoteLaunchScript(runner),
       timeoutMs: isNodeScriptRunner(runner)
         ? REMOTE_LAUNCH_TIMEOUT_MS
@@ -2072,7 +2120,7 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
             forceKillAfter: TUNNEL_SHUTDOWN_TIMEOUT_MS,
           })
           .pipe(Effect.ignore);
-        if (!stopRemote) {
+        if (!stopRemote || input.runner?.existingServerOnly) {
           return;
         }
         yield* Effect.logDebug("ssh.environment.tunnel.finalizer.start", {
@@ -2241,6 +2289,22 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
     return yield* withTargetLock(
       key,
       Effect.gen(function* () {
+        if (
+          options.confirmManagedLaunch &&
+          !runner?.existingServerOnly &&
+          !(yield* options.confirmManagedLaunch(resolvedTarget))
+        ) {
+          return yield* new SshLaunchError({
+            message: "Управление удалённым CLI отменено.",
+            stdout: "",
+          });
+        }
+        if (runner?.existingServerOnly && requestOptions?.issuePairingToken) {
+          return yield* new SshPairingError({
+            message: "Automatic SSH pairing is disabled when borrowing an existing T3 server.",
+            stdout: "",
+          });
+        }
         const entry = yield* ensureTunnelEntry(key, resolvedTarget, runner);
 
         const pairingResult = requestOptions?.issuePairingToken
@@ -2301,12 +2365,21 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
             yield* closeTunnelEntry(entry);
           }).pipe(Effect.uninterruptible);
         }
-        const launcherId = yield* resolveLauncherId;
-        yield* runWithSshAuth({
-          key,
-          target: resolvedTarget,
-          operation: (authOptions) => stopRemoteServer(resolvedTarget, authOptions, launcherId),
-        });
+        // chronos: disconnecting a borrowed server closes only the local port forward.
+        const runner =
+          options.resolveCliRunner === undefined ? undefined : yield* options.resolveCliRunner;
+        if (
+          entry?.remoteServerKind !== "external" &&
+          !runner?.existingServerOnly &&
+          (entry !== null || !options.confirmManagedLaunch)
+        ) {
+          const launcherId = yield* resolveLauncherId;
+          yield* runWithSshAuth({
+            key,
+            target: resolvedTarget,
+            operation: (authOptions) => stopRemoteServer(resolvedTarget, authOptions, launcherId),
+          });
+        }
         yield* Effect.logInfo("ssh.environment.disconnect.succeeded", {
           ...sshTargetLogFields(resolvedTarget),
           key,

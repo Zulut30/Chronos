@@ -30,6 +30,7 @@ import { installOlympusTheme } from "../chronos/OlympusTheme.ts"; // chronos: se
 import { startChronosServices } from "../chronos/services/ChronosServices.ts"; // chronos: bundled Olympus services
 import { startPcControl } from "../chronos/pc-control/Host.ts"; // chronos: local computer control
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
+import { DesktopConnectionCatalogStore } from "./DesktopConnectionCatalogStore.ts";
 import * as DesktopLegacyLocalStorage from "./DesktopLegacyLocalStorage.ts";
 import * as DesktopLifecycle from "./DesktopLifecycle.ts";
 import * as DesktopLinuxUrlHandler from "./DesktopLinuxUrlHandler.ts";
@@ -427,14 +428,33 @@ const startup = Effect.gen(function* () {
   );
   yield* logStartupInfo("app ready");
   if (environment.isPackaged && isChronosVersion(environment.appVersion)) {
-    const resource = environment.path.join(environment.resourcesPath, "chronos-themes", "olympus.json");
+    const resource = environment.path.join(
+      environment.resourcesPath,
+      "chronos-themes",
+      "olympus.json",
+    );
     yield* Effect.try({
       try: () => installOlympusTheme(environment.stateDir, resource),
       catch: (cause) => ({ _tag: "OlympusThemeInstallError" as const, cause }),
     }).pipe(Effect.catch((error) => Effect.logWarning("Could not install Olympus theme", error)));
   }
+  // chronos: validate the closed Windows profile with the application's own safeStorage reader before migration.
+  if (process.argv.includes("--verify-t3-profile")) {
+    const readable =
+      (yield* safeStorage.isEncryptionAvailable.pipe(Effect.orElseSucceed(() => false))) &&
+      (yield* (yield* DesktopConnectionCatalogStore).get.pipe(Effect.isSuccess));
+    if (!readable) {
+      yield* (yield* ElectronDialog.ElectronDialog).showErrorBox(
+        "Chronos",
+        "Не удалось прочитать защищённый каталог подключений. Выполните откат.",
+      );
+      yield* electronApp.quit;
+      return;
+    }
+  }
   yield* startChronosServices(environment); // chronos: own sidecars in the desktop lifecycle scope
-  yield* startPcControl(environment); // chronos: trusted UI and on-demand computer control
+  if ((yield* HostProcess.Environment).CHRONOS_SWITCH_REHEARSAL !== "1")
+    yield* startPcControl(environment); // chronos: keep the disposable copy away from device control
   if (environment.platform === "linux") {
     const selectedBackend = yield* safeStorage.selectedStorageBackend;
     yield* logStartupInfo("safe storage ready", {

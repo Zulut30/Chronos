@@ -18,6 +18,9 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 
 import * as Electron from "electron";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
+import { prepareT3DataHome } from "./chronos/T3DataHome.ts";
+import { auditSwitchProfile } from "./chronos/SwitchProfileAudit.ts";
 
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -112,7 +115,29 @@ const layerDesktopSshEnvironment = Layer.unwrap(
   Effect.gen(function* () {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const env = yield* HostProcess.Environment;
+    const dialog = yield* ElectronDialog.ElectronDialog;
     return DesktopSshEnvironment.layer({
+      ...(isChronosVersion(environment.appVersion)
+        ? {
+            confirmManagedLaunch: (target) =>
+              dialog
+                .showMessageBox({
+                  type: "warning",
+                  title: "Удалённый CLI",
+                  message: `Разрешить Chronos управлять CLI на ${target.alias || target.hostname}?`,
+                  detail:
+                    "Chronos сможет заменить CLI и перезапустить t3 serve. Работающие на сервере агенты могут прерваться.",
+                  buttons: ["Отмена", "Разрешить для этого подключения"],
+                  defaultId: 0,
+                  cancelId: 0,
+                  noLink: true,
+                })
+                .pipe(
+                  Effect.map((result) => result.response === 1),
+                  Effect.orElseSucceed(() => false),
+                ),
+          }
+        : {}),
       // Per connect: the login shell's environment is installed after this layer is built.
       resolveCliRunner: Effect.sync(() =>
         DesktopSshEnvironment.resolveDesktopSshCliRunner(environment, env),
@@ -256,4 +281,25 @@ const layerDesktopRuntime = layerDesktopClerk.pipe(
   Layer.provideMerge(DesktopPreReadyPlatform.layer),
 );
 
-DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+// chronos: refuse a shared Windows home before Clerk, sidecars and backend recovery can write.
+try {
+  if (process.argv.includes("--audit-switch-copy")) {
+    void auditSwitchProfile(
+      Effect.runSync(HostProcess.Platform),
+      process.env.CHRONOS_SWITCH_AUDIT,
+    ).then(
+      () => Electron.app.exit(0),
+      () => Electron.app.exit(2),
+    );
+  } else {
+    if (isChronosVersion(Electron.app.getVersion()))
+      prepareT3DataHome(NodeOS.homedir(), process.env, Effect.runSync(HostProcess.Platform));
+    DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+  }
+} catch (error) {
+  Electron.dialog.showErrorBox(
+    "Chronos",
+    error instanceof Error ? error.message : "Ошибка проверки данных T3.",
+  );
+  Electron.app.exit(1);
+}

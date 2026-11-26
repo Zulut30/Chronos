@@ -124,7 +124,7 @@ jobs:
 
       - name: SSH source switching and ownership
         working-directory: packages/ssh
-        run: vp test run src/tunnel.test.ts -t 'archive launch script'
+        run: vp test run src/tunnel.test.ts -t 'archive launch script|declined desktop confirmation'
 
       - name: Desktop unit tests
         working-directory: apps/desktop
