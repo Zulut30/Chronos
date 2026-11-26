@@ -1023,15 +1023,18 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
         };
         entry.item = {
           ...entry.item,
-          ...(!entry.shown &&
-          status === "resolved" &&
-          (entry.response?.decision === "accept" || entry.response?.decision === "acceptForSession")
-            ? ProviderAdapter.fullAccessApprovalNotice
-            : undefined),
           status: status === "resolved" ? "completed" : "cancelled",
           completedAt: time,
           updatedAt: time,
         };
+        if (
+          entry.item.type === "approval_request" &&
+          !entry.shown &&
+          status === "resolved" &&
+          (entry.response?.decision === "accept" || entry.response?.decision === "acceptForSession")
+        ) {
+          entry.item = { ...entry.item, ...ProviderAdapter.fullAccessApprovalNotice };
+        }
         pending.delete(entry.request.id);
         yield* emit({
           type: "runtime_request.updated",
