@@ -74,6 +74,32 @@ async function runServerDiag() {
   }
 }
 
+function controlWindow(pid, cmd, existingHwnd = 0) {
+  const script = `
+Add-Type -Namespace Win32 -Name Native -MemberDefinition '
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+'
+$h = [IntPtr]${existingHwnd}
+if ($h -eq [IntPtr]::Zero) {
+  $p = Get-Process -Id ${pid} -ErrorAction Stop
+  $p.Refresh()
+  $h = $p.MainWindowHandle
+}
+if ($h -eq [IntPtr]::Zero) { throw "No MainWindowHandle for PID ${pid}" }
+[void][Win32.Native]::ShowWindow($h, ${cmd})
+Start-Sleep -Milliseconds 300
+[pscustomobject]@{ hwnd = $h.ToInt64(); iconic = [Win32.Native]::IsIconic($h) } | ConvertTo-Json -Compress
+`;
+  return JSON.parse(
+    execFileSync("pwsh", ["-NoProfile", "-Command", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15000,
+    }),
+  );
+}
+
 async function runDesktopAudit() {
   const sb = createSandbox(20, 40, "code");
   const { port, run, start, wait, env, userdata, work, profile, modelSelection } = sb;
@@ -235,11 +261,13 @@ async function runDesktopAudit() {
 
     // Phase C: Minimize & wait 15s (without forcing CDP GC)
     const beforeMinimize = await readRendererState(false);
-    const { windowId } = await cdp.call("Browser.getWindowForTarget", { targetId: target.id });
-    await cdp.call("Browser.setWindowBounds", { windowId, bounds: { windowState: "minimized" } });
+    const minState = controlWindow(app.pid, 6); // SW_MINIMIZE
+    assert(minState.iconic, "Window did not minimize");
     await sleep(15000);
+    const minimizedVisibility = await evaluate("document.visibilityState");
     const afterMinimize = await readRendererState(false);
-    await cdp.call("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal" } });
+    const restoreState = controlWindow(app.pid, 9, minState.hwnd); // SW_RESTORE
+    assert(!restoreState.iconic, "Window did not restore");
     await sleep(1000);
     const restoredOk = await evaluate("document.querySelectorAll('[data-timeline-root]').length > 0");
     assert(restoredOk, "Window did not restore cleanly after minimize");
@@ -247,6 +275,7 @@ async function runDesktopAudit() {
     const minimize = {
       before: beforeMinimize,
       after: afterMinimize,
+      minimizedVisibility,
       restoredOk,
       delta: {
         rendererPrivateMiB: Number((afterMinimize.processMemory.renderer.privateMiB - beforeMinimize.processMemory.renderer.privateMiB).toFixed(3)),
