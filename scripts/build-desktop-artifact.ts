@@ -2870,12 +2870,6 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ...DESKTOP_EXTRA_RESOURCES,
       // chronos: platform-specific, SHA256-verified native automation tools.
       ...(isChronosVersion(version) ? [{ from: "apps/desktop/prod-resources/chronos-pc", to: "chronos-pc" }] : []),
-      // chronos: ship the optional Raw Input listener and its local profile broker on Windows.
-      ...(isChronosVersion(version) && platform === "win" ? [
-        {from: (yield* Path.Path).join(yield* RepoRoot,"chronos/keyboard"), to: "chronos-keyboard", filter: ["*.cjs", "!*.test.cjs"]},
-        {from: (yield* Path.Path).join(yield* RepoRoot,"chronos/skills/chronos-keyboard/scripts/profile.cjs"), to:"chronos-keyboard/profile.cjs"},
-        {from: (yield* Path.Path).join(yield* RepoRoot,"native/keyboard-input/target/x86_64-pc-windows-msvc/release/chronos-keyboard.exe"), to:"chronos-keyboard/chronos-keyboard.exe"},
-      ] : []),
       // chronos: stage the runtime allowlist from the checkout outside the app archive.
       ...(isChronosVersion(version) ? [{
         from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),

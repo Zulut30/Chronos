@@ -7,7 +7,7 @@ import {
 } from "@t3tools/contracts";
 import { RegistryContext } from "@effect/atom-react";
 // chronos: localize provider labels before composing the tooltip.
-import { effortLabel } from "~/chronos/olympus/l10n/providerCopy";
+import { effortDetail, effortLabel } from "~/chronos/olympus/l10n/providerCopy";
 import { T, useGT, useLocale } from "gt-react";
 import {
   createContext,
@@ -275,9 +275,11 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
   const allModelNames = selectedEntries
     ? selectedEntries.map((selection) => selection.fullLabel).join(", ") || gt("Choose models")
     : undefined;
+  // chronos: use the same localized provider detail for the tooltip and accessible name.
+  const triggerDetail = props.triggerDetail && effortDetail(props.triggerDetail, locale);
   const triggerTooltipContent = [
     props.triggerLabel ?? allModelNames ?? triggerLabel,
-    props.triggerDetail && effortLabel(props.triggerDetail, locale),
+    triggerDetail,
     shortcutLabel,
   ]
     .filter(Boolean)
@@ -356,7 +358,7 @@ export const ProviderModelPicker = memo(function ProviderModelPicker(props: {
             ref={triggerRef}
             aria-label={[
               props.triggerAriaLabel ?? props.triggerLabel ?? allModelNames ?? triggerLabel,
-              props.triggerDetail,
+              triggerDetail,
             ]
               .filter(Boolean)
               .join(", ")}

@@ -14,10 +14,33 @@ function iconFile(bytes) {
 function matches(file,args) {
   try {
     const shortcut=shell.readShortcutLink(file);
-    return path.resolve(shortcut.target).toLowerCase() === path.resolve(process.execPath).toLowerCase() && shortcut.args === args;
+    return shortcut.args === args &&
+      fs.realpathSync.native(shortcut.target).toLowerCase() === fs.realpathSync.native(process.execPath).toLowerCase();
   } catch {return false;}
 }
-function install(id,metadata,iconData,theme) {
+function directories() {
+  return [app.getPath("desktop"),path.join(app.getPath("appData"),"Microsoft","Windows","Start Menu","Programs","Chronos")];
+}
+function shortcutName(title) {
+  const stem=title.replace(/[<>:"/\\|?*\x00-\x1f]/g,"_").slice(0,80).trim().replace(/[. ]+$/,"") || "Артефакт";
+  return /^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/i.test(stem) ? "_"+stem : stem;
+}
+function ownedLinks(id,titles) {
+  const found=new Set();
+  for (const dir of directories()) for (const name of new Set(titles.map(shortcutName))) {
+    for (const suffix of [".lnk"," ("+id+").lnk"]) {
+      const file=path.join(dir,name+suffix);
+      if (fs.existsSync(file) && matches(file,"--chronos-artifact="+id)) found.add(file);
+    }
+  }
+  return found;
+}
+function remove(id,titles) {
+  for (const file of ownedLinks(id,titles)) fs.rmSync(file,{force:true});
+  const icons=path.join(app.getPath("userData"),"artifact-icons");
+  for (const ext of [".ico",".json"]) fs.rmSync(path.join(icons,id+ext),{force:true});
+}
+function install(id,metadata,iconData,theme,titles) {
   if (process.platform !== "win32") throw Error("Ярлыки доступны в Windows");
   const png=nativeImage.createFromDataURL(iconData);
   if (png.isEmpty() || png.getSize().width !== 64 || png.getSize().height !== 64) throw Error("Некорректный значок");
@@ -31,17 +54,20 @@ function install(id,metadata,iconData,theme) {
     fs.writeFileSync(path.join(icons,id+".json"),JSON.stringify({mode:theme.mode,tokens}));
   }
   const args="--chronos-artifact="+id;
-  const stem=metadata.title.replace(/[<>:"/\\|?*\x00-\x1f]/g,"_").slice(0,80).trim().replace(/[. ]+$/,"") || "Артефакт";
-  const name=/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/i.test(stem) ? "_"+stem : stem;
+  const name=shortcutName(metadata.title);
+  const previous=ownedLinks(id,titles);
+  const written=new Set();
   const properties={target:process.execPath,args,icon,iconIndex:0,description:metadata.description.slice(0,240),
     appUserModelId:"io.github.zulut30.chronos.artifact."+id};
-  for (const dir of [app.getPath("desktop"),path.join(app.getPath("appData"),"Microsoft","Windows","Start Menu","Programs","Chronos")]) {
+  for (const dir of directories()) {
     fs.mkdirSync(dir,{recursive:true});
     let file=path.join(dir,name+".lnk");
     if (fs.existsSync(file) && !matches(file,args)) file=path.join(dir,name+" ("+id+").lnk");
     if (fs.existsSync(file) && !matches(file,args)) throw Error("Ярлык с таким именем уже существует");
     if (!shell.writeShortcutLink(file,fs.existsSync(file) ? "update" : "create",properties)) throw Error("Не удалось записать ярлык");
+    written.add(file.toLowerCase());
   }
+  for (const file of previous) if (!written.has(file.toLowerCase())) fs.rmSync(file,{force:true});
   return true;
 }
-module.exports={install};
+module.exports={install,remove,ownedLinks};

@@ -7,7 +7,6 @@ import {
   ThreadId,
   TurnItemId,
 } from "@t3tools/contracts";
-import { searchableMessageSegments, searchablePlanSegments } from "@t3tools/shared/threadFindText";
 import { countThreadSearchOccurrences } from "@t3tools/shared/threadSearch";
 import { htmlRenderFromToolItem, mcpAppFromToolItem } from "@t3tools/shared/toolOutput";
 import * as Cache from "effect/Cache";
@@ -98,10 +97,12 @@ function textKey(
   });
 }
 
-function parseText(key: TextKey): readonly string[] {
+type ThreadFindText = typeof import("@t3tools/shared/threadFindText");
+
+function parseText(key: TextKey, parser: ThreadFindText): readonly string[] {
   return key.role === "plan"
-    ? searchablePlanSegments(key.text, key.cwd, key.theme)
-    : (searchableMessageSegments(
+    ? parser.searchablePlanSegments(key.text, key.cwd, key.theme)
+    : (parser.searchableMessageSegments(
         {
           role: key.role,
           text: key.text,
@@ -270,19 +271,21 @@ export const makeThreadFind = Effect.fn("makeThreadFind")(function* (
           });
     });
   });
-  const makeTextCache = (capacity: number) =>
-    Cache.make({ capacity, lookup: (key: TextKey) => Effect.sync(() => parseText(key)) });
+  const makeTextCache = (capacity: number, parser: ThreadFindText) =>
+    Cache.make({ capacity, lookup: (key: TextKey) => Effect.sync(() => parseText(key, parser)) });
   // Text keys are message content, so entries never go stale. Cache TTL only expires on access
   // and would keep the last searched threads forever. Each search borrows this for its whole
   // stream, and all of it is dropped once Find is idle.
   const findCaches = yield* RcRef.make({
-    acquire: Effect.all({
-      // Scans visit every message; a cache smaller than the thread churns without hits.
-      text: makeTextCache(8192),
-      // Bounded separately because each entry can hold a large body; typing reuses the parse.
-      largeText: makeTextCache(32),
-      scans: Effect.sync((): CompletedScans => new Map()),
-      rendered: Effect.sync((): RenderedSnapshot => ({ current: undefined })),
+    acquire: Effect.gen(function* () {
+      // chronos: construct Markdown processors when a search first borrows its caches.
+      const parser = yield* Effect.promise(() => import("@t3tools/shared/threadFindText"));
+      return {
+        text: yield* makeTextCache(8192, parser),
+        largeText: yield* makeTextCache(32, parser),
+        scans: new Map() as CompletedScans,
+        rendered: { current: undefined } as RenderedSnapshot,
+      };
     }),
     idleTimeToLive: "1 minute",
   });

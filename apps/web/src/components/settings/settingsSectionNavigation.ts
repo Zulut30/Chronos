@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from "react";
 
-const SECTION = "[data-settings-section]";
+// chronos: follow the visual order of native and Olympus settings buttons.
+import { settingsSectionButtons as SECTION } from "../../chronos/olympus/settingsNavigation";
 
 /** Arrow keys move focus between settings sections without opening them. */
 export function handleSettingsSectionKeyDown(event: KeyboardEvent<HTMLElement>) {

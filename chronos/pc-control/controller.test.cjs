@@ -16,6 +16,7 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
       : path.join(dir, "broker");
   const key = randomUUID();
   const calls = [];
+  let emptyTree = false;
   let emergency, nextApproval;
   const controller = createController({
     dir,
@@ -23,7 +24,8 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
     socket,
     key,
     shortcut: {
-      register(_, fn) {
+      register(accelerator, fn) {
+        assert.equal(accelerator, "CommandOrControl+Alt+Shift+F12");
         emergency = fn;
         return true;
       },
@@ -40,7 +42,7 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
     async native(s, op, q) {
       calls.push({ op, value: q.value });
       if (op === "snapshot")
-        return [{ ref: "@sample:e1", name: "Input", role: "textfield", secure: true }];
+        return emptyTree ? [] : [{ ref: "@sample:e1", name: "Input", role: "textfield", secure: true }];
     },
   });
   t.after(async () => {
@@ -73,9 +75,17 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
   const { session } = await request({ op: "attach", kind: "desktop", target: "notepad.exe" });
   assert.equal((await request({ op: "click", session, ref: "@sample:e1" })).ok, false);
   await request({ op: "snapshot", session });
+  emptyTree = true;
+  const empty = await request({ op: "snapshot", session });
+  assert.deepEqual(empty.elements, []);
+  assert.match(empty.message, /дереве доступности/);
+  assert.equal((await request({ op: "click", session, ref: "@sample:e1" })).ok, false);
+  emptyTree = false;
+  await request({ op: "snapshot", session });
   let pending = approval();
   const fill = request({ op: "fill", session, ref: "@sample:e1", value: "from-agent" });
   const item = await pending;
+  assert.equal(controller.state().active, true);
   assert.equal(item.manual, true);
   assert.equal(item.proposal, undefined);
   await controller.ui({ op: "decide", id: item.id, allow: true, value: "synthetic-user-input" });
@@ -99,10 +109,15 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
     await fs.readFile(path.join(dir, "history.json"), "utf8"),
     /from-agent|synthetic-user-input|notepad/,
   );
+  await controller.restore();
+  assert.deepEqual(controller.state().settings, { ...settings, enabled: false });
   await controller.ui({ op: "configure", settings: { ...settings, mode: "every" } });
   pending = approval();
   const attach = request({ op: "attach", kind: "desktop", target: "notepad.exe" });
   const every = await pending;
   await controller.ui({ op: "decide", id: every.id, allow: false });
   assert.equal((await attach).ok, false);
+  controller.stop();
+  await controller.restore();
+  assert.deepEqual(controller.state().settings, { ...settings, mode: "every" });
 });

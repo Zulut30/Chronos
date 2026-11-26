@@ -64,9 +64,6 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
     <>
       {primaryOptions.map((option) => {
         const buttonProps = {
-          // chronos: resolve only the visible one-time decision for one concrete request.
-          "data-pad-decision": option.decision,
-          "data-pad-request": requestId,
           disabled: disabled || isResponding || !canRespond,
           "aria-description": option.warning,
           onClick: () => {

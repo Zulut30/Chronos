@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { effortLabel, usageNotice } from "../../apps/web/src/chronos/olympus/l10n/providerCopy.ts";
+import { effortDetail, effortLabel, serverMessage, usageNotice } from "../../apps/web/src/chronos/olympus/l10n/providerCopy.ts";
 
 import { groupProbeArgs } from "../../apps/server/src/chronos/codexProcessGroup.ts";
 
@@ -13,6 +13,27 @@ test("the Codex shutdown probe only queries process groups on POSIX", () => {
 test("localizes Codex effort independently of the model name", () => {
   assert.equal(effortLabel("6.2 Sol · High", "ru"), "6.2 Sol · Высокий");
   assert.equal(effortLabel("High", "en"), "High");
+  assert.equal(effortDetail("Medium", "ru"), "Средний");
+  assert.equal(effortDetail("Max · 1M", "ru-RU"), "Максимальный · 1M");
+  assert.equal(effortDetail("Medium · 1M", "en"), "Medium · 1M");
+  assert.equal(effortDetail("High · Standard", "ru"), "Высокий · Стандартный");
+  assert.equal(effortDetail("Extra High Fast · Daybreak Blue", "ru"), "Очень высокий · Быстрый · Daybreak Blue");
+  assert.equal(effortDetail("Ultra Ultrafast · 1M", "ru"), "Ультра · Сверхбыстрый · 1M");
+  assert.equal(effortDetail("Custom Fast · Standard", "en"), "Custom Fast · Standard");
+  assert.equal(effortDetail("Custom Fast", "ru"), "Custom Fast");
+});
+test("localizes only exact, known provider health messages in Russian", () => {
+  const cursor = "Sign in with Cursor or add CURSOR_API_KEY in provider settings.";
+  assert.match(serverMessage(cursor, "ru-RU"), /Войдите.*CURSOR_API_KEY/);
+  assert.equal(serverMessage(cursor, "en"), cursor);
+  assert.equal(serverMessage("Custom: " + cursor, "ru"), "Custom: " + cursor);
+  assert.match(serverMessage("Antigravity is installed. Google account access is not checked yet.", "ru"), /ещё не проверен/);
+  assert.match(serverMessage("Enter a Gemini API key in the Antigravity provider settings.", "ru"), /Введите API-ключ Gemini/);
+});
+test("translates a user stop in the timeline and preserves custom interrupt reasons", () => {
+  assert.equal(serverMessage("Stopped by user", "ru"), "По команде пользователя");
+  assert.equal(serverMessage("Stopped by user", "en"), "Stopped by user");
+  assert.equal(serverMessage("Stopped by user policy", "ru"), "Stopped by user policy");
 });
 test("localizes provider notices without changing account names or diagnostics", () => {
   assert.equal(usageNotice("Work: Codex: Could not read limits.", "ru"), "Work: Codex: Не удалось получить лимиты.");

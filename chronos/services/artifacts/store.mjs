@@ -47,6 +47,7 @@ export function openArtifacts(home = process.env.CHRONOS_HOME || path.join(homed
   return {
     publish,
     documents: documentDatabase(db),
+    titles: id => db.prepare("SELECT DISTINCT json_extract(metadata,'$.title') AS title FROM versions WHERE id=?").all(id).map(row => row.title),
     metadata(id) {
       const row = db.prepare("SELECT metadata,version FROM versions WHERE id=? ORDER BY version DESC LIMIT 1").get(id);
       if (!row) throw Error("Артефакт не найден");

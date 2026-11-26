@@ -11,9 +11,9 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
-import { buildRemoteT3RunnerScript } from "../../../packages/ssh/src/tunnel.ts";
 
-const [upstream,revision,archive,output]=process.argv.slice(2);
+const paired = process.argv[2] === "--pair";
+const [upstream, revision, archive, output] = process.argv.slice(paired ? 3 : 2);
 const root=fs.mkdtempSync(path.join(os.tmpdir(),"chronos-cli-"));
 const runs=[];
 const home=path.join(root,"installer"),mirror=path.join(root,"releases");
@@ -29,8 +29,7 @@ function sample(pid) {
 function traceSize(dir) {
   return fs.readdirSync(dir).filter(f=>/^server\.trace\.ndjson(?:\.\d+)?$/.test(f)).reduce((n,f)=>n+fs.statSync(path.join(dir,f)).size,0);
 }
-async function exercise(version) {
-  const exe=path.join(home,".t3/runtime/versions",version,"t3");
+async function exercise(version, exe = path.join(home,".t3/runtime/versions",version,"t3")) {
   const fixture=fs.mkdtempSync(path.join(root,"run-")),userdata=path.join(fixture,"userdata");
   const work=path.join(fixture,"workspace");
   fs.mkdirSync(work);fs.mkdirSync(userdata);
@@ -57,14 +56,18 @@ async function exercise(version) {
     const logs=path.join(userdata,"logs");
     await delay(1300);const before=sample(child.pid), bytes=traceSize(logs), t=performance.now();
     for(let i=0;i<80;i++) await mutate({type:"project.update",title:"Bench "+i});
-    const elapsedMs=performance.now()-t;await delay(1300);
+    const elapsedMs=performance.now()-t;
+    const active=sample(child.pid);
+    await delay(1300);
     const after=sample(child.pid);
     const db=new DatabaseSync(path.join(userdata,"statev2.sqlite"),{readOnly:true});
     try {
       const {title}=db.prepare("SELECT title FROM projection_projects WHERE project_id=?").get(id);
       assert.equal(title,"Bench 79");
     } finally {db.close()}
-    const result={version,updates:80,elapsedMs,cpuMs:after.cpuMs-before.cpuMs,rssMiB:after.rssMiB,traceBytes:traceSize(logs)-bytes};
+    const result = { version, updates: 80, elapsedMs, cpuMs: after.cpuMs - before.cpuMs,
+      activeCpuMs: active.cpuMs - before.cpuMs, drainCpuMs: after.cpuMs - active.cpuMs,
+      rssMiB: after.rssMiB, traceBytes: traceSize(logs) - bytes };
     runs.push(result);console.log(JSON.stringify(result));
   } finally {
     if(child.exitCode===null) child.kill("SIGTERM");
@@ -72,7 +75,8 @@ async function exercise(version) {
     try {await exited} finally {clearTimeout(timer)}
   }
 }
-try {
+async function compareWithUpstream() {
+  const { buildRemoteT3RunnerScript } = await import("../../../packages/ssh/src/tunnel.ts");
   const release=path.join(mirror,"chronos-v"+revision);fs.mkdirSync(release,{recursive:true});
   const name=path.basename(archive);fs.copyFileSync(archive,path.join(release,name));
   const hash=createHash("sha256");for await(const chunk of fs.createReadStream(archive)) hash.update(chunk);
@@ -85,5 +89,17 @@ try {
     assert.equal(fs.readFileSync(path.join(home,".t3/runtime/versions",version,".install-complete"),"utf8").trim(),version);
   }
   for(const version of [upstream,revision,revision,upstream,upstream,revision]) await exercise(version);
+}
+try {
+  if (paired) {
+    assert.equal(process.platform, "linux");
+    assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
+    const binaries = { base: path.resolve(revision), head: path.resolve(archive) };
+    for (const side of ["base", "head", "head", "base", "base", "head"]) {
+      await exercise(side, binaries[side]);
+    }
+  } else {
+    await compareWithUpstream();
+  }
   fs.writeFileSync(output,JSON.stringify(runs,null,2)+"\n");
 } finally {fs.rmSync(root,{recursive:true,force:true})}

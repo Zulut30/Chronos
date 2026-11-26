@@ -265,6 +265,34 @@ describe("DesktopClientSettings", () => {
     ),
   );
 
+  // chronos: saved client settings with removed keyboard fields must remain readable.
+  it.effect("loads saved client settings containing legacy keyboard fields without errors", () =>
+    withClientSettings(
+      Effect.gen(function* () {
+        const environment = yield* DesktopEnvironment.DesktopEnvironment;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const settings = yield* DesktopClientSettings.DesktopClientSettings;
+        yield* fileSystem.makeDirectory(environment.stateDir, { recursive: true });
+        yield* fileSystem.writeFileString(
+          environment.clientSettingsPath,
+          `${JSON.stringify({
+            timestampFormat: "24-hour",
+            keyboard: { enabled: true, device: "side-keyboard", active: "default" },
+            keyboards: { enabled: true },
+          })}\n`,
+        );
+
+        const persisted = yield* settings.get;
+        assert.isTrue(Option.isSome(persisted));
+        if (Option.isSome(persisted)) {
+          assert.equal(persisted.value.timestampFormat, "24-hour");
+          assert.isFalse("keyboard" in persisted.value);
+          assert.isFalse("keyboards" in persisted.value);
+        }
+      }),
+    ),
+  );
+
   it.effect.each([
     { label: "malformed JSON", contents: "{not-json" },
     { label: "invalid legacy settings", contents: '{"settings":{"fontSizeCode":"large"}}' },

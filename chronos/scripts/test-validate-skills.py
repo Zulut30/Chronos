@@ -30,7 +30,6 @@ class RoutingTests(unittest.TestCase):
             f"| Task | `{name}` · `git show origin/{ref}:chronos/skills/{name}/SKILL.md` |"
             for name, ref in {
                 "chronos-artifacts": "feature/artifacts",
-                "chronos-keyboard": "feature/keyboard-studio",
                 "chronos-pc-control": "feature/pc-control",
                 "chronos-perf-guard": "perf/guard",
             }.items()
@@ -47,12 +46,12 @@ class RoutingTests(unittest.TestCase):
         self.rows = [row.replace("(../chronos-ui/", "(../chronos-ci/") for row in self.rows]
         self.assertIn("router sends chronos-ui to ../chronos-ci/SKILL.md", self.errors())
 
-    def test_expected_keyboard_route_cannot_disappear_or_point_to_another_branch(self):
+    def test_expected_pending_route_cannot_disappear_or_point_to_another_branch(self):
         original = self.rows.copy()
-        self.rows = [row for row in original if "chronos-keyboard" not in row]
-        self.assertIn("no router table entry for chronos-keyboard", self.errors())
-        self.rows = [row.replace("origin/feature/keyboard-studio:", "origin/main:") for row in original]
-        self.assertTrue(any("origin/feature/keyboard-studio:" in e for e in self.errors()))
+        self.rows = [row for row in original if "chronos-artifacts" not in row]
+        self.assertIn("no router table entry for chronos-artifacts", self.errors())
+        self.rows = [row.replace("origin/feature/artifacts:", "origin/main:") for row in original]
+        self.assertTrue(any("origin/feature/artifacts:" in e for e in self.errors()))
 
     def test_detects_missing_package_route_and_agent_entry(self):
         self.installed.remove("chronos-ci")
