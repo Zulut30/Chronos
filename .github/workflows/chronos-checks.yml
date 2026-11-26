@@ -73,6 +73,9 @@ jobs:
         with:
           install-args: --filter=@t3tools/contracts... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/shared... --filter=@t3tools/scripts... --filter=@t3tools/oxlint-plugin-t3code...
 
+      - name: Exercise the Windows differential updater
+        run: node --test chronos/scripts/delivery/*.test.mjs
+
       - name: Olympus feature gates and chat preferences
         run: node --test chronos/scripts/olympus-settings.test.mjs chronos/scripts/provider-copy.test.mjs chronos/scripts/smoke/olympus-theme.test.mjs
 

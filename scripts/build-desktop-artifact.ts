@@ -32,6 +32,8 @@ import desktopPackageJson from "../apps/desktop/package.json" with { type: "json
 import gnomeCaptureBundle from "../apps/desktop/gnome-extension/bundle.json" with { type: "json" };
 import serverPackageJson from "../apps/server/package.json" with { type: "json" };
 
+import { windowsPayloadExclusions } from "./lib/windows-payload.ts";
+import { chronosUpdateFeed } from "./lib/chronos-update-feed.ts";
 import {
   ReleasePackageManifestError,
   releasePackageFiles,
@@ -1055,6 +1057,7 @@ export const WINDOWS_SERVER_ASAR_IGNORE_GLOBS = [
   "**/node_modules/@cursor/sdk-*/**",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+  ...windowsPayloadExclusions,
   "**/node_modules/.bin",
   "**/node_modules/.bin/**",
   "**/*.map",
@@ -2853,6 +2856,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
+      ...(platform === "win" ? windowsPayloadExclusions.map((glob) => `!${glob}`) : []),
       ...(platform === "mac"
         ? resolveMacFileExclusions(arch)
         : platform === "linux"
@@ -2893,7 +2897,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // chronos: updates come from the newest Chronos GitHub release. The feed is the
     // `releases/latest/download` redirect, so release tags need not be semver.
     buildConfig.publish = [
-      { provider: "generic", url: CHRONOS_UPDATE_FEED_URL, channel: updateChannel },
+      chronosUpdateFeed(CHRONOS_UPDATE_FEED_URL, updateChannel),
     ];
   } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
@@ -4004,6 +4008,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
           arch: options.arch,
           fffNodeVersion: serverPackageJson.dependencies["@ff-labs/fff-node"],
         });
+  // Windows runs the browser provider from server.asar, which carries its own complete Playwright.
+  if (options.platform === "win") delete stageDependencies["playwright-core"];
   const stagePatchedDependencies = createStagePatchedDependencies(
     workspacePatchedDependencies,
     stageDependencies,
