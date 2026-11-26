@@ -1,6 +1,9 @@
+// @effect-diagnostics-next-line nodeBuiltinImport:off -- The Windows probe needs a hidden process with an immediately closed stdin and a bounded, abortable capture.
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as FileSystem from "effect/FileSystem";
+import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import { promisify } from "node:util";
 import * as Effect from "effect/Effect";
 import type { ProcessRunner } from "../processRunner.ts";
@@ -92,23 +95,37 @@ export const idleProcessGuard = (
 
 const execFileAsync = promisify(execFile);
 
-function windowsTreeReader(systemRoot: string, pid: number) {
-  // The packaged desktop resolves its matching monitor at startup. A bundled server
-  // launched directly in Electron has the same monitor beside its resources.
-  const monitor = [
-    process.env.CHRONOS_WINDOWS_INHIBITOR,
-    process.versions.electron && join(dirname(process.execPath), "resources", "resource-monitor", "t3-resource-monitor.exe"),
-  ].find((candidate): candidate is string => !!candidate && isAbsolute(candidate) && existsSync(candidate));
+const windowsTreeReader = Effect.fnUntraced(function* (systemRoot: string, pid: number) {
+  const path = yield* Effect.serviceOption(Path.Path);
+  const fs = yield* Effect.serviceOption(FileSystem.FileSystem);
+  const environment = yield* HostProcess.Environment;
+  const executable = yield* HostProcess.ExecutablePath;
+  let monitor = environment.CHRONOS_WINDOWS_INHIBITOR;
+  // A packaged Electron server can also be launched directly without the desktop bootstrap.
+  if (!monitor && process.versions.electron && Option.isSome(path) && Option.isSome(fs)) {
+    const candidate = path.value.join(
+      path.value.dirname(executable), "resources", "resource-monitor", "t3-resource-monitor.exe",
+    );
+    if (yield* fs.value.exists(candidate).pipe(Effect.orElseSucceed(() => false))) monitor = candidate;
+  }
   traceIdleUnload("windows-reader", { source: monitor ? "resource-monitor" : "cim" });
-  const command = monitor ?? join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-  const args = monitor ? ["--chronos-process-tree", String(pid)] : [
-    "-NoProfile", "-NonInteractive", "-Command",
-    "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
-  ];
+  const command = monitor ?? systemRoot + "/System32/WindowsPowerShell/v1.0/powershell.exe";
+  const args = monitor
+    ? ["--chronos-process-tree", String(pid)]
+    : [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
+      ];
   return Effect.tryPromise({
     try: async (signal) => {
       const result = execFileAsync(command, args, {
-        encoding: "utf8", windowsHide: true, timeout: 5000, maxBuffer: 2 * 1024 * 1024, signal,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 5000,
+        maxBuffer: 2 * 1024 * 1024,
+        signal,
       });
       result.child.stdin?.end();
       const { stdout } = await result;
@@ -116,7 +133,7 @@ function windowsTreeReader(systemRoot: string, pid: number) {
     },
     catch: () => "snapshot unavailable",
   }).pipe(Effect.orElseSucceed(() => undefined));
-}
+});
 
 export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   runner: ProcessRunner["Service"],
@@ -130,7 +147,7 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
     traceIdleUnload("process-baseline", { available: false, reason: "missing-pid" });
     return Effect.succeed(false);
   }
-  const read = windows ? windowsTreeReader(systemRoot, pid) : runner.run({
+  const read = windows ? yield* windowsTreeReader(systemRoot, pid) : runner.run({
     command: "ps",
     args: ["-A", "-ww", "-o", unit === undefined ? "pid=,ppid=,pgid=,lstart=" : "pid=,ppid=,pgid=,lstart=,cgroup="],
     timeout: "5 seconds",
