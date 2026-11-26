@@ -1,6 +1,11 @@
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import { idleProcessGuard, posixIdleTree, processTree } from "./claudeProcessGuard.ts";
+import {
+  captureIdleProcessGuard,
+  idleProcessGuard,
+  posixIdleTree,
+  processTree,
+} from "./claudeProcessGuard.ts";
 
 it.effect(
   "idle process check admits startup MCP, pins new jobs and fails closed on a missing tree",
@@ -34,3 +39,45 @@ it("counts reparented POSIX processes owned by the group, tracker or systemd sco
   assert.deepEqual(posixIdleTree(table, 100, [202], "t3.scope"), expected);
   assert.isUndefined(posixIdleTree(table, 100, [], "missing.scope"));
 });
+
+it.effect("uses BSD-compatible ps flags with LC_ALL=C on macOS and parses single-digit days", () =>
+  Effect.gen(function* () {
+    const calls: Array<{
+      command: string;
+      args?: ReadonlyArray<string>;
+      env?: Readonly<Record<string, string | undefined>>;
+    }> = [];
+    const boot = [
+      "  100     1   100 Thu Nov  5 08:00:00 2026",
+      "  101   100   100 Thu Nov  5 08:00:01 2026",
+    ].join("\n");
+    let current = boot;
+    const runner = {
+      run: (input: {
+        command: string;
+        args?: ReadonlyArray<string>;
+        env?: Readonly<Record<string, string | undefined>>;
+      }) => {
+        calls.push({ command: input.command, args: input.args, env: input.env });
+        return Effect.succeed({
+          code: 0,
+          stdout: current,
+          stderr: "",
+          stdoutTruncated: false,
+          stderrTruncated: false,
+        });
+      },
+    } as Parameters<typeof captureIdleProcessGuard>[0];
+
+    const check = yield* captureIdleProcessGuard(runner, false, "", 100, () => []);
+    assert.deepEqual(calls[0], {
+      command: "ps",
+      args: ["-A", "-ww", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "lstart="],
+      env: { LC_ALL: "C" },
+    });
+    assert.isTrue(yield* check);
+
+    current = boot + "\n  102   101   100 Thu Nov  5 08:05:00 2026";
+    assert.isFalse(yield* check);
+  }),
+);

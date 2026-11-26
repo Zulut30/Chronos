@@ -2918,6 +2918,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
+    // chronos: unsigned macOS Chronos builds write ElectronAsarIntegrity and ad-hoc sign after packing.
+    if (isChronosVersion(version) && !signed) {
+      buildConfig.afterPack = path.join(repoRoot, "chronos/scripts/macos-after-pack.cjs");
+    }
+    const macBrandName = isChronosVersion(version) ? CHRONOS_PRODUCT_NAME : "T3 Code";
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
@@ -2925,24 +2930,15 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       extendInfo: {
         // macOS 26 offers Messages/Mail codes in every text field unless opted out.
         NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
-        NSLocalNetworkUsageDescription:
-          "T3 Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
-        NSCalendarsUsageDescription:
-          "Commands you run in T3 Code may need access to your calendars.",
-        NSCalendarsFullAccessUsageDescription:
-          "Commands you run in T3 Code may need to read and write your calendar events.",
-        NSCalendarsWriteOnlyAccessUsageDescription:
-          "Commands you run in T3 Code may need to add events to your calendars.",
-        NSScreenCaptureUsageDescription:
-          "T3 Code captures the active window when you use the window capture shortcut.",
-        NSCameraUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the camera.",
-        NSMicrophoneUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the microphone.",
-        NSAppleEventsUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents control other apps.",
-        NSSpeechRecognitionUsageDescription:
-          "T3 Code transcribes your dictation on this Mac when you choose Apple Speech.",
+        NSLocalNetworkUsageDescription: `${macBrandName} connects to devices on your local network for remote environments and commands run by terminals and coding agents.`,
+        NSCalendarsUsageDescription: `Commands you run in ${macBrandName} may need access to your calendars.`,
+        NSCalendarsFullAccessUsageDescription: `Commands you run in ${macBrandName} may need to read and write your calendar events.`,
+        NSCalendarsWriteOnlyAccessUsageDescription: `Commands you run in ${macBrandName} may need to add events to your calendars.`,
+        NSScreenCaptureUsageDescription: `${macBrandName} captures the active window when you use the window capture shortcut.`,
+        NSCameraUsageDescription: `${macBrandName} lets commands run by terminals and coding agents use the camera.`,
+        NSMicrophoneUsageDescription: `${macBrandName} lets commands run by terminals and coding agents use the microphone.`,
+        NSAppleEventsUsageDescription: `${macBrandName} lets commands run by terminals and coding agents control other apps.`,
+        NSSpeechRecognitionUsageDescription: `${macBrandName} transcribes your dictation on this Mac when you choose Apple Speech.`,
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2956,7 +2952,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
-          name: "T3 Code",
+          name: macBrandName,
           // chronos: standalone Chronos registers chronos:// instead of stealing t3code://.
           schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },

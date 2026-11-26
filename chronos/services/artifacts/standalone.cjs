@@ -15,7 +15,8 @@ async function open(id) {
     const existing=windows.get(id);
     if(existing && !existing.isDestroyed()) {existing.restore();existing.show();existing.focus();return;}
     const metadata=runtime.db().metadata(id);
-    const icon=path.join(app.getPath("appData"),"Chronos","artifact-icons",id+".ico");
+    const iconBase=path.join(app.getPath("appData"),"Chronos","artifact-icons",id);
+    const icon=iconBase+(process.platform==="win32"?".ico":".png");
     const window=new BrowserWindow({title:metadata.title,width:900,height:680,autoHideMenuBar:true,show:false,
       ...(fs.existsSync(icon)?{icon}:{}),webPreferences:runtime.preferences(id)});
     windows.set(id,window);
@@ -23,7 +24,7 @@ async function open(id) {
     runtime.protect(window.webContents);
     window.webContents.on("did-finish-load",()=>{
       if (!metadata.capabilities.includes("theme")) return;
-      try {window.webContents.send("chronos:artifact-theme",JSON.parse(fs.readFileSync(icon.slice(0,-4)+".json","utf8")));} catch {}
+      try {window.webContents.send("chronos:artifact-theme",JSON.parse(fs.readFileSync(iconBase+".json","utf8")));} catch {}
     });
     window.once("closed",()=>windows.delete(id));
     window.once("ready-to-show",()=>window.show());

@@ -67,6 +67,9 @@ jobs:
       - name: Computer control permissions and emergency stop
         run: node --test chronos/pc-control/controller.test.cjs
 
+      - name: macOS ASAR integrity and Mach-O packaging helper
+        run: node --test chronos/scripts/macos-after-pack.test.mjs
+
       - name: Preview feature changes and upstream integration in a temporary repository
         run: node --test chronos/scripts/upstream-plan.test.mjs
 

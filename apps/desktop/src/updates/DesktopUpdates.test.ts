@@ -1536,4 +1536,45 @@ describe("DesktopUpdates under a managed policy", () => {
       }),
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
+
+  // chronos: macOS builds are ad-hoc signed, so updates check normally and open the DMG instead of Squirrel.Mac.
+  it.effect("uses manual DMG updates without Squirrel.Mac on macOS Chronos builds", () => {
+    const harness = makeHarness({
+      platform: "darwin",
+      appVersion: "0.1.12-nightly.20261124.5209.chronos.7",
+      savedChannel: "nightly",
+    });
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        const desktopState = yield* DesktopState.DesktopState;
+        yield* updates.configure;
+
+        assert.isFalse(yield* Ref.get(desktopState.canInstallUpdates));
+        assert.isTrue((yield* updates.check("menu")).checked);
+        assert.equal(harness.checkCount(), 1);
+
+        harness.emit("update-available", {
+          version: "0.1.12-nightly.20261124.5209.chronos.8",
+        });
+        yield* flushCallbacks;
+
+        const available = yield* updates.getState;
+        assert.equal(available.status, "available");
+        assert.equal(available.availableVersion, "0.1.12-nightly.20261124.5209.chronos.8");
+
+        const download = yield* updates.download;
+        assert.isFalse(download.completed);
+        assert.equal(download.state.status, "available");
+        assert.isNull(download.state.message);
+        assert.equal(harness.downloadCount(), 0);
+
+        const install = yield* updates.install();
+        assert.isFalse(install.accepted);
+        assert.isFalse(install.failed);
+        assert.equal(harness.quitAndInstallCount(), 0);
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
 });

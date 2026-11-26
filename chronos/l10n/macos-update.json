@@ -1,0 +1,26 @@
+{
+  "ru": {
+    "downloadButton": "Скачать DMG",
+    "settingsDescription": "Доступно обновление. На macOS оно устанавливается вручную из DMG.",
+    "tooltipAvailable": "Доступно обновление {version}. Нажмите, чтобы скачать DMG.",
+    "tooltipAvailableNoVersion": "Доступно обновление. Нажмите, чтобы скачать DMG.",
+    "popoverHeading": "Доступно обновление (DMG)",
+    "popoverHint": "Нажмите на кнопку обновления, чтобы скачать установщик DMG в браузере.",
+    "toastTitle": "Загрузка DMG открыта в браузере",
+    "toastDescription": "Откройте скачанный образ и перетащите Chronos в «Программы».",
+    "rosettaDownload": "На этом Mac установлен процессор Apple Silicon, но Chronos запущен в сборке для Intel (Rosetta). Скачайте DMG для Apple Silicon.",
+    "rosettaIdle": "На этом Mac установлен процессор Apple Silicon, но Chronos запущен в сборке для Intel (Rosetta). Скачайте сборку для Apple Silicon со страницы релизов."
+  },
+  "en": {
+    "downloadButton": "Download DMG",
+    "settingsDescription": "Update available. On macOS, install it manually from the DMG.",
+    "tooltipAvailable": "Update {version} is available. Click to download the DMG.",
+    "tooltipAvailableNoVersion": "Update available. Click to download the DMG.",
+    "popoverHeading": "Update available (DMG)",
+    "popoverHint": "Click the update button to download the DMG installer in your browser.",
+    "toastTitle": "DMG download opened in browser",
+    "toastDescription": "Open the downloaded disk image and drag Chronos to Applications.",
+    "rosettaDownload": "This Mac has Apple Silicon, but Chronos is running the Intel build under Rosetta. Download the Apple Silicon DMG.",
+    "rosettaIdle": "This Mac has Apple Silicon, but Chronos is running the Intel build under Rosetta. Download the Apple Silicon build from the releases page."
+  }
+}
