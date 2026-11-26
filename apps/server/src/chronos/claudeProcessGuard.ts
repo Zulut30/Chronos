@@ -94,7 +94,10 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   tracked: () => ReadonlyArray<number>,
   unit?: string,
 ) {
-  if (pid === undefined) return Effect.succeed(false);
+  if (pid === undefined) {
+    traceIdleUnload("process-baseline", { available: false, reason: "missing-pid" });
+    return Effect.succeed(false);
+  }
   const command = windows
     ? {
         command: systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
@@ -117,14 +120,19 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   const read = runner
     .run({ ...command, timeout: "5 seconds", maxOutputBytes: 2 * 1024 * 1024 })
     .pipe(
-      Effect.map((out) =>
-        out.code !== 0 || out.stdoutTruncated
-          ? undefined
-          : windows
-            ? processTree(out.stdout, pid)
-            : posixIdleTree(out.stdout, pid, tracked(), unit),
-      ),
-      Effect.orElseSucceed(() => undefined),
+      Effect.map((out) => {
+        if (out.code !== 0 || out.stdoutTruncated) {
+          traceIdleUnload("process-read", { code: out.code, truncated: out.stdoutTruncated });
+          return undefined;
+        }
+        return windows
+          ? processTree(out.stdout, pid)
+          : posixIdleTree(out.stdout, pid, tracked(), unit);
+      }),
+      Effect.catch((error) => {
+        traceIdleUnload("process-read", { error: error._tag });
+        return Effect.succeed(undefined);
+      }),
     );
   const initial = yield* read;
   traceIdleUnload("process-baseline", { available: initial !== undefined, count: initial?.size });

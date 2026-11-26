@@ -79,6 +79,8 @@ for await (const line of createInterface({ input: process.stdin })) {
       sessionId,
       models: { currentModelId: "bench", availableModels: [{ modelId: "bench", name: "Bench" }] },
     };
+  } else if (lifecycle && method === "session/set_config_option") {
+    result = { configOptions: [] };
   } else if (method === "session/prompt") {
     const thread = JSON.stringify(params.prompt).match(/bench-([a-f0-9-]{36})/)?.[1];
     if (!thread) throw Error("Missing workload ID");
