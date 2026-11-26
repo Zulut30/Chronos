@@ -158,7 +158,7 @@ jobs:
         run: |
           vp test run src/scheduledTasks/ScheduledTaskService.schedule.test.ts
           vp test run src/terminal/Manager.test.ts -t 'opens the available Windows shell'
-          vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options'
+          vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options|prepares a worktree in the selected project'
 
       - name: Claude idle unload and provider lifecycle
         working-directory: apps/server
