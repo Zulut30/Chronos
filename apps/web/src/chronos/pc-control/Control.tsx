@@ -25,6 +25,8 @@ interface State {
   active: boolean;
   pending: Approval[];
   history: { time: number; op: string; status: string }[];
+  available?: boolean;
+  unavailableReason?: string;
 }
 declare global {
   interface Window {
@@ -164,9 +166,11 @@ export function PcIndicator() {
 function Editor({
   settings,
   send,
+  isMac,
 }: {
   settings: Settings;
   send: (input: unknown) => Promise<void>;
+  isMac: boolean;
 }) {
   const [draft, setDraft] = useState(settings);
   const [apps, setApps] = useState(settings.apps.join("\n"));
@@ -209,7 +213,7 @@ function Editor({
           <Textarea
             className="mt-1"
             rows={3}
-            placeholder={"notepad.exe\nhttps://example.org"}
+            placeholder={isMac ? "TextEdit\nhttps://example.org" : "notepad.exe\nhttps://example.org"}
             value={apps}
             onChange={(e) => setApps(e.target.value)}
           />
@@ -247,13 +251,32 @@ export function PcSettings() {
       <p className="p-4 text-sm" role={error ? "alert" : "status"}>{error || "Загрузка настроек…"}</p>
     </SettingsSection>
   );
+  const isMac = window.desktopBridge?.getClientPlatform?.() === "darwin";
+  if (state.available === false) {
+    return (
+      <SettingsSection id="pc-control" title="Управление ПК">
+        <div className="p-4 text-sm text-muted-foreground">
+          {state.unavailableReason ||
+            "Управление ПК недоступно на этом Mac: компонент agent-desktop не найден в сборке."}
+        </div>
+      </SettingsSection>
+    );
+  }
   return (
     <SettingsSection id="pc-control" title="Управление ПК">
       <div className="space-y-4 p-4 text-sm">
-        <Editor key={JSON.stringify(state.settings)} settings={state.settings} send={send} />
+        <Editor
+          key={JSON.stringify(state.settings)}
+          settings={state.settings}
+          send={send}
+          isMac={isMac}
+        />
         <p>
-          Аварийная остановка всех действий · <kbd>Ctrl / ⌘ + Alt + Shift + F12</kbd>. В Windows она
-          также закрывает окна, которые агент открыл на отдельном рабочем столе.
+          Аварийная остановка всех действий ·{" "}
+          <kbd>{isMac ? "⌘ + Option + Shift + F12" : "Ctrl / ⌘ + Alt + Shift + F12"}</kbd>.{" "}
+          {isMac
+            ? "Для управления приложениями на macOS разрешите Chronos в «Системные настройки → Конфиденциальность и безопасность → Универсальный доступ»."
+            : "В Windows она также закрывает окна, которые агент открыл на отдельном рабочем столе."}
         </p>
         <Button
           variant="outline"
