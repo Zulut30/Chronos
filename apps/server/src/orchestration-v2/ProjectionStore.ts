@@ -5090,7 +5090,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             id: thread.id,
             status: "failed",
             lastErrorClass: summary.lastErrorClass,
-            ...(summary.lastErrorCode ? { lastErrorCode: summary.lastErrorCode } : {}),
+            lastErrorCode: summary.lastErrorCode,
             usageLimitResetAt: summary.usageLimitResetAt,
             latestRunId: RunId.make(row.run_id),
             latestRunCompletedAt:
