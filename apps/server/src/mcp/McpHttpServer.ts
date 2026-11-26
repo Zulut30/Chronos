@@ -107,6 +107,7 @@ import {
 import * as HtmlHandlers from "./toolkits/html/handlers.ts";
 import { MessageToolkit } from "./toolkits/message/tools.ts";
 import * as MessageHandlers from "./toolkits/message/handlers.ts";
+import { artifactHandlers, artifactModule, artifactToolkit } from "../chronos/artifactToolkit.ts"; // chronos: thread-scoped Studio tools
 import { HtmlPreviewTool, HtmlPreviewToolkit, HtmlRenderToolkit } from "./toolkits/html/tools.ts";
 import { MCP_HTTP_PATH } from "../httpCors.ts";
 import { requestUrl } from "../requestUrl.ts";
@@ -1508,6 +1509,7 @@ export const layerMcpTransport = <RA, RE, RR>(registrations: Layer.Layer<RA, RE,
 
 /** Every tool the T3 MCP server advertises. AgentContextBudget.test.ts measures this set. */
 export const layerTools = Layer.mergeAll(
+  artifactModule ? toolkitRegistration(artifactToolkit, artifactHandlers) : Layer.empty,
   layerPreviewToolkit,
   layerOrchestratorToolkit,
   layerThreadToolkit,

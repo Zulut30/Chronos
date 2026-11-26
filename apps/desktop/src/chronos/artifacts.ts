@@ -1,4 +1,4 @@
-import type * as Electron from "electron";
+import * as Electron from "electron";
 // @effect-diagnostics-next-line nodeBuiltinImport:off -- Electron resolves the packaged preload before attaching a guest.
 import * as NodePath from "node:path";
 
@@ -8,7 +8,7 @@ interface Runtime {
 }
 let runtime: Runtime | undefined;
 export function attachArtifact(event: Electron.Event, prefs: Electron.WebPreferences, params: {src?:string;partition?:string}) {
-  if (!params.partition?.startsWith("persist:chronos-artifact-")) return false;
+  if (!params.partition?.startsWith("persist:chronos-artifact-") && !params.partition?.startsWith("chronos-artifact-history-")) return false;
   runtime ??= require(NodePath.join(process.resourcesPath,"chronos-services","artifacts","runtime.cjs")) as Runtime;
   runtime.attach(event,prefs,params);
   return true;
@@ -16,3 +16,10 @@ export function attachArtifact(event: Electron.Event, prefs: Electron.WebPrefere
 export function protectArtifact(contents: Electron.WebContents) {
   return runtime?.protect(contents) ?? false;
 }
+
+// The registry costs no connection, database or renderer until the first UI request.
+Electron.ipcMain.handle("chronos:artifact-library",(event, action: string, args: unknown) => {
+  if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame ||
+      !event.senderFrame.url.startsWith("t3code://app/")) throw Error("Откройте библиотеку в Chronos");
+  return require(NodePath.join(process.resourcesPath,"chronos-services","artifacts","library.cjs")).request(action,args);
+});

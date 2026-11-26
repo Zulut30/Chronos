@@ -28,6 +28,13 @@ test("MCP discovers tools lazily, publishes and reads", async t => {
     assert.ok(!result.isError,result.content[0].text);
     return JSON.parse(result.content[0].text);
   }
+  const {writeFileSync} = await import("node:fs");
+  const source=path.join(root,"local.html");
+  writeFileSync(source,"<title>Локальный файл</title>");
+  const created=await call("artifact_publish",{source,title:"Локальный файл",description:"Пример страницы.",icon:"book",label:"Из файла"});
+  assert.match(created.quickstart,/:root/);
+  assert.ok(created.markdown.includes(created.id));
+  assert.equal((await call("artifact_read",{id:created.id})).files["index.html"],"<title>Локальный файл</title>");
   const {id} = await call("artifact_publish",{source:path.join(root,"index.html"),title:"Test page",
     description:"Test.",icon:"book",label:"First",files:{"index.html":"hello"}});
   const first = await call("artifact_read",{id});

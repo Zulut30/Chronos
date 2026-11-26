@@ -4,7 +4,7 @@ import { timingSafeEqual, randomBytes, randomUUID } from 'node:crypto';
 import { servicesData } from '../paths.mjs';
 import { join } from 'node:path';
 import { handleRequest as web } from '../integrations-service/mcp.mjs';
-import { handleRequest as studio } from '../studio-service/mcp.mjs';
+const studio = async (...args) => (await import('../studio-service/mcp.mjs')).handleRequest(...args);
 
 const address = '127.0.0.1';
 const port = Number(process.env.OLY_HUB_PORT || 4524);

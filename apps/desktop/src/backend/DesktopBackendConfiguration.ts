@@ -586,7 +586,12 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
         ...pcEnv, // chronos: only the local native backend gets the CLI capability
         ...(pcPath ? { PATH: pcPath } : {}),
         // chronos: isolate the packaged Chronos backend from an active T3CODE_HOME.
-        ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir } : {}),
+        ...(isChronosVersion(environment.appVersion) ? { T3CODE_HOME: environment.baseDir,
+          ...(environment.isPackaged ? {
+            CHRONOS_ARTIFACT_TOOLS: environment.path.join(environment.resourcesPath,"chronos-services","artifacts","tools.mjs"),
+            CHRONOS_SERVICES_DATA: environment.baseDir,
+          } : {}),
+        } : {}),
         // chronos: only the matching packaged Windows helper implements the pipe-held sleep request.
         CHRONOS_WINDOWS_INHIBITOR:
           environment.platform === "win32" && environment.isPackaged && isChronosVersion(environment.appVersion)

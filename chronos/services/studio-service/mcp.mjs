@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // MCP server (stdio, no dependencies) for T3 Studio: Excalidraw boards.
 // Talks to the local studio service at http://127.0.0.1:4520 (start-hidden.vbs). See AGENTS.md.
-import { artifactTools } from '../artifacts/tools.mjs'; // chronos: shared hub, lazy artifact store
+import { artifactTools, quickstart } from '../artifacts/tools.mjs'; // chronos: shared hub, lazy artifact store
 import readline from 'node:readline';
 
 const SVC = process.env.OLY_STUDIO_URL || 'http://127.0.0.1:4520';
@@ -56,7 +56,7 @@ export async function handleRequest(m, out) {
   const fail = (code, message) => m.id !== undefined && out({ jsonrpc: '2.0', id: m.id, error: { code, message } });
   try {
     if (m.method === 'initialize') return reply({ protocolVersion: m.params?.protocolVersion || '2025-06-18', capabilities: { tools: {} }, serverInfo: { name: 't3-studio', version: '1.0.0' },
-      instructions: 'Local Excalidraw boards (.excalidraw JSON in <project>/.excalidraw) shown in T3\'s right panel. Prefer list_boards/read_board/write_board; open_board shows a board to the user.' });
+      instructions: quickstart + ' Local Excalidraw boards (.excalidraw JSON in <project>/.excalidraw) shown in T3\'s right panel. Prefer list_boards/read_board/write_board; open_board shows a board to the user.' });
     if (m.method === 'ping') return reply({});
     if (m.method === 'tools/list') return reply({ tools: TOOLS.map(({ run, ...t }) => t) });
     if (m.method === 'tools/call') {
@@ -64,7 +64,7 @@ export async function handleRequest(m, out) {
       if (!t) return fail(-32602, 'Unknown tool ' + m.params?.name);
       try {
         const r = await t.run(m.params.arguments || {});
-        return reply({ content: [{ type: 'text', text: typeof r === 'string' ? r : JSON.stringify(r, null, 2) }] });
+        return reply({ content: [{ type: 'text', text: typeof r === 'string' ? r : JSON.stringify(r, null, 2) }, ...(t.name.startsWith('artifact_') ? [{type:'text',text:quickstart}] : [])] });
       } catch (e) { return reply({ content: [{ type: 'text', text: String(e.message || e) }], isError: true }); }
     }
     if (m.method?.startsWith('notifications/')) return;

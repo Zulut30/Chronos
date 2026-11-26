@@ -41,19 +41,23 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     await client.probe("performAction",{type:"navigate",to:"/"});
     await waitFor("gallery link",()=>evaluate(`Boolean(document.querySelector('button[aria-label="Артефакты"]'))`));
     await evaluate(`document.querySelector('button[aria-label="Артефакты"]').click()`);
-    await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('dialog iframe[src*="/artifacts.html"],webview[src*="/artifacts.html"]'))`));
-    await showArtifact(id);
+    await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('[data-artifact-gallery] .art-card'))`));
+    await waitFor("static gallery snapshot",()=>evaluate(`Boolean(document.querySelector('.art-cover img[src^="data:image/jpeg"]')) && !document.querySelector('[data-artifact-gallery] iframe,[data-artifact-gallery] webview')`));
+    await evaluate(`document.querySelector('.art-cover').click()`);
     const row=await waitFor("isolated page wrote to MCP database",()=>store.documents(id,"get",{collection:"probe",key:"frame"}));
     assert.equal(row.host,id);
     assert.equal(row.node,"undefined");
     assert.equal(row.files,"undefined");
     assert.equal(row.alias,"function");
     assert.ok(["light","dark"].includes(row.mode));
+    await evaluate(`[...document.querySelectorAll(".art-segment button")].find(b=>b.textContent==="Код").click()`);
+    await waitFor("version source",()=>evaluate(`document.querySelector(".art-code pre")?.textContent.includes("PerformanceObserver")`));
+    await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
     await evaluate(`[...document.querySelectorAll("button")].find(b=>b.textContent==="Установить как приложение").click()`);
     await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
     // Use the app's own authenticated session to create an empty local thread; no model turn is run.
     await evaluate(`(async()=>{
-      window.__olyStudioShell.close();
+      document.querySelector('dialog.art-dialog [aria-label="Закрыть"]').click();
       const socket=window.__olyStudio.ws;
       async function call(tag,payload) {
         const id=String(800000000+Math.floor(Math.random()*9000000));

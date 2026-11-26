@@ -23,7 +23,7 @@ function button(label, action) {
 function askDelete(a) {
   pending = a;
   dialog.querySelector("h2").textContent = "Удалить «" + a.title + "»?";
-  dialog.querySelector("p").textContent = "Будут удалены все версии и сохранённые данные приложения.";
+  dialog.querySelector("p").textContent = "Артефакт можно восстановить из корзины вместе с версиями и данными.";
   dialog.returnValue = "";
   dialog.showModal();
 }
@@ -33,7 +33,7 @@ dialog.querySelector("form").onsubmit = event => {
   const a = pending;
   pending = null;
   dialog.close();
-  if (event.submitter?.value === "delete" && a) run(async () => {await request("delete",{id:a.id,expectedVersion:a.version});await refresh();});
+  if (event.submitter?.value === "delete" && a) run(async () => {await request("delete",{id:a.id,expectedVersion:a.version});await refresh();status.replaceChildren(element("span","Артефакт в корзине "),button("Отменить",async()=>{await request("recover",{id:a.id});await refresh();}));});
 };
 function render() {
   cards.replaceChildren();

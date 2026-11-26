@@ -89,6 +89,7 @@ import React, {
 } from "react";
 import { parseAssistantCitationHref } from "@t3tools/shared/assistantCitations";
 import { parseComposerContextHref } from "@t3tools/shared/composerContextReferences";
+import { artifactId, openArtifactsUrl } from "~/chronos/artifacts/gallery"; // chronos: private artifact links open beside chat
 import { parseThreadLinkHref } from "@t3tools/shared/threadLinks";
 import { AssistantCitationEmbed } from "./chat/AssistantCitationChip";
 import { MarkdownThreadLink } from "./chat/MarkdownThreadLink";
@@ -1292,6 +1293,14 @@ const CHAT_MARKDOWN_COMPONENTS = {
       renderContextReference,
     } = use(ChatMarkdownRendererContext);
     const text = use(ChatMarkdownTextContext);
+    if (href && artifactId(href) && window.desktopBridge) {
+      return <button type="button" data-artifact-card="" className="my-1 inline-flex max-w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left text-card-foreground hover:bg-accent"
+        onClick={() => void openArtifactsUrl(href)}>
+        <FileTextIcon aria-hidden="true" className="size-6 shrink-0 text-muted-foreground" />
+        <span className="min-w-0"><strong className="block truncate">{children}</strong><small className="block text-muted-foreground">HTML · Артефакт</small></span>
+        <span className="ml-4 text-xs">Открыть</span>
+      </button>;
+    }
     const citation = href ? parseAssistantCitationHref(href) : null;
     const before = node?.position?.start.offset;
     const after = node?.position?.end.offset;

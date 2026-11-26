@@ -10,6 +10,8 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
   environment: DesktopEnvironment["Service"],
 ) {
   if (!environment.isPackaged || !isChronosVersion(environment.appVersion)) return;
+  const env = yield* HostProcess.Environment;
+  if (env.CHRONOS_DISABLE_SERVICES === "1") return; // chronos: isolated package verification on a shared desktop
   const options = {
     baseDir: environment.baseDir,
     platform: environment.platform,
@@ -23,7 +25,7 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
       window.webContents.send("chronos:show-artifact",id,confirmDelete);
       return true;
     },
-    env: yield* HostProcess.Environment,
+    env,
   };
   yield* Effect.acquireRelease(
     Effect.sync(() => {

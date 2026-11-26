@@ -51,6 +51,10 @@ ipcRenderer.on("chronos:show-artifact", (_event,id:string,confirmDelete:boolean)
   window.dispatchEvent(new CustomEvent("chronos:show-artifact",{detail:(confirmDelete ? "delete/" : "open/")+id}));
 });
 
+contextBridge.exposeInMainWorld("chronosArtifactLibrary", {
+  request: (action:string,args:unknown) => ipcRenderer.invoke("chronos:artifact-library",action,args),
+});
+
 // chronos: installation is available only in the trusted Windows shell.
 if (clientPlatform === "win32") {
   contextBridge.exposeInMainWorld("chronosArtifactInstaller", {

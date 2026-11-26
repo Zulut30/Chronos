@@ -4,9 +4,9 @@ import type {
   ScopedThreadRef,
 } from "@t3tools/contracts";
 import { useShallow } from "zustand/react/shallow";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { artifactId, ArtifactView } from "~/chronos/artifacts/ArtifactView"; // chronos: isolated artifact tab
+import { artifactId, galleryUrl } from "~/chronos/artifacts/gallery";
 import { previewBridge } from "~/components/preview/previewBridge";
 import {
   preventThumbButtonFocus,
@@ -39,6 +39,8 @@ import {
   planWebviewCrashRecovery,
   type WebviewCrashRecoveryState,
 } from "./webviewCrashRecovery";
+
+const ArtifactTab = lazy(() => import("~/chronos/artifacts/Library").then(module => ({default:module.ArtifactTab}))); // chronos: load only on open
 
 interface ElectronWebview extends HTMLElement {
   src: string;
@@ -86,7 +88,8 @@ export function HostedBrowserWebview(props: {
   const clientSettingsHydrated = useClientSettingsHydrated();
   const config = usePreviewWebviewConfig(threadRef.environmentId, profileId);
   const [initialSrc] = useState(() => initialUrl ?? "about:blank");
-  const artifact = artifactId(initialUrl ?? initialSrc); // chronos: Studio's stable viewer URL
+  const artifactUrl = initialUrl ?? initialSrc;
+  const artifact = artifactId(artifactUrl) || artifactUrl.split("?")[0] === galleryUrl; // chronos: Studio's stable viewer URL
   const tabLeaseRef = useRef<AcquiredDesktopTab | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const webviewRef = useRef<ElectronWebview | null>(null);
@@ -405,7 +408,7 @@ export function HostedBrowserWebview(props: {
             transformStyle: viewportTransform && fullDetail ? "preserve-3d" : undefined,
           }}
         >
-          {artifact ? <ArtifactView id={artifact} /> : <webview
+          {artifact ? (active ? <Suspense fallback={null}><ArtifactTab url={artifactUrl} threadRef={threadRef} tabId={tabId} /></Suspense> : null) : <webview
             ref={setWebviewRef}
             // Electron needs allowpopups at attachment. React drops boolean values for unknown attributes.
             {...({ allowpopups: "true" } as unknown as { readonly allowpopups?: boolean })}

@@ -20,12 +20,12 @@ export function allowed(url,id,mainFrame) {
 const mime = {html:"text/html; charset=utf-8",htm:"text/html; charset=utf-8",js:"text/javascript",mjs:"text/javascript",
   css:"text/css",json:"application/json",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",
   svg:"image/svg+xml",ico:"image/x-icon",pdf:"application/pdf",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",otf:"font/otf",avif:"image/avif"};
-export function resource(store,id,raw) {
+export function resource(store,id,raw,version) {
   const url = new URL(raw);
   if (!own(url,id)) return new Response(null,{status:403});
   let name;
   try {name=decodeURIComponent(url.pathname.slice(1)) || "index.html";} catch {return new Response(null,{status:400});}
-  const file = store.file(id,name);
+  const file = store.file(id,name,version);
   if (!file) return new Response(null,{status:404});
   return new Response(file,{headers:{"Content-Type":mime[name.split(".").pop().toLowerCase()] || "application/octet-stream",
     "Content-Security-Policy":csp,"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"}});
