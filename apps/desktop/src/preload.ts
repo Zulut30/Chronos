@@ -31,7 +31,10 @@ function isSnapShotEvent(value: unknown): value is DesktopSnapShotEvent {
   );
 }
 
-exposeClerkBridge({ passkeys: true });
+// chronos: the offline host starts neither Clerk nor computer control.
+// oxlint-disable-next-line t3code/no-global-process-runtime -- Read the launch mode in the sandboxed preload.
+const offlineRehearsal = process.env.CHRONOS_SWITCH_REHEARSAL === "1";
+if (!offlineRehearsal) exposeClerkBridge({ passkeys: true });
 
 // Runs before any app script reads localStorage. See DesktopLegacyLocalStorage.
 try {
@@ -123,16 +126,19 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
 }
 
 // chronos: fixed channels, with the trusted main-frame guard in DesktopIpc.
-contextBridge.exposeInMainWorld("chronosPC", {
-  settings: (input: unknown) => ipcRenderer.invoke("chronos:pc-settings", input),
-  subscribe: (listener: () => void) => {
-    const changed = () => listener();
-    ipcRenderer.on("chronos:pc-changed", changed);
-    return () => { ipcRenderer.removeListener("chronos:pc-changed", changed); };
-  },
-});
+if (!offlineRehearsal) {
+  contextBridge.exposeInMainWorld("chronosPC", {
+    settings: (input: unknown) => ipcRenderer.invoke("chronos:pc-settings", input),
+    subscribe: (listener: () => void) => {
+      const changed = () => listener();
+      ipcRenderer.on("chronos:pc-changed", changed);
+      return () => { ipcRenderer.removeListener("chronos:pc-changed", changed); };
+    },
+  });
+}
 
 contextBridge.exposeInMainWorld("desktopBridge", {
+  offlineRehearsal,
   getAppBranding: () => {
     const result = ipcRenderer.sendSync(IpcChannels.GET_APP_BRANDING_CHANNEL);
     if (typeof result !== "object" || result === null) {
