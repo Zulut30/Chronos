@@ -12,6 +12,7 @@ import tempfile
 import time
 
 from switch_data import Conflict, check_path, relocate_studio_state, require
+from continuity import verify_profile
 
 
 def owned_snapshot(path):
@@ -128,6 +129,7 @@ def prepare_rehearsal(snapshot, electron):
     env = private_env(root)
     for key in ("HOME","APPDATA","LOCALAPPDATA","TEMP","CLAUDE_CONFIG_DIR","CODEX_HOME"):
         Path(env[key]).mkdir(parents=True, exist_ok=True)
+    (root / "user/Downloads").mkdir(exist_ok=True)
     # Start with an allowlist. Cloud/clerk secrets, device identities, peer and SSH catalogs, logs,
     # browser partitions, executable providers and shell-environment caches stay in the cold snapshot.
     for name in ("statev2.sqlite","themes","keybindings.json"):
@@ -141,6 +143,9 @@ def prepare_rehearsal(snapshot, electron):
     disabled = {key: {"driver":key, "enabled":False} for key in drivers}
     for key,value in settings.get("providerInstances",{}).items():
         disabled[key] = {"driver": value.get("driver",key), "enabled":False}
+        for field in ("displayName", "accentColor"):
+            if field in value:
+                disabled[key][field] = value[field]
     for key in ("codex","claudeAgent"):
         disabled[key]["config"] = {"binaryPath":str(root/"no-provider.exe")}
     settings = {k:v for k,v in settings.items() if k in ("responseStreamingMode","theme","locale","fontSize")}
@@ -194,12 +199,34 @@ def prepare_rehearsal(snapshot, electron):
     return counts, result
 
 
+def audit_rehearsal(root, executable):
+    # These files are never placed under the runnable copy, even temporarily.
+    original = root / "userdata"
+    profile = root / "fixture/source-profile"
+    with tempfile.TemporaryDirectory(dir=root, prefix="closed-profile-") as temporary:
+        target = Path(temporary)
+        for name in ("settings.json", "secrets", "client-settings.json", "desktop-settings.json",
+                     "saved-environments.json", "ssh-launcher-id", "model-manifest.json",
+                     "shell-environment-cache.json", "connection-catalog.json"):
+            source = original / name
+            if source.is_file():
+                shutil.copyfile(source, target / name)
+            elif source.is_dir():
+                shutil.copytree(source, target / name)
+        (target / "profile").mkdir()
+        shutil.copyfile(profile / "Local State", target / "profile/Local State")
+        stats = verify_profile(executable, original, target, profile, target / "profile")
+    (root / "continuity.json").write_text(json.dumps(stats), encoding="utf8")
+    return stats
+
+
 def start_package(snapshot, executable):
     root = owned_snapshot(snapshot)
     require((root/"prepared.json").is_file(), "Copy is not prepared")
     require(executable.is_relative_to(Path(tempfile.gettempdir()).resolve()), "Use the portable package under TEMP.")
     require(executable.is_file() and (executable.parent/"resources/chronos-services/switch-protocol.json").is_file(),
             "Not a switch-capable package")
+    audit_rehearsal(root, executable)
     for port in (9,28531,29437,24517,24518,24519,24520,24522,24523,24524):
         with socket.socket() as sock:
             require(sock.connect_ex(("127.0.0.1",port)) != 0, "A rehearsal port is occupied")
@@ -216,6 +243,8 @@ if __name__ == "__main__":
     command, root, executable = sys.argv[1:]
     if command == "prepare":
         print(prepare_rehearsal(root,Path(executable).resolve()))
+    elif command == "audit":
+        print(audit_rehearsal(owned_snapshot(root),Path(executable).resolve()))
     elif command == "start":
         start_package(root,Path(executable).resolve())
     else:

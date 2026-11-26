@@ -692,6 +692,43 @@ describe("ssh tunnel scripts", () => {
     }).pipe(Effect.provide(layerProcess));
   });
 
+  it.effect("a declined desktop confirmation never starts or stops a remote CLI", () => {
+    const commands: string[][] = [];
+    let prompts = 0;
+    const spawner = ChildProcessSpawner.make((command) => {
+      commands.push([...commandArgs(command)]);
+      return Effect.succeed(makeSuccessfulProcess("hostname example.test\nport 22\n"));
+    });
+    const layer = Layer.mergeAll(
+      NodeServices.layer,
+      NodeCrypto.layer,
+      Layer.succeed(ChildProcessSpawner.ChildProcessSpawner, spawner),
+      Layer.succeed(HttpClient.HttpClient, hangingHttpClient),
+      Layer.succeed(NetService.NetService, testNetService),
+      SshAuth.SshPasswordPrompt.disabledLayer,
+      SshTunnel.SshEnvironmentManager.layer({
+        resolveCliRunner: Effect.succeed(ARCHIVE),
+        confirmManagedLaunch: () =>
+          Effect.sync(() => {
+            prompts++;
+            return false;
+          }),
+      }),
+    );
+    return Effect.gen(function* () {
+      const manager = yield* SshTunnel.SshEnvironmentManager;
+      const target = { alias: "example", hostname: "example.test", username: null, port: null };
+      const result = yield* Effect.result(
+        manager.ensureEnvironment(target, { issuePairingToken: true }),
+      );
+      assert.isTrue(Result.isFailure(result));
+      if (Result.isFailure(result)) assert.equal(result.failure._tag, "SshLaunchError");
+      yield* manager.disconnectEnvironment(target);
+      assert.equal(prompts, 1);
+      assert.isTrue(commands.every((args) => args.includes("-G")));
+    }).pipe(Effect.provide(layer), Effect.scoped);
+  });
+
   it.effect("retains a bounded diagnostic tail when the tunnel exits before readiness", () =>
     Effect.gen(function* () {
       const diagnostic = "Connection refused: café";

@@ -17,7 +17,15 @@ if ($Action -eq 'preflight') {
     exit $LASTEXITCODE
 }
 # Win32_Process.Create uses the WMI provider as the parent, outside the Olympus agent job.
-$startup = New-CimInstance -ClientOnly -ClassName Win32_ProcessStartup -Property @{ ShowWindow = [uint16]0 }
+# WMI is outside the invoking application's process tree. Keep the calling user's provider
+# paths and environment through that boundary, without putting their values on a command line.
+$variables = [Environment]::GetEnvironmentVariables().GetEnumerator() | ForEach-Object {
+    if (!$_.Key.StartsWith('=')) { $_.Key + '=' + $_.Value }
+}
+$startup = New-CimInstance -ClientOnly -ClassName Win32_ProcessStartup -Property @{
+    ShowWindow = [uint16]0
+    EnvironmentVariables = [string[]]$variables
+}
 foreach ($arg in @($python, $script, $ChronosExe)) {
     if ($arg.Contains('"')) { throw 'Invalid Windows path.' }
 }

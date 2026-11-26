@@ -121,6 +121,7 @@ export interface RemoteT3RunnerOptions {
 }
 
 export interface SshEnvironmentManagerOptions {
+  readonly confirmManagedLaunch?: (target: DesktopSshEnvironmentTarget) => Effect.Effect<boolean>;
   readonly resolveCliRunner?: Effect.Effect<RemoteT3RunnerOptions>;
   // Identifies this install to the remote across edits of a connection; null when unknown.
   readonly resolveLauncherId?: Effect.Effect<string | null>;
@@ -2288,6 +2289,16 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
     return yield* withTargetLock(
       key,
       Effect.gen(function* () {
+        if (
+          options.confirmManagedLaunch &&
+          !runner?.existingServerOnly &&
+          !(yield* options.confirmManagedLaunch(resolvedTarget))
+        ) {
+          return yield* new SshLaunchError({
+            message: "Управление удалённым CLI отменено.",
+            stdout: "",
+          });
+        }
         if (runner?.existingServerOnly && requestOptions?.issuePairingToken) {
           return yield* new SshPairingError({
             message: "Automatic SSH pairing is disabled when borrowing an existing T3 server.",
@@ -2357,7 +2368,11 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
         // chronos: disconnecting a borrowed server closes only the local port forward.
         const runner =
           options.resolveCliRunner === undefined ? undefined : yield* options.resolveCliRunner;
-        if (entry?.remoteServerKind !== "external" && !runner?.existingServerOnly) {
+        if (
+          entry?.remoteServerKind !== "external" &&
+          !runner?.existingServerOnly &&
+          (entry !== null || !options.confirmManagedLaunch)
+        ) {
           const launcherId = yield* resolveLauncherId;
           yield* runWithSshAuth({
             key,

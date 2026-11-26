@@ -15,6 +15,8 @@ import subprocess
 import sys
 import time
 
+from continuity import inventory, verify_files, verify_profile
+
 from switch_data import (Conflict, agent_edit, agent_files, atomic, check_path, check_unowned,
                          copy_verified, digest, files, migration, relocate_studio_state, require)
 from windows_processes import (SERVICES, check_tunnels, close_desktop, cold_database_files, desktop_processes, launch,
@@ -53,7 +55,7 @@ def save(doc):
 def validate_executable():
     marker = CHRONOS.parent / "resources/chronos-services/switch-protocol.json"
     require(OLYMPUS.is_file() and CHRONOS.is_file(), "Не найдены оба настольных приложения.")
-    require(marker.is_file() and json.loads(marker.read_bytes()) == {"windowsDataSwitch": 1},
+    require(marker.is_file() and json.loads(marker.read_bytes()) == {"windowsDataSwitch": 2},
             "Выбранный пакет Chronos ещё не поддерживает защищённый переход.")
 
 
@@ -79,6 +81,12 @@ def preflight(strict):
     require(sum(sizes) + sizes[0] + sizes[1] + extra + 2**30 < free, "Мало места для копии и восстановления.")
     say(f"Свободно {free / 2**30:.1f} ГиБ. Миграция {migration(T3 / 'userdata')}.")
     errors = []
+    continuity = inventory(T3 / "userdata")
+    say(f"Провайдеры — {continuity['configured']} явно сохранённых экземпляров, "
+        f"{continuity['providerSecrets']} файлов секретов провайдеров. "
+        f"Каталог подключений — {int(continuity['catalog'])}, конфигурация OpenSSH — {int(continuity['sshConfig'])}.")
+    say("В копию входят настройки, модели, привязки аккаунтов, каталог SSH/relay и данные провайдеров. "
+        "Внешние CLI и OpenSSH используют прежний профиль Windows.")
     desktop = desktop_processes(OLYMPUS)
     try:
         check_unowned(T3 / "userdata")
@@ -183,6 +191,10 @@ def switch():
     save(doc)
     stash(PROFILE, b / "previous-profile")
     copy_verified(b / "original/olympus-profile", PROFILE)
+    stats = verify_profile(CHRONOS, b / "original/userdata", T3 / "userdata", b / "original/olympus-profile", PROFILE)
+    say(f"Настройки провайдеров совпали. SSH-профилей — {stats['sshProfiles']}, "
+        f"relay-маршрутов — {stats['relayTargets']}, защищённых записей — {stats['protectedEntries']}. "
+        "Адреса и ключ профиля проверены автономно.")
     for rel in IMPORT:
         old, new = T3 / "caches/t3-customizations" / rel, T3 / rel
         if old.exists():
@@ -253,6 +265,9 @@ def rollback():
         for rel in STORES:
             recover_asset(b, "stores/" + rel, T3 / rel, doc["assets"]["stores/" + rel])
         require(migration(T3 / "userdata") == doc["schema"], "Не совпала версия восстановленной базы.")
+        if doc["assets"]["olympus-profile"]:
+            verify_files(b / "original/userdata", T3 / "userdata", b / "original/olympus-profile", SOURCE)
+            say("Восстановлены настройки провайдеров, файлы секретов, каталог SSH и профиль со своим ключом.")
         doc["phase"] = "restored"
         save(doc)
     if phase != "backing-up":

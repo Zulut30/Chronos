@@ -75,6 +75,7 @@ export class DesktopSshEnvironment extends Context.Service<
 >()("@t3tools/desktop/ssh/DesktopSshEnvironment") {}
 
 export interface DesktopSshEnvironmentLayerOptions {
+  readonly confirmManagedLaunch?: SshTunnel.SshEnvironmentManagerOptions["confirmManagedLaunch"];
   readonly resolveCliRunner?: Effect.Effect<SshTunnel.RemoteT3RunnerOptions>;
   readonly resolveLauncherId?: Effect.Effect<string | null>;
 }
@@ -215,6 +216,9 @@ export const layer = (options: DesktopSshEnvironmentLayerOptions = {}) =>
   Layer.effect(DesktopSshEnvironment, make).pipe(
     Layer.provide(
       SshTunnel.SshEnvironmentManager.layer({
+        ...(options.confirmManagedLaunch
+          ? { confirmManagedLaunch: options.confirmManagedLaunch }
+          : {}),
         ...(options.resolveCliRunner === undefined
           ? {}
           : { resolveCliRunner: options.resolveCliRunner }),
