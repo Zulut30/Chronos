@@ -7,6 +7,34 @@ const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { checkAvailability, createController } = require("./controller.cjs");
+const { makeNative } = require("./native.cjs");
+
+test("cold browser startup and navigation get independent IPC requests", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-cold-open-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  const session = {
+    kind: "web",
+    id: randomUUID(),
+    host: "localhost",
+    target: "http://localhost:8000",
+    socketDir: dir,
+  };
+  let launched = false;
+  let navigations = 0;
+  const native = makeNative(dir, dir, async (_file, args) => {
+    const open = args.indexOf("open");
+    if (open === -1) return { data: { url: session.target } };
+    // The pinned CLI gives a navigate request 30s, including any implicit browser launch.
+    const launchMs = launched ? 0 : 20_000;
+    launched = true;
+    const navigates = args[open + 1] === session.target;
+    if (launchMs + (navigates ? 15_000 : 0) > 30_000) throw Error("daemon read timed out");
+    if (navigates) navigations++;
+    return {};
+  });
+  await native(session, "open", { target: session.target }, new AbortController().signal);
+  assert.equal(navigations, 1);
+});
 
 test("policy binds refs, requires trusted approval in every mode, and cancels pending actions on stop", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-policy-"));
@@ -42,7 +70,9 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
     async native(s, op, q) {
       calls.push({ op, value: q.value });
       if (op === "snapshot")
-        return emptyTree ? [] : [{ ref: "@sample:e1", name: "Input", role: "textfield", secure: true }];
+        return emptyTree
+          ? []
+          : [{ ref: "@sample:e1", name: "Input", role: "textfield", secure: true }];
     },
   });
   t.after(async () => {

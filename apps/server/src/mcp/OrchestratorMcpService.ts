@@ -134,6 +134,7 @@ import {
   interactionModeRank,
   resolveInteractionMode,
   resolveRuntimeMode,
+  delegatedReasoning,
   runtimeModeRank,
   taskPrompt,
 } from "./delegatedTaskModes.ts";
@@ -392,6 +393,9 @@ function capabilityModelOption(descriptor: ProviderOptionDescriptor): Orchestrat
   const defaultValue = getProviderOptionCurrentValue(descriptor);
   return {
     id: descriptor.id,
+    ...(descriptor.type === "select" && descriptor.role === "reasoning"
+      ? { role: descriptor.role }
+      : {}),
     values:
       descriptor.type === "boolean" ? [false, true] : descriptor.options.map((choice) => choice.id),
     ...(defaultValue === undefined ? {} : { default: defaultValue }),
@@ -1710,6 +1714,7 @@ const make = Effect.gen(function* () {
     readonly providers: ReadonlyArray<ServerProvider>;
     /** Receipt replays bypass current settings because they start no work. Dispatch must reuse the checked command ID. */
     readonly skipProjectEnablementFilter?: boolean;
+    readonly delegated?: boolean;
   }): Effect.fn.Return<ResolvedTarget, OrchestratorMcpFailure> {
     const requestedInstanceId = input.target?.providerInstanceId;
     const requestedDriver = input.target?.driverKind;
@@ -1816,6 +1821,21 @@ const make = Effect.gen(function* () {
           descriptors,
         )
       : undefined;
+    if (
+      input.delegated &&
+      requestedOptions === undefined &&
+      !inheritsOptions &&
+      !antigravityTarget
+    ) {
+      options = delegatedReasoning(
+        inheritedSelection,
+        instanceId === inheritedSelection.instanceId,
+        descriptors?.map(capabilityModelOption),
+        advertisedModel(provider, inheritedSelection.model)?.capabilities?.optionDescriptors?.map(
+          capabilityModelOption,
+        ),
+      );
+    }
     if (requestedOptions !== undefined || antigravityTarget !== undefined) {
       const selections = new Map(
         (requestedOptions?.length === 0 ? [] : (options ?? [])).map((selection) => [
@@ -2928,15 +2948,9 @@ const make = Effect.gen(function* () {
           : readTask(scope, taskId, false, true);
       }
       const { scope, parent } = yield* loadThreadCaller(callerScope, "delegate_task");
-      if (
-        input.target?.projectId !== undefined &&
-        input.target.projectId !== parent.thread.projectId
-      ) {
-        return yield* failure(
-          "invalid_request",
-          "A local task runs in this thread's project. Omit target.projectId, or pass target.environmentId to run it in that environment's project.",
-        );
-      }
+      const projectId = input.target?.projectId ?? parent.thread.projectId;
+      const otherProject = projectId !== parent.thread.projectId;
+      yield* assertLiveCallerForOtherProject(scope, parent, projectId);
       const parentRun =
         ThreadManagementService.latestActiveRun(parent) ??
         (yield* backgroundSubagentRun(scope, parent.thread.id));
@@ -2958,11 +2972,19 @@ const make = Effect.gen(function* () {
         operation: "delegate-task",
       });
       const isRetryOfAcceptedDelegation = yield* threadManagement.hasReceipt(commandId);
+      const destination =
+        otherProject && !isRetryOfAcceptedDelegation ? yield* requireProject(projectId) : undefined;
       const target = yield* resolveTargetRechecking({
-        parent,
+        parent: {
+          thread: {
+            ...parent.thread,
+            modelSelection: parentRun.modelSelection ?? parent.thread.modelSelection,
+          },
+        },
+        delegated: true,
         target: input.target,
         providers,
-        cwd: yield* parentWorkspaceCwd(parent),
+        cwd: destination?.workspaceRoot ?? (yield* parentWorkspaceCwd(parent)),
         skipProjectEnablementFilter: isRetryOfAcceptedDelegation,
       });
       const runtimeMode = yield* resolveRuntimeMode(
@@ -2978,10 +3000,26 @@ const make = Effect.gen(function* () {
       if (
         input.isolation === "worktree" &&
         !isRetryOfAcceptedDelegation &&
-        (yield* threadLaunch.isNonGitProject(parent.thread.projectId))
+        (yield* threadLaunch.isNonGitProject(projectId))
       ) {
         // A plain project folder has no commit of its own; `HEAD` leaves each repository on its default branch.
         workspaceStrategy = { type: "worktree", baseRef: "HEAD" };
+      } else if (input.isolation === "worktree" && destination !== undefined) {
+        let baseRef = yield* resolveScheduledTaskBaseRef(destination.workspaceRoot);
+        const startFromOrigin = baseRef.includes("/");
+        if (
+          !startFromOrigin &&
+          !(yield* refExists(destination.workspaceRoot, `refs/heads/${baseRef}`))
+        ) {
+          const initial = yield* gitDriver
+            .readConfigValue(destination.workspaceRoot, "init.defaultBranch")
+            .pipe(Effect.orElseSucceed(() => null));
+          baseRef =
+            initial && (yield* refExists(destination.workspaceRoot, `refs/heads/${initial}`))
+              ? initial
+              : "HEAD";
+        }
+        workspaceStrategy = { type: "worktree", baseRef, startFromOrigin };
       } else if (input.isolation === "worktree" && !isRetryOfAcceptedDelegation) {
         const project = yield* requireProject(parent.thread.projectId);
         const base = yield* gitDriver
@@ -3028,6 +3066,7 @@ const make = Effect.gen(function* () {
               parentThreadId: scope.thread.threadId,
               parentRunId: parentRun.id,
               parentNodeId,
+              ...(otherProject ? { projectId } : {}),
               task: taskPrompt(input),
               ...(input.title === undefined ? {} : { title: input.title }),
               modelSelection: target.modelSelection,
@@ -3783,6 +3822,13 @@ const make = Effect.gen(function* () {
         ...(result.run.delegatedTaskId === undefined ? {} : { taskId: result.run.delegatedTaskId }),
         status: result.run.status,
         delivery: result.delivery,
+        ...(result.delivery === "queued" && result.run.status === "queued"
+          ? {
+              note: result.run.queueHeld
+                ? "Queued. Resume the thread to send this message."
+                : "Queued. This message will be sent after the current turn.",
+            }
+          : {}),
       } satisfies OrchestratorMcpThreadSendResult;
     }),
     waitForThread: Effect.fn("OrchestratorMcpService.waitForThread")(function* (scope, input) {

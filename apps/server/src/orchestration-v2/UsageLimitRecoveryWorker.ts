@@ -1,4 +1,5 @@
 import { CommandId, MessageId, type OrchestrationV2Command } from "@t3tools/contracts";
+import { ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE } from "@t3tools/shared/usageLimits";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -41,7 +42,8 @@ export function limitRecoveryCommand(
   const recovery = thread.limitRecovery;
   if (recovery?.runId !== thread.latestRunId || recovery.resetAt !== thread.usageLimitResetAt) {
     if (nowMs - resetMs > MAX_OVERDUE_ARM_MS) return null;
-    if (!autoResume && (!snooze || resetMs <= nowMs)) return null;
+    const resume = autoResume && thread.lastErrorCode !== ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE;
+    if (!resume && (!snooze || resetMs <= nowMs)) return null;
     return {
       type: "thread.metadata.update",
       commandId: CommandId.make(`limit-arm:${identity}`),
@@ -49,7 +51,7 @@ export function limitRecoveryCommand(
       limitRecovery: {
         runId: thread.latestRunId,
         resetAt: thread.usageLimitResetAt,
-        autoResume,
+        autoResume: resume,
         snooze: snooze && resetMs > nowMs,
       },
     };
@@ -70,7 +72,10 @@ export function limitRecoveryCommand(
     ...(recovery.requestId === undefined
       ? {}
       : { usageLimitRecoveryRequestId: recovery.requestId }),
-    text: "Continue where you left off.",
+    text:
+      thread.lastErrorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+        ? "продолжай"
+        : "Continue where you left off.",
     attachments: [],
     dispatchMode: { type: "start_immediately" },
     createdBy: "agent",

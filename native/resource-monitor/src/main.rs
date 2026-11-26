@@ -828,8 +828,20 @@ fn write_history(
 
 #[cfg(windows)]
 mod chronos_keep_awake;
+#[cfg(windows)]
+mod chronos_process_tree;
 
 fn main() -> io::Result<()> {
+    #[cfg(windows)]
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--chronos-process-tree"))
+    {
+        let pid = std::env::args()
+            .nth(2)
+            .and_then(|s| s.parse::<u32>().ok())
+            .filter(|p| *p > 0)
+            .ok_or_else(|| io::Error::other("expected a process ID"))?;
+        return chronos_process_tree::write(pid);
+    }
     #[cfg(windows)]
     if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--chronos-keep-awake")) {
         return chronos_keep_awake::hold();

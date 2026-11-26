@@ -10,3 +10,5 @@
 | `apps/web/src/chronos/olympus/plugin.ts`                                                                         | Общий снимок флагов для пролога, Pierre и Markdown в сборке и dev.                                                           |
 | `packages/shared/src/markdownPipeline.ts`, `packages/shared/src/markdownHast.ts`                                 | Существующие точки подключения получают пустой экспорт плагина при отключении цвета.                                         |
 | `apps/web/src/components/ChatView.tsx`, `components/chat/{useComposerSend,useComposerResume,useThreadLifecycle}` | Существующие точки отправки получают исходный interactionMode через резервную функцию при отключении дополнительных режимов. |
+
+Серверные правила для пропущенных расписаний, делегирования, квоты Antigravity и очереди треда перечислены в [карте оркестрации](../parity/server.md#оркестрация-агентов). Границы тайм-аутов браузера описаны в [отчёте управления ПК](../parity/pc-control.md#холодный-запуск-браузера).

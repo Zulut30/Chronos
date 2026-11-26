@@ -1,5 +1,6 @@
 // Resolve both package identities before any timing. Only this metadata job can request builds.
 import assert from "node:assert/strict";
+import { checkDesktop } from "../delivery/verified-build.mjs";
 import { appendFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -17,6 +18,11 @@ async function api(path, body) {
 const workflow = "/actions/workflows/chronos-desktop.yml";
 async function packageFor(target) {
   const { sha } = target;
+  if (target.run) {
+    assert.match(String(target.run), /^\d+$/);
+    checkDesktop(await api("/actions/runs/" + target.run), sha);
+    return { ...target, pinned: false };
+  }
   const pinnedTitle = "Perf Windows " + sha;
   const deadline = Date.now() + 1000 * 60 * 85;
   let requestedAt = 0;
@@ -33,7 +39,7 @@ async function packageFor(target) {
       api(workflow + "/runs?head_sha=" + sha + "&per_page=100"),
       api(workflow + "/runs?event=workflow_dispatch&branch=" + encodeURIComponent(env.GITHUB_REF_NAME) + "&per_page=100"),
     ]);
-    const normal = normalList.workflow_runs.filter(r => r.head_sha === sha && !r.display_title.startsWith("Perf Windows "));
+    const normal = normalList.workflow_runs.filter(r => r.head_sha === sha && !r.display_title.startsWith("Perf Windows ") && (r.status !== "completed" || r.conclusion === "success"));
     const pinned = pinnedList.workflow_runs.filter(r => r.display_title === pinnedTitle);
     const packaged = await available(normal, false) ?? await available(pinned, true);
     if (packaged) return packaged;
@@ -65,6 +71,12 @@ if (env.PAIR) {
     const sha = !audit && !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : (await api("/commits/" + encodeURIComponent(ref))).sha;
     targets.set(ref, { ref, sha });
   }
-  const base = targets.get("main");
+  const onMainPush = env.GITHUB_EVENT_NAME === "push" && env.GITHUB_REF_NAME === "main";
+  const base = onMainPush ? { ref: "main", sha: env.PREVIOUS_MAIN } : targets.get("main");
+  assert.match(base.sha, /^[0-9a-f]{40}$/);
+  if (env.DESKTOP_RUN_ID) {
+    assert.ok(!audit && /^\d+$/.test(env.DESKTOP_RUN_ID), "Select one candidate desktop run");
+    targets.set(refs[0], { ...targets.get(refs[0]), run: Number(env.DESKTOP_RUN_ID) });
+  }
   appendFileSync(env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include: refs.map(ref => ({ name: ref.replaceAll("/", "-"), base, head: targets.get(ref) })) }) + "\n");
 }

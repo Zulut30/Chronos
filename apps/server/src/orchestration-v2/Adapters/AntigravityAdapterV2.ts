@@ -25,6 +25,7 @@ import {
   antigravityPermissionMode,
   antigravityRuntimeModeForSessionMode,
   antigravitySteersWithPrompt,
+  antigravityUsesHostShell,
   applyAntigravityAcpModelSelection,
   buildAntigravityPrompt,
   type AntigravityAcpRuntimeInput,
@@ -81,7 +82,10 @@ const AntigravityProviderCapabilitiesV2 = {
 export type AntigravityAdapterV2RuntimeInput = Omit<
   AntigravityAcpRuntimeInput,
   "spawn" | "childProcessSpawner"
-> & { readonly processEnvironment?: NodeJS.ProcessEnv };
+> & {
+  readonly processEnvironment?: NodeJS.ProcessEnv;
+  readonly runtimePolicy?: AcpAdapterV2RuntimeInput["runtimePolicy"];
+};
 
 export interface AntigravityAdapterV2Options {
   readonly instanceId: ProviderInstanceId;
@@ -244,10 +248,14 @@ export function makeAntigravityAcpAdapterFlavor(
     // A finished background command or timer wakes the agent with no prompt open: it streams a
     // reply and asks for permissions, and no prompt response ever ends that reply.
     enablePostSettleContinuation: true,
+    publishesDetachedActivity: true, // chronos: agy wakes on the existing ACP transport.
     deferFinalizeForBackgroundWork: true,
     wakeOnDetachedRequest: true,
     replyEndsWithUsageUpdate: true,
     toolOutlivesPrompt: antigravityToolOutlivesPrompt,
+    extractBackgroundTaskId: (tool) =>
+      tool.kind === "execute" && !antigravityToolOutlivesPrompt(tool) ? tool.toolCallId : undefined,
+    isBackgroundCommandTool: (tool) => tool.kind === "execute",
     // agy sometimes loses the terminal update or wake for a background command, which would
     // hold the turn in Working forever. 30 minutes still leaves long commands room.
     postSettleCommandHold: {
@@ -273,6 +281,7 @@ export function makeAntigravityAcpAdapterFlavor(
         mapError: (cause) => cause,
       });
     }),
+    lockSessionModeToPolicy: antigravityUsesHostShell, // chronos: a saved native Auto choice would re-enable the sandbox.
     sessionModeForPolicy: (policy) => antigravityPermissionMode(policy.runtimeMode),
     runtimeModeForSessionMode: antigravityRuntimeModeForSessionMode,
     clientFileSystem: {

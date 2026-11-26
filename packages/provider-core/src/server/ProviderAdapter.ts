@@ -77,6 +77,31 @@ export const ProviderAdapterV2RuntimePolicy = Schema.Struct({
 });
 export type ProviderAdapterV2RuntimePolicy = typeof ProviderAdapterV2RuntimePolicy.Type;
 
+/** Explicit environment restrictions take precedence over the thread's access selector. */
+export function hasUnrestrictedToolAccess(
+  policy: ProviderAdapterV2RuntimePolicy | undefined,
+): boolean {
+  const sandbox = policy?.sandboxPolicy;
+  return (
+    policy?.runtimeMode === "full-access" &&
+    policy.interactionMode !== "plan" &&
+    (policy.maxRuntimeMode ?? "full-access") === "full-access" &&
+    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
+    (sandbox === undefined ||
+      (sandbox !== null &&
+        typeof sandbox === "object" &&
+        "type" in sandbox &&
+        sandbox.type === "dangerFullAccess"))
+  );
+}
+
+export const fullAccessApprovalNotice = {
+  type: "system_notice",
+  level: "info",
+  title: "Approved automatically: full access",
+  message: "Approved automatically: full access",
+} as const;
+
 export const ProviderAdapterV2TurnMessage = Schema.Struct({
   messageId: MessageId,
   text: Schema.String,
@@ -565,6 +590,12 @@ export const ProviderAdapterV2Error = Schema.Union([
 export type ProviderAdapterV2Error = typeof ProviderAdapterV2Error.Type;
 
 export interface ProviderAdapterV2OpenSessionInput {
+  /** chronos: capture startup helpers before an ACP session can accept prompts. */
+  readonly captureIdleProcessGuard?: (process: {
+    readonly pid: number;
+    readonly tracked: () => ReadonlyArray<number>;
+    readonly unit?: string;
+  }) => Effect.Effect<Effect.Effect<boolean>>;
   readonly threadId: ThreadId;
   readonly providerSessionId: ProviderSessionId;
   readonly modelSelection: ModelSelection;

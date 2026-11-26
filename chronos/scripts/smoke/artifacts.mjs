@@ -4,6 +4,7 @@ import {pathToFileURL} from "node:url";
 import {writeFileSync} from "node:fs";
 
 import { verifyStudioGallery } from "./features/artifact-gallery.mjs";
+import { verifyTabsExample } from "./features/artifact-tabs.mjs";
 import { waitFor } from "./features/artifact-wait.mjs";
 import { verifyWarmLaunch } from "./features/artifact-warm-launch.mjs";
 
@@ -35,7 +36,9 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       }).observe({type:"paint",buffered:true});
       </script></html>`}};
     const {id}=store.publish(input);
-    const sample={...input,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
+    const {artifactTools} = await import(pathToFileURL(path.join(services,"artifacts","tools.mjs")));
+    const example = await artifactTools.find(tool => tool.name === "artifact_example").run({});
+    const sample={...example,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
     const temporary=store.publish(sample);
     store.publish({...sample,expectedVersion:1,label:"Вторая версия"});
     await client.probe("performAction",{type:"navigate",to:"/"});
@@ -54,7 +57,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('[data-artifact-gallery] .art-card'))`));
     await waitFor("static gallery snapshot",()=>evaluate(`Boolean(document.querySelector('.art-cover img[src^="data:image/jpeg"]')) && !document.querySelector('[data-artifact-gallery] iframe,[data-artifact-gallery] webview')`));
     await waitFor("thumbnail contains the JavaScript-rendered background",()=>evaluate(`(() => {
-      const img=document.querySelector('.art-cover img');
+      const img=document.querySelector('article[data-id="${id}"] .art-cover img');
       if(!img?.naturalWidth)return false;
       const canvas=document.createElement('canvas');
       const ctx=canvas.getContext('2d');
@@ -63,6 +66,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       return Math.abs(r-55)<8 && Math.abs(g-101)<8 && Math.abs(b-160)<8;
     })()`));
     assert.equal(store.documents(id,"get",{collection:"probe",key:"frame"}),null);
+    await verifyTabsExample(client,evaluate,temporary.id);
     const sampleCard=`document.querySelector('article[data-id="${temporary.id}"]')`;
     const removeCard=sampleCard+`.querySelector('[aria-label="В корзину"]')`;
     await evaluate(removeCard+".focus();document.activeElement.click()");

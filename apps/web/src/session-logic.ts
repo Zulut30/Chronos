@@ -457,7 +457,10 @@ function projectedWorkEntry(
     case "system_notice":
       return {
         ...common,
-        label: item.message,
+        label:
+          item.message === "Approved automatically: full access" && item.level === "info"
+            ? resolve(msg("Approved automatically: full access"))
+            : item.message,
         ...(item.level === "info" ? {} : { sourceActivityKind: "runtime.warning" }),
       };
     case "error": {

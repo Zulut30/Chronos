@@ -16,7 +16,7 @@ on:
         description: "Focused same-VM package comparison (three alternating passes)"
         type: choice
         default: full
-        options: [full, scroll, wheel, startup, renderer, server, idle, ssh]
+        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, claude-runtime, claude-idle, acp-idle]
   push:
     branches:
       - main
@@ -66,6 +66,9 @@ jobs:
         with:
           install-args: --filter=@t3tools/contracts... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/shared... --filter=@t3tools/scripts... --filter=@t3tools/oxlint-plugin-t3code...
 
+      - name: Exercise the Windows differential updater
+        run: node --test chronos/scripts/delivery/*.test.mjs
+
       - name: Chronos scripts, skill synchronization and Olympus theme
         run: node --test chronos/scripts/*.test.mjs chronos/scripts/smoke/olympus-*.test.mjs
 
@@ -110,8 +113,11 @@ jobs:
         working-directory: apps/web
         run: |
           pnpm exec playwright install --with-deps chromium
-          vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
-          vp test run --project browser src/lib/openPullRequestLink.browser.test.tsx
+          for suite in ../../chronos/ci/browser/*.sh; do
+            echo "::group::$suite"
+            bash -eu "$suite"
+            echo "::endgroup::"
+          done
 
       - name: Run client feature suites
         run: |
@@ -144,7 +150,16 @@ jobs:
           # The server tsconfig includes ../../scripts/lib, whose imports resolve from @t3tools/scripts.
           install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
+        id: server_types
         run: vp run --filter t3 typecheck
+      - name: Diagnose provider and server type errors at their source
+        if: failure() && steps.server_types.outcome == 'failure'
+        run: |
+          for package in packages/provider-core packages/provider-acp packages/provider-opencode apps/server; do
+            echo "::group::TypeScript diagnostics for $package"
+            pnpm exec effect-tsgo tsc --noEmit --pretty false -p "$package/tsconfig.json" || true
+            echo "::endgroup::"
+          done
       - name: Run server feature suites
         run: |
           for suite in chronos/ci/server/*.sh; do
@@ -166,7 +181,7 @@ jobs:
           sparse-checkout: chronos
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
       - name: Compare two packaged SSH servers on the same Linux VM
         shell: bash
         env:
@@ -204,9 +219,7 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          sparse-checkout: |
-            chronos/scripts/bench
-            chronos/scripts/smoke
+          sparse-checkout: chronos
       - uses: actions/setup-node@v4
         with:
           node-version: "24"

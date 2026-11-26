@@ -52,6 +52,7 @@ import {
   openCodeBoundaryAfterProviderTurn,
   openCodeChildPermissionRules,
   openCodePermissionRules,
+  openCodePreapprovedLocalTool,
   makeOpenCodeProtocolLogger,
   makeOpenCodeAdapterV2,
   OPENCODE_PROVIDER,
@@ -5031,6 +5032,37 @@ describe("OpenCodeAdapterV2", () => {
       ),
     ),
   );
+
+  it("applies the session approval only to an identified local tool under unrestricted full access", () => {
+    const full = runtimePolicy("full-access");
+    assert.isTrue(openCodePreapprovedLocalTool(full, "shell", "bash"));
+    assert.isTrue(openCodePreapprovedLocalTool(full, "edit", "write"));
+    assert.isFalse(
+      openCodePreapprovedLocalTool(runtimePolicy("approval-required"), "shell", "bash"),
+    );
+    assert.isFalse(
+      openCodePreapprovedLocalTool({ ...full, interactionMode: "plan" }, "shell", "bash"),
+    );
+    assert.isFalse(
+      openCodePreapprovedLocalTool(
+        { ...full, maxRuntimeMode: "approval-required" },
+        "shell",
+        "bash",
+      ),
+    );
+    assert.isFalse(
+      openCodePreapprovedLocalTool(
+        { ...full, sandboxPolicy: { type: "readOnly" } },
+        "shell",
+        "bash",
+      ),
+    );
+    assert.isFalse(
+      openCodePreapprovedLocalTool({ ...full, approvalPolicy: "on-request" }, "shell", "bash"),
+    );
+    assert.isFalse(openCodePreapprovedLocalTool(full, "external_directory", "read"));
+    assert.isFalse(openCodePreapprovedLocalTool(full, "shell", undefined));
+  });
 
   it("maps runtime modes to safe OpenCode permission rules", () => {
     const approvalRequired = openCodePermissionRules(runtimePolicy("approval-required"));

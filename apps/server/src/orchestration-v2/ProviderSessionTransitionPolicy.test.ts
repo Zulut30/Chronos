@@ -24,6 +24,24 @@ it("reuses compatible sessions and treats interaction mode as turn-scoped", () =
   );
 });
 
+it("reopens Antigravity when full access enters or leaves Plan", () => {
+  const driver = ProviderDriverKind.make("antigravity");
+  const current = { ...base, driver };
+  const plan = { ...current, interactionMode: "plan" as const };
+  for (const [from, to] of [
+    [current, plan],
+    [plan, current],
+  ] as const) {
+    assert.deepEqual(
+      decideProviderSessionTransition({
+        current: from,
+        target: { ...to, available: true },
+      }),
+      { type: "restart_and_resume" },
+    );
+  }
+});
+
 it("uses the adapter's selection transition classification", () => {
   assert.deepEqual(
     decideProviderSessionTransition({
