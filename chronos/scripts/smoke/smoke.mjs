@@ -262,7 +262,7 @@ class CdpClient {
   }
 
   // Read each visible iframe in its own document, including cross-process service panels.
-  async visibleLines(sessionId, contextId, excludeUserContent = "") {
+  async visibleLines(sessionId, contextId, excludeUserContent = "", documentSelector = "") {
     const send = (method, params) => this.send(method, params, 30_000, sessionId);
     const evaluate = async (expression, returnByValue) => {
       const reply = await send("Runtime.evaluate", { expression, returnByValue, contextId });
@@ -301,7 +301,8 @@ class CdpClient {
         }
       }
       const frames = [...document.querySelectorAll("iframe")].flatMap((el, i) => visible(el) ? [i] : []);
-      return { lines, frames };
+      const selector = ${JSON.stringify(documentSelector)};
+      return { lines: !selector || document.querySelector(selector) ? lines : [], frames };
     })()`, true);
     const lines = new Set(value.lines);
     const frameTree = value.frames.length ? (await send("Page.getFrameTree", {})).frameTree : null;
@@ -324,7 +325,7 @@ class CdpClient {
         }));
       }
       try {
-        for (const line of await this.visibleLines(childSession ?? sessionId, childContext, excludeUserContent)) lines.add(line);
+        for (const line of await this.visibleLines(childSession ?? sessionId, childContext, excludeUserContent, documentSelector)) lines.add(line);
       } finally {
         if (childSession) await send("Target.detachFromTarget", { sessionId: childSession });
       }

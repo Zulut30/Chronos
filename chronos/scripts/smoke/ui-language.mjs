@@ -48,13 +48,14 @@ export async function verifyUiLanguage(client) {
     "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint", "#path code",
     "[data-open] .name > span:first-child", ".subh .lbl", "button.mname[data-open]",
   ].join(",");
-  async function scan(id, expected) {
+  async function scan(id, expected, loadedPanel) {
     let lines;
     await until(id + " control " + expected, async () => {
       await client.pumpFrames(1, 0);
-      lines = await client.visibleLines(undefined, undefined, userContent);
+      lines = await client.visibleLines(undefined, undefined, userContent, loadedPanel);
       return lines.some(line => line.includes(expected));
     });
+    if (loadedPanel) lines = await client.visibleLines(undefined, undefined, userContent);
     const cyrillic = lines.filter(line => /\p{Script=Cyrillic}/u.test(line));
     assert.deepEqual(cyrillic, [], id + " contains Cyrillic: " + JSON.stringify(cyrillic));
   }
@@ -98,14 +99,14 @@ export async function verifyUiLanguage(client) {
     assert.equal(edited.colors.canvas, "#012345");
     await until("renamed edit is selectable", () => evaluate("!!document.querySelector('[data-theme-library-card=smoke-olympus-a]')"));
   }
-  for (const [id, selector, text] of [
+  for (const [id, selector, text, loadedPanel] of [
     ["API keys", "[data-oly-ik-nav] button", "Scrape.do"],
-    ["MCP", "[data-oly-mcp-nav] button", "Settings location"],
+    ["MCP", "[data-oly-mcp-nav] button", "Settings location", "#path:not([hidden]) code"],
     ["templates", "[data-oly-ps-nav-button]", "Your templates"],
   ]) {
     await route("/settings/general");
     await click(selector);
-    await scan(id, text);
+    await scan(id, text, loadedPanel);
     await click("[data-settings-section='/settings/general']");
   }
   await route("/settings/providers");
@@ -115,13 +116,13 @@ export async function verifyUiLanguage(client) {
   await route("/");
   await client.probe("ensureDraft");
   await scan("home", "What should we work on?");
-  for (const [id, selector, text] of [
+  for (const [id, selector, text, loadedPanel] of [
     ["Tasks", "[data-oly-tasks]", "All projects"],
-    ["Studio", "button[aria-label=Studio]", "Boards"],
-    ["Skills", "[data-oly-skills] button,button[data-oly-skills]", "All skills"],
+    ["Studio", "button[aria-label=Studio]", "Boards", "#view .cards [data-new]"],
+    ["Skills", "[data-oly-skills] button,button[data-oly-skills]", "All skills", "#main .row[data-open], #main .empty"],
   ]) {
     await click(selector);
-    await scan(id, text);
+    await scan(id, text, loadedPanel);
     await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
     await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
   }
