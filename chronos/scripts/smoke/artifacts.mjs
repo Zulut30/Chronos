@@ -61,6 +61,69 @@ async function waitFor(label,test) {
   } while(Date.now()<end);
   throw Error(label+" timed out"+(last ? ": "+last.message : ""));
 }
+
+async function verifyTabsExample(client, evaluate, id) {
+  const card = `article[data-id="${id}"] .art-cover`;
+  await evaluate(`document.querySelector('${card}').click()`);
+  const guestUrl = `chronos-artifact://${id}/index.html`;
+  const guest = await waitFor("tabs example guest", async () => {
+    const {targetInfos} = await client.send("Target.getTargets");
+    return targetInfos.find(target => target.type === "webview" && target.url === guestUrl);
+  });
+  const {sessionId} = await client.send("Target.attachToTarget", {targetId:guest.targetId, flatten:true});
+  const page = async expression => {
+    const reply = await client.send("Runtime.evaluate", {expression,returnByValue:true},30000,sessionId);
+    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description || reply.exceptionDetails.text);
+    return reply.result.value;
+  };
+  const wasDark = await evaluate('document.documentElement.classList.contains("dark")');
+  try {
+    await waitFor("pinned UI SDK registered its tabs", () => page('document.querySelectorAll("button[role=tab]").length === 2'));
+    assert.equal(await page('document.querySelector("[role=tablist]").getAttribute("aria-label")'), "Разделы плана");
+    await evaluate('document.querySelector("[data-artifact-view] webview").focus()');
+    await page('document.querySelector("button[aria-selected=true]").focus()');
+    for (const [key, keyCode, value, name] of [["ArrowRight",39,"meetings","Встречи"],["ArrowLeft",37,"tasks","Задачи"]]) {
+      for (const type of ["rawKeyDown","keyUp"]) {
+        await client.send("Input.dispatchKeyEvent", {type,key,code:key,windowsVirtualKeyCode:keyCode},30000,sessionId);
+      }
+      await waitFor("keyboard selected "+value, () => page(`(() => {
+        const tab=document.activeElement, visible=[...document.querySelectorAll("[role=tabpanel]")].filter(el=>el.getClientRects().length);
+        return tab.textContent===${JSON.stringify(name)} && tab.matches("button[data-selected][aria-selected=true]") &&
+          visible.length===1 && visible[0].getAttribute("value")===${JSON.stringify(value)};
+      })()`));
+    }
+    const backgrounds = [];
+    for (const mode of ["light","dark"]) {
+      await evaluate(`document.documentElement.classList.toggle("dark",${mode === "dark"})`);
+      await waitFor("guest theme "+mode, () => page(`document.documentElement.dataset.theme==="${mode}"`));
+      const colors = await page(`(() => {
+        const selected=getComputedStyle(document.activeElement), other=getComputedStyle(document.querySelector("button:not([data-selected])"));
+        const body=getComputedStyle(document.body);
+        return {paper:body.backgroundColor,ink:body.color,fill:selected.backgroundColor,onFill:selected.color,
+          edge:other.borderTopColor,ring:selected.outlineColor,ringWidth:parseFloat(selected.outlineWidth)};
+      })()`);
+      const luminance = color => {
+        const channels = color.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>n/255)
+          .map(n=>n<=0.04045 ? n/12.92 : ((n+0.055)/1.055)**2.4);
+        return channels[0]*0.2126+channels[1]*0.7152+channels[2]*0.0722;
+      };
+      for (const [a,b,min] of [["ink","paper",4.5],["onFill","fill",4.5],["edge","paper",3],["ring","paper",3],["fill","paper",3]]) {
+        const l=luminance(colors[a]), r=luminance(colors[b]);
+        assert.ok((Math.max(l,r)+0.05)/(Math.min(l,r)+0.05)>=min, mode+" contrast "+a+"/"+b);
+      }
+      assert.ok(colors.ringWidth >= 2, "Visible keyboard focus in "+mode);
+      backgrounds.push(colors.paper);
+    }
+    assert.notEqual(backgrounds[0],backgrounds[1]);
+    console.log("PASS: packaged UI SDK tabs, arrow keys, focus, selection and contrast in both themes");
+  } finally {
+    await evaluate(`document.documentElement.classList.toggle("dark",${wasDark})`);
+    await client.send("Target.detachFromTarget",{sessionId});
+  }
+  await evaluate(`document.querySelector('[aria-label="К артефактам"]').click()`);
+  await waitFor("back to gallery after tabs", () => evaluate(`Boolean(document.querySelector('${card}'))`));
+}
+
 export async function verifyArtifacts(client, opts, desktopPid) {
   if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated CI install");
   const resources = process.platform === "darwin"
@@ -89,7 +152,9 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       }).observe({type:"paint",buffered:true});
       </script></html>`}};
     const {id}=store.publish(input);
-    const sample={...input,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
+    const {artifactTools} = await import(pathToFileURL(path.join(services,"artifacts","tools.mjs")));
+    const example = await artifactTools.find(tool => tool.name === "artifact_example").run({});
+    const sample={...example,source:path.join(process.env.RUNNER_TEMP,"gallery-sample.html"),title:"Полировка "+"Д".repeat(180)};
     const temporary=store.publish(sample);
     store.publish({...sample,expectedVersion:1,label:"Вторая версия"});
     await client.probe("performAction",{type:"navigate",to:"/"});
@@ -108,7 +173,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('[data-artifact-gallery] .art-card'))`));
     await waitFor("static gallery snapshot",()=>evaluate(`Boolean(document.querySelector('.art-cover img[src^="data:image/jpeg"]')) && !document.querySelector('[data-artifact-gallery] iframe,[data-artifact-gallery] webview')`));
     await waitFor("thumbnail contains the JavaScript-rendered background",()=>evaluate(`(() => {
-      const img=document.querySelector('.art-cover img');
+      const img=document.querySelector('article[data-id="${id}"] .art-cover img');
       if(!img?.naturalWidth)return false;
       const canvas=document.createElement('canvas');
       const ctx=canvas.getContext('2d');
@@ -117,6 +182,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
       return Math.abs(r-55)<8 && Math.abs(g-101)<8 && Math.abs(b-160)<8;
     })()`));
     assert.equal(store.documents(id,"get",{collection:"probe",key:"frame"}),null);
+    await verifyTabsExample(client,evaluate,temporary.id);
     const sampleCard=`document.querySelector('article[data-id="${temporary.id}"]')`;
     const removeCard=sampleCard+`.querySelector('[aria-label="В корзину"]')`;
     await evaluate(removeCard+".focus();document.activeElement.click()");
