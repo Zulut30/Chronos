@@ -184,7 +184,7 @@ it("sizes an oversized theme file just under 1 MB as 1.00 MB", async () => {
   await expect
     .element(page.getByText(/^That file is/))
     .toHaveTextContent(
-      "That file is 1.00 MB. Theme files are only a few KB, so this one was not read (limit 256 KB).",
+      "That file is 1.00 MB. The size limit for theme imports is 512 KB.",
     );
 });
 
@@ -220,7 +220,7 @@ it.each(["failed read", "batch install"])(
     await expect.element(page.getByRole("button", { name: "Reading…" })).toBeDisabled();
     await userEvent.upload(
       input,
-      new File([" ".repeat(256 * 1024 + 1)], earlierFile.name, { type: "application/json" }),
+      new File([" ".repeat(512 * 1024 + 1)], earlierFile.name, { type: "application/json" }),
     );
     const warning = page.getByText(/^That file is/);
     await expect.element(warning).toBeVisible();

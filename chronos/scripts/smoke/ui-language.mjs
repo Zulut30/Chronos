@@ -72,6 +72,7 @@ export async function verifyUiLanguage(client) {
     const open = await client.probe("performAction", { type: "click", selector: "button", text: "Add theme" });
     assert.ok(open.ok, open.detail);
     await click("#theme-json-editor");
+    await evaluate("document.querySelector('#theme-json-editor').select()");
     await client.send("Input.insertText", { text: JSON.stringify(exportFile) });
     const submit = await client.probe("performAction", { type: "click", selector: "[role=dialog] button", text: "Add theme" });
     assert.ok(submit.ok, submit.detail);

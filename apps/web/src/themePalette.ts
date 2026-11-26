@@ -1439,7 +1439,7 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   if (RESERVED_THEME_IDS.has(theme.id)) {
     throw new Error(m(msg('The theme id "{id}" is reserved.', { id: theme.id })));
   }
-  const library = readWritableCustomThemeLibrary();
+  const library = getWritableCustomThemeLibrary();
   const existingLibrary = themeLibrary(library.themes);
   if (
     BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||

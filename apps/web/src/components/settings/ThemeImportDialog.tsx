@@ -32,7 +32,7 @@ import { m } from "../../i18n/messages";
  * would otherwise be pulled into memory, highlighted, and rendered, which
  * locks the UI for as long as that takes.
  */
-const MAX_THEME_FILE_BYTES = 256 * 1024;
+const MAX_THEME_FILE_BYTES = 512 * 1024;
 
 /** Highlighting rebuilds markup per keystroke; fall back to plain text for oversized pastes. */
 const MAX_HIGHLIGHTED_JSON_LENGTH = 20_000;
@@ -41,7 +41,7 @@ function describeOversizedThemeFile(bytes: number): string | null {
   if (bytes <= MAX_THEME_FILE_BYTES) return null;
   return m(
     msg(
-      "That file is {size}. Theme files are only a few KB, so this one was not read (limit {limit}).",
+      "That file is {size}. The size limit for theme imports is {limit}.",
       { size: formatBytes(bytes), limit: formatBytes(MAX_THEME_FILE_BYTES) },
     ),
   );
