@@ -262,7 +262,7 @@ class CdpClient {
   }
 
   // Read each visible iframe in its own document, including cross-process service panels.
-  async visibleLines(sessionId, contextId) {
+  async visibleLines(sessionId, contextId, excludeUserContent = "") {
     const send = (method, params) => this.send(method, params, 30_000, sessionId);
     const evaluate = async (expression, returnByValue) => {
       const reply = await send("Runtime.evaluate", { expression, returnByValue, contextId });
@@ -270,11 +270,20 @@ class CdpClient {
       return reply.result;
     };
     const { value } = await evaluate(`(() => {
-      const lines = document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
+      const exclude = ${JSON.stringify(excludeUserContent)};
+      const lines = exclude ? [] : document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
       const visible = el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
         && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      if (exclude) {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let node; (node = walker.nextNode());) {
+          const el = node.parentElement;
+          const text = node.textContent.trim();
+          if (text && el && !el.closest(exclude) && visible(el)) lines.push(text);
+        }
+      }
       for (const el of document.querySelectorAll("input:placeholder-shown,textarea:placeholder-shown")) {
-        if (visible(el) && el.placeholder) lines.push(el.placeholder);
+        if (visible(el) && el.placeholder && (!exclude || !el.closest(exclude))) lines.push(el.placeholder);
       }
       const frames = [...document.querySelectorAll("iframe")].flatMap((el, i) => visible(el) ? [i] : []);
       return { lines, frames };
@@ -300,7 +309,7 @@ class CdpClient {
         }));
       }
       try {
-        for (const line of await this.visibleLines(childSession ?? sessionId, childContext)) lines.add(line);
+        for (const line of await this.visibleLines(childSession ?? sessionId, childContext, excludeUserContent)) lines.add(line);
       } finally {
         if (childSession) await send("Target.detachFromTarget", { sessionId: childSession });
       }
@@ -631,6 +640,8 @@ async function run() {
     if (opts.verifyOlympus && opts.strictEn) {
       const { verifyUiLanguage } = await import("./ui-language.mjs");
       report.uiLanguage = await verifyUiLanguage(client);
+      const { verifySidebarFooter } = await import("./sidebar-footer.mjs");
+      report.sidebarFooter = await verifySidebarFooter(client);
       console.log("[PASS] English panels, theme migration, Russian restored");
     }
 

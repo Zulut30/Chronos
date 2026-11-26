@@ -1,6 +1,6 @@
 // Language is applied to the app's controls. Values authored in chats, projects, files,
 // templates, boards and skill documents are outside the translation surface.
-const attributes = ["aria-label", "placeholder", "title", "alt"];
+const attributes = ["aria-label", "placeholder", "title", "alt", "label"];
 const alwaysSkip = [
   "script", "style", "pre", "code", ".chat-markdown", "[data-user-message-bubble]",
   "[contenteditable=true]", ".composer-tiptap", ".xterm", "[translate=no]:not(html)",
@@ -10,9 +10,9 @@ const alwaysSkip = [
   "[data-thread-item] .truncate", "[data-testid=sidebar-project-folder] .truncate", "[data-slot=project-monogram]", "[data-file-path]", "[data-item-path]",
 ].join(",");
 const frameUserText = [
-  ".name > span:first-child", ".desc", ".path", ".md", ".skill-md", ".file-content",
+  ".name > span:first-child", ".subh .lbl", "button.mname[data-open]", ".md", ".skill-md", ".file-content",
   ".cap .name", "[data-thumb] svg", ".row[data-name] .name", ".endpoint", "#cards article > h2", "#cards article > p",
-  ".board-name", ".board-title", "[data-open] .name", ".server-name", ".artifact-title",
+  ".board-name", ".board-title", ".server-name", ".artifact-title",
 ].join(",");
 const chrome = [
   "[class^='oly-']", "[class*=' oly-']", "[id^='oly-']", "[data-oly-ik-open]",
@@ -61,6 +61,20 @@ export function installEnglish({ exact, templates }) {
     }
     return value === undefined ? raw : raw.replace(raw.trim(), () => value);
   };
+  if (embedded) {
+    document.title = translate(document.title);
+  } else {
+    window.__chronosEnglishText = translate;
+    const confirm = window.confirm.bind(window);
+    window.confirm = text => confirm(translate(text));
+    if (window.Notification) {
+      window.__chronosOlympusNotification = class extends Notification {
+        constructor(title, options) {
+          super(title, options?.body ? { ...options, body: translate(options.body) } : options);
+        }
+      };
+    }
+  }
   function visit(node) {
     const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
     if (!el || el.closest(skip)) return;
@@ -69,7 +83,8 @@ export function installEnglish({ exact, templates }) {
       const value = translate(node.data);
       if (value !== node.data) node.data = value;
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      if (!embedded && !el.closest(chrome) && !el.matches("button, iframe")) return;
+      if (!embedded && !el.closest(chrome) &&
+          !el.getAttributeNames().some(name => name.startsWith("data-oly-"))) return;
       for (const key of attributes) {
         const old = el.getAttribute(key);
         const next = translate(old);

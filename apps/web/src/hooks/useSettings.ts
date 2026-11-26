@@ -68,6 +68,7 @@ import { appAtomRegistry } from "~/rpc/atomRegistry";
 
 declare global {
   interface Window {
+    __chronosEnglishText?: (text: string) => string;
     __chronosInitialLanguage?: string;
     __chronosInitialSettings?: Promise<ClientSettings | null>;
     __chronosShellLanguage?: "en" | "ru";

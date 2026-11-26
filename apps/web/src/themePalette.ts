@@ -381,8 +381,7 @@ let cachedLibrary: {
 } | undefined;
 let standardPair: ThemeDefinition | undefined;
 
-function themeLibrary() {
-  const custom = getStoredDefinitions();
+function themeLibrary(custom = getStoredDefinitions()) {
   const published = appAtomRegistry.get(environmentThemeDefinitionsAtom);
   const source = appAtomRegistry.get(publishedThemesAtom);
   if (cachedLibrary?.custom === custom && cachedLibrary.published === published && cachedLibrary.source === source) return cachedLibrary.value;
@@ -403,12 +402,20 @@ export function findImportedTheme(theme: ThemeDefinition) {
 
 // Repoint base and half preferences on the first synchronized snapshot. Keep unpublished
 // ids intact while reconnecting, and preserve user-edited theme files on disk.
-export function migrateThemeSelections() {
-  const { ids } = themeLibrary();
+export function migrateThemeSelections(ids = themeLibrary().ids) {
   try {
     const storage = window.localStorage;
     const base = storage.getItem("t3code:theme");
-    if (base && ids.has(base) && ids.get(base)!.id !== base) storage.setItem("t3code:theme", ids.get(base)!.id);
+    const baseOwner = base ? ids.get(base) : undefined;
+    if (baseOwner && baseOwner.id !== base) {
+      const previous = getStoredDefinitions().find(theme => theme.id === base) ??
+        appAtomRegistry.get(environmentThemeDefinitionsAtom).find(theme => theme.id === base);
+      if (previous && singleAppearanceOf(previous) && !singleAppearanceOf(baseOwner) &&
+          !storage.getItem(THEME_APPEARANCE_MODE_STORAGE_KEY) && !storage.getItem(THEME_HALVES_STORAGE_KEY)) {
+        storage.setItem(THEME_APPEARANCE_MODE_STORAGE_KEY, previous.appearance);
+      }
+      storage.setItem("t3code:theme", baseOwner.id);
+    }
     const raw = storage.getItem(THEME_HALVES_STORAGE_KEY);
     if (!raw) return;
     const halves: unknown = JSON.parse(raw);
@@ -1432,10 +1439,11 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   if (RESERVED_THEME_IDS.has(theme.id)) {
     throw new Error(m(msg('The theme id "{id}" is reserved.', { id: theme.id })));
   }
-  const library = getWritableCustomThemeLibrary();
+  const library = readWritableCustomThemeLibrary();
+  const existingLibrary = themeLibrary(library.themes);
   if (
     BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||
-    themeLibrary().matchingName(theme) || findImportedTheme(theme) ||
+    existingLibrary.matchingName(theme) || existingLibrary.matchingContent(theme) ||
     library.storedThemes.some((storedTheme) => storedThemeHasId(storedTheme, theme.id))
   ) {
     throw new Error(
@@ -1535,8 +1543,14 @@ export function replaceCustomThemeCollection(
   }
   if (!insertedReplacement) nextStoredThemes.push(...replacement);
 
-  saveCustomThemes(nextStoredThemes, parseStoredThemes(nextStoredThemes));
-  return replacement;
+  const resolved = themeLibrary(parseStoredThemes(nextStoredThemes));
+  const replacementIds = new Set(replacement.map(theme => theme.id));
+  const canonicalEntries = nextStoredThemes.filter(entry =>
+    !isRecord(entry) || typeof entry.id !== "string" || !replacementIds.has(entry.id) ||
+    resolved.ids.get(entry.id)?.id === entry.id);
+  saveCustomThemes(canonicalEntries, parseStoredThemes(canonicalEntries));
+  migrateThemeSelections(resolved.ids);
+  return [...new Set(replacement.map(theme => resolved.ids.get(theme.id)!))];
 }
 
 export function removeCustomTheme(themeId: string): void {

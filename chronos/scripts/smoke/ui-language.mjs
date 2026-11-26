@@ -16,7 +16,7 @@ export async function verifyUiLanguage(client) {
       }
       await sleep(120);
     } while (Date.now() < deadline);
-    throw Error("Timed out waiting for " + label);
+    throw Error("Timed out waiting for " + label + ": " + JSON.stringify((await client.visibleLines()).slice(-65)));
   }
   async function route(to) {
     const result = await client.probe("performAction", { type: "navigate", to });
@@ -40,10 +40,18 @@ export async function verifyUiLanguage(client) {
       "(async () => !!window.__TSR_ROUTER__ && document.documentElement.lang === " + JSON.stringify(next) +
       " && window.__chronosShellLanguage === " + JSON.stringify(next) + " && (await window.desktopBridge.getClientSettings()).language === " + JSON.stringify(next) + ")()"));
   }
+  const userContent = [
+    "script", "style", "[translate=no]:not(html)", ".chat-markdown", "[data-user-message-bubble]",
+    "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
+    ".oly-tk-card .t", ".oly-tk-card .d", ".oly-tk-item[data-sel^='p:'] > span", ".oly-tk-item[data-sel^='g:'] > span",
+    "[data-oly-ps-name] h3", "[data-oly-ps-name] p", ".card[data-path] .cap .name", "[data-thumb] svg",
+    "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint",
+    "[data-open] .name > span:first-child", ".subh .lbl", "button.mname[data-open]",
+  ].join(",");
   async function scan(id, expected) {
     let lines;
     await until(id + " control " + expected, async () => {
-      lines = await client.visibleLines();
+      lines = await client.visibleLines(undefined, undefined, userContent);
       return lines.some(line => line.includes(expected));
     });
     const cyrillic = lines.filter(line => /\p{Script=Cyrillic}/u.test(line));
@@ -72,7 +80,7 @@ export async function verifyUiLanguage(client) {
   }
   // Simulate older clients with two stored imports and a selected duplicate in both halves.
   // Reload twice to cover hydration as well as a reconnect that republishes the same theme.
-  await evaluate("(() => {const theme=" + JSON.stringify(original) + ";const copies=[{...theme,id:'smoke-olympus-a'}, {...theme,id:'smoke-olympus-b',label:'Imported copy'}];localStorage.setItem('t3code:themes:v1',JSON.stringify(copies));localStorage.setItem('t3code:theme',copies[0].id);localStorage.setItem('t3code:theme-halves:v1',JSON.stringify({light:copies[0].id,dark:copies[1].id}));})()");
+  await evaluate("(() => {const theme=" + JSON.stringify(original) + ";const night=theme.appearance==='dark'?theme.colors:theme.variants.dark;const copies=[{...theme,id:'smoke-olympus-a',colors:{...theme.colors,canvas:'#012345'}}, {...theme,id:'smoke-olympus-b',label:'Imported Graphite',appearance:'dark',colors:night,variants:undefined}];localStorage.setItem('t3code:themes:v1',JSON.stringify(copies));localStorage.setItem('t3code:theme',copies[0].id);localStorage.setItem('t3code:theme-halves:v1',JSON.stringify({light:copies[0].id,dark:copies[1].id}));})()");
   for (let pass = 0; pass < 2; pass++) {
     await client.send("Page.reload");
     await until("theme migration after reload", () => evaluate(
@@ -97,7 +105,7 @@ export async function verifyUiLanguage(client) {
   await scan("usage", "Usage");
   await route("/");
   await client.probe("ensureDraft");
-  await scan("home", "project");
+  await scan("home", "What should we work on?");
   for (const [id, selector, text] of [
     ["Tasks", "[data-oly-tasks]", "All projects"],
     ["Studio", "button[aria-label=Studio]", "Boards"],

@@ -1,6 +1,5 @@
 // T3 Studio — local service (127.0.0.1:4520, no dependencies).
 // Excalidraw boards stored as .excalidraw JSON files (project/.excalidraw or the server folder),
-import { serveLanguageAsset } from "../ui-language/serve.mjs";
 import { resolveServicePath, t3Home, serviceDir } from '../paths.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -230,7 +229,10 @@ const server = http.createServer(async (req, res) => {
       const { galleryRequest } = await import('../artifacts/gallery.mjs');
       return json(res, req, 200, await galleryRequest(p.slice('/api/artifacts/'.length), await B()));
     }
-    if (req.method === "GET" && p.startsWith("/chronos-ui-") && await serveLanguageAsset(p, res)) return;
+    if (req.method === "GET" && p.startsWith("/chronos-ui-")) {
+      const { serveLanguageAsset } = await import("../ui-language/serve.mjs");
+      if (await serveLanguageAsset(p, res)) return;
+    }
     if (!p.startsWith('/api/')) {
       if (p === '/' || p === '/index.html') return serveStatic(req, res, 'index.html');
       if (p === '/excalidraw/app-en.js') {

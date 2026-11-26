@@ -13,16 +13,34 @@ export function englishAsset(context: AssetEmitter, name: string, source: string
 
 // Chronos-owned copy is already Russian in the source. Only replace authored literals,
 // leaving interpolation values, property keys, routing strings and user data intact.
-export function englishLiterals(code: string, parse: Parse, dictionary: Record<string, string>) {
+export type EnglishCatalog = {
+  exact: Record<string, string>;
+  templates: Record<string, string>;
+};
+
+export function englishLiterals(code: string, parse: Parse, catalog: EnglishCatalog) {
   if (!/[а-яё]/iu.test(code) && !/\\u0[45]/iu.test(code)) return code;
   const chunks: string[] = [];
   let offset = 0;
   visitStrings(code, parse, (site) => {
-    if (site.slots.length) return;
+    if (site.slots.length) {
+      const frame = site.parts.map((part, i) => (i === 0 ? "" : "{" + i + "}") + part).join("");
+      const target = catalog.templates[frame];
+      if (target === undefined) return;
+      // Concatenating separately quoted constants retains the original slot values and evaluation order.
+      const fields = target.split(/(\{\d+\})/u);
+      const indices = fields.filter((_, i) => i % 2 === 1).map(field => Number(field.slice(1, -1)));
+      if (indices.length !== site.slots.length || !indices.every((n, i) => n === i + 1)) return;
+      const expression = fields.map((field, i) => i % 2 === 0 ? JSON.stringify(field) :
+        "`${" + site.slots[Number(field.slice(1, -1)) - 1] + "}`").join(" + ");
+      chunks.push(code.slice(offset, site.start), "(" + expression + ")");
+      offset = site.end;
+      return true;
+    }
     const original = site.parts[0]!;
     const key = original.trim().replace(/\s+/gu, " ");
-    if (!Object.hasOwn(dictionary, key)) return;
-    const value = original.replace(original.trim(), () => dictionary[key]!);
+    if (!Object.hasOwn(catalog.exact, key)) return;
+    const value = original.replace(original.trim(), () => catalog.exact[key]!);
     chunks.push(code.slice(offset, site.start), JSON.stringify(value));
     offset = site.end;
     return true;

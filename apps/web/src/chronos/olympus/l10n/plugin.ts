@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { posix, resolve } from "node:path";
 import type { Plugin } from "vite-plus";
 
-import { englishAsset, englishLiterals, localizeEntryHtml } from "./englishBundle.ts";
+import { englishAsset, englishLiterals, localizeEntryHtml, type EnglishCatalog } from "./englishBundle.ts";
 import { shiftMappings } from "./sourcemap.ts";
 import { checkCoverage, contextFile, loadTables, newCounts, remaining, tableFiles, tableNames, translateChunk, type Finding } from "./translate.ts";
 
@@ -17,7 +17,7 @@ export function olympusL10n(): Plugin {
   let tables: ReturnType<typeof loadTables>;
   let runtime: string;
   let fingerprint: string;
-  let english: { exact: Record<string, string> };
+  let english: EnglishCatalog;
   let englishRuntime: string;
 
   return {
@@ -80,7 +80,7 @@ export function olympusL10n(): Plugin {
           const isMain = chunk.type === "chunk" && chunk.moduleIds.some(id => id.replaceAll("\\", "/") === mainId);
           const ownsRussianCopy = chunk.type === "chunk" && chunk.moduleIds.some(id =>
             /\/(?:src\/chronos\/|components\/(?:sidebar\/SidebarChrome|settings\/settingsSearch)\.)/u.test(id.replaceAll("\\", "/")));
-          const sourceEnglish = ownsRussianCopy ? englishLiterals(original, parse, english.exact) : original;
+          const sourceEnglish = ownsRussianCopy ? englishLiterals(original, parse, english) : original;
           if (edits.length || isMain || sourceEnglish !== original) {
             imports["/" + chunk.fileName] = englishAsset(this,
               "en-" + posix.basename(chunk.fileName, ".js"), sourceEnglish.replace(/\/\/# sourceMappingURL=[^\r\n]*$/mu, ""));

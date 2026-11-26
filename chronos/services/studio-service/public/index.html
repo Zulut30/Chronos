@@ -155,7 +155,7 @@ function watchThumbs(root){thumbIO?.disconnect();const cards=[...root.querySelec
  setTimeout(()=>{if(cards[0]?.isConnected&&!cards.some(c=>c.querySelector('[data-thumb]')?.dataset.state))cards.slice(0,12).forEach(drawThumb)},1200)}
 
 // ---------- boards ----------
-function boardTools(){const group=(name,list)=>list.length?`<optgroup label="${name}">${list.map(l=>`<option value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(locLabel(l))}</option>`).join('')}</optgroup>`:'';
+function boardTools(){const group=(name,list)=>list.length?`<optgroup label="${name}">${list.map(l=>`<option translate="${l.kind==='server'?'yes':'no'}" value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(locLabel(l))}</option>`).join('')}</optgroup>`:'';
  const cur=LOCS.filter(l=>l.current&&l.kind==='project');
  const opts=group('Текущий проект',cur)+group(cur.length?'Другие проекты':'Проекты',LOCS.filter(l=>l.kind==='project'&&!l.current))+group('Другие папки',LOCS.filter(l=>l.kind!=='project'))+'<optgroup label="Добавить"><option value="__add">Другая папка на диске…</option></optgroup>';
  return `<label class="picker" title="Где хранятся доски: ${esc(LOC.dir)}">${LOC.kind==='project'?IC.project:IC.folder}<span class="sr">Папка с досками</span><select id="loc">${opts}</select>${IC.chev}</label><button class="btn primary" id="newBoard">${IC.plus}<span class="lbl">Новая доска</span></button>`}
