@@ -1137,7 +1137,16 @@
     "Уведомления · Все фоновые": "Notifications · All background chats",
     "Уведомления · Только свёрнутое окно": "Notifications · Only when minimized",
     "Уведомления · Без звука": "Notifications · Silent",
-    "Уведомления · Выкл": "Notifications · Off"
+    "Уведомления · Выкл": "Notifications · Off",
+    "Режим следующего сообщения: выполнение": "Next message mode: execution",
+    "Режим следующего сообщения: планирование": "Next message mode: planning",
+    "Режим следующего сообщения: мозговой штурм": "Next message mode: brainstorming",
+    "Режим следующего сообщения: охотник за багами": "Next message mode: bug hunter",
+    "Режим следующего сообщения: планирование дизайна": "Next message mode: design planning",
+    "Добавить задачу в «Бэклог»": "Add task to “Backlog”",
+    "Добавить задачу в «В работе»": "Add task to “In progress”",
+    "Добавить задачу в «На проверке»": "Add task to “In review”",
+    "Добавить задачу в «Готово»": "Add task to “Done”"
   },
   "templates": {
     "Режим следующего сообщения: {1}": "Next message mode: {1}",

@@ -77,13 +77,29 @@ try {
       if ([DateTime]::UtcNow -ge $deadline) { throw 'Fixture did not signal Form.Shown' }
       Start-Sleep -Milliseconds 50
     }
+    function Get-FixtureControl([string]$Name) {
+      $untilVisible = [DateTime]::UtcNow.AddSeconds(15)
+      do {
+        $tree = (Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i')).tree
+        $nodes = @(Nodes $tree | Where-Object ref_id)
+        $matchesByName = @($nodes | Where-Object { $_.name -eq $Name })
+        if ($matchesByName.Count -eq 1) { return $matchesByName[0].ref_id }
+        if ($Name -in 'First','Second') {
+          # The legacy Win32 accessibility provider can omit the names of native edit
+          # children. The fixture has exactly two text fields in creation/tab order.
+          $edits = @($nodes | Where-Object { $_.role -in 'edit','textbox','textfield','text_field','text-field' -and $_.available_actions -contains 'SetValue' })
+          if ($edits.Count -eq 2) { return $edits[[int]($Name -eq 'Second')].ref_id }
+        }
+        Start-Sleep -Milliseconds 150
+      } while ([DateTime]::UtcNow -lt $untilVisible)
+      $nodes | Select-Object role,name,ref_id,available_actions | Format-Table -Wrap | Out-Host
+      throw "No unique accessible fixture control for $Name"
+    }
     foreach ($name in 'First','Second') {
-      $fields = Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i')
-      $ref = (Nodes $fields.tree | Where-Object name -eq $name | Select-Object -First 1).ref_id
+      $ref = Get-FixtureControl $name
       Invoke-Desktop @('set-value',$ref,($name+' value')) | Out-Null
     }
-    $fields = Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i')
-    $button = (Nodes $fields.tree | Where-Object name -eq 'Check' | Select-Object -First 1).ref_id
+    $button = Get-FixtureControl 'Check'
     Invoke-Desktop @('click',$button) | Out-Null
     if (([IO.File]::ReadAllText($receipt)) -ne 'First value/Second value') { throw 'Native form did not receive both values' }
 

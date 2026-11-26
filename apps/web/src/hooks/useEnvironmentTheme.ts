@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
 
-import { subscribeAtomChanges } from "../rpc/atomRegistry";
+import { appAtomRegistry, subscribeAtomChanges } from "../rpc/atomRegistry";
 import {
   environmentThemeDefinitionsAtom,
+  publishedThemesAtom,
   storePublishedEnvironmentThemes,
   getPublishedThemes,
   migrateThemeSelections,
@@ -20,9 +21,15 @@ export function useEnvironmentThemeDefinitions(): ReadonlyArray<ThemeDefinition>
  * only land if the active theme is re-applied.
  */
 export function startEnvironmentThemeRepaint(): () => void {
+  let previous = appAtomRegistry.get(environmentThemeDefinitionsAtom);
   migrateThemeSelections();
-  return subscribeAtomChanges(environmentThemeDefinitionsAtom, (definitions) => {
-    migrateThemeSelections();
+  return subscribeAtomChanges(publishedThemesAtom, (source) => {
+    // A live snapshot can equal the boot cache. Its background metadata still permits
+    // cleanup that was deferred while the server was connecting.
+    const definitions = appAtomRegistry.get(environmentThemeDefinitionsAtom);
+    if (source !== null) migrateThemeSelections();
+    if (definitions === previous) return;
+    previous = definitions;
     storePublishedEnvironmentThemes(definitions);
     refreshTheme({ preservePreview: true });
   });

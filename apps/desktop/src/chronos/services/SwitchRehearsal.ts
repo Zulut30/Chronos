@@ -26,6 +26,7 @@ export function isolateRehearsalRequests(backendPort: string | undefined) {
       const value = request.headers.get(name);
       if (value) headers.set(name, value);
     }
+    // @effect-diagnostics-next-line globalFetch:off -- Electron requires a streaming Fetch response at its protocol boundary.
     const upstream = await fetch(url, { method: request.method, headers, signal: request.signal, redirect: "manual" });
     const responseHeaders = new Headers(upstream.headers);
     if (responseHeaders.has("content-encoding")) {
