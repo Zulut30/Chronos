@@ -12916,5 +12916,6 @@
   "091ed640e9c9fbb7": "Active thread permissions",
   "87846c5910d14aa7": "If the environment was offline at the scheduled time, run the task once when it starts.",
   "1b694b2d5f43f68b": "Antigravity did not report a reset time. Retry when your subscription quota renews.",
-  "c251d5fb6872abff": "Unload sooner when Windows is low on memory"
+  "c251d5fb6872abff": "Unload sooner when Windows is low on memory",
+  "80ccfa40778a0de0": "Antigravity subscription quota"
 }

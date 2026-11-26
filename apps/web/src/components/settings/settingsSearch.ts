@@ -527,7 +527,14 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "auto-resume-limited-threads",
     title: msg("Resume after usage limits"),
     to: "/settings/threads",
-    searchTerms: [msg("usage quota rate limit reset recover continue"), "Antigravity subscription quota", "квота Antigravity продолжить после сброса"],
+    searchTerms: [msg("usage quota rate limit reset recover continue")],
+  },
+  {
+    id: "antigravity-subscription-quota",
+    title: msg("Antigravity subscription quota"),
+    to: "/settings/threads",
+    targetId: "auto-resume-limited-threads",
+    searchTerms: ["quota reset continue", "квота Antigravity продолжить после сброса"],
   },
   {
     id: "working-shelf",
@@ -1762,12 +1769,11 @@ export function searchSettings(
 
   return settingsForThisPlatform(items)
     .flatMap((item, index) => {
-      const title = normalizeSearchText(decodeMsg(item.title));
+      const titles = [normalizeSearchText(decodeMsg(item.title)), normalizeSearchText(translate(item.title))];
       const fields = [
-        title,
+        ...titles,
         normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),
         // The labels as displayed, so search also works in the active language.
-        normalizeSearchText(translate(item.title)),
         normalizeSearchText(translate(SETTINGS_SECTION_LABELS[item.to])),
         ...(item.searchTerms ?? []).map(normalizeSearchText),
         ...(item.searchTerms ?? []).map((term) => normalizeSearchText(translate(term))),
@@ -1776,13 +1782,13 @@ export function searchSettings(
 
       const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
       const rank =
-        title === normalizedQuery
+        titles.includes(normalizedQuery)
           ? 5
-          : title.startsWith(normalizedQuery)
+          : titles.some((title) => title.startsWith(normalizedQuery))
             ? 4
-            : title.includes(normalizedQuery)
+            : titles.some((title) => title.includes(normalizedQuery))
               ? 3
-              : queryTokens.every((token) => title.includes(token))
+              : titles.some((title) => queryTokens.every((token) => title.includes(token)))
                 ? 2
                 : exactPhraseField >= 0
                   ? 1

@@ -68,6 +68,7 @@ jobs:
       - name: Capture settings from the unpacked Windows ZIP
         shell: pwsh
         env:
+          CHRONOS_SETTINGS_STAGE: ${{ matrix.stage }}
           CHRONOS_HOME: ${{ runner.temp }}/settings-profile
           T3CODE_DISABLE_AUTO_UPDATE: "1"
         run: |

@@ -161,6 +161,15 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
         await wait(notice);
         assert.match(await evaluate(`document.querySelector(${JSON.stringify(notice)}).textContent`), /Antigravity/);
         await capture(knownReset ? "quota-reset" : "quota-unknown-reset", notice);
+        if (!knownReset && process.env.CHRONOS_SETTINGS_STAGE === "after") {
+          const readable = await evaluate(`(() => {
+            const message = document.querySelector("[data-chronos-quota-description]");
+            if (!message || !message.textContent.includes("Повторите попытку")) return false;
+            const rect = message.getBoundingClientRect();
+            return rect.top >= 0 && rect.bottom <= innerHeight && message.scrollWidth <= message.clientWidth;
+          })()`);
+          assert.ok(readable, "The complete quota instruction must fit in the visible composer");
+        }
       }
       await act({type:"navigate",to:"/settings/general"});
       await wait("[data-oly-ik-nav] button");

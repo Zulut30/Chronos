@@ -22,6 +22,7 @@ import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { Button, InlineButton } from "../ui/button";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { toastManager } from "../ui/toast";
+import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { copyAdminRequest } from "./ThreadErrorBanner";
 
@@ -124,7 +125,17 @@ export function usageLimitRecoveryBannerItem(
         errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
           ? resolve(msg("Antigravity subscription quota reached"))
           : resolve(msg("Usage limit reached")),
-      description: resetDescription,
+      ...(errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE && formattedTime === null
+        ? {
+            children: (
+              <ComposerBanner.Body className="pe-2 pb-1.5">
+                <p data-chronos-quota-description="" className="wrap-anywhere text-muted-foreground">
+                  {resetDescription}
+                </p>
+              </ComposerBanner.Body>
+            ),
+          }
+        : { description: resetDescription }),
       actions: recoveryActions,
     };
   }
