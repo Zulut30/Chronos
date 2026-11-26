@@ -91,13 +91,27 @@ async function withRpc(callback) {
   const entry = path.join(resources, "server.asar/apps/server/dist/bin.mjs");
   const bearer = execFileSync(exe, [entry, "auth", "session", "issue", "--token-only", "--label", "upgrade-fixture"],
     { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", windowsHide: true }).trim();
-  const post = async (route, body) => {
-    const r = await fetch(origin + route, { method: "POST", headers: { authorization: "Bearer " + bearer, "content-type": "application/json" }, ...(body && { body: JSON.stringify(body) }) });
+  const request = async (method, route, body) => {
+    const r = await fetch(origin + route, { method, headers: { authorization: "Bearer " + bearer, "content-type": "application/json" }, ...(body && { body: JSON.stringify(body) }) });
     assert.ok(r.ok, route + " HTTP " + r.status); return r;
   };
+  const post = (route, body) => request("POST", route, body);
   const { ticket } = await (await post("/api/auth/websocket-ticket/rpc")).json();
   const rpc = await rpcClient(origin.replace("http:", "ws:") + "/ws?orchestrationProtocol=2&wsTicket=" + encodeURIComponent(ticket));
-  try { return await callback(rpc, post); } finally { rpc.close(); }
+  try { return await callback(rpc, post, route => request("GET", route)); } finally { rpc.close(); }
+}
+async function verifyUserData(rpc, _post, get) {
+  const settings = await rpc.call("server.getSettings", {});
+  assert.equal(settings.backgroundActivityProfile, "battery-saver");
+  assert.equal(settings.responseStreamingMode, "turn");
+  const { projects } = await (await get("/api/projects")).json();
+  const project = projects.find(p => p.id === projectId);
+  assert.equal(project?.title, title);
+  assert.equal(path.resolve(project.workspaceRoot).toLowerCase(), projectRoot.toLowerCase());
+  const { thread } = await rpc.call("orchestration.getThreadProjection", { threadId });
+  assert.equal(thread.id, threadId);
+  assert.equal(thread.projectId, projectId);
+  assert.equal(thread.title, title);
 }
 async function shellState() {
   const result = JSON.parse(execFileSync("pwsh.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
@@ -136,7 +150,7 @@ try {
     await writeFile(config, original.replace(/^url: https:\/\/.*$/m, "url: " + mirror.origin + feedDir));
     const drivers = ["codex", "claudeAgent", "cursor", "grok", "muse", "pi", "opencode", "antigravity", "kiro", "fx"];
     await writeFile(path.join(data, "settings.json"), JSON.stringify({
-      backgroundActivityProfile: "battery-saver", automaticGitFetchInterval: 0, responseStreamingMode: "paragraph",
+      backgroundActivityProfile: "battery-saver", automaticGitFetchInterval: 0, responseStreamingMode: "turn",
       providerInstances: Object.fromEntries(drivers.map(driver => [driver, { driver, enabled: false }])),
     }));
   });
@@ -184,6 +198,7 @@ try {
     await waitFor("artifact shortcut ownership", () => evaluate(`window.chronosArtifactInstaller.installed(${JSON.stringify(artifactId)})`));
     oldShell = await shellState();
     oldIdentity = await readFile(path.join(data, "environment-id"), "utf8");
+    await withRpc(verifyUserData);
   });
   await step("Check offer and download using installed electron-updater", async () => {
     const cache = path.join(process.env.LOCALAPPDATA, "chronos-updater", "installer.exe");
@@ -212,13 +227,7 @@ try {
   });
   await step("Verify project, thread, settings, artifact, shortcuts and protocol", async () => {
     assert.equal(await readFile(path.join(data, "environment-id"), "utf8"), oldIdentity);
-    const settings = JSON.parse(await readFile(path.join(data, "settings.json"), "utf8"));
-    assert.equal(settings.backgroundActivityProfile, "battery-saver"); assert.equal(settings.responseStreamingMode, "paragraph");
-    await withRpc(async rpc => {
-      const projection = await rpc.call("orchestration.getThreadProjection", { threadId });
-      assert.equal(projection.thread.id, threadId); assert.equal(projection.thread.projectId, projectId);
-      assert.equal(projection.thread.title, title);
-    });
+    await withRpc(verifyUserData);
     const store = await openStore();
     try { assert.equal(store.metadata(artifactId).title, title); assert.deepEqual(store.documents(artifactId, "get", {collection:"qa",key:"thread"}), { threadId }); }
     finally { store.close(); }
@@ -242,6 +251,6 @@ try {
   await writeFile(path.join(evidence, "report.json"), JSON.stringify(summary, null, 2));
   const rows = summary.timings.map(s => `| ${s.name} | ${s.status} | ${s.seconds.toFixed(1)} |`);
   await appendFile(process.env.GITHUB_STEP_SUMMARY, [`## ${from} → ${to}`, "", "| Step | Result | Seconds |", "|---|---|---:|", ...rows, "",
-    `Transfer bytes (range / full / blockmaps / manifest): ${summary.transfer?.rangeBytes ?? 0} / ${summary.transfer?.fullBytes ?? 0} / ${summary.transfer?.mapBytes ?? 0} / ${summary.transfer?.manifestBytes ?? 0}.`,
+    `Transfer bytes (range / full / CDN errors / blockmaps / manifest): ${summary.transfer?.rangeBytes ?? 0} / ${summary.transfer?.fullBytes ?? 0} / ${summary.transfer?.errorBytes ?? 0} / ${summary.transfer?.mapBytes ?? 0} / ${summary.transfer?.manifestBytes ?? 0}.`,
     `Full-download reason: ${summary.fullDownloadReason ?? (summary.transfer?.fullBytes ? "unknown" : "none")}.`, summary.error ? `\nFailure: ${summary.error.split("\n")[0]}` : "", ""].join("\n"));
 }

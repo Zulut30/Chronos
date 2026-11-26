@@ -29,6 +29,7 @@ export async function startUpgradeMirror({ assets, target, manifest, manifestPat
           headers: { "accept-encoding": "identity", ...(record.range && { range: record.range }) },
         });
         res.statusCode = remote.status;
+        record.status = remote.status;
         for (const name of ["content-type", "content-length", "accept-ranges", "content-range"]) {
           if (remote.headers.has(name)) res.setHeader(name, remote.headers.get(name));
         }
@@ -50,6 +51,7 @@ export async function startUpgradeMirror({ assets, target, manifest, manifestPat
         res.setHeader("content-range", `bytes ${start}-${end}/${size}`);
       }
       res.setHeader("content-length", end - start + 1);
+      record.status = res.statusCode;
       res.setHeader("accept-ranges", "bytes");
       if (req.method === "HEAD") { res.end(); return; }
       const file = createReadStream(asset, { start, end });
@@ -68,8 +70,9 @@ export async function startUpgradeMirror({ assets, target, manifest, manifestPat
     transfer() {
       const sum = predicate => requests.filter(predicate).reduce((n, r) => n + r.bytes, 0);
       return {
-        rangeBytes: sum(r => r.pathname === target && r.range),
-        fullBytes: sum(r => r.pathname === target && !r.range),
+        rangeBytes: sum(r => r.pathname === target && r.status === 206),
+        fullBytes: sum(r => r.pathname === target && r.status === 200),
+        errorBytes: sum(r => r.pathname === target && r.status >= 400),
         mapBytes: sum(r => r.pathname.endsWith(".blockmap")),
         manifestBytes: sum(r => r.pathname === manifestPath),
       };
