@@ -4674,6 +4674,58 @@ it.layer(McpProviderSessions.layer)("OpenCode2 adapter", (it) => {
     }),
   );
 
+  it.effect(
+    "answers a repeated native shell permission in full access and records a quiet notice",
+    () =>
+      Effect.gen(function* () {
+        const tool = {
+          sessionID: SESSION,
+          assistantMessageID: shellAsk.data.source.messageID,
+          id: shellAsk.data.source.id,
+          name: "shell",
+        };
+        const { runtime, thread } = yield* resumed([
+          out("session.prompt", { sessionID: SESSION, text: "<any>" }),
+          promptAccepted,
+          event("session.tool.input.started", tool),
+          event("session.tool.called", {
+            ...tool,
+            input: { command: "echo FIRST" },
+            executed: true,
+          }),
+          shellAskEvent,
+          out("permission.reply", {
+            sessionID: SESSION,
+            requestID: shellAsk.data.id,
+            decision: "once",
+          }),
+          reply("permission.reply", null),
+          event("session.execution.succeeded", { sessionID: SESSION }),
+        ]);
+        const events = yield* runtime.events.pipe(
+          Stream.takeUntil((event) => event.type === "turn.terminal"),
+          Stream.runCollect,
+          Effect.forkScoped,
+        );
+        yield* runtime.startTurn(turnInput(thread));
+        const collected = yield* Fiber.join(events);
+        assert.isFalse(
+          collected.some(
+            (event) =>
+              event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending",
+          ),
+        );
+        assert.isTrue(
+          collected.some(
+            (event) =>
+              event.type === "turn_item.updated" &&
+              event.turnItem.type === "system_notice" &&
+              event.turnItem.level === "info",
+          ),
+        );
+      }),
+  );
+
   it.effect("shows a permission asked while the stream was down, and answers it", () =>
     Effect.gen(function* () {
       const { runtime, thread } = yield* resumed(

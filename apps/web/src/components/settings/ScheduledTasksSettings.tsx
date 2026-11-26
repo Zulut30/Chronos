@@ -382,6 +382,7 @@ function deliveryOutcomeVariant(outcome: string) {
 }
 
 const RUN_STATUS_LABELS: Record<ScheduledTask["lastRunStatus"], string> = {
+  missed: msg("Skipped: the app was closed"),
   never: msg("Never run"),
   running: msg("Running", { $context: "scheduled task run status" }),
   succeeded: msg("Succeeded"),
@@ -2313,6 +2314,14 @@ function ScheduledTaskEditorForm({
                     </Toggle>
                   ))}
                 </ToggleGroup>
+                <Label htmlFor="scheduled-task-catch-up">
+                  <T>Run one missed occurrence on next startup</T>
+                </Label>
+                <Switch
+                  id="scheduled-task-catch-up"
+                  checked={draft.catchUp === true}
+                  onCheckedChange={(catchUp) => setDraft((current) => ({ ...current, catchUp }))}
+                />
               </div>
             ) : (
               <div className="flex items-center gap-2">

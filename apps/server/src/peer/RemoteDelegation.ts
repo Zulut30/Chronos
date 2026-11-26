@@ -37,6 +37,7 @@ import type * as McpInvocationContext from "../mcp/McpInvocationContext.ts";
 import { ProjectToolkit } from "../mcp/toolkits/project/tools.ts";
 import {
   resolveInteractionMode,
+  delegatedReasoning,
   resolveRuntimeMode,
   taskPrompt,
 } from "../mcp/delegatedTaskModes.ts";
@@ -225,15 +226,13 @@ const make = Effect.gen(function* () {
 
   /** The instance there of the driver the caller named, preferring the one this thread runs on, as a task here does. */
   const resolveRemoteInstance = Effect.fn("RemoteDelegation.resolveRemoteInstance")(function* (
-    scope: ThreadScope,
-    environmentId: EnvironmentId,
+    providers: OrchestratorMcpCapabilitiesResult["providers"],
     requested: {
       readonly driverKind: ProviderDriverKind;
       readonly providerInstanceId: ProviderInstanceId | undefined;
       readonly inheritedInstanceId: ProviderInstanceId;
     },
   ) {
-    const { providers } = yield* forwarding.call(scope, RemoteCapabilitiesTool, environmentId, {});
     if (requested.providerInstanceId !== undefined) {
       const named = providers.find(
         (provider) => provider.providerInstanceId === requested.providerInstanceId,
@@ -299,11 +298,24 @@ const make = Effect.gen(function* () {
       }
       // The provider and model inherit as they do for a task here. Another
       // provider there has no model to inherit, so the caller names one.
-      const inherited = parent.thread.modelSelection;
+      const inherited = parentRun.modelSelection ?? parent.thread.modelSelection;
+      const changedTarget =
+        (target.providerInstanceId !== undefined &&
+          target.providerInstanceId !== inherited.instanceId) ||
+        (target.model !== undefined && target.model !== inherited.model);
+      const catalog =
+        target.driverKind !== undefined || (changedTarget && target.options === undefined)
+          ? (yield* forwarding.call(
+              scope,
+              RemoteCapabilitiesTool,
+              target.environmentId,
+              target.model ? { search: target.model } : {},
+            )).providers
+          : [];
       const instanceId =
         target.driverKind === undefined
           ? (target.providerInstanceId ?? inherited.instanceId)
-          : yield* resolveRemoteInstance(scope, target.environmentId, {
+          : yield* resolveRemoteInstance(catalog, {
               driverKind: target.driverKind,
               providerInstanceId: target.providerInstanceId,
               inheritedInstanceId: inherited.instanceId,
@@ -320,7 +332,13 @@ const make = Effect.gen(function* () {
         target.options ??
         (instanceId === inherited.instanceId && model === inherited.model
           ? inherited.options
-          : undefined);
+          : delegatedReasoning(
+              inherited,
+              instanceId === inherited.instanceId,
+              catalog
+                .find((p) => p.providerInstanceId === instanceId)
+                ?.models.find((m) => m.id === model)?.options,
+            ));
       // Modes asked for are checked against this thread. Omitted ones are left
       // to the other side, which inherits this thread's modes capped by the
       // link's access, so a narrower link still takes the task.

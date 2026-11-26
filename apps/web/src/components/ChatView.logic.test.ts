@@ -1571,6 +1571,21 @@ describe("deriveThreadPendingBackgroundTasks", () => {
     },
   );
 
+  it("shows an Antigravity wait in the first live run and removes it when cleared", () => {
+    const task = { taskId: "shell", kind: "command", awaited: true, runId: RunId.make("run-1") };
+    const current = (pendingBackgroundTasks: (typeof task)[]) =>
+      projection({
+        thread: { ...base.thread, activeProviderThreadId: "provider-thread-1" },
+        providerThreads: [
+          { id: "provider-thread-1", driver: "antigravity", pendingBackgroundTasks },
+        ],
+        runs: [run(1, "running")],
+        turnItems: [item(1, "command_execution", "shell", "check")],
+      });
+    expect(deriveThreadPendingBackgroundTasks(current([task]))).toEqual([task]);
+    expect(deriveThreadPendingBackgroundTasks(current([]))).toEqual([]);
+  });
+
   it("does not list a live run's child from the provider roster as background", () => {
     // The roster is not run-tied; Muse keys it by the child session id its rows carry.
     expect(

@@ -241,6 +241,7 @@ const historyLogPath = (logsDir: string, threadId = "thread-1") =>
   );
 
 interface CreateManagerOptions {
+  resolveExecutable?: (command: string) => string | undefined;
   shellResolver?: () => string;
   env?: NodeJS.ProcessEnv;
   subprocessInspector?: (terminalPid: number) => Effect.Effect<{
@@ -325,7 +326,12 @@ const createManager = (
               managedBinaryCacheDir: options.managedBinaryCacheDir,
               managedBinaryToolsDir: options.managedBinaryToolsDir,
             }),
-      }).pipe(Effect.provideService(SpawnExecutableResolution, (command) => command));
+      }).pipe(
+        Effect.provideService(
+          SpawnExecutableResolution,
+          options.resolveExecutable ?? ((command) => command),
+        ),
+      );
       const eventsRef = yield* Ref.make<ReadonlyArray<TerminalEvent>>([]);
       const unsubscribe = yield* manager.subscribe((event) =>
         Ref.update(eventsRef, (events) => [...events, event]),
@@ -2588,6 +2594,21 @@ it.layer(
       expect(spawnEnv?.PATH).toBeUndefined();
       expect(spawnEnv?.Path).toBe(`C:\\Windows\\System32;${installBin}`);
     }),
+  );
+
+  it.effect.each(["powershell.exe", "cmd.exe"])(
+    "opens the available Windows shell %s without spawning missing candidates",
+    (available) =>
+      Effect.gen(function* () {
+        const { manager, ptyAdapter } = yield* createManager(5, {
+          resolveExecutable: (command) =>
+            command === available ? "C:\\bin\\" + available : undefined,
+        }).pipe(Effect.provide(layerWithHostPlatform("win32")));
+        yield* manager.open(openInput());
+        expect(ptyAdapter.spawnInputs.map((input) => input.shell)).toEqual([
+          "C:\\bin\\" + available,
+        ]);
+      }),
   );
 
   it.effect("falls back to built-in PowerShell by absolute path on Windows", () =>

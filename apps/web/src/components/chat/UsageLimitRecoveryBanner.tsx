@@ -10,6 +10,7 @@ import { type TimestampFormat } from "@t3tools/contracts/settings";
 import { deadlineStore } from "@t3tools/client-runtime/clock";
 import { limitRecoveryOwnsSnooze } from "@t3tools/client-runtime/state/thread-execution";
 import {
+  ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE,
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_WORKSPACE_USAGE_LIMIT_CODE,
 } from "@t3tools/shared/usageLimits";
@@ -117,7 +118,10 @@ export function usageLimitRecoveryBannerItem(
       variant: "warning",
       group: "environment",
       icon: <GaugeIcon />,
-      title: resolve(msg("Usage limit reached")),
+      title:
+        errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+          ? resolve(msg("Antigravity subscription quota reached"))
+          : resolve(msg("Usage limit reached")),
       description: resetDescription,
       actions: recoveryActions,
     };
@@ -149,7 +153,14 @@ export function usageLimitRecoveryBannerItem(
   };
 }
 
-function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: RecoveryProps) {
+function RecoveryActions({
+  runId,
+  errorCode,
+  resetAt,
+  recovery,
+  snoozedUntil,
+  onChange,
+}: RecoveryProps) {
   const gt = useGT();
   const [pending, setPending] = useState(false);
 
@@ -201,7 +212,9 @@ function RecoveryActions({ runId, resetAt, recovery, snoozedUntil, onChange }: R
             ? gt("Cancel auto-resume")
             : resetPassed
               ? gt("Resume now")
-              : gt("Resume at reset")}
+              : errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+                ? gt("Continue after reset")
+                : gt("Resume at reset")}
       </InlineButton>
       <InlineButton
         touchTarget="padded"

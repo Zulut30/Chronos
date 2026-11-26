@@ -122,6 +122,7 @@ export interface DraftState {
   readonly scheduleMode: ScheduleMode;
   readonly intervalMinutes: string;
   readonly timeOfDay: string;
+  readonly catchUp?: boolean;
   /** Local date and time as a `datetime-local` input value, such as 2026-11-02T15:00. */
   readonly runAt: string;
   /** The stored ISO run time, sent back unchanged when the field was not edited. */
@@ -304,6 +305,7 @@ export function scheduleFromDraft(draft: DraftState): ScheduledTaskUpsertSchedul
   return {
     type: "fixed_time",
     timeOfDay: draft.timeOfDay,
+    ...(draft.catchUp ? { catchUp: true } : {}),
     ...(selectedEveryDay ? {} : { weekdays: [...draft.weekdays].toSorted() }),
   };
 }
@@ -328,6 +330,7 @@ export function taskToDraft(task: ScheduledTask): DraftState {
     runAt: schedule.type === "once" ? toDateTimeLocalValue(new Date(schedule.runAt)) : "",
     savedRunAt: schedule.type === "once" ? schedule.runAt : "",
     weekdays,
+    catchUp: schedule.type === "fixed_time" && schedule.catchUp === true,
     projectId: task.projectId,
     threadId: task.threadId ?? "",
     savedThreadId: task.threadId ?? "",

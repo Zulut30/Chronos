@@ -3211,7 +3211,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "på datorn som öppnade den här sidan"]
+      "c": [
+        " ",
+        "på datorn som öppnade den här sidan"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3223,7 +3226,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· den som kör den får den här åtkomsten"]
+      "c": [
+        " ",
+        "· den som kör den får den här åtkomsten"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "Godkänn bara en inloggning som du själv precis har startat.",
@@ -12865,6 +12871,11 @@
   "3b3e0dcd9fa14b5d": "Machine names in mentions",
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
   "d0b0f9c83b3f739e": "Edit machine names",
+  "7cd354570f9e8e68": "Skipped: the app was closed",
+  "9cca3054224a1637": "Run one missed occurrence on next startup",
+  "a9d9eb4b919f9f92": "Antigravity subscription quota reached",
+  "02e86b138ee62faf": "Continue after reset",
+  "e3adedbb19f4f3c8": "Queued · will be sent after the current turn",
   "a72840dfe8e970d9": "Computer control",
   "e3f68dbc01ed4523": "Allow agents to control this computer",
   "8777e39ee8671853": "All apps and websites",

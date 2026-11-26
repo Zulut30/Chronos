@@ -61,3 +61,32 @@ test("code fixture reports independent turn tokens and cumulative ACP cost", asy
     }
   }
 });
+
+test("native timer wakes after end_turn on the same ACP transport", async () => {
+  const root = await mkdtemp(join(tmpdir(), "chronos-bench-test-"));
+  const child = spawn(process.execPath, [join(import.meta.dirname, "agent.mjs"), root, "0", "0", "antigravity-background"],
+    { stdio: ["pipe", "pipe", "inherit"], windowsHide: true });
+  const lines = createInterface({ input: child.stdout });
+  const frames = lines[Symbol.asyncIterator]();
+  const next = async () => JSON.parse((await frames.next()).value);
+  try {
+    child.stdin.write(JSON.stringify({ id: 1, method: "session/prompt", params: {} }) + "\n");
+    assert.equal((await next()).result.stopReason, "end_turn");
+    await writeFile(join(root, "wake"), "");
+    assert.equal((await next()).params.update.title, "Fixture checks resumed");
+    assert.equal((await next()).params.update.sessionUpdate, "agent_thought_chunk");
+    assert.equal((await next()).params.update.status, "in_progress");
+    await writeFile(join(root, "finish"), "");
+    assert.equal((await next()).params.update.status, "completed");
+    assert.equal((await next()).params.update.content.text, "Fixture checks finished.");
+    assert.equal((await next()).params.update.sessionUpdate, "usage_update");
+    assert.equal(await readFile(join(root, "prompts"), "utf8"), "prompt\n");
+  } finally {
+    child.stdin.end();
+    lines.close();
+    if (child.exitCode === null) child.kill();
+    if (dirname(resolve(root)) === resolve(tmpdir()) && basename(root).startsWith("chronos-bench-test-")) {
+      await rm(root, { recursive: true, force: true, maxRetries: 3 });
+    }
+  }
+});

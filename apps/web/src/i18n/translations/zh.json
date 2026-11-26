@@ -3215,7 +3215,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "位于打开此页面的计算机上"]
+      "c": [
+        " ",
+        "位于打开此页面的计算机上"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3227,7 +3230,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· 运行它的任何人都会获得此访问权限"]
+      "c": [
+        " ",
+        "· 运行它的任何人都会获得此访问权限"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "请只批准你刚刚发起的登录。",
@@ -12877,6 +12883,11 @@
   "3b3e0dcd9fa14b5d": "Machine names in mentions",
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
   "d0b0f9c83b3f739e": "Edit machine names",
+  "7cd354570f9e8e68": "Skipped: the app was closed",
+  "9cca3054224a1637": "Run one missed occurrence on next startup",
+  "a9d9eb4b919f9f92": "Antigravity subscription quota reached",
+  "02e86b138ee62faf": "Continue after reset",
+  "e3adedbb19f4f3c8": "Queued · will be sent after the current turn",
   "a72840dfe8e970d9": "Computer control",
   "e3f68dbc01ed4523": "Allow agents to control this computer",
   "8777e39ee8671853": "All apps and websites",

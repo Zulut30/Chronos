@@ -134,7 +134,11 @@ describe("watchAntigravityPromptOutcome", () => {
           [USER_INPUT, input],
           [ERROR_MESSAGE, STATUS_QUOTA_ERROR],
         ]))?.failure,
-        { class: "usage_limit", resetAt: "1970-01-01T00:04:42.000Z" },
+        {
+          class: "usage_limit",
+          code: "ANTIGRAVITY_INDIVIDUAL_QUOTA",
+          resetAt: "1970-01-01T00:04:42.000Z",
+        },
       );
       // The earlier error step is outside this turn.
       assert.isUndefined(
