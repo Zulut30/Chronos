@@ -1,13 +1,25 @@
 name: Chronos Windows upgrade rehearsal
 run-name: Windows upgrade ${{ inputs.from_version }} to ${{ inputs.to_version }}
 on:
+  # Register this branch-only workflow with Actions. Installation is always manual.
+  push:
+    branches: [fix/stabilization]
+    paths: [.github/workflows/chronos-windows-upgrade.yml]
   workflow_dispatch:
     inputs:
       from_version:
+  # Register this branch-only workflow with Actions. Installation is always manual.
+  push:
+    branches: [fix/stabilization]
+    paths: [.github/workflows/chronos-windows-upgrade.yml]
         description: Published source version, without the chronos-v prefix
         required: true
         type: string
       to_version:
+  # Register this branch-only workflow with Actions. Installation is always manual.
+  push:
+    branches: [fix/stabilization]
+    paths: [.github/workflows/chronos-windows-upgrade.yml]
         description: Published target version, without the chronos-v prefix
         required: true
         type: string
@@ -17,6 +29,7 @@ permissions:
 
 jobs:
   upgrade:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
