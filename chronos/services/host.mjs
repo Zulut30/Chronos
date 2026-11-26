@@ -65,6 +65,13 @@ const START_TIMEOUT_MS = (() => {
   return Number.isFinite(n) && n > 0 ? n : 15_000;
 })();
 
+if (process.env.CHRONOS_SWITCH_REHEARSAL === "1") {
+  for (const [key, port] of Object.entries({ SKILLS:4517, TASKS:4518, FILES:4519, STUDIO:4520,
+    INTEGRATIONS:4522, MCP:4523, HUB:4524 })) {
+    process.env["OLY_" + key + "_PORT"] = String(port + 20_000);
+    process.env["OLY_" + key + "_URL"] = "http://127.0.0.1:" + (port + 20_000);
+  }
+}
 // Worker copies on Windows have case-sensitive keys. Service settings use uppercase,
 // and each worker still needs a private copy for changes such as API-key updates.
 const baseEnv = process.platform === "win32"

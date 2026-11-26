@@ -3,7 +3,7 @@ import type {
   DesktopSshEnvironmentBootstrap,
   DesktopSshEnvironmentTarget,
 } from "@t3tools/contracts";
-import { chronosSshArchiveOptions } from "@t3tools/shared/cliRelease";
+import { chronosSshArchiveOptions, isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as NetService from "@t3tools/shared/Net";
 import * as SshAuth from "@t3tools/ssh/auth";
 import { resolveSshTarget } from "@t3tools/ssh/command";
@@ -75,6 +75,7 @@ export class DesktopSshEnvironment extends Context.Service<
 >()("@t3tools/desktop/ssh/DesktopSshEnvironment") {}
 
 export interface DesktopSshEnvironmentLayerOptions {
+  readonly confirmManagedLaunch?: SshTunnel.SshEnvironmentManagerOptions["confirmManagedLaunch"];
   readonly resolveCliRunner?: Effect.Effect<SshTunnel.RemoteT3RunnerOptions>;
   readonly resolveLauncherId?: Effect.Effect<string | null>;
 }
@@ -91,7 +92,14 @@ export const resolveDesktopSshCliRunner = (
     };
   }
   // chronos: select a versioned, independently cached SSH runtime.
-  return chronosSshArchiveOptions(environment.appVersion, env);
+  return {
+    ...chronosSshArchiveOptions(environment.appVersion, env),
+    ...(isChronosVersion(environment.appVersion) &&
+    env.CHRONOS_SSH_CLI_SOURCE !== "chronos" &&
+    env.CHRONOS_SSH_CLI_SOURCE !== "upstream"
+      ? { existingServerOnly: true }
+      : {}),
+  };
 };
 
 // Remote servers record this ID as their owner, so it has to outlive restarts,
@@ -208,6 +216,9 @@ export const layer = (options: DesktopSshEnvironmentLayerOptions = {}) =>
   Layer.effect(DesktopSshEnvironment, make).pipe(
     Layer.provide(
       SshTunnel.SshEnvironmentManager.layer({
+        ...(options.confirmManagedLaunch
+          ? { confirmManagedLaunch: options.confirmManagedLaunch }
+          : {}),
         ...(options.resolveCliRunner === undefined
           ? {}
           : { resolveCliRunner: options.resolveCliRunner }),

@@ -8,5 +8,10 @@ const loopbackHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
  * header policy must not strip it from requests to their loopback ports.
  */
 export function isOlympusServiceUrl(url: URL): boolean {
-  return loopbackHosts.has(url.hostname.toLowerCase()) && servicePorts.has(url.port);
+  return (
+    loopbackHosts.has(url.hostname.toLowerCase()) &&
+    (servicePorts.has(url.port) ||
+      (process.env.CHRONOS_SWITCH_REHEARSAL === "1" &&
+        servicePorts.has(String(Number(url.port) - 20_000))))
+  );
 }

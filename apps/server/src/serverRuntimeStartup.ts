@@ -43,6 +43,7 @@ import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as ProjectStore from "./orchestration-v2/ProjectStore.ts";
 import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as ServerSettings from "./serverSettings.ts";
 import { forkParked, forkParkedFiber } from "./serverActivation.ts";
 import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
@@ -466,6 +467,40 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
 
   const commandGate = yield* makeCommandGate;
   const httpListening = yield* Deferred.make<void>();
+  // chronos: exercise packaged reads and migrations on a scrubbed copy without waking agents or CloudLink.
+  if ((yield* HostProcess.Environment).CHRONOS_SWITCH_REHEARSAL === "1") {
+    const environment = yield* serverEnvironment.getDescriptor;
+    const welcome = yield* resolveWelcomeBase;
+    const ready = Effect.gen(function* () {
+      yield* lifecycleEvents.publish({
+        version: 1,
+        type: "welcome",
+        payload: { environment, ...welcome },
+      });
+      yield* commandGate.signalCommandReady;
+      yield* lifecycleEvents.publish({
+        version: 1,
+        type: "ready",
+        payload: {
+          environment,
+          at: DateTime.formatIso(yield* DateTime.now),
+        },
+      });
+    });
+    return {
+      awaitCommandReady: commandGate.awaitCommandReady,
+      markHttpListening: ready,
+      enqueueCommand: () =>
+        Effect.fail(
+          new ServerRuntimeStartupError({
+            mode: serverConfig.mode,
+            host: serverConfig.host ?? null,
+            port: serverConfig.port,
+            cause: "Agent commands are disabled during the offline switch rehearsal.",
+          }),
+        ),
+    } satisfies ServerRuntimeStartup["Service"];
+  }
   const effectWorkerFiber = yield* Ref.make<Fiber.Fiber<void, never> | null>(null);
 
   yield* Effect.addFinalizer(() =>

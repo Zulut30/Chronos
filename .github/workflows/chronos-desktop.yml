@@ -14,6 +14,10 @@ run-name: ${{ inputs.perf_sha && format('Perf Windows {0}', inputs.perf_sha) || 
 on:
   workflow_dispatch:
     inputs:
+      portable_windows:
+        description: Also export the verified Windows installer payload as a portable ZIP for rehearsal
+        type: boolean
+        default: false
       perf_sha:
         description: Build only the Windows benchmark package from this immutable commit
         type: string
@@ -328,6 +332,24 @@ jobs:
           test -z "$(find "$resources" -name '*.test.mjs' -print -quit)"
           diff -qr -x '*.test.mjs' chronos/services "$resources"
           CHRONOS_TEST_RESOURCES="$resources" node --test chronos/scripts/smoke/services.test.mjs
+
+      - name: Export portable Windows payload
+        if: matrix.platform == 'win' && inputs.portable_windows
+        run: |
+          set -euo pipefail
+          stage=$(mktemp -d)
+          7z e -y "-o$stage" release/*.exe '-ir!app-*.7z' >/dev/null
+          7z x -y "-o$stage/portable" "$stage"/app-*.7z >/dev/null
+          test -s "$stage/portable/Chronos.exe"
+          (cd "$stage/portable" && 7z a -tzip -mx=1 "$RUNNER_TEMP/chronos-portable.zip" . >/dev/null)
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: matrix.platform == 'win' && inputs.portable_windows
+        with:
+          name: chronos-win-portable
+          path: ${{ runner.temp }}/chronos-portable.zip
+          retention-days: 7
+          compression-level: 0
 
       - name: Collect release assets
         env:

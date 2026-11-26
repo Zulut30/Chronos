@@ -31,7 +31,7 @@ const packagedEnvironment = DesktopEnvironment.DesktopEnvironment.pipe(
 );
 
 describe("resolveDesktopSshCliRunner", () => {
-  it.effect("uses the upstream archive for a packaged Chronos nightly", () =>
+  it.effect("borrows the running server by default for a packaged Chronos nightly", () =>
     Effect.gen(function* () {
       const environment = yield* packagedEnvironment;
       // chronos: a fork revision has no archive on the upstream CLI host.
@@ -39,7 +39,10 @@ describe("resolveDesktopSshCliRunner", () => {
         { ...environment, appVersion: "0.1.12-nightly.20261124.5209.chronos.5" },
         {},
       );
-      assert.deepStrictEqual(runner, { archiveVersion: "0.1.12-nightly.20261124.5209" });
+      assert.deepStrictEqual(runner, {
+        archiveVersion: "0.1.12-nightly.20261124.5209",
+        existingServerOnly: true,
+      });
     }),
   );
 
@@ -50,8 +53,13 @@ describe("resolveDesktopSshCliRunner", () => {
       const environment = { ...(yield* packagedEnvironment), appVersion: version };
       const runner = resolveDesktopSshCliRunner(environment, { CHRONOS_SSH_CLI_SOURCE: "chronos" });
       assert.equal(runner.archiveVersion, version);
-      assert.include(buildRemoteT3RunnerScript(runner), "Chronos/releases/download/chronos-v" + version);
-      const official = resolveDesktopSshCliRunner(environment, { CHRONOS_SSH_CLI_SOURCE: "upstream" });
+      assert.include(
+        buildRemoteT3RunnerScript(runner),
+        "Chronos/releases/download/chronos-v" + version,
+      );
+      const official = resolveDesktopSshCliRunner(environment, {
+        CHRONOS_SSH_CLI_SOURCE: "upstream",
+      });
       assert.equal(official.archiveVersion, upstream);
       assert.include(buildRemoteT3RunnerScript(official), "t3code/releases/download/v" + upstream);
     }),

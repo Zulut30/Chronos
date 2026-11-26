@@ -37,7 +37,7 @@ test "${desktop_run_id:?ID полного desktop, прошедшего стро
 git tag -a "$tag" "$sha" -m "Chronos ${tag#chronos-v}"
 git push origin "refs/tags/$tag"
 gh run list -R Zulut30/Chronos --workflow chronos-desktop.yml --branch "$tag" --event push --commit "$sha"
-gh run watch <id> -R Zulut30/Chronos --exit-status
+gh run watch <id> -R Zulut30/Chronos --interval 60 --exit-status
 ```
 
 Тег запускает `version` и `release` в [desktop workflow](../../../.github/workflows/chronos-desktop.yml). Job проверяет версию и текущий main, находит успешные проверки и ручную desktop-сборку этого SHA, проверяет манифесты и публикует релиз с `--latest`. При временном сбое проверь, успел ли появиться релиз и все его assets. При исправлении исходников собери и проверь новую ревизию. Удаление, замена тега или перезапись опубликованного релиза требуют отдельного согласия.
