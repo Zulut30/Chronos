@@ -417,19 +417,38 @@ export function migrateThemeSelections(ids = themeLibrary().ids) {
       storage.setItem("t3code:theme", baseOwner.id);
     }
     const raw = storage.getItem(THEME_HALVES_STORAGE_KEY);
-    if (!raw) return;
-    const halves: unknown = JSON.parse(raw);
-    if (!isRecord(halves)) return;
-    let changed = false;
-    for (const mode of ["light", "dark"] as const) {
-      const id = halves[mode];
-      const owner = typeof id === "string" ? ids.get(id) : undefined;
-      if (owner && owner.id !== id) {
-        halves[mode] = owner.id;
-        changed = true;
+    if (raw) {
+      const halves: unknown = JSON.parse(raw);
+      if (!isRecord(halves)) return;
+      let changed = false;
+      for (const mode of ["light", "dark"] as const) {
+        const id = halves[mode];
+        const owner = typeof id === "string" ? ids.get(id) : undefined;
+        if (owner && owner.id !== id) {
+          halves[mode] = owner.id;
+          changed = true;
+        }
       }
+      if (changed) storage.setItem(THEME_HALVES_STORAGE_KEY, JSON.stringify(halves));
     }
-    if (changed) storage.setItem(THEME_HALVES_STORAGE_KEY, JSON.stringify(halves));
+
+    // Drop redundant local imports only after repointing all preferences and receiving
+    // the server's backgrounds. Preserve distinct edited palettes and unknown records.
+    const snapshot = getCustomThemeLibrarySnapshot();
+    if (snapshot.status !== "ready" || !snapshot.themes.length || appAtomRegistry.get(publishedThemesAtom) === null) return;
+    const registry = themeLibrary(snapshot.themes);
+    const redundant = new Set(snapshot.themes.filter(theme => {
+      const owner = ids.get(theme.id);
+      return owner && owner.id !== theme.id && registry.matchingContent(theme)?.id === owner.id;
+    }).map(theme => theme.id));
+    if (!redundant.size) return;
+    // Another renderer can publish a new local snapshot before its storage event arrives.
+    const current = readWritableCustomThemeLibrary();
+    if (JSON.stringify(current.storedThemes) !== JSON.stringify(snapshot.storedThemes)) return;
+    saveCustomThemes(
+      current.storedThemes.filter(entry => !isRecord(entry) || typeof entry.id !== "string" || !redundant.has(entry.id)),
+      current.themes.filter(theme => !redundant.has(theme.id)),
+    );
   } catch { /* Read-only stores still resolve aliases in memory. */ }
 }
 

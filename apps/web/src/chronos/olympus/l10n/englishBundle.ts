@@ -48,7 +48,7 @@ export function englishLiterals(code: string, parse: Parse, catalog: EnglishCata
   return chunks.length ? chunks.join("") + code.slice(offset) : code;
 }
 
-export function localizeEntryHtml(html: string, englishSetup: string) {
+export function localizeEntryHtml(html: string, englishSetup: string, supportedLocales: readonly string[]) {
   const links: string[] = [];
   const withoutPreloads = html.replace(/<link\b[^>]*\brel="modulepreload"[^>]*>/gu, tag => {
     const href = /\bhref="([^"]+)"/u.exec(tag)?.[1];
@@ -69,9 +69,20 @@ export function localizeEntryHtml(html: string, englishSetup: string) {
       '} else saved = JSON.parse(localStorage.getItem("t3code:client-settings:v1")); } catch {}\n' +
       'const language = saved?.language || "ru";\n' +
       'window.__chronosInitialLanguage = language;\n' +
-      'const russian = (language === "system" ? navigator.language : language).split("-")[0] === "ru";\n' +
-      'window.__chronosShellLanguage = russian ? "ru" : "en";\n' +
-      'const imports = russian ? {} : (await import(' + JSON.stringify(englishSetup) + ')).imports;\n' +
+      // Keep explicit choices on the fast path. For System use the same catalog order,
+      // regional matching and English fallback as T3 when resolving navigator.languages.
+      'const selectShell = language => {\n' +
+      '  if (language === "ru" || language === "en") return language;\n' +
+      '  const supported = ' + JSON.stringify(supportedLocales.map(locale => locale.toLowerCase())) + ';\n' +
+      '  if (supported.includes(language.toLowerCase())) return "ru";\n' +
+      '  for (const tag of navigator.languages) {\n' +
+      '    const normalized = tag.trim().toLowerCase(), base = normalized.split(/[-_]/)[0];\n' +
+      '    if (supported.includes(normalized) || (!/^zh[-_](hant|tw|hk|mo)\\b/.test(normalized) && supported.includes(base))) return base === "en" ? "en" : "ru";\n' +
+      '  } return "en";\n};\n' +
+      'window.__chronosSelectShell = selectShell;\n' +
+      'const shell = selectShell(language); window.__chronosShellLanguage = shell;\n' +
+      'document.documentElement.lang = shell;\n' +
+      'const imports = shell === "en" ? (await import(' + JSON.stringify(englishSetup) + ')).imports : {};\n' +
       'for (const href of ' + JSON.stringify(links) + ') {\n' +
       '  const link = document.createElement("link"); link.rel = "modulepreload";\n' +
       '  link.crossOrigin = ""; link.href = imports[href] || href; document.head.append(link);\n' +

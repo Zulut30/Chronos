@@ -19,6 +19,7 @@ export function olympusL10n(): Plugin {
   let fingerprint: string;
   let english: EnglishCatalog;
   let englishRuntime: string;
+  let supportedLocales: string[];
 
   return {
     name: "chronos:olympus-l10n",
@@ -29,6 +30,10 @@ export function olympusL10n(): Plugin {
       root = config.root;
     },
     buildStart() {
+      const gtConfig = resolve(root, "gt.config.json");
+      this.addWatchFile(gtConfig);
+      const { defaultLocale, locales } = JSON.parse(readFileSync(gtConfig, "utf8"));
+      supportedLocales = [defaultLocale, ...locales];
       const data = resolve(root, "../../chronos/l10n");
       const source = resolve(root, "src/chronos/olympus/l10n");
       const englishDir = resolve(root, "../../chronos/services/ui-language");
@@ -138,7 +143,7 @@ export function olympusL10n(): Plugin {
         if (html?.type !== "asset") return this.error("Missing Chronos index.html");
         const entryHtml = assetText(html.source);
         if (!entryHtml.includes("window.__chronosInitialLanguage = language;")) {
-          html.source = localizeEntryHtml(entryHtml, setup);
+          html.source = localizeEntryHtml(entryHtml, setup, supportedLocales);
         }
         const strict = process.env.CHRONOS_L10N_STRICT === "1";
         checkCoverage(findings, strict, (message) => this.warn(message));

@@ -72,13 +72,13 @@ declare global {
     __chronosInitialLanguage?: string;
     __chronosInitialSettings?: Promise<ClientSettings | null>;
     __chronosShellLanguage?: "en" | "ru";
+    __chronosSelectShell?: (language: string) => "en" | "ru";
   }
 }
 function reloadForSavedLanguage(language: string) {
   const current = globalThis.window?.__chronosShellLanguage;
-  if (!current) return;
-  const requested = language === "system" ? navigator.language : language;
-  if (current !== (requested.split("-")[0] === "ru" ? "ru" : "en")) window.location.reload();
+  const select = globalThis.window?.__chronosSelectShell;
+  if (current && select && current !== select(language)) window.location.reload();
 }
 
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";

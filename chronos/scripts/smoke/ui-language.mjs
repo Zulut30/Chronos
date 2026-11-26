@@ -12,7 +12,7 @@ export async function verifyUiLanguage(client) {
     const deadline = Date.now() + 18000;
     do {
       try { if (await predicate()) return; } catch (error) {
-        if (!/context.*destroyed|context.*found|navigat|__TSR_ROUTER__|undefined.*querySelector/i.test(String(error))) throw error;
+        if (!/context.*destroyed|context.*found|No (?:target|frame) with given id|navigat|__TSR_ROUTER__|undefined.*querySelector/i.test(String(error))) throw error;
       }
       await sleep(120);
     } while (Date.now() < deadline);
@@ -51,6 +51,7 @@ export async function verifyUiLanguage(client) {
   async function scan(id, expected) {
     let lines;
     await until(id + " control " + expected, async () => {
+      await client.pumpFrames(1, 0);
       lines = await client.visibleLines(undefined, undefined, userContent);
       return lines.some(line => line.includes(expected));
     });
@@ -89,6 +90,8 @@ export async function verifyUiLanguage(client) {
     const ids = await evaluate("Array.from(document.querySelectorAll('[data-theme-library-card]'),e=>e.dataset.themeLibraryCard)");
     assert.equal(new Set(ids).size, ids.length);
     assert(!ids.some(id => id.startsWith("smoke-olympus")));
+    await until("redundant Graphite import removed from storage", async () =>
+      !JSON.parse((await storedImports()) || "[]").some(theme => theme.id === "smoke-olympus-b"));
   }
   for (const [id, selector, text] of [
     ["API keys", "[data-oly-ik-nav] button", "Scrape.do"],

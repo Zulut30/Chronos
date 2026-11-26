@@ -14,7 +14,10 @@ vi.mock(import("./useTheme"), () => ({ refreshTheme }) as never);
 
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import {
+  CUSTOM_THEMES_STORAGE_KEY,
+  THEME_HALVES_STORAGE_KEY,
   getThemeDefinition,
+  migrateThemeSelections,
   installCustomTheme,
   invalidateCustomThemes,
   publishedThemeDefinitions,
@@ -119,6 +122,38 @@ describe("environment themes", () => {
       invalidateCustomThemes();
     }
     expect(getThemeDefinition("nightfall")?.label).toBe("Nightfall");
+  });
+
+  it("migrates both selected halves before removing a redundant local palette", () => {
+    const olympus: EnvironmentTheme = {
+      ...NIGHTFALL_THEME, id: "olympus", name: "Olympus", variants: { light: { canvas: "#eeeeee" } },
+    };
+    const original = publishedThemeDefinitions([olympus])[0]!;
+    const duplicate = { ...original, id: "old-import", label: "Imported Olympus" };
+    const other = { id: "future-format", unknown: true };
+    const store = new Map([
+      [CUSTOM_THEMES_STORAGE_KEY, JSON.stringify([duplicate, other])],
+      ["t3code:theme", duplicate.id],
+      [THEME_HALVES_STORAGE_KEY, JSON.stringify({ light: duplicate.id, dark: duplicate.id })],
+    ]);
+    vi.stubGlobal("window", { localStorage: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+    } });
+    invalidateCustomThemes();
+    try {
+      appAtomRegistry.set(publishedThemes.atom, [olympus]);
+      for (let restart = 0; restart < 2; restart++) {
+        migrateThemeSelections();
+        expect(store.get("t3code:theme")).toBe("olympus");
+        expect(JSON.parse(store.get(THEME_HALVES_STORAGE_KEY)!)).toEqual({ light: "olympus", dark: "olympus" });
+        expect(JSON.parse(store.get(CUSTOM_THEMES_STORAGE_KEY)!)).toEqual([other]);
+        invalidateCustomThemes();
+      }
+    } finally {
+      vi.unstubAllGlobals();
+      invalidateCustomThemes();
+    }
   });
 
   it("keeps the last published palette while the server has not answered", () => {

@@ -26,7 +26,8 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
         return { label: b.getAttribute("aria-label") || b.title || b.innerText, left:r.left, right:r.right, top:r.top, bottom:r.bottom };
       });
     return { dark:document.documentElement.classList.contains("dark"), theme:document.documentElement.dataset.themeId,
-      width:panel.width, left:panel.left, right:panel.right, stripLeft:right-stripeWidth, stripRight:right,
+      width:panel.width, left:panel.left, right:panel.right, top:panel.top, bottom:panel.bottom,
+      footerTop:f.top, footerBottom:f.bottom, stripLeft:right-stripeWidth, stripRight:right,
       stripeWidth, stripePosition:css.backgroundPositionX.split(",")[layer]?.trim(), buttons,
       rail:{ x:railRect.x+railRect.width/2, y:railRect.top+railRect.height/2 },
       clip:{ x:Math.max(0,panel.left), y:Math.max(0,f.top-4), width:Math.min(innerWidth-panel.left,Math.max(panel.width,...buttons.map(b=>b.right-panel.left))+6), height:Math.min(innerHeight,f.bottom)-f.top+4, scale:1 } };
@@ -76,21 +77,24 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
       for (const [name,width] of [["default",256],["minimum",10],["wide",480]]) {
         await resize(name === "default" ? null : String(width));
         const m=await measure();
-        const outside=m.buttons.filter(b=>b.left<m.left-1 || b.right>m.right+1);
+        const outside=m.buttons.filter(b=>b.left<m.left-1 || b.right>m.right+1 ||
+          b.top<Math.max(m.top,m.footerTop)-1 || b.bottom>Math.min(m.bottom,m.footerBottom)+1);
         const overlap=m.buttons.filter(b=>b.left<m.stripRight-.5 && b.right>m.stripLeft+.5);
         const id=(dark?"night-":"day-")+name;
         results.push({id,...m,outside:outside.map(b=>b.label),overlap:overlap.map(b=>b.label)});
         if(capture)await capture(id,m.clip);
         if(verify){
           assert.equal(m.theme,"olympus",id);
-          assert.ok(m.buttons.length>=5,id+" expected mounted footer actions");
+          assert.ok(m.buttons.length>=8,id+" expected the full set of sidebar footer actions");
           assert.ok(m.stripeWidth>0 && m.stripeWidth<30 && /100%|right/u.test(m.stripePosition),id+" missing edge ornament");
           assert.ok(Math.abs(m.stripRight-m.right)<=2,id+" ornament is not at the sidebar edge");
           assert.deepEqual(outside,[],id+" buttons outside sidebar");
           assert.deepEqual(overlap,[],id+" buttons over ornament");
         }
       }
-      const [defaultWidth,minimum,wide]=results.slice(-3).map(m=>m.width);
+      const layouts = results.slice(-3);
+      if (verify) assert.equal(new Set(layouts.map(m=>m.buttons.length)).size,1,"A footer action disappeared at a narrower width");
+      const [defaultWidth,minimum,wide]=layouts.map(m=>m.width);
       assert.ok(minimum<defaultWidth && wide>defaultWidth,"Rail did not exercise three distinct widths: "+[minimum,defaultWidth,wide]);
     }
   } finally { await resize(originalWidth); await scheme(initial.dark); }
