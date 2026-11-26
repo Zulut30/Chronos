@@ -13,7 +13,9 @@ if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
 $python = (Resolve-Path -LiteralPath $python).Path
 $script = Join-Path $PSScriptRoot 'migrate.py'
 if ($Action -eq 'preflight') {
-    & $python -B -X utf8 $script $Action --chronos $ChronosExe
+    # Python reports findings on stderr; keep Windows PowerShell 5.1 from treating them as terminating errors.
+    $ErrorActionPreference = 'Continue'
+    & $python -B -X utf8 $script $Action --chronos $ChronosExe 2>&1 | ForEach-Object { "$_" }
     exit $LASTEXITCODE
 }
 # Win32_Process.Create uses the WMI provider as the parent, outside the Olympus agent job.

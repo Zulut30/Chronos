@@ -98,12 +98,22 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
       }
     : {
         command: "ps",
+        // Separate -o options are required for BSD ps on macOS (it treats everything after the first '=' as a column header),
+        // and LC_ALL=C keeps lstart in the fixed English `Dow Mon DD HH:MM:SS YYYY` format regardless of OS locale.
         args: [
           "-A",
           "-ww",
           "-o",
-          unit === undefined ? "pid=,ppid=,pgid=,lstart=" : "pid=,ppid=,pgid=,lstart=,cgroup=",
+          "pid=",
+          "-o",
+          "ppid=",
+          "-o",
+          "pgid=",
+          "-o",
+          "lstart=",
+          ...(unit === undefined ? [] : ["-o", "cgroup="]),
         ],
+        env: { LC_ALL: "C" },
       };
   const read = runner
     .run({ ...command, timeout: "5 seconds", maxOutputBytes: 2 * 1024 * 1024 })

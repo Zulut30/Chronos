@@ -1394,3 +1394,17 @@ describe("rightPanelStore", () => {
     expect(store.getUserActionRevision(refA)).toBe(revision);
   });
 });
+
+it("keeps the current artifact in a single native tab when browser sessions reconcile", () => {
+  const store = useRightPanelStore.getState();
+  const gallery = "http://127.0.0.1:4520/artifacts.html";
+  const url = gallery.replace("artifacts.html", "artifact-view.html?id=3d63dc82-24f2-4794-92dd-8984c3135959");
+  store.openArtifacts(refA, gallery);
+  store.openArtifacts(refA, url);
+  store.reconcileBrowserSurfaces(refA, []);
+  const panel = selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA);
+  expect(panel.isOpen).toBe(true);
+  expect(panel.surfaces).toEqual([{id:"artifacts",kind:"artifacts",url}]);
+  store.closeSurface(refA,"artifacts");
+  expect(selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey, refA).isOpen).toBe(false);
+});

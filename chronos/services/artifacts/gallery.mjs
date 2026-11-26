@@ -10,6 +10,7 @@ export async function galleryRequest(action, body) {
     case "pin":
       if (typeof body.pinned !== "boolean") throw Error("Выберите состояние закрепления");
       return db.pin(body.id, body.pinned);
+    case "recover": return db.recover(body.id);
     case "delete": return db.remove(body.id, body.expectedVersion);
     default: throw Error("Неизвестное действие");
   }

@@ -1,7 +1,8 @@
 import type { DesktopBridge, DesktopUpdateState } from "@t3tools/contracts";
-import { msg, T, useGT, useMessages, Var } from "gt-react";
+import { msg, T, useGT, useLocale, useMessages, Var } from "gt-react";
 import { ExternalLinkIcon } from "lucide-react";
 
+import { getMacosUpdateCopy, isMacosManualUpdate } from "../../chronos/macosUpdate"; // chronos: unsigned macOS builds update manually via DMG.
 import {
   getDesktopUpdateReleaseHistoryUrl,
   getDesktopUpdateReleaseUrl,
@@ -67,10 +68,13 @@ export function SidebarUpdateReleaseNotes({
   readonly tooltip: string;
 }) {
   const gt = useGT();
+  const locale = useLocale();
   const m = useMessages();
   if (state.releaseNotes.length === 0) {
     return <>{tooltip}</>;
   }
+  const macosManualUpdate = isMacosManualUpdate(state);
+  const macosCopy = macosManualUpdate ? getMacosUpdateCopy(locale) : null;
   const releasedAt = state.releaseNotes.find(
     (releaseNote) => releaseNote.version === state.availableVersion,
   )?.releasedAt;
@@ -81,13 +85,18 @@ export function SidebarUpdateReleaseNotes({
         {state.status === "available" ? (
           <div>
             <div className="whitespace-nowrap text-sm leading-5 font-medium">
-              <T>Update ready to download</T>
+              {macosCopy ? macosCopy.popoverHeading : <T>Update ready to download</T>}
             </div>
             {state.availableVersion ? (
               <div className="mt-0.5 text-xs leading-4 text-muted-foreground">
                 {releasedAt
                   ? `${state.availableVersion} · ${formatReleaseAge(releasedAt, m)}`
                   : state.availableVersion}
+              </div>
+            ) : null}
+            {macosCopy ? (
+              <div className="mt-1 text-xs leading-4 text-muted-foreground">
+                {macosCopy.popoverHint}
               </div>
             ) : null}
           </div>

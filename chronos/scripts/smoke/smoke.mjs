@@ -170,6 +170,20 @@ function killProcessTree(pid) {
     try {
       process.kill(pid, "SIGTERM");
     } catch {
+      return;
+    }
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        return;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
       // Ignore already exited.
     }
   }
