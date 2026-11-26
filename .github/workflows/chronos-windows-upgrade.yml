@@ -30,7 +30,6 @@ jobs:
           sparse-checkout: |
             chronos/scripts/delivery
             chronos/scripts/bench
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
