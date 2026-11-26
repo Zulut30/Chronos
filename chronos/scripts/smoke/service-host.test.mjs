@@ -201,6 +201,93 @@ test("host starts workers on demand, keeps Studio bridge alive across idle sleep
     fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
+test("first concurrent requests and preflight to sleeping services wait for readiness and preserve CORS headers", {timeout:30000}, async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chronos-host-cors-"));
+  const sockets = [];
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (/^OLY_|API_KEY$/.test(key)) delete env[key];
+  Object.assign(env, {
+    HOME: tmp, USERPROFILE: tmp, CHRONOS_T3_HOME: tmp, CHRONOS_SERVICES_DATA: tmp,
+    CODEX_HOME: path.join(tmp, "codex"), OLY_FILES_DEST: path.join(tmp, "downloads"),
+  });
+  fs.mkdirSync(path.join(tmp, "logs", "services"), { recursive: true });
+  const ports = {};
+  for (const [name, key] of entries) {
+    const sock = await listen();
+    sockets.push(sock);
+    ports[name] = sock.address().port;
+    env["OLY_" + key + "_PORT"] = String(ports[name]);
+  }
+  for (const sock of sockets) await new Promise(r => sock.close(r));
+  const host = spawn(process.execPath, [path.join(resources, "host.mjs")], {
+    env, cwd: tmp, windowsHide: true, stdio: ["ignore", "ignore", "inherit", "ipc"],
+  });
+  const exited = once(host, "exit");
+  try {
+    host.send("tasks-service");
+    host.send("integrations-service");
+    await delay(150);
+
+    // Reproduce 30-tasks.js home screen loadAll(): 3 concurrent requests to a sleeping tasks-service.
+    const tasksBase = "http://127.0.0.1:" + ports["tasks-service"];
+    const responses = await Promise.all([
+      fetch(tasksBase + "/api/projects", { headers: { origin: "t3code://app" } }),
+      fetch(tasksBase + "/api/groups", { headers: { origin: "t3code://app" } }),
+      fetch(tasksBase + "/api/tasks", { headers: { origin: "t3code://app" } }),
+    ]);
+    for (const res of responses) {
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("access-control-allow-origin"), "t3code://app");
+      assert.equal(res.headers.get("vary"), "Origin");
+      assert.ok(Array.isArray(await res.json()));
+    }
+
+    // Preflight OPTIONS to a sleeping service preserves CORS preflight headers.
+    const optRes = await fetch("http://127.0.0.1:" + ports["integrations-service"] + "/api/keys", {
+      method: "OPTIONS",
+      headers: { origin: "t3code://app", "access-control-request-method": "POST", "access-control-request-headers": "content-type, x-oly" },
+    });
+    assert.equal(optRes.status, 204);
+    assert.equal(optRes.headers.get("access-control-allow-origin"), "t3code://app");
+    assert.ok(optRes.headers.get("access-control-allow-methods")?.includes("POST"));
+    assert.ok(optRes.headers.get("access-control-allow-headers")?.toLowerCase().includes("x-oly"));
+
+    host.disconnect();
+  } finally {
+    if (host.exitCode === null) host.kill();
+    await exited;
+  }
+
+  // Proxy startup failure (503) still includes CORS headers for trusted origins and omits them for untrusted origins.
+  const failSock = await listen();
+  const failPort = failSock.address().port;
+  await new Promise(r => failSock.close(r));
+  const failHost = spawn(process.execPath, [path.join(resources, "host.mjs")], {
+    env: { ...env, OLY_TASKS_PORT: String(failPort), CHRONOS_SERVICE_START_TIMEOUT_MS: "1" },
+    cwd: tmp, windowsHide: true, stdio: ["ignore", "ignore", "inherit", "ipc"],
+  });
+  const failExited = once(failHost, "exit");
+  try {
+    failHost.send("tasks-service");
+    await delay(150);
+    const trustedErr = await fetch("http://127.0.0.1:" + failPort + "/api/tasks", {
+      headers: { origin: "t3code://app" },
+    });
+    assert.equal(trustedErr.status, 503);
+    assert.equal(trustedErr.headers.get("access-control-allow-origin"), "t3code://app");
+    assert.equal(trustedErr.headers.get("vary"), "Origin");
+    const untrustedErr = await fetch("http://127.0.0.1:" + failPort + "/api/tasks", {
+      headers: { origin: "https://untrusted.invalid" },
+    });
+    assert.equal(untrustedErr.status, 503);
+    assert.equal(untrustedErr.headers.get("access-control-allow-origin"), null);
+    failHost.disconnect();
+  } finally {
+    if (failHost.exitCode === null) failHost.kill();
+    await failExited;
+    fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
+});
 if (process.env.CHRONOS_BENCH_SIDECARS === "1") {
   test("Windows sidecar working set, private commit and CPU", async () => {
     for (const mode of [false,true,true,false,false,true]) await run(mode,true);

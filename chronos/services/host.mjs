@@ -4,22 +4,65 @@ import net from "node:net";
 import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 
+const APP_ORIGINS = new Set(["t3code://app", "http://localhost:3773", "http://127.0.0.1:3773"]);
+
 const SERVICE_CONFIG = {
-  "skills-manager": { envKey: "OLY_SKILLS_PORT", defaultPort: 4517, health: "/api/health" },
-  "tasks-service": { envKey: "OLY_TASKS_PORT", defaultPort: 4518, health: "/api/health" },
-  "files-service": { envKey: "OLY_FILES_PORT", defaultPort: 4519, health: "/health" },
-  "studio-service": { envKey: "OLY_STUDIO_PORT", defaultPort: 4520, health: "/api/health" },
-  "integrations-service": { envKey: "OLY_INTEGRATIONS_PORT", defaultPort: 4522, health: "/api/health" },
-  "mcp-manager": { envKey: "OLY_MCP_PORT", defaultPort: 4523, health: "/api/health" },
-  "olympus-hub": { envKey: "OLY_HUB_PORT", defaultPort: 4524, health: "/mcp/oly-web" },
+  "skills-manager": {
+    envKey: "OLY_SKILLS_PORT",
+    defaultPort: 4517,
+    health: "/api/health",
+    cors: { selfOrigin: true, methods: "GET, POST", headers: "content-type, x-oly", pna: false },
+  },
+  "tasks-service": {
+    envKey: "OLY_TASKS_PORT",
+    defaultPort: 4518,
+    health: "/api/health",
+    cors: { selfOrigin: false, methods: "GET,POST,PATCH,PUT,DELETE", headers: "content-type,x-oly", pna: true },
+  },
+  "files-service": {
+    envKey: "OLY_FILES_PORT",
+    defaultPort: 4519,
+    health: "/health",
+    cors: { selfOrigin: false, methods: "GET, POST, OPTIONS", headers: "content-type, x-oly", pna: true },
+  },
+  "studio-service": {
+    envKey: "OLY_STUDIO_PORT",
+    defaultPort: 4520,
+    health: "/api/health",
+    cors: { selfOrigin: true, methods: "GET,POST,PUT", headers: "content-type,x-oly", pna: true },
+  },
+  "integrations-service": {
+    envKey: "OLY_INTEGRATIONS_PORT",
+    defaultPort: 4522,
+    health: "/api/health",
+    cors: { selfOrigin: false, methods: "GET, POST, OPTIONS", headers: "content-type, x-oly", pna: true },
+  },
+  "mcp-manager": {
+    envKey: "OLY_MCP_PORT",
+    defaultPort: 4523,
+    health: "/api/health",
+    cors: { selfOrigin: true, methods: "GET, POST, OPTIONS", headers: "content-type, x-oly", pna: false },
+  },
+  "olympus-hub": {
+    envKey: "OLY_HUB_PORT",
+    defaultPort: 4524,
+    health: "/mcp/oly-web",
+    cors: null,
+  },
 };
 
-const STUDIO_STATIC_ORIGINS = new Set(["t3code://app", "http://localhost:3773", "http://127.0.0.1:3773"]);
 const IDLE_SLEEP_MS = (() => {
   const raw = process.env.CHRONOS_SERVICE_IDLE_MS;
   if (raw === undefined || raw === "") return 5 * 60_000;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : 5 * 60_000;
+})();
+
+const START_TIMEOUT_MS = (() => {
+  const raw = process.env.CHRONOS_SERVICE_START_TIMEOUT_MS;
+  if (raw === undefined || raw === "") return 15_000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 15_000;
 })();
 
 // Worker copies on Windows have case-sensitive keys. Service settings use uppercase,
@@ -64,20 +107,41 @@ function waitForPort(port, isAlive, timeoutMs = 15_000) {
   });
 }
 
-function studioCorsHeaders(req, publicPort) {
+function isAllowedOrigin(meta, origin, publicPort) {
+  if (!meta.cors || !origin) return false;
+  if (APP_ORIGINS.has(origin)) return true;
+  if (
+    meta.cors.selfOrigin &&
+    (origin === `http://127.0.0.1:${publicPort}` || origin === `http://localhost:${publicPort}`)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function serviceCorsHeaders(meta, req, publicPort, preflight = false) {
+  if (!meta.cors) return {};
   const origin = req.headers.origin;
-  const allowed =
-    origin &&
-    (STUDIO_STATIC_ORIGINS.has(origin) ||
-      origin === `http://127.0.0.1:${publicPort}` ||
-      origin === `http://localhost:${publicPort}`);
-  return allowed
-    ? { "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Private-Network": "true" }
-    : {};
+  const headers = {};
+  if (isAllowedOrigin(meta, origin, publicPort)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers.Vary = "Origin";
+  }
+  if (meta.cors.pna) headers["Access-Control-Allow-Private-Network"] = "true";
+  if (preflight) {
+    headers["Access-Control-Allow-Methods"] = meta.cors.methods;
+    headers["Access-Control-Allow-Headers"] = meta.cors.headers;
+    headers["Access-Control-Max-Age"] = "600";
+  }
+  return headers;
+}
+
+function studioCorsHeaders(req, publicPort) {
+  return serviceCorsHeaders(SERVICE_CONFIG["studio-service"], req, publicPort, false);
 }
 
 function validStudioHost(req, publicPort) {
-  const host = String(req.headers.host || "");
+  const host = String(req.headers.host || "").toLowerCase();
   return host === `127.0.0.1:${publicPort}` || host === `localhost:${publicPort}`;
 }
 
@@ -240,13 +304,15 @@ function startProxy(name) {
 
   async function ensureWorker() {
     clearIdle();
+    // Concurrent requests during cold start must wait on the in-flight startup promise,
+    // never race ahead before the worker is listening.
+    if (state.waking) return state.waking;
     if (state.worker && state.workerPort > 0) {
       if (name === "studio-service") {
         await attachStudioBridge(state.workerPort);
       }
       return state.workerPort;
     }
-    if (state.waking) return state.waking;
     state.waking = (async () => {
       const workerPort = await allocateLoopbackPort();
       let alive = true;
@@ -260,7 +326,7 @@ function startProxy(name) {
       });
       state.sleeping = false;
       state.worker = worker;
-      state.workerPort = workerPort;
+      state.workerPort = 0;
       if (name === "studio-service") {
         activeStudioWorker = worker;
         worker.on("message", (message) => {
@@ -290,11 +356,15 @@ function startProxy(name) {
         }
       });
       try {
-        await waitForPort(workerPort, () => alive && state.worker === worker);
+        await waitForPort(workerPort, () => alive && state.worker === worker, START_TIMEOUT_MS);
         if (name === "studio-service") {
           await attachStudioBridge(workerPort);
           await replayStudioContext(workerPort);
         }
+        if (state.worker !== worker || !alive) {
+          throw new Error("Service worker exited during startup");
+        }
+        state.workerPort = workerPort;
         return workerPort;
       } catch (error) {
         if (state.worker === worker) {
@@ -315,8 +385,9 @@ function startProxy(name) {
 
   function rewriteRequestHeaders(req, workerPort) {
     const headers = { ...req.headers };
-    if (headers.host === `127.0.0.1:${publicPort}`) headers.host = `127.0.0.1:${workerPort}`;
-    else if (headers.host === `localhost:${publicPort}`) headers.host = `localhost:${workerPort}`;
+    const host = String(headers.host || "").toLowerCase();
+    if (host === `127.0.0.1:${publicPort}`) headers.host = `127.0.0.1:${workerPort}`;
+    else if (host === `localhost:${publicPort}`) headers.host = `localhost:${workerPort}`;
     if (headers.origin === `http://127.0.0.1:${publicPort}`) headers.origin = `http://127.0.0.1:${workerPort}`;
     else if (headers.origin === `http://localhost:${publicPort}`) headers.origin = `http://localhost:${workerPort}`;
     return headers;
@@ -380,12 +451,7 @@ function startProxy(name) {
         res.end("bad host");
         return;
       }
-      res.writeHead(204, {
-        ...studioCorsHeaders(req, publicPort),
-        "Access-Control-Allow-Methods": "GET,POST,PUT",
-        "Access-Control-Allow-Headers": "content-type,x-oly",
-        "Access-Control-Max-Age": "600",
-      });
+      res.writeHead(204, serviceCorsHeaders(meta, req, publicPort, true));
       res.end();
       return;
     }
@@ -502,21 +568,33 @@ function startProxy(name) {
         );
         up.on("error", () => {
           if (!res.headersSent) {
-            res.writeHead(502, { "Content-Type": "application/json; charset=utf-8" });
+            res.writeHead(502, {
+              "Content-Type": "application/json; charset=utf-8",
+              "Cache-Control": "no-store",
+              ...serviceCorsHeaders(meta, req, publicPort, req.method === "OPTIONS"),
+            });
             res.end(JSON.stringify({ error: "Service unavailable" }));
           } else if (!res.destroyed) {
             res.destroy();
           }
         });
         req.on("aborted", () => up.destroy());
-        req.pipe(up);
-        req.resume();
+        if (req.readableEnded) {
+          up.end();
+        } else {
+          req.pipe(up);
+          req.resume();
+        }
       })
       .catch((error) => {
         try { log.write((error?.stack || String(error)) + "\n"); } catch {}
         req.resume();
         if (!res.headersSent) {
-          res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+          res.writeHead(503, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "no-store",
+            ...serviceCorsHeaders(meta, req, publicPort, req.method === "OPTIONS"),
+          });
           res.end(JSON.stringify({ error: "Service failed to start" }));
         }
         finish();
