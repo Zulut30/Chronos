@@ -7,7 +7,7 @@ import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
 import { msg, T, useGT, useLocale, useMessages } from "gt-react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   type DesktopUpdateChannel,
   IDLE_COMPACTION_MODES,
@@ -845,7 +845,8 @@ function AutoSettleDaysInput({
 }
 
 export function GeneralSettingsPanel() {
-  const languageNames = new Intl.DisplayNames([useLocale() || "ru"], { type: "language" });
+  const locale = useLocale();
+  const languageNames = useMemo(() => new Intl.DisplayNames([locale], { type: "language" }), [locale]);
   const gt = useGT();
   const m = useMessages();
   const setting = useSearchableSetting();

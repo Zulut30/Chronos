@@ -376,6 +376,7 @@ export function storePublishedEnvironmentThemes(definitions: ReadonlyArray<Theme
 let cachedLibrary: {
   custom: ReadonlyArray<ThemeDefinition>;
   published: ReadonlyArray<ThemeDefinition>;
+  source: ReadonlyArray<EnvironmentTheme> | null;
   value: ReturnType<typeof createThemeLibrary>;
 } | undefined;
 let standardPair: ThemeDefinition | undefined;
@@ -383,15 +384,16 @@ let standardPair: ThemeDefinition | undefined;
 function themeLibrary() {
   const custom = getStoredDefinitions();
   const published = appAtomRegistry.get(environmentThemeDefinitionsAtom);
-  if (cachedLibrary?.custom === custom && cachedLibrary.published === published) return cachedLibrary.value;
+  const source = appAtomRegistry.get(publishedThemesAtom);
+  if (cachedLibrary?.custom === custom && cachedLibrary.published === published && cachedLibrary.source === source) return cachedLibrary.value;
   standardPair ??= { id: "system", label: "T3 Code", appearance: "light",
     colors: getStandardThemeColors("light"), variants: { dark: getStandardThemeColors("dark") } };
   const backgrounds = new Map<string, string>();
-  for (const theme of appAtomRegistry.get(publishedThemesAtom) ?? []) {
+  for (const theme of source ?? []) {
     if (theme.background) backgrounds.set(theme.id, String(theme.background));
   }
   const value = createThemeLibrary([standardPair, ...BUILT_IN_THEMES], custom, published, toCanonicalThemeColor, backgrounds);
-  cachedLibrary = { custom, published, value };
+  cachedLibrary = { custom, published, source, value };
   return value;
 }
 
@@ -416,8 +418,7 @@ export function migrateThemeSelections() {
       const id = halves[mode];
       const owner = typeof id === "string" ? ids.get(id) : undefined;
       if (owner && owner.id !== id) {
-        if (owner.id === "system") delete halves[mode];
-        else halves[mode] = owner.id;
+        halves[mode] = owner.id;
         changed = true;
       }
     }
@@ -1897,6 +1898,10 @@ export function parseThemeHalves(raw: string | null): ThemeHalves | null {
     for (const appearance of ["light", "dark"] as const) {
       const themeId = value[appearance];
       if (typeof themeId !== "string") continue;
+      if (canonicalThemePreference(themeId) === "system") {
+        halves[appearance] = "system";
+        continue;
+      }
       const definition = getThemeDefinition(themeId);
       if (definition && getThemeColorsForMode(definition, appearance) !== null) {
         halves[appearance] = definition.id;

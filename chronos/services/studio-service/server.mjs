@@ -233,6 +233,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && p.startsWith("/chronos-ui-") && await serveLanguageAsset(p, res)) return;
     if (!p.startsWith('/api/')) {
       if (p === '/' || p === '/index.html') return serveStatic(req, res, 'index.html');
+      if (p === '/excalidraw/app-en.js') {
+        const { englishBoard } = await import('../ui-language/board.mjs');
+        const js = await englishBoard();
+        res.writeHead(200, { 'Content-Type': MIME['.js'], 'Cache-Control': 'no-cache' });
+        return res.end(js);
+      }
       if (p === '/board') return serveStatic(req, res, 'excalidraw/index.html');
       return serveStatic(req, res, decodeURIComponent(p.slice(1)));
     }

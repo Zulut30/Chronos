@@ -13,12 +13,20 @@ export function createThemeLibrary(
   const ids = new Map<string, ThemeDefinition>();
   const canonical: ThemeDefinition[] = [];
   const colors = new Map<ThemeDefinition, string>();
+  const normalized = new Map<string, string>();
+  function color(raw: string) {
+    const cached = normalized.get(raw);
+    if (cached !== undefined) return cached;
+    const value = normalizeColor(raw) ?? raw;
+    normalized.set(raw, value);
+    return value;
+  }
   function palette(theme: ThemeDefinition) {
     let value = colors.get(theme);
     if (value === undefined) {
       value = JSON.stringify(modes.map(mode => {
         const half = mode === theme.appearance ? theme.colors : theme.variants?.[mode];
-        return half && THEME_COLOR_ROLES.map(role => normalizeColor(half[role]) ?? half[role]);
+        return half && THEME_COLOR_ROLES.map(role => color(half[role]));
       }));
       colors.set(theme, value);
     }
@@ -38,7 +46,10 @@ export function createThemeLibrary(
     ids.set(theme.id, survivor ?? theme);
     if (!survivor) canonical.push(theme);
   }
-  stock.forEach(add);
+  for (const theme of stock) {
+    ids.set(theme.id, theme);
+    canonical.push(theme);
+  }
   // The named Olympus theme serves both halves, including Graphite. An explicitly
   // edited local definition with the same ID still takes precedence over the server.
   const olympus = custom.find(theme => theme.id === "olympus") ?? published.find(theme => theme.id === "olympus");

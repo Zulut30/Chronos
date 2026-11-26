@@ -7,16 +7,17 @@ const alwaysSkip = [
   "[data-oly-ps-name] h3", "[data-oly-ps-name] p", ".oly-tk-card .t", ".oly-tk-card .d",
   ".oly-tk-label", ".oly-tk-md", ".oly-tk-n .x", ".oly-tk-n .w b",
   ".oly-tk-item[data-sel^='p:'] > span", ".oly-tk-item[data-sel^='g:'] > span",
-  "[data-thread-item] .truncate", "[data-slot=project-monogram]", "[data-file-path]",
+  "[data-thread-item] .truncate", "[data-testid=sidebar-project-folder] .truncate", "[data-slot=project-monogram]", "[data-file-path]", "[data-item-path]",
 ].join(",");
 const frameUserText = [
   ".name > span:first-child", ".desc", ".path", ".md", ".skill-md", ".file-content",
+  ".cap .name", "[data-thumb] svg", ".row[data-name] .name", ".endpoint", "#cards article > h2", "#cards article > p",
   ".board-name", ".board-title", "[data-open] .name", ".server-name", ".artifact-title",
 ].join(",");
 const chrome = [
   "[class^='oly-']", "[class*=' oly-']", "[id^='oly-']", "[data-oly-ik-open]",
   "[data-oly-ik-row]", "[data-oly-ik-nav]", "[data-oly-ik-crumb]", "[data-oly-mcp-nav]",
-  "[data-oly-skills]", "[data-oly-tasks]", "[data-oly-prompts-nav]", "[data-oly-ps-nav-button]", "[data-oly-ps-nav]", "[data-oly-ps-crumb]",
+  "[data-oly-studio]", "[data-oly-studio-launch]", "[data-oly-skills]", "[data-oly-tasks]", "[data-oly-prompts-nav]", "[data-oly-ps-nav-button]", "[data-oly-ps-nav]", "[data-oly-ps-crumb]",
 ].join(",");
 
 const servicePorts = new Set(["4517", "4520", "4523"]);
@@ -24,6 +25,13 @@ function tellFrame(frame) {
   const url = new URL(frame.src, location.href);
   if (url.hostname !== "127.0.0.1" || !servicePorts.has(url.port)) return;
   if (!["/", "/index.html", "/artifacts.html", "/board"].includes(url.pathname)) return;
+  if (url.pathname === "/board") {
+    if (!url.searchParams.has("ui-language")) {
+      url.searchParams.set("ui-language", "en");
+      frame.src = url.href;
+    }
+    return;
+  }
   frame.contentWindow?.postMessage({ type: "chronos:ui-language", language: "en" }, url.origin);
 }
 

@@ -135,8 +135,11 @@ export function olympusL10n(): Plugin {
           "installEnglish(" + JSON.stringify(english) + ");",
         ].join("\n"));
         const html = bundle["index.html"];
-        if (html?.type !== "asset") this.error("Missing Chronos index.html");
-        html.source = localizeEntryHtml(assetText(html.source), setup);
+        if (html?.type !== "asset") return this.error("Missing Chronos index.html");
+        const entryHtml = assetText(html.source);
+        if (!entryHtml.includes("window.__chronosInitialLanguage = language;")) {
+          html.source = localizeEntryHtml(entryHtml, setup);
+        }
         const strict = process.env.CHRONOS_L10N_STRICT === "1";
         checkCoverage(findings, strict, (message) => this.warn(message));
         const totals = tableNames.map((t) => t + "=" + Object.values(counts[t]).reduce((a, b) => a + b, 0)).join(", ");

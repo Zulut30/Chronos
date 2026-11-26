@@ -662,8 +662,8 @@ export function ThemeLibrary({
   };
 
   const baseCardId = getThemeDefinition(theme)?.id ?? null;
-  const lightOwner = themeHalves?.light ?? baseCardId;
-  const darkOwner = themeHalves?.dark ?? baseCardId;
+  const lightOwner = themeHalves?.light === "system" ? null : (themeHalves?.light ?? baseCardId);
+  const darkOwner = themeHalves?.dark === "system" ? null : (themeHalves?.dark ?? baseCardId);
 
   const assignHalf = (appearance: ThemeAppearance, cardId: string | null) => {
     const otherAppearance = appearance === "light" ? "dark" : "light";
