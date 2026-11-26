@@ -1,7 +1,6 @@
 import * as Electron from "electron";
+import { rehearsalOffset } from "./ServiceOrigins.ts";
 import { services } from "./Sidecars.ts";
-
-export const rehearsalOffset = 20_000;
 
 // Keep each module's original URL and origin. Chromium makes a cross-port redirect opaque to CORS.
 export function isolateRehearsalRequests(backendPort: string | undefined) {
@@ -13,23 +12,27 @@ export function isolateRehearsalRequests(backendPort: string | undefined) {
     const url = new URL(request.url);
     if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)) return Response.error();
     const port = Number(url.port);
+    if ((ports.has(port) || ports.has(port - rehearsalOffset)) && !["GET", "HEAD", "OPTIONS"].includes(request.method)) return Response.error();
     if (!ports.has(port)) {
       if (url.port !== backendPort && !ports.has(port - rehearsalOffset)) return Response.error();
       return session.fetch(request, { bypassCustomProtocolHandlers: true, redirect: "manual" });
     }
-    if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) return Response.error();
     url.port = String(port + rehearsalOffset);
-    // A subframe document has mode "navigate", which the Request constructor rejects
-    // when copied into RequestInit. Forward only the fields used by these read-only requests.
-    const headers = new Headers(request.headers);
-    headers.set("Origin", "t3code://app");
-    return session.fetch(url.href, {
-      method: request.method,
-      headers,
-      signal: request.signal,
-      bypassCustomProtocolHandlers: true,
-      redirect: "manual",
-    });
+    // Chromium's session fetch applies another origin check to the replacement port.
+    // Serve the private response on the original URL so iframe documents retain their
+    // real origin for relative modules and the parent's language/theme messages.
+    const headers = new Headers({ Origin: "t3code://app" });
+    for (const name of ["accept", "range", "if-none-match"]) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+    const upstream = await fetch(url, { method: request.method, headers, signal: request.signal, redirect: "manual" });
+    const responseHeaders = new Headers(upstream.headers);
+    if (responseHeaders.has("content-encoding")) {
+      responseHeaders.delete("content-encoding");
+      responseHeaders.delete("content-length");
+    }
+    return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
   });
   session.webRequest.onBeforeRequest(
     { urls: ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"] },

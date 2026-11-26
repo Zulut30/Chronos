@@ -285,6 +285,21 @@ class CdpClient {
       for (const el of document.querySelectorAll("input:placeholder-shown,textarea:placeholder-shown")) {
         if (visible(el) && el.placeholder && (!exclude || !el.closest(exclude))) lines.push(el.placeholder);
       }
+      if (exclude) {
+        for (const el of document.querySelectorAll("button,input,textarea,select,[role=button]")) {
+          if (!visible(el) || el.closest(exclude)) continue;
+          const row = el.closest("[data-oly-ps-name],[data-thread-item],[data-testid=sidebar-project-folder]");
+          const names = row ? [
+            row.getAttribute("data-oly-ps-name"), row.querySelector("h3,[translate=no],.truncate")?.textContent,
+          ].filter(Boolean) : [];
+          for (const attribute of ["title", "aria-label"]) {
+            let label = el.getAttribute(attribute);
+            if (!label) continue;
+            for (const name of names) label = label.replaceAll(name, "");
+            lines.push(label);
+          }
+        }
+      }
       const frames = [...document.querySelectorAll("iframe")].flatMap((el, i) => visible(el) ? [i] : []);
       return { lines, frames };
     })()`, true);

@@ -45,7 +45,7 @@ export async function verifyUiLanguage(client) {
     "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
     ".oly-tk-card .t", ".oly-tk-card .d", ".oly-tk-item[data-sel^='p:'] > span", ".oly-tk-item[data-sel^='g:'] > span",
     "[data-oly-ps-name] h3", "[data-oly-ps-name] p", "[data-oly-ps-name] .oly-ps-cmd", ".card[data-path] .cap .name", "[data-thumb] svg",
-    "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint",
+    "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint", "#path code",
     "[data-open] .name > span:first-child", ".subh .lbl", "button.mname[data-open]",
   ].join(",");
   async function scan(id, expected) {
@@ -113,7 +113,7 @@ export async function verifyUiLanguage(client) {
   for (const [id, selector, text] of [
     ["Tasks", "[data-oly-tasks]", "All projects"],
     ["Studio", "button[aria-label=Studio]", "Boards"],
-    ["Skills", "[data-oly-skills]", "All skills"],
+    ["Skills", "[data-oly-skills] button,button[data-oly-skills]", "All skills"],
   ]) {
     await click(selector);
     await scan(id, text);

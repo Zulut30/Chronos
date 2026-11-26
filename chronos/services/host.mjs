@@ -6,10 +6,12 @@ const services = new Set(["skills-manager", "tasks-service", "files-service", "s
   "integrations-service", "mcp-manager", "olympus-hub"]);
 const running = new Set();
 if (process.env.CHRONOS_SWITCH_REHEARSAL === "1") {
+  const offset = Number(process.env.CHRONOS_SWITCH_PORT_OFFSET ?? 20_000);
+  if (!Number.isInteger(offset) || offset < 10_000 || offset > 60_000) throw Error("Invalid Chronos rehearsal port offset");
   for (const [key, port] of Object.entries({ SKILLS:4517, TASKS:4518, FILES:4519, STUDIO:4520,
     INTEGRATIONS:4522, MCP:4523, HUB:4524 })) {
-    process.env["OLY_" + key + "_PORT"] = String(port + 20_000);
-    process.env["OLY_" + key + "_URL"] = "http://127.0.0.1:" + (port + 20_000);
+    process.env["OLY_" + key + "_PORT"] = String(port + offset);
+    process.env["OLY_" + key + "_URL"] = "http://127.0.0.1:" + (port + offset);
   }
 }
 let studio;

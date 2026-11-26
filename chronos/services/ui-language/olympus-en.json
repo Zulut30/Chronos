@@ -1133,7 +1133,11 @@
     "Доска не найдена": "Board not found",
     "Доска — файл Excalidraw в папке студии. Агенты в чате читают и правят её, а вы видите изменения сразу.": "A board is an Excalidraw file in the Studio folder. Agents can read and edit it in chat, and changes appear immediately.",
     "Доски студии": "Studio boards",
-    "задан вне T3 (системная переменная)": "set outside T3 (environment variable)"
+    "задан вне T3 (системная переменная)": "set outside T3 (environment variable)",
+    "Уведомления · Все фоновые": "Notifications · All background chats",
+    "Уведомления · Только свёрнутое окно": "Notifications · Only when minimized",
+    "Уведомления · Без звука": "Notifications · Silent",
+    "Уведомления · Выкл": "Notifications · Off"
   },
   "templates": {
     "Режим следующего сообщения: {1}": "Next message mode: {1}",
@@ -1348,6 +1352,12 @@
     "Доска — файл Excalidraw в папке папки «{1}». Агенты в чате читают и правят её, а вы видите изменения сразу.": "A board is an Excalidraw file in folder “{1}”. Agents can read and edit it in chat, and changes appear immediately.",
     "в папке папки «{1}»": "in folder “{1}”",
     "Доски папки «{1}»": "Boards in folder “{1}”",
-    "сохранён {1}": "saved {1}"
+    "сохранён {1}": "saved {1}",
+    "Уведомления · Все фоновые · ждут внимания: {1}": "Notifications · All background chats · need attention: {1}",
+    "Уведомления · Только свёрнутое окно · ждут внимания: {1}": "Notifications · Only when minimized · need attention: {1}",
+    "Уведомления · Без звука · ждут внимания: {1}": "Notifications · Silent · need attention: {1}",
+    "Уведомления · Выкл · ждут внимания: {1}": "Notifications · Off · need attention: {1}",
+    "Открытые задачи: {1}. Упомяните задачу в сообщении через #.": "Open tasks: {1}. Mention a task in your message with #.",
+    "Открытые задачи проекта «{1}»: {2}. Упомяните задачу в сообщении через #.": "Open tasks for “{1}”: {2}. Mention a task in your message with #."
   }
 }
