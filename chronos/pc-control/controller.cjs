@@ -45,8 +45,8 @@ function destination(kind, target) {
   if (typeof target !== "string" || !target || target.length > 2048)
     throw new Error("Требуется приложение или адрес.");
   if (kind === "web") {
-    const url = new URL(target);
-    if (!["https:", "http:"].includes(url.protocol) || url.username || url.password)
+    const url = URL.canParse(target) ? new URL(target) : null;
+    if (!url || !["https:", "http:"].includes(url.protocol) || url.username || url.password)
       throw new Error("Нужен адрес HTTP или HTTPS без учётных данных.");
     return { target: url.origin, host: url.hostname };
   }
@@ -302,6 +302,9 @@ function createController({
         for (const field of fields.slice(0, 2000)) s.refs.set(field.ref, field);
         return {
           elements: [...s.refs.values()].map(({ ref, name, role }) => ({ ref, name, role })),
+          ...(!s.refs.size && s.kind === "desktop" ? {
+            message: "В дереве доступности нет элементов для взаимодействия. Проверьте выбранное окно.",
+          } : {}),
         };
       }
       s.refs.clear();

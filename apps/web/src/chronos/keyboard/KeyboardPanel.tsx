@@ -5,6 +5,7 @@ import {
   SettingsSection,
 } from "../../components/settings/settingsLayout";
 import { Button } from "../../components/ui/button";
+import { desktopError } from "../desktopError";
 
 const keys = Array.from({ length: 9 }, (_, i) => "key" + (i + 1));
 const knobs = ["upper", "lower"];
@@ -40,6 +41,8 @@ type Operation =
   | "learn"
   | "cancel"
   | "create"
+  | "rename"
+  | "delete"
   | "refresh"
   | "save";
 export function KeyboardPanel() {
@@ -58,7 +61,7 @@ export function KeyboardPanel() {
     base: string;
   } | null>(null);
   const report = (err: unknown) =>
-    notice(err instanceof Error ? err.message : String(err));
+    notice(desktopError(err, "Не удалось выполнить действие с макропадом."));
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- owns the native learning session for the lifetime of this page
   useEffect(() => {
     if (!api) return;
@@ -109,7 +112,8 @@ export function KeyboardPanel() {
       const next = await api.request(op, payload);
       set(next);
       preview(null);
-      if (op === "activate" || op === "create" || op === "save") setEdit(null);
+      if (s?.current.id !== next.current.id || op === "save") setEdit(null);
+      if (s?.current.id !== next.current.id || op === "rename") setName("");
       if (op === "save") notice("Назначения сохранены.");
     } catch (err) {
       report(err);
@@ -201,6 +205,9 @@ export function KeyboardPanel() {
                   </Button>
                   <span role="status">{states[s.status]}</span>
                 </div>
+                {s.enabled && !s.devices.length && (
+                  <p role="status">Макропад не найден. Подключите его и нажмите «Обновить».</p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
                   <label>
                     Профиль{" "}
@@ -220,8 +227,8 @@ export function KeyboardPanel() {
                   </label>
                   <input
                     className={field}
-                    aria-label="Имя нового профиля"
-                    placeholder="Имя нового профиля"
+                    aria-label="Название профиля"
+                    placeholder="Название профиля"
                     value={name}
                     maxLength={80}
                     onChange={(e) => setName(e.target.value)}
@@ -233,6 +240,14 @@ export function KeyboardPanel() {
                     onClick={() => void run("create", name)}
                   >
                     Создать
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={busy || !name.trim() || name.trim() === s.current.name}
+                    onClick={() => void run("rename", { name, base: s.revision })}>
+                    Переименовать
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={busy || s.current.id === "default"}
+                    onClick={() => void run("delete", s.revision)}>
+                    Удалить профиль
                   </Button>
                 </div>
                 <div className="flex flex-wrap items-center gap-5">

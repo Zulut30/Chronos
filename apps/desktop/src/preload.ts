@@ -55,6 +55,8 @@ ipcRenderer.on("chronos:show-artifact", (_event,id:string,confirmDelete:boolean)
 if (clientPlatform === "win32") {
   contextBridge.exposeInMainWorld("chronosArtifactInstaller", {
     metadata: (id: string) => ipcRenderer.invoke("chronos:artifact-icon", id),
+    installed: (id: string) => ipcRenderer.invoke("chronos:artifact-shortcuts", id),
+    remove: (id: string) => ipcRenderer.invoke("chronos:artifact-uninstall", id),
     install: (id: string, icon: string, theme: unknown) => ipcRenderer.invoke("chronos:artifact-install", id, icon, theme),
   });
 }

@@ -207,7 +207,7 @@ exports.attach = function attach({
       grants.push(key);
       if (!previous.has(key))
         confirm.push(
-          slot +
+          model.positionName(slot) +
             " — " +
             model.actions[b.action.id] +
             (b.action.arg ? "\n" + b.action.arg : ""),
@@ -291,6 +291,33 @@ exports.attach = function attach({
           current = p;
           learning = null;
           last = null;
+          break;
+        }
+        case "rename": {
+          check(payload.base === revision(current), "Профиль изменился. Обновите раскладку.");
+          const next = profile({ ...current, name: payload.name });
+          db.save(next);
+          current = next;
+          break;
+        }
+        case "delete": {
+          check(payload === revision(current), "Профиль изменился. Обновите раскладку.");
+          check(current.id !== "default", "Основной профиль нужен для переключения после удаления.");
+          const { response } = await dialog.showMessageBox(win, {
+            type: "question", buttons: ["Отмена", "Удалить"], defaultId: 0, cancelId: 0,
+            message: "Удалить профиль «" + current.name + "»?", detail: "После удаления включится основной профиль.",
+          });
+          if (response !== 1 || closed || !trusted() || !editing) break;
+          const fallback = db.load("default");
+          const next = { ...config, active: fallback.id,
+            grants: config.grants.filter((g) => !g.startsWith("[" + JSON.stringify(current.id) + ",")) };
+          // Persist a valid active profile even if the process exits before unlinking.
+          db.configure(next);
+          const removed = current.id;
+          current = fallback;
+          config = next;
+          learning = last = null;
+          db.remove(removed);
           break;
         }
         case "learn":

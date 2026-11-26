@@ -38,6 +38,8 @@ export interface KeyboardBridge {
       | "device"
       | "activate"
       | "create"
+      | "rename"
+      | "delete"
       | "learn"
       | "cancel"
       | "save",
