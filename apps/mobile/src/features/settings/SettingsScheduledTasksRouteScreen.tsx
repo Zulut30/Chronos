@@ -1466,6 +1466,20 @@ function TaskForm({
           </View>
         </SettingsSection>
         {draft.schedule.mode === "fixed_time" ? (
+          <View className="flex-row items-center justify-between">
+            <Text>
+              <T>Run one missed occurrence on next startup</T>
+            </Text>
+            <ThemedSwitch
+              accessibilityLabel={gt("Run one missed occurrence on next startup")}
+              value={draft.schedule.catchUp === true}
+              onValueChange={(catchUp) =>
+                setDraft((current) => ({ ...current, schedule: { ...current.schedule, catchUp } }))
+              }
+            />
+          </View>
+        ) : null}
+        {draft.schedule.mode === "fixed_time" ? (
           <Text className="px-2 text-sm text-foreground-muted">
             <T>Time uses the environment's time zone, which may differ from your phone's.</T>
           </Text>
@@ -1710,6 +1724,11 @@ function EnvironmentTasks({
               {task.blockedByPolicy ? (
                 <Text className="text-sm text-foreground-muted" numberOfLines={2}>
                   {task.blockedByPolicy}
+                </Text>
+              ) : null}
+              {task.lastRunStatus === "missed" ? (
+                <Text className="text-sm text-foreground-muted">
+                  <T>Skipped: the app was closed</T>
                 </Text>
               ) : null}
               {task.lastRunError ? (

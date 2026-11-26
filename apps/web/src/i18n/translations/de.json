@@ -12857,5 +12857,7 @@
   "6b36ce3cce36a70a": "Could not save this setting on this device.",
   "3b3e0dcd9fa14b5d": "Machine names in mentions",
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
-  "d0b0f9c83b3f739e": "Edit machine names"
+  "d0b0f9c83b3f739e": "Edit machine names",
+  "7cd354570f9e8e68": "Skipped: the app was closed",
+  "9cca3054224a1637": "Run one missed occurrence on next startup"
 }

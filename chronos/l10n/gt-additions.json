@@ -11,6 +11,8 @@
     "Trello credentials": "Данные доступа Trello"
   },
   "messages": {
+    "Run one missed occurrence on next startup": "Выполнить один пропущенный запуск при следующем старте",
+    "Skipped: the app was closed": "Пропущено: приложение было закрыто",
     "Open in {editor}": "Открыть в {editor, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{editor}}}",
     "Opened in {editor}": "Открыто в {editor, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{editor}}}",
     "Open in {fileManager}": "Открыть в {fileManager, select, Проводник {Проводнике} Файлы {приложении «Файлы»} other {{fileManager}}}",
