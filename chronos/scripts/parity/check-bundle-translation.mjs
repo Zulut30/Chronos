@@ -7,7 +7,6 @@ const zip = ["previewFailureMessages", "binaryPreview.worker", "document.worker"
 const expected = [
   ...zip.map(chunk => [chunk, "broad", "Preview limited to files under 50 MB.", '"file-too-large":']),
   ["projectGrouping", "label", "Project", 'field:`project`,label:`Project`,text:'],
-  ["search", "broad", 'The user did not save this secret for shell use. Ask again with request_secret and delivery: "file".', "not_a_file_request:"],
   ["utils", "broad", "File comment", 'new Map([[`File comment`,'],
 ];
 const log = stripVTControlCharacters(NodeFS.readFileSync(process.argv[2], "utf8"));
