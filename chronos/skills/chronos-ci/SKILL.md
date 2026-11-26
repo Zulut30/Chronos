@@ -21,8 +21,10 @@ description: "Сборки и сбои GitHub Actions, установка пак
 ```bash
 gh workflow run chronos-checks.yml --ref <branch> -R Zulut30/Chronos
 gh run view <id> -R Zulut30/Chronos --json workflowName,headBranch,headSha,event,status,conclusion
-gh run watch <id> -R Zulut30/Chronos --exit-status
+gh run watch <id> -R Zulut30/Chronos --interval 60 --exit-status
 ```
+
+Опрашивай CI не чаще раза в минуту и держи один `gh run watch` на сессию: без `--interval` он спрашивает GitHub каждые 3 секунды, и несколько параллельных сессий исчерпывают лимит REST API (5000 запросов в час на всех). При ошибке лимита проверь `gh api rate_limit`, дождись сброса и продолжай задачу.
 
 Дождись desktop тем же способом. Для smoke выбери тот же ref и ID успешной сборки. При переиспользовании проверь в логе job оба строгих входа и имя артефакта `chronos-smoke-report-<desktop-id>`. На одной ветке и одном SHA могут быть и диагностические прогоны. В summary требуются 14/14, 0 пропусков, 0 ошибок и 0 неожиданных EN. В отчёт перенеси ссылки и проверенный SHA.
 
