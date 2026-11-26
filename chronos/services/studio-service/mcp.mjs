@@ -10,7 +10,12 @@ const H = { 'x-oly': '1', 'content-type': 'application/json' };
 async function call(method, p, body, raw) {
   let r;
   try { r = await fetch(SVC + p, { method, redirect: 'error', headers: H, body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)) }); }
-  catch { throw new Error(`Сервис студии не отвечает на ${SVC}. Запустите studio-service\\start-hidden.vbs (или: node studio-service\\server.mjs).`); }
+  catch {
+    const launchHint = process.platform === 'win32'
+      ? 'Запустите studio-service\\start-hidden.vbs (или: node studio-service\\server.mjs).'
+      : 'Перезапустите Chronos (или запустите: node studio-service/server.mjs).';
+    throw new Error(`Сервис студии не отвечает на ${SVC}. ${launchHint}`);
+  }
   const text = await r.text();
   if (!r.ok) { let e = text; try { e = JSON.parse(text).error || text; } catch {} throw new Error(`${r.status}: ${e}`); }
   return raw ? text : (text ? JSON.parse(text) : {});

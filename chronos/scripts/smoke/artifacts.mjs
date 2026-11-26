@@ -62,8 +62,11 @@ async function waitFor(label,test) {
   throw Error(label+" timed out"+(last ? ": "+last.message : ""));
 }
 export async function verifyArtifacts(client, opts, desktopPid) {
-  if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated Windows CI install");
-  const services=path.join(path.dirname(opts.launch),"resources","chronos-services");
+  if (!process.env.RUNNER_TEMP || !process.env.CHRONOS_HOME || !opts.launch) throw Error("Artifact smoke requires the isolated CI install");
+  const resources = process.platform === "darwin"
+    ? path.join(path.dirname(opts.launch), "..", "Resources")
+    : path.join(path.dirname(opts.launch), "resources");
+  const services = path.join(resources, "chronos-services");
   const {openArtifacts}=await import(pathToFileURL(path.join(services,"artifacts","store.mjs")));
   const {showArtifact}=await import(pathToFileURL(path.join(services,"artifacts","gallery.mjs")));
   const store=openArtifacts(process.env.CHRONOS_HOME);
@@ -135,20 +138,29 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     assert.ok(["light","dark"].includes(row.mode));
     await evaluate(`[...document.querySelectorAll(".art-segment button")].find(b=>b.textContent==="Код").click()`);
     await waitFor("version source",()=>evaluate(`document.querySelector(".art-code pre")?.textContent.includes("PerformanceObserver")`));
-    async function shortcutAction(label) {
+    if (process.platform === "win32") {
+      async function shortcutAction(label) {
+        await waitFor("actions menu closed",()=>evaluate('!document.querySelector(".art-menu")'));
+        await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
+        const button=`[...document.querySelectorAll(".art-menu button")].find(b=>!b.disabled && b.textContent===${JSON.stringify(label)})`;
+        await waitFor(label,()=>evaluate("Boolean("+button+")"));
+        await evaluate(button+".click()");
+      }
+      await shortcutAction("Установить как приложение");
+      await shortcutAction("Обновить ярлыки");
+      await shortcutAction("Удалить ярлыки");
+      await waitFor("both shortcuts removed",()=>evaluate(`window.chronosArtifactInstaller.installed("${id}").then(value=>!value)`));
+      assert.equal(store.history(id).length,1);
+      await shortcutAction("Установить как приложение");
+      await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
+    } else {
       await waitFor("actions menu closed",()=>evaluate('!document.querySelector(".art-menu")'));
       await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
-      const button=`[...document.querySelectorAll(".art-menu button")].find(b=>!b.disabled && b.textContent===${JSON.stringify(label)})`;
-      await waitFor(label,()=>evaluate("Boolean("+button+")"));
-      await evaluate(button+".click()");
+      await waitFor("actions menu",()=>evaluate('Boolean(document.querySelector(".art-menu"))'));
+      const hasInstallButton = await evaluate(`Boolean([...document.querySelectorAll(".art-menu button")].find(b=>b.textContent==="Установить как приложение"))`);
+      assert.equal(hasInstallButton, false, "Windows-only shortcut installer should be hidden on macOS/Linux");
+      await evaluate(`document.querySelector('[aria-label="Действия"]').click()`);
     }
-    await shortcutAction("Установить как приложение");
-    await shortcutAction("Обновить ярлыки");
-    await shortcutAction("Удалить ярлыки");
-    await waitFor("both shortcuts removed",()=>evaluate(`window.chronosArtifactInstaller.installed("${id}").then(value=>!value)`));
-    assert.equal(store.history(id).length,1);
-    await shortcutAction("Установить как приложение");
-    await waitFor("Windows shortcuts",()=>evaluate(`document.body.innerText.includes("Ярлыки добавлены")`));
     // Use the app's own authenticated session to create an empty local thread; no model turn is run.
     await evaluate(`(async()=>{
       document.querySelector('dialog.art-dialog [aria-label="Закрыть"]').click();
@@ -194,33 +206,37 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     await evaluate(`document.querySelector('[data-artifact-tab] [aria-label="К артефактам"]').click()`);
     await waitFor("gallery stays in native tab",()=>evaluate(`Boolean(document.querySelector('[data-artifact-tab] .art-cover'))`));
     await evaluate(`document.querySelector('[data-artifact-tab] .art-cover').click()`);
-    const footprint=()=>JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",
-      path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
     const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});
     await waitFor("panel first paint",()=>readFrame()?.opens>=2);
-    // Tab transitions may leave short-lived Chromium helpers. Sample after the tree settles.
-    let baseline=footprint();
-    for(let round=0; round<5; round++) {
-      await delay(1000);
-      const sample=footprint();
-      const stable=sample.processes===baseline.processes && Math.abs(sample.privateBytes-baseline.privateBytes)<4*1024**2;
-      baseline=sample;
-      if(stable) break;
+    if (process.platform === "win32") {
+      const footprint=()=>JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",
+        path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
+      // Tab transitions may leave short-lived Chromium helpers. Sample after the tree settles.
+      let baseline=footprint();
+      for(let round=0; round<5; round++) {
+        await delay(1000);
+        const sample=footprint();
+        const stable=sample.processes===baseline.processes && Math.abs(sample.privateBytes-baseline.privateBytes)<4*1024**2;
+        baseline=sample;
+        if(stable) break;
+      }
+      const start=Date.now();
+      const child=spawn(opts.launch,["--chronos-artifact="+id],{stdio:"ignore",windowsHide:true});
+      const exited=new Promise((resolve,reject)=>{child.once("error",reject);child.once("exit",resolve);});
+      const packageFrame=await waitFor("warm installed window first paint",()=>{
+        const frame=readFrame();return frame?.firstPaintAt>=start ? frame : null;
+      });
+      assert.equal(await exited,0);
+      await delay(1500);
+      const observed=footprint();
+      console.log("PACKAGED_WARM",JSON.stringify({firstPaintMs:Math.round(packageFrame.firstPaintAt-start),
+        privateBytes:observed.privateBytes-baseline.privateBytes,workingSet:observed.workingSet-baseline.workingSet,
+        before:baseline,after:observed}));
+      writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
+      console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
+    } else {
+      console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip and capability filtering");
     }
-    const start=Date.now();
-    const child=spawn(opts.launch,["--chronos-artifact="+id],{stdio:"ignore",windowsHide:true});
-    const exited=new Promise((resolve,reject)=>{child.once("error",reject);child.once("exit",resolve);});
-    const packageFrame=await waitFor("warm installed window first paint",()=>{
-      const frame=readFrame();return frame?.firstPaintAt>=start ? frame : null;
-    });
-    assert.equal(await exited,0);
-    await delay(1500);
-    const observed=footprint();
-    console.log("PACKAGED_WARM",JSON.stringify({firstPaintMs:Math.round(packageFrame.firstPaintAt-start),
-      privateBytes:observed.privateBytes-baseline.privateBytes,workingSet:observed.workingSet-baseline.workingSet,
-      before:baseline,after:observed}));
-    writeFileSync(path.join(opts.outDir,"artifact-id.txt"),id);
-    console.log("PASS: gallery, thread right panel, Studio open, isolated page, DB round trip, capability filtering and shortcut installation");
   } catch(error) {
     const state=await evaluate(`({route:location.pathname,dialog:document.querySelector("dialog[open]")?.getAttribute("aria-label"),
       guests:[...document.querySelectorAll("webview,dialog iframe")].map(el=>el.getAttribute("src")?.split("?")[0]),

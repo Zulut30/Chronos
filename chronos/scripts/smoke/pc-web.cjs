@@ -15,6 +15,10 @@ async function smoke(tools) {
   const key = randomUUID();
   const secret = "synthetic-fixture";
   let posted;
+  let resolveSubmitted;
+  const submitted = new Promise((resolve) => {
+    resolveSubmitted = resolve;
+  });
   const server = http.createServer((req, res) => {
     if (req.method === "POST" && req.url === "/done") {
       let data = "";
@@ -25,6 +29,7 @@ async function smoke(tools) {
         })
         .on("end", () => {
           posted = new URLSearchParams(data);
+          resolveSubmitted(posted);
           res.end("ok");
         });
     } else {
@@ -120,6 +125,10 @@ async function smoke(tools) {
       assert.ok(element, name);
       await request({ op, session, ref: element.ref, value });
     }
+    await Promise.race([
+      submitted,
+      new Promise((resolve) => setTimeout(resolve, 5000).unref()),
+    ]);
     assert.equal(posted?.get("city"), "Warsaw");
     assert.equal(posted?.get("code"), secret);
     assert.equal(seen.size, 3);

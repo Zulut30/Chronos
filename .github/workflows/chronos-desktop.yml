@@ -351,6 +351,34 @@ jobs:
           retention-days: 7
           compression-level: 0
 
+      - name: Verify macOS ad-hoc signature and ElectronAsarIntegrity
+        if: matrix.platform == 'mac'
+        shell: bash
+        run: |
+          set -euo pipefail
+          verify_bundle() {
+            local app="$1"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            local plist="$app/Contents/Info.plist"
+            local asar="$app/Contents/Resources/app.asar"
+            /usr/bin/plutil -lint "$plist"
+            local expected actual
+            expected=$(node -e 'console.log(require("./chronos/scripts/macos-after-pack.cjs").computeAsarHeaderHash(process.argv[1]))' "$asar")
+            actual=$(/usr/libexec/PlistBuddy -c 'Print :ElectronAsarIntegrity:Resources/app.asar:hash' "$plist")
+            test "$actual" = "$expected" || { echo "ElectronAsarIntegrity mismatch in $app: plist=$actual computed=$expected"; exit 1; }
+          }
+          zip_stage=$(mktemp -d)
+          dmg_mount=$(mktemp -d)
+          cleanup() {
+            hdiutil detach "$dmg_mount" -force >/dev/null 2>&1 || true
+            rm -rf "$zip_stage" "$dmg_mount"
+          }
+          trap cleanup EXIT
+          ditto -x -k release/*.zip "$zip_stage"
+          verify_bundle "$zip_stage/Chronos.app"
+          hdiutil attach -nobrowse -readonly -mountpoint "$dmg_mount" release/*.dmg
+          verify_bundle "$dmg_mount/Chronos.app"
+
       - name: Collect release assets
         env:
           PERF_SHA: ${{ inputs.perf_sha }}
@@ -472,11 +500,11 @@ jobs:
             "| macOS Apple Silicon | [Chronos-mac-arm64.dmg](${base}/Chronos-mac-arm64.dmg) |" \
             "| macOS Intel | [Chronos-mac-x64.dmg](${base}/Chronos-mac-x64.dmg) |" \
             "" \
-            "Сборки не подписаны: Windows — «Подробнее» → «Выполнить в любом случае»; macOS — правый клик → «Открыть» при первом запуске. Контрольные суммы — \`SHA256SUMS\`. Файлы \`.blockmap\`, \`.zip\` и \`*.yml\` нужны автообновлению, качать их не нужно. Chronos ставится рядом с T3 Code и хранит данные отдельно (\`~/.chronos\`)." \
+            "Сборки не подписаны сертификатом разработчика (macOS имеет ad-hoc подпись): Windows — «Подробнее» → «Выполнить в любом случае»; macOS — перетащите \`Chronos.app\` в «Программы» и перед первым запуском снимите карантин в Терминале: \`xattr -cr /Applications/Chronos.app\`. На macOS обновления устанавливаются вручную из нового \`.dmg\`. Контрольные суммы — \`SHA256SUMS\`. Файлы \`.blockmap\`, \`.zip\` и \`*.yml\` нужны проверке и автообновлению, качать их не нужно. Chronos ставится рядом с T3 Code и хранит данные отдельно (\`~/.chronos\`)." \
             "" \
             "---" \
             "" \
-            "Built from the T3 Code ${UPSTREAM} source. Chronos is an unofficial fork, not affiliated with T3 Tools, Inc. Installers are unsigned (SmartScreen: More info → Run anyway; macOS: right-click → Open). Checksums: \`SHA256SUMS\`. Installs side by side with T3 Code; data lives in \`~/.chronos\`.")
+            "Built from the T3 Code ${UPSTREAM} source. Chronos is an unofficial fork, not affiliated with T3 Tools, Inc. Installers are not signed with a developer certificate (macOS uses an ad-hoc signature). SmartScreen: More info → Run anyway; macOS: drag \`Chronos.app\` to Applications, then remove quarantine before first launch with \`xattr -cr /Applications/Chronos.app\`. macOS updates are installed manually from the new \`.dmg\`. Checksums: \`SHA256SUMS\`. Installs side by side with T3 Code; data lives in \`~/.chronos\`.")
           gh release create "$TAG" release-assets/Chronos-* release-assets/nightly*.yml release-assets/t3-*.tar.gz release-assets/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
