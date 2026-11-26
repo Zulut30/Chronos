@@ -30,7 +30,7 @@ const summary = { from, to, timings: [], status: "failed" };
 const files = new Map();
 let mirror, cdp, artifactId, oldRuntime, oldShell, oldIdentity;
 const gh = args => execFileSync("gh", args, { encoding: "utf8", timeout: 240000, windowsHide: true });
-const exists = async file => !!await stat(file).catch(() => null);
+async function exists(file) { return !!await stat(file).catch(() => null); }
 async function sha(file, algorithm, encoding) {
   const hash = createHash(algorithm);
   for await (const chunk of createReadStream(file)) hash.update(chunk);
