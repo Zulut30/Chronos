@@ -229,4 +229,18 @@ async function act(a,p){
 
 load();
 </script>
+<script>
+if (parent !== window) {
+  const enableEnglish = async event => {
+    if (event.source !== parent || event.data?.type !== "chronos:ui-language" ||
+        event.data.language !== "en" || !["t3code://app", location.origin, "http://localhost:3773", "http://127.0.0.1:3773"].includes(event.origin)) return;
+    removeEventListener("message", enableEnglish);
+    const [runtime, catalog] = await Promise.all([
+      import("/chronos-ui-english.mjs"), fetch("/chronos-ui-english.json").then(r => r.json()),
+    ]);
+    runtime.installEnglish(catalog);
+  };
+  addEventListener("message", enableEnglish);
+}
+</script>
 </body></html>

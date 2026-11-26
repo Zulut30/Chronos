@@ -7,6 +7,7 @@ import { formatBytes } from "../../lib/formatBytes";
 import { cn } from "../../lib/utils";
 import {
   getCustomThemes,
+  findImportedTheme,
   installCustomTheme,
   removeCustomTheme,
   renameTheme,
@@ -295,6 +296,11 @@ function ThemeImportBody({
     const installed: ThemeDefinition[] = [];
     const conflicting: ThemeDefinition[] = [];
     for (const theme of pairVsCodeThemes(resolveThemeLabelCollisions(parsed))) {
+      const existing = findImportedTheme(theme);
+      if (existing) {
+        if (!installed.some(item => item.id === existing.id)) installed.push(existing);
+        continue;
+      }
       if (isThemeIdTaken(theme.id)) {
         conflicting.push(theme);
         continue;
@@ -413,6 +419,12 @@ function ThemeImportBody({
     }
     try {
       const theme = parseThemeImport(json);
+      const existing = findImportedTheme(theme);
+      if (existing) {
+        if (onImported(existing)) onClose();
+        else setError(gt("Theme added, but it could not be selected. Try again."));
+        return;
+      }
       if (isThemeIdTaken(theme.id)) {
         setError(null);
         setConflicts([theme]);

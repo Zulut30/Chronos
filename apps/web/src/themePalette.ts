@@ -32,6 +32,7 @@ import {
 
 import { m } from "./i18n/messages";
 import { appAtomRegistry, subscribeAtomChanges } from "./rpc/atomRegistry";
+import { createThemeLibrary } from "./chronos/themeLibrary";
 import { applyThemeBackground } from "./themeBackground";
 import { applyThemeCss } from "./themeCss";
 import { themeServerEnvironmentThemesAtom } from "./state/server";
@@ -251,9 +252,16 @@ export function invalidateCustomThemes() {
 
 const EMPTY_CUSTOM_THEMES: ReadonlyArray<ThemeDefinition> = [];
 
-export function getCustomThemes(): ReadonlyArray<ThemeDefinition> {
+function getStoredDefinitions(): ReadonlyArray<ThemeDefinition> {
   const snapshot = getCustomThemeLibrarySnapshot();
   return snapshot.status === "ready" ? snapshot.themes : EMPTY_CUSTOM_THEMES;
+}
+
+export function getCustomThemes(): ReadonlyArray<ThemeDefinition> {
+  return themeLibrary().custom;
+}
+export function getPublishedThemes(): ReadonlyArray<ThemeDefinition> {
+  return themeLibrary().published;
 }
 
 function publishedThemeColors(
@@ -365,8 +373,56 @@ export function storePublishedEnvironmentThemes(definitions: ReadonlyArray<Theme
   }
 }
 
-function getEnvironmentThemes(): ReadonlyArray<ThemeDefinition> {
-  return appAtomRegistry.get(environmentThemeDefinitionsAtom);
+let cachedLibrary: {
+  custom: ReadonlyArray<ThemeDefinition>;
+  published: ReadonlyArray<ThemeDefinition>;
+  value: ReturnType<typeof createThemeLibrary>;
+} | undefined;
+let standardPair: ThemeDefinition | undefined;
+
+function themeLibrary() {
+  const custom = getStoredDefinitions();
+  const published = appAtomRegistry.get(environmentThemeDefinitionsAtom);
+  if (cachedLibrary?.custom === custom && cachedLibrary.published === published) return cachedLibrary.value;
+  standardPair ??= { id: "system", label: "T3 Code", appearance: "light",
+    colors: getStandardThemeColors("light"), variants: { dark: getStandardThemeColors("dark") } };
+  const backgrounds = new Map<string, string>();
+  for (const theme of appAtomRegistry.get(publishedThemesAtom) ?? []) {
+    if (theme.background) backgrounds.set(theme.id, String(theme.background));
+  }
+  const value = createThemeLibrary([standardPair, ...BUILT_IN_THEMES], custom, published, toCanonicalThemeColor, backgrounds);
+  cachedLibrary = { custom, published, value };
+  return value;
+}
+
+export function findImportedTheme(theme: ThemeDefinition) {
+  return themeLibrary().matchingContent(theme);
+}
+
+// Repoint base and half preferences on the first synchronized snapshot. Keep unpublished
+// ids intact while reconnecting, and preserve user-edited theme files on disk.
+export function migrateThemeSelections() {
+  const { ids } = themeLibrary();
+  try {
+    const storage = window.localStorage;
+    const base = storage.getItem("t3code:theme");
+    if (base && ids.has(base) && ids.get(base)!.id !== base) storage.setItem("t3code:theme", ids.get(base)!.id);
+    const raw = storage.getItem(THEME_HALVES_STORAGE_KEY);
+    if (!raw) return;
+    const halves: unknown = JSON.parse(raw);
+    if (!isRecord(halves)) return;
+    let changed = false;
+    for (const mode of ["light", "dark"] as const) {
+      const id = halves[mode];
+      const owner = typeof id === "string" ? ids.get(id) : undefined;
+      if (owner && owner.id !== id) {
+        if (owner.id === "system") delete halves[mode];
+        else halves[mode] = owner.id;
+        changed = true;
+      }
+    }
+    if (changed) storage.setItem(THEME_HALVES_STORAGE_KEY, JSON.stringify(halves));
+  } catch { /* Read-only stores still resolve aliases in memory. */ }
 }
 
 export function isReservedThemeId(themeId: string): boolean {
@@ -421,7 +477,10 @@ function normalizeThemeId(themeId: string): string {
 }
 
 export function canonicalThemePreference(theme: string): string {
-  return theme === LEGACY_T3_CHAT_DARK_THEME_ID ? theme : normalizeThemeId(theme);
+  if (theme === LEGACY_T3_CHAT_DARK_THEME_ID) return theme;
+  const id = normalizeThemeId(theme);
+  if (RESERVED_THEME_IDS.has(id)) return id;
+  return themeLibrary().ids.get(id)?.id ?? id;
 }
 
 function themeIdFromPreference(theme: ThemePreference): string {
@@ -1230,12 +1289,11 @@ const BUILT_IN_THEME_DEFINITIONS: ReadonlyArray<ThemeDefinition> = BUILT_IN_THEM
 
 export function getThemeDefinition(theme: ThemePreference): ThemeDefinition | null {
   const themeId = themeIdFromPreference(theme);
-  return (
-    BUILT_IN_THEME_DEFINITIONS.find((definition) => definition.id === themeId) ??
-    getCustomThemes().find((definition) => definition.id === themeId) ??
-    getEnvironmentThemes().find((definition) => definition.id === themeId) ??
-    null
-  );
+  if (themeId === "system" || themeId === "dark" || themeId === "light") return null;
+  const stock = BUILT_IN_THEME_DEFINITIONS.find(definition => definition.id === themeId);
+  if (stock) return stock;
+  const owner = themeLibrary().ids.get(themeId);
+  return owner?.id === "system" ? null : (owner ?? null);
 }
 
 export function themeAllowsSidebarArtwork(theme: ThemePreference): boolean {
@@ -1376,6 +1434,7 @@ export function installCustomTheme(theme: ThemeDefinition): ThemeDefinition {
   const library = getWritableCustomThemeLibrary();
   if (
     BUILT_IN_THEME_DEFINITIONS.some((existing) => existing.id === theme.id) ||
+    themeLibrary().matchingName(theme) || findImportedTheme(theme) ||
     library.storedThemes.some((storedTheme) => storedThemeHasId(storedTheme, theme.id))
   ) {
     throw new Error(
@@ -1824,7 +1883,7 @@ export function resolveDesktopTheme(
 
 export function isKnownThemePreference(theme: string): boolean {
   if (theme === "light" || theme === "dark" || theme === "system") return true;
-  return getThemeDefinition(theme) !== null;
+  return canonicalThemePreference(theme) === "system" || getThemeDefinition(theme) !== null;
 }
 
 export type ThemeHalves = Readonly<{ light?: string; dark?: string }>;

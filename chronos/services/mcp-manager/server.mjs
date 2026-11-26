@@ -1,3 +1,4 @@
+import { serveLanguageAsset } from "../ui-language/serve.mjs";
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,6 +59,7 @@ export function createServer(){return http.createServer(async(req,res)=>{
     if(![`127.0.0.1:${PORT}`,`localhost:${PORT}`].includes(req.headers.host))return send(res,403,{error:'Недопустимый Host'});
     if(req.headers.origin&&!origins.has(req.headers.origin))return send(res,403,{error:'Недопустимый источник'});
     const u=new URL(req.url,`http://127.0.0.1:${PORT}`),origin=req.headers.origin;
+    if (req.method === "GET" && u.pathname.startsWith("/chronos-ui-") && await serveLanguageAsset(u.pathname, res)) return;
     const staticFiles={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8']};
     if(req.method==='GET'&&staticFiles[u.pathname]){const [name,type]=staticFiles[u.pathname];return send(res,200,fs.readFileSync(path.join(HERE,name),'utf8'),type,origin)}
     if(req.method==='GET'){

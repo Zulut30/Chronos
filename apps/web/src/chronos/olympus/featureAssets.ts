@@ -23,6 +23,8 @@ function guardedBlock(id: FeatureId, source: string) {
 }
 
 export function featureBlock(file: string, source: string) {
+  // The immutable 4774 fix rewrites Waiting/Running and file counts into Russian.
+  if (file === "87-ru-fixes.js") return 'if (globalThis.__chronosShellLanguage !== "en") {\n' + source + '\n}\n';
   const id = featureIds.find((id) => file === id + ".js");
   return id ? guardedBlock(id, source) : source;
 }

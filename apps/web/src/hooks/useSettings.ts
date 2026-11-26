@@ -66,6 +66,20 @@ import {
 import { environmentIdsKey } from "~/state/environmentAtomList";
 import { appAtomRegistry } from "~/rpc/atomRegistry";
 
+declare global {
+  interface Window {
+    __chronosInitialLanguage?: string;
+    __chronosInitialSettings?: Promise<ClientSettings | null>;
+    __chronosShellLanguage?: "en" | "ru";
+  }
+}
+function reloadForSavedLanguage(language: string) {
+  const current = globalThis.window?.__chronosShellLanguage;
+  if (!current) return;
+  const requested = language === "system" ? navigator.language : language;
+  if (current !== (requested.split("-")[0] === "ru" ? "ru" : "en")) window.location.reload();
+}
+
 const CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE = "[CLIENT_SETTINGS]";
 
 type UnifiedSettingsPatch = ServerSettingsPatch & ClientSettingsPatch;
@@ -150,7 +164,9 @@ async function hydrateClientSettings(): Promise<void> {
   );
   const nextHydration = (async () => {
     try {
-      const persistedSettings = await ensureLocalApi().persistence.getClientSettings();
+      const initial = globalThis.window?.__chronosInitialSettings;
+      if (initial) delete window.__chronosInitialSettings;
+      const persistedSettings = await (initial ?? ensureLocalApi().persistence.getClientSettings());
       if (hydrationGeneration !== clientSettingsHydrationGeneration) {
         return;
       }
@@ -188,6 +204,7 @@ function refreshClientSettingsFromOtherTab(): void {
     const persistedSettings = await ensureLocalApi().persistence.getClientSettings();
     if (persistedSettings) {
       replaceClientSettingsSnapshot({ ...DEFAULT_CLIENT_SETTINGS, ...persistedSettings });
+      reloadForSavedLanguage(persistedSettings.language);
     }
   }).catch((error) => {
     console.error(`${CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE} refresh failed`, {
@@ -238,7 +255,11 @@ export function persistClientSettingsPatch(
     ) {
       replaceClientSettingsSnapshot({ ...current, ...patch });
     }
-    await persist(getClientSettingsSnapshot());
+    const saved = getClientSettingsSnapshot();
+    await persist(saved);
+    if (patch.language !== undefined && getClientSettingsSnapshot().language === saved.language) {
+      reloadForSavedLanguage(saved.language);
+    }
   }).catch((error) => {
     console.error(`${CLIENT_SETTINGS_PERSISTENCE_ERROR_SCOPE} persist failed`, {
       operation: "persist",

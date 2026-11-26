@@ -1,15 +1,18 @@
-import { useAtomValue } from "@effect/atom-react";
+import { useSyncExternalStore } from "react";
 
 import { subscribeAtomChanges } from "../rpc/atomRegistry";
 import {
   environmentThemeDefinitionsAtom,
   storePublishedEnvironmentThemes,
+  getPublishedThemes,
+  migrateThemeSelections,
+  subscribeToCustomThemes,
   type ThemeDefinition,
 } from "../themePalette";
 import { refreshTheme } from "./useTheme";
 
 export function useEnvironmentThemeDefinitions(): ReadonlyArray<ThemeDefinition> {
-  return useAtomValue(environmentThemeDefinitionsAtom);
+  return useSyncExternalStore(subscribeToCustomThemes, getPublishedThemes, getPublishedThemes);
 }
 
 /**
@@ -17,7 +20,9 @@ export function useEnvironmentThemeDefinitions(): ReadonlyArray<ThemeDefinition>
  * only land if the active theme is re-applied.
  */
 export function startEnvironmentThemeRepaint(): () => void {
+  migrateThemeSelections();
   return subscribeAtomChanges(environmentThemeDefinitionsAtom, (definitions) => {
+    migrateThemeSelections();
     storePublishedEnvironmentThemes(definitions);
     refreshTheme({ preservePreview: true });
   });

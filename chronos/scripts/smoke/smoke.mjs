@@ -628,6 +628,12 @@ async function run() {
       ok: false,
     };
 
+    if (opts.verifyOlympus && opts.strictEn) {
+      const { verifyUiLanguage } = await import("./ui-language.mjs");
+      report.uiLanguage = await verifyUiLanguage(client);
+      console.log("[PASS] English panels, theme migration, Russian restored");
+    }
+
     // 1. Check Olympus globals (28 expected).
     const globalsResult = await client.probe("checkGlobals", { expected: checks.globals || [] });
     report.checks.globals = globalsResult;

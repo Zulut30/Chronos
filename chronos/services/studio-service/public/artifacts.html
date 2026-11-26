@@ -5,3 +5,17 @@
 <p id="status" role="status"></p><section id="cards" aria-label="Список артефактов"></section></main>
 <dialog aria-labelledby="delete-title" aria-describedby="delete-description"><form method="dialog"><h2 id="delete-title"></h2><p id="delete-description"></p><footer><button value="cancel" autofocus>Отмена</button><button value="delete">Удалить</button></footer></form></dialog>
 <script type="module" src="artifacts.js"></script></html>
+<script>
+if (parent !== window) {
+  const enableEnglish = async event => {
+    if (event.source !== parent || event.data?.type !== "chronos:ui-language" ||
+        event.data.language !== "en" || !["t3code://app", location.origin, "http://localhost:3773", "http://127.0.0.1:3773"].includes(event.origin)) return;
+    removeEventListener("message", enableEnglish);
+    const [runtime, catalog] = await Promise.all([
+      import("/chronos-ui-english.mjs"), fetch("/chronos-ui-english.json").then(r => r.json()),
+    ]);
+    runtime.installEnglish(catalog);
+  };
+  addEventListener("message", enableEnglish);
+}
+</script>

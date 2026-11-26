@@ -5,7 +5,7 @@ import { PcSettings } from "../../chronos/pc-control/Control"; // chronos: local
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
-import { msg, T, useGT, useMessages } from "gt-react";
+import { msg, T, useGT, useLocale, useMessages } from "gt-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import {
@@ -119,7 +119,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
-import { nativeLanguageName, SYSTEM_LANGUAGE } from "@t3tools/client-runtime/locales";
+import { SYSTEM_LANGUAGE } from "@t3tools/client-runtime/locales";
 import { SUPPORTED_LOCALES } from "../../i18n/locales";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -845,6 +845,7 @@ function AutoSettleDaysInput({
 }
 
 export function GeneralSettingsPanel() {
+  const languageNames = new Intl.DisplayNames([useLocale() || "ru"], { type: "language" });
   const gt = useGT();
   const m = useMessages();
   const setting = useSearchableSetting();
@@ -1162,11 +1163,11 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label={gt("Language")}>
+              <SelectTrigger size="sm" className="w-full sm:w-40" data-ui-language-picker="" aria-label={gt("Language")}>
                 <SelectValue>
                   {languageValue === SYSTEM_LANGUAGE
                     ? m(TIMESTAMP_FORMAT_LABELS.locale)
-                    : nativeLanguageName(languageValue)}
+                    : languageNames.of(languageValue)}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -1174,8 +1175,8 @@ export function GeneralSettingsPanel() {
                   {m(TIMESTAMP_FORMAT_LABELS.locale)}
                 </SelectItem>
                 {SUPPORTED_LOCALES.map((locale) => (
-                  <SelectItem hideIndicator key={locale} value={locale}>
-                    {nativeLanguageName(locale)}
+                  <SelectItem hideIndicator key={locale} value={locale} data-ui-language={locale}>
+                    {languageNames.of(locale)}
                   </SelectItem>
                 ))}
               </SelectPopup>
