@@ -263,6 +263,21 @@ class CdpClient {
 
   // Read each visible iframe in its own document, including cross-process service panels.
   async visibleLines(sessionId, contextId, excludeUserContent = "", documentSelector = "") {
+    const deadline = Date.now() + 4000;
+    for (;;) {
+      try {
+        return await this.readVisibleLines(sessionId, contextId, excludeUserContent, documentSelector);
+      } catch (error) {
+        // A service iframe can swap into another renderer between describeNode and
+        // createIsolatedWorld. Restart discovery from the page so its text is still checked.
+        const staleFrame = /No (?:frame|target|node) (?:for|with) given id|(?:session|context) with (?:given|specified) id|Execution context was destroyed|Visible iframe has no document/i;
+        if (!staleFrame.test(String(error)) || Date.now() >= deadline) throw error;
+        await sleep(50);
+      }
+    }
+  }
+
+  async readVisibleLines(sessionId, contextId, excludeUserContent, documentSelector) {
     const send = (method, params) => this.send(method, params, 30_000, sessionId);
     const evaluate = async (expression, returnByValue) => {
       const reply = await send("Runtime.evaluate", { expression, returnByValue, contextId });
@@ -308,6 +323,7 @@ class CdpClient {
     const frameTree = value.frames.length ? (await send("Page.getFrameTree", {})).frameTree : null;
     for (const index of value.frames) {
       const { objectId } = await evaluate(`document.querySelectorAll("iframe")[${index}]`, false);
+      if (!objectId) throw new Error("Visible iframe has no document");
       const { node } = await send("DOM.describeNode", { objectId });
       await send("Runtime.releaseObject", { objectId });
       if (!node.frameId) throw new Error("Visible iframe has no document");
@@ -325,7 +341,7 @@ class CdpClient {
         }));
       }
       try {
-        for (const line of await this.visibleLines(childSession ?? sessionId, childContext, excludeUserContent, documentSelector)) lines.add(line);
+        for (const line of await this.readVisibleLines(childSession ?? sessionId, childContext, excludeUserContent, documentSelector)) lines.add(line);
       } finally {
         if (childSession) await send("Target.detachFromTarget", { sessionId: childSession });
       }
