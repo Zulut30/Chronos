@@ -155,7 +155,24 @@ try {
         description: title, capabilities: ["db"], files: { "index.html": "<!doctype html><title>QA</title><p>QA</p>" } }));
       store.documents(artifactId, "set", { collection: "qa", key: "thread", value: { threadId } });
     } finally { store.close(); }
-    assert.ok(await evaluate(`(async()=>{const c=document.createElement('canvas');c.width=c.height=64;c.getContext('2d').fillRect(0,0,64,64);return window.chronosArtifactInstaller.install(${JSON.stringify(artifactId)},c.toDataURL(),null);})()`));
+    const click = selector => evaluate(`(() => {
+      const button = document.querySelector(${JSON.stringify(selector)});
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    })()`);
+    const route = "/" + oldRuntime.identity + "/" + threadId;
+    await waitFor("thread route", () => evaluate(`window.__TSR_ROUTER__?.navigate({ to: ${JSON.stringify(route)} }).then(() => true)`));
+    await waitFor("native gallery button", () => click('button[aria-label="Артефакты"]'));
+    await waitFor("fixture in gallery", () => click(`article[data-id="${artifactId}"] .art-cover`));
+    await waitFor("artifact actions", () => click('button[aria-label="Действия"]'));
+    await waitFor("install as app command", () => evaluate(`(() => {
+      const button = [...document.querySelectorAll(".art-menu button")].find(b => !b.disabled && b.textContent === "Установить как приложение");
+      if (!button) return false;
+      button.click();
+      return true;
+    })()`));
+    await waitFor("artifact shortcut ownership", () => evaluate(`window.chronosArtifactInstaller.installed(${JSON.stringify(artifactId)})`));
     oldShell = await shellState();
     oldIdentity = await readFile(path.join(data, "environment-id"), "utf8");
   });
