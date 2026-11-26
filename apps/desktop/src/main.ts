@@ -18,6 +18,8 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 
 import * as Electron from "electron";
+import { isChronosVersion } from "@t3tools/shared/cliRelease";
+import { prepareT3DataHome } from "./chronos/T3DataHome.ts";
 
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
@@ -256,4 +258,15 @@ const layerDesktopRuntime = layerDesktopClerk.pipe(
   Layer.provideMerge(DesktopPreReadyPlatform.layer),
 );
 
-DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+// chronos: refuse a shared Windows home before Clerk, sidecars and backend recovery can write.
+try {
+  if (isChronosVersion(Electron.app.getVersion()))
+    prepareT3DataHome(NodeOS.homedir(), process.env, Effect.runSync(HostProcess.Platform));
+  DesktopApp.program.pipe(Effect.provide(layerDesktopRuntime), NodeRuntime.runMain);
+} catch (error) {
+  Electron.dialog.showErrorBox(
+    "Chronos",
+    error instanceof Error ? error.message : "Ошибка проверки данных T3.",
+  );
+  Electron.app.exit(1);
+}
