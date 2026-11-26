@@ -440,7 +440,9 @@ const startup = Effect.gen(function* () {
   }
   // chronos: validate the closed Windows profile with the application's own safeStorage reader before migration.
   if (process.argv.includes("--verify-t3-profile")) {
-    const readable = yield* (yield* DesktopConnectionCatalogStore).get.pipe(Effect.isSuccess);
+    const readable =
+      (yield* safeStorage.isEncryptionAvailable.pipe(Effect.orElseSucceed(() => false))) &&
+      (yield* (yield* DesktopConnectionCatalogStore).get.pipe(Effect.isSuccess));
     if (!readable) {
       yield* (yield* ElectronDialog.ElectronDialog).showErrorBox(
         "Chronos",
@@ -451,7 +453,8 @@ const startup = Effect.gen(function* () {
     }
   }
   yield* startChronosServices(environment); // chronos: own sidecars in the desktop lifecycle scope
-  yield* startPcControl(environment); // chronos: trusted UI and on-demand computer control
+  if ((yield* HostProcess.Environment).CHRONOS_SWITCH_REHEARSAL !== "1")
+    yield* startPcControl(environment); // chronos: keep the disposable copy away from device control
   if (environment.platform === "linux") {
     const selectedBackend = yield* safeStorage.selectedStorageBackend;
     yield* logStartupInfo("safe storage ready", {

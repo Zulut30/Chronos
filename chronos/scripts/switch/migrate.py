@@ -124,15 +124,15 @@ def switch():
     preflight(True)
     active_services = legacy_services(T3)
     # The 4774 SSH finalizer can terminate a remotely owned serve on graceful quit.
-    close_desktop(OLYMPUS)
-    before_write()
     name = "switch-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     b = CONTROL / "backups" / name
     check_path(b)
     b.mkdir(parents=True)
-    doc = {"backup": name, "phase": "backing-up", "assets": {}, "agents": [],
+    doc = {"backup": name, "phase": "backing-up", "schema": migration(T3 / "userdata"), "assets": {}, "agents": [],
            "autostart": [], "running": sorted(active_services)}
     save(doc)
+    close_desktop(OLYMPUS)
+    before_write()
     say("Olympus закрыт. Создаётся и сверяется резервная копия вместе с WAL.")
     enroll(b, doc, "userdata", T3 / "userdata")
     enroll(b, doc, "olympus-profile", SOURCE)
@@ -180,7 +180,7 @@ def switch():
     launch(CHRONOS, ["--verify-t3-profile"])
     wait_for_services(CHRONOS)
     end = time.monotonic() + 120
-    while migration(T3 / "userdata") <= migration(b / "original/userdata"):
+    while migration(T3 / "userdata") <= doc["schema"]:
         require(time.monotonic() < end, "Не подтверждена миграция базы. Доступен откат.")
         time.sleep(1)
     doc["phase"] = "switched"
@@ -216,7 +216,7 @@ def rollback():
     check_path(b)
     require(not desktop_processes(OLYMPUS), "Сначала завершите Olympus.")
     phase = doc["phase"]
-    require(phase in ("backing-up", "services", "applying", "switched"), "Неизвестная фаза перехода.")
+    require(phase in ("backing-up", "services", "applying", "switched", "restored"), "Неизвестная фаза перехода.")
     if phase in ("applying", "switched"):
         close_desktop(CHRONOS)
         before_write()
@@ -231,6 +231,9 @@ def rollback():
             recover_asset(b, key, path, doc["assets"][key])
         for rel in STORES:
             recover_asset(b, "stores/" + rel, T3 / rel, doc["assets"]["stores/" + rel])
+        require(migration(T3 / "userdata") == doc["schema"], "Не совпала версия восстановленной базы.")
+        doc["phase"] = "restored"
+        save(doc)
     if phase != "backing-up":
         for vbs in doc["autostart"]:
             require(vbs in {name for _, name in SERVICES.values()}, "Неизвестная запись автозагрузки.")

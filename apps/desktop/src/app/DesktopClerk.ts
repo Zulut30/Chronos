@@ -125,6 +125,11 @@ export const make = Effect.gen(function* () {
     electronVersion: process.versions.electron,
   });
 
+  // chronos: do not register an OS callback or initialize cloud identity from an offline copy.
+  if ((yield* HostProcess.Environment).CHRONOS_SWITCH_REHEARSAL === "1") {
+    restoreDesktopSchemePrivileges();
+    return DesktopClerk.of({ configure: Effect.void });
+  }
   const pendingSecondInstances: Array<readonly string[]> = [];
   let handleSecondInstance = (argv: readonly string[]) => {
     pendingSecondInstances.push(argv);

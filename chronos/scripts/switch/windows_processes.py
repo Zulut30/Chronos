@@ -91,7 +91,8 @@ def stop_legacy(t3, recorded):
 
 def launch(exe, args=()):
     env = os.environ.copy()
-    for name in ("CHRONOS_HOME", "T3CODE_HOME", "ELECTRON_RUN_AS_NODE", "CHRONOS_SSH_CLI_SOURCE"):
+    for name in ("CHRONOS_HOME", "T3CODE_HOME", "ELECTRON_RUN_AS_NODE", "CHRONOS_SSH_CLI_SOURCE",
+                 "CHRONOS_SWITCH_REHEARSAL"):
         env.pop(name, None)
     return subprocess.Popen([str(exe), *map(str, args)], env=env, cwd=exe.parent,
                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
