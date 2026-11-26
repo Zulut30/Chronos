@@ -4,8 +4,6 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const prepareServerCompileCache = require("../../scripts/prepare-server-compile-cache.cjs");
-
 const PLIST_BUDDY = "/usr/libexec/PlistBuddy";
 const PLUTIL = "/usr/bin/plutil";
 const ASAR_INTEGRITY_KEY = "Resources/app.asar";
@@ -158,6 +156,7 @@ function writeAsarIntegrityPlist(infoPlistPath, hash) {
 }
 
 async function afterPack(context) {
+  const prepareServerCompileCache = require("../../scripts/prepare-server-compile-cache.cjs");
   await prepareServerCompileCache(context);
   if (context.electronPlatformName !== "darwin") return;
   if (process.platform !== "darwin") {
