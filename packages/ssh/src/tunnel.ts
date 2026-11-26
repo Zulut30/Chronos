@@ -1215,6 +1215,25 @@ export function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string 
 export function buildRemoteLaunchScript(input?: RemoteT3RunnerOptions): string {
   if (input?.existingServerOnly)
     return `set -eu
+if ! command -v node >/dev/null 2>&1; then
+  exec python3 - <<'PY'
+import json, os, sys
+from pathlib import Path
+from urllib.parse import urlsplit
+try:
+    record = json.loads((Path.home() / ".t3/userdata/server-runtime.json").read_bytes())
+    pid, port = record["pid"], record["port"]
+    origin = urlsplit(record["origin"])
+    if type(pid) is not int or pid <= 0 or type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError()
+    if origin.scheme != "http" or origin.hostname not in ("127.0.0.1", "localhost", "::1") or (origin.port or 80) != port:
+        raise ValueError()
+    os.kill(pid, 0)
+    print(json.dumps({"remotePort":port, "serverKind":"external"}))
+except (KeyError, ValueError, OSError):
+    sys.exit("No running local T3 server found. Remote management is disabled.")
+PY
+fi
 exec node - <<'NODE'
 const fs = require("node:fs");
 const path = require("node:path");
@@ -2338,7 +2357,7 @@ const makeSshEnvironmentManager = Effect.fn("ssh/tunnel.SshEnvironmentManager.ma
         // chronos: disconnecting a borrowed server closes only the local port forward.
         const runner =
           options.resolveCliRunner === undefined ? undefined : yield* options.resolveCliRunner;
-        if (!runner?.existingServerOnly) {
+        if (entry?.remoteServerKind !== "external" && !runner?.existingServerOnly) {
           const launcherId = yield* resolveLauncherId;
           yield* runWithSshAuth({
             key,

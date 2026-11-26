@@ -16,9 +16,9 @@ import sys
 import time
 
 from switch_data import (Conflict, agent_edit, agent_files, atomic, check_path, check_unowned,
-                         copy_verified, digest, files, migration, require)
-from windows_processes import (SERVICES, check_tunnels, close_desktop, desktop_processes, launch,
-                               legacy_services, listeners, stop_legacy, wait_for_services)
+                         copy_verified, digest, files, migration, relocate_studio_state, require)
+from windows_processes import (SERVICES, check_tunnels, close_desktop, cold_database_files, desktop_processes, launch,
+                               legacy_services, listeners, stop_legacy, wait_for_backend, wait_for_services)
 
 WARNING = "Миграции 4774 → 5209 необратимы. Откат восстанавливает резервную копию."
 HOME = Path.home()
@@ -79,7 +79,24 @@ def preflight(strict):
     require(sum(sizes) + sizes[0] + sizes[1] + extra + 2**30 < free, "Мало места для копии и восстановления.")
     say(f"Свободно {free / 2**30:.1f} ГиБ. Миграция {migration(T3 / 'userdata')}.")
     errors = []
-    for probe in [validate_executable, lambda: check_tunnels(desktop_processes(OLYMPUS)),
+    desktop = desktop_processes(OLYMPUS)
+    try:
+        check_unowned(T3 / "userdata")
+        say("Блокировка базы свободна.")
+    except Conflict:
+        owned = False
+        if desktop:
+            try:
+                runtime = json.loads((T3 / "userdata/server-runtime.json").read_bytes())
+                owned = runtime["pid"] in {p.pid for p in desktop} | {
+                    child.pid for p in desktop for child in p.children(recursive=True)}
+            except (FileNotFoundError, ValueError, KeyError):
+                pass
+        if owned:
+            say("Блокировку держит локальный сервер Olympus. Переключение дождётся его выхода.")
+        else:
+            errors.append("Блокировку держит отдельный сервер T3 или файл недоступен.")
+    for probe in [validate_executable, lambda: check_tunnels(desktop),
                   lambda: legacy_services(T3), lambda: require(not desktop_processes(CHRONOS), "Открыт Chronos."),
                   lambda: require(not MARKER.exists() and not ACTIVE.exists(), "Уже есть операция перехода."),
                   lambda: require(not os.environ.get("CHRONOS_HOME"), "Удалите CHRONOS_HOME из окружения запуска.")]:
@@ -134,7 +151,8 @@ def switch():
     close_desktop(OLYMPUS)
     before_write()
     say("Olympus закрыт. Создаётся и сверяется резервная копия вместе с WAL.")
-    enroll(b, doc, "userdata", T3 / "userdata")
+    with cold_database_files(T3 / "userdata"):
+        enroll(b, doc, "userdata", T3 / "userdata")
     enroll(b, doc, "olympus-profile", SOURCE)
     enroll(b, doc, "chronos-profile", PROFILE)
     for i, (path, (new, _, _)) in enumerate(changes().items()):
@@ -170,6 +188,8 @@ def switch():
         if old.exists():
             new.parent.mkdir(parents=True, exist_ok=True)
             copy_verified(old, new)
+            if rel == "studio-service/data":
+                relocate_studio_state(old, new)
     for key, raw in doc["agents"]:
         target = Path(raw)
         require(digest(target) == digest(b / "original" / key), "Конфигурация агента изменилась во время перехода.")
@@ -177,12 +197,9 @@ def switch():
     atomic(MARKER, b"1\n")
     before_write()
     require(not listeners(), "Порты встроенных сервисов заняты.")
-    launch(CHRONOS, ["--verify-t3-profile"])
+    desktop = launch(CHRONOS, ["--verify-t3-profile"])
     wait_for_services(CHRONOS)
-    end = time.monotonic() + 120
-    while migration(T3 / "userdata") <= doc["schema"]:
-        require(time.monotonic() < end, "Не подтверждена миграция базы. Доступен откат.")
-        time.sleep(1)
+    wait_for_backend(desktop, T3 / "userdata", doc["schema"])
     doc["phase"] = "switched"
     save(doc)
     say("Chronos открыл базу и запустил семь встроенных сервисов. Резервная копия сохранена.")
@@ -214,8 +231,12 @@ def rollback():
     require(re.fullmatch(r"switch-\d{8}-\d{6}-\d{6}", name), "Некорректная запись резервной копии.")
     b = CONTROL / "backups" / name
     check_path(b)
-    require(not desktop_processes(OLYMPUS), "Сначала завершите Olympus.")
     phase = doc["phase"]
+    if phase == "backing-up" and desktop_processes(OLYMPUS):
+        stash(ACTIVE, b / "completed-rollback.json")
+        say("Olympus продолжает работу. Переход завершён до изменения данных.")
+        return
+    require(not desktop_processes(OLYMPUS), "Сначала завершите Olympus.")
     require(phase in ("backing-up", "services", "applying", "switched", "restored"), "Неизвестная фаза перехода.")
     if phase in ("applying", "switched"):
         close_desktop(CHRONOS)

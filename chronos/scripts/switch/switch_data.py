@@ -89,6 +89,28 @@ def migration(userdata):
         return db.execute("SELECT MAX(migration_id) FROM effect_sql_migrations").fetchone()[0]
 
 
+def relocate_studio_state(source, destination, *, copied_paths_only=False):
+    state = destination / "state.json"
+    if not state.is_file():
+        return
+    document = json.loads(state.read_bytes())
+
+    def relocate(raw):
+        p = Path(raw)
+        if p.is_absolute() and p.is_relative_to(source):
+            return str(destination / p.relative_to(source))
+        return None if copied_paths_only else raw
+
+    recent = []
+    for entry in document.get("recent", []):
+        path = relocate(entry["path"])
+        if path is not None:
+            recent.append({**entry, "path": path, "dir": str(Path(path).parent)})
+    document["recent"] = recent
+    document["customDirs"] = [value for p in document.get("customDirs", []) if (value := relocate(p)) is not None]
+    atomic(state, json.dumps(document, ensure_ascii=False).encode("utf-8"))
+
+
 def check_unowned(userdata):
     owner = userdata / "server-owner.sqlite"
     if owner.exists():

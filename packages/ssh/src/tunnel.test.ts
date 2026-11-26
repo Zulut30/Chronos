@@ -173,6 +173,39 @@ const localRemoteShellLayer = (home: string) =>
   );
 
 describe("ssh tunnel scripts", () => {
+  it.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+    "archive launch script borrows the current server without changing its home",
+    () => {
+      const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "chronos-borrow-"));
+      try {
+        const state = NodePath.join(root, ".t3", "userdata");
+        NodeFS.mkdirSync(state, { recursive: true });
+        const record = NodePath.join(state, "server-runtime.json");
+        const runtime = JSON.stringify({
+          pid: process.pid,
+          port: 45123,
+          origin: "http://127.0.0.1:45123",
+        });
+        NodeFS.writeFileSync(record, runtime);
+        const borrow = () =>
+          NodeChildProcess.spawnSync("sh", ["-s"], {
+            env: { ...process.env, HOME: root },
+            encoding: "utf8",
+            input: SshTunnel.buildRemoteLaunchScript({ existingServerOnly: true }),
+          });
+        const hit = borrow();
+        assert.equal(hit.status, 0);
+        assert.deepEqual(JSON.parse(hit.stdout), { remotePort: 45123, serverKind: "external" });
+        assert.equal(NodeFS.readFileSync(record, "utf8"), runtime);
+        NodeFS.unlinkSync(record);
+        assert.notEqual(borrow().status, 0);
+        assert.deepEqual(NodeFS.readdirSync(state), []);
+        assert.deepEqual(NodeFS.readdirSync(NodePath.join(root, ".t3")), ["userdata"]);
+      } finally {
+        NodeFS.rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
   it.live("distinguishes an incompatible remote Node from a missing executable", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

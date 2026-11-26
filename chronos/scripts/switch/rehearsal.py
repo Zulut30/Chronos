@@ -11,7 +11,7 @@ import sys
 import tempfile
 import time
 
-from switch_data import check_path, require
+from switch_data import Conflict, check_path, relocate_studio_state, require
 
 
 def owned_snapshot(path):
@@ -67,9 +67,10 @@ def isolate_database(path, work):
         db.execute("UPDATE orchestration_v2_projection_threads SET active_provider_thread_id=NULL, "
                    "payload_json=json_set(payload_json,'$.activeProviderThreadId',NULL,'$.worktreePath',NULL,"
                    "'$.linkedPullRequest',NULL,'$.branchPullRequest',NULL)")
-        for i, (project,) in enumerate(db.execute("select project_id from projection_projects").fetchall()):
+        for i, (project, previous) in enumerate(db.execute("select project_id, workspace_root from projection_projects").fetchall()):
             folder = work / f"project-{i}"
             folder.mkdir(parents=True)
+            copy_project_boards(previous, folder)
             db.execute("UPDATE projection_projects SET workspace_root=?, auto_pull=0, scripts_json='[]' WHERE project_id=?",
                        (str(folder),project))
         require(db.execute("SELECT count(*) FROM scheduled_tasks WHERE enabled").fetchone()[0] == 0,
@@ -79,6 +80,25 @@ def isolate_database(path, work):
                 "An unfinished copied run remains")
         require(all(count(t) == n for t, n in before.items()), "History count changed during isolation")
         return before
+
+
+def copy_project_boards(previous, folder):
+    import ctypes
+    if not previous:
+        return
+    source = Path(previous)
+    if not source.is_absolute() or source.drive.startswith("\\\\") or ctypes.windll.kernel32.GetDriveTypeW(source.anchor) != 3:
+        return
+    boards = source / ".excalidraw"
+    try:
+        check_path(boards)
+    except Conflict:
+        return
+    if boards.is_dir():
+        for entry in boards.glob("*.excalidraw"):
+            check_path(entry)
+            (folder / ".excalidraw").mkdir(exist_ok=True)
+            shutil.copyfile(entry, folder / ".excalidraw" / entry.name)
 
 
 def copy_live_storage(source, dest):
@@ -139,6 +159,8 @@ def prepare_rehearsal(snapshot, electron):
         if source.is_dir():
             dest.parent.mkdir(parents=True,exist_ok=True)
             shutil.copytree(source,dest)
+            if dst == "studio-service/data":
+                relocate_studio_state(source, dest, copied_paths_only=True)
     skills = Path.home()/".agents/skills"
     for folder in skills.iterdir() if skills.is_dir() else ():
         entry = folder/"SKILL.md"

@@ -1,6 +1,9 @@
 """Ownership checks for the seven legacy listeners and the two desktop windows."""
+import contextlib
 import ctypes
 from ctypes import wintypes
+import http.client
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -24,6 +27,31 @@ SERVICES = {
 def listeners():
     return {c.laddr.port: c.pid for c in psutil.net_connections("tcp")
             if c.status == psutil.CONN_LISTEN and c.laddr.port in SERVICES}
+
+
+@contextlib.contextmanager
+def cold_database_files(userdata):
+    # Sharing flags apply to existing and future writers. Keep all cold SQLite files readable
+    # for backup while denying write/delete access, including to a newly opened SQLite client.
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+                       wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    handles = []
+    try:
+        for name in ("statev2.sqlite", "statev2.sqlite-wal", "statev2.sqlite-shm", "statev2.sqlite-journal"):
+            handle = create(str(userdata / name), 0x80000000, 1, None, 3, 0x80, None)
+            if handle == ctypes.c_void_p(-1).value:
+                if name != "statev2.sqlite" and ctypes.get_last_error() == 2:
+                    continue
+                raise Conflict("Файл SQLite открыт для записи или недоступен. Холодная копия остановлена.")
+            handles.append(handle)
+        yield
+    finally:
+        for handle in handles:
+            kernel.CloseHandle(handle)
 
 
 def legacy_services(t3):
@@ -112,3 +140,27 @@ def wait_for_services(exe):
             return
         time.sleep(1)
     raise Conflict("Chronos не занял все семь портов. Доступен откат.")
+
+
+def wait_for_backend(desktop, userdata, previous_schema):
+    from switch_data import migration
+    expected = (userdata / "environment-id").read_text("utf-8-sig").strip()
+    owner = psutil.Process(desktop.pid)
+    end = time.monotonic() + 300
+    while time.monotonic() < end:
+        require(owner.is_running(), "Chronos завершился до готовности сервера. Доступен откат.")
+        try:
+            runtime = json.loads((userdata / "server-runtime.json").read_bytes())
+            if runtime["pid"] in {child.pid for child in owner.children(recursive=True)}:
+                with contextlib.closing(http.client.HTTPConnection("127.0.0.1", runtime["port"], timeout=2)) as connection:
+                    connection.request("GET", "/.well-known/t3/environment")
+                    reply = connection.getresponse()
+                    if reply.status == 200:
+                        data = json.loads(reply.read(65536))
+                        if data.get("environmentId") == expected and data.get("databaseMigration", 0) > previous_schema:
+                            if data["databaseMigration"] == migration(userdata):
+                                return
+        except (FileNotFoundError, OSError, ValueError, KeyError, http.client.HTTPException):
+            pass
+        time.sleep(1)
+    raise Conflict("Сервер Chronos не подтвердил готовность мигрированной базы. Доступен откат.")
