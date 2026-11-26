@@ -1048,3 +1048,68 @@ it.effect("keeps writes moving while an outside reader pins the WAL, then trims 
     }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true })));
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
+
+const readSqliteIdleEnv = () => process.env.CHRONOS_SQLITE_WORKER_IDLE_MS;
+const setSqliteIdleEnv = (value: string | undefined) => {
+  if (value === undefined) delete process.env.CHRONOS_SQLITE_WORKER_IDLE_MS;
+  else process.env.CHRONOS_SQLITE_WORKER_IDLE_MS = value;
+};
+const waitForCheckpointWorkerAfter = (countBefore: number) =>
+  new Promise<NodeWorkerThreads.Worker>((resolve) => {
+    const poll = () => {
+      const next = checkpointWorkers.at(-1);
+      if (checkpointWorkers.length > countBefore && next !== undefined) resolve(next);
+      else setImmediate(poll);
+    };
+    poll();
+  });
+
+it.live("starts checkpoint worker lazily and retires idle reader and checkpoint workers cleanly", () =>
+  withLogLines((lines) =>
+    Effect.gen(function* () {
+      const previousIdle = readSqliteIdleEnv();
+      yield* Effect.sync(() => setSqliteIdleEnv("150"));
+      return yield* Effect.gen(function* () {
+        const { filename } = yield* makeTempDatabase;
+        const checkpointsBefore = checkpointWorkers.length;
+        const workersBefore = startedWorkers.length;
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          // Opening the writer must not spawn the checkpoint worker eagerly.
+          assert.equal(checkpointWorkers.length, checkpointsBefore);
+          assert.equal(startedWorkers.length, workersBefore + 1);
+
+          // First read spawns one reader worker; it retires cleanly after idle timeout.
+          assert.deepEqual(
+            yield* sql`SELECT value FROM counters WHERE id = 1`.values.pipe(SqliteClient.readOnly),
+            [[0]],
+          );
+          const firstReader = startedWorkers.at(-1)!;
+          assert.equal(startedWorkers.length, workersBefore + 2);
+          yield* Effect.promise(() => workerExits.get(firstReader)!);
+
+          // Subsequent read transparently spawns a fresh reader without warnings.
+          assert.deepEqual(
+            yield* sql`SELECT value FROM counters WHERE id = 1`.values.pipe(SqliteClient.readOnly),
+            [[0]],
+          );
+          assert.equal(startedWorkers.length, workersBefore + 3);
+
+          // First write wakes the checkpoint worker lazily; it retires cleanly once WAL catches up.
+          yield* sql`UPDATE counters SET value = 1 WHERE id = 1`;
+          const firstCheckpointer = yield* Effect.promise(() =>
+            waitForCheckpointWorkerAfter(checkpointsBefore),
+          );
+          yield* Effect.promise(() => workerExits.get(firstCheckpointer)!);
+
+          // Another write wakes a fresh checkpoint worker and keeps data intact.
+          yield* sql`UPDATE counters SET value = 2 WHERE id = 1`;
+          assert.deepEqual(yield* sql`SELECT value FROM counters WHERE id = 1`.values, [[2]]);
+          assert.equal(Queue.sizeUnsafe(lines), 0);
+        }).pipe(
+          Effect.provide(SqliteClient.layer({ filename, writerWorker: true, readerWorker: true })),
+        );
+      }).pipe(Effect.ensuring(Effect.sync(() => setSqliteIdleEnv(previousIdle))));
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+  ),
+);

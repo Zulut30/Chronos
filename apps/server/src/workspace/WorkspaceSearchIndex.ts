@@ -39,8 +39,13 @@ import * as VcsProcess from "../vcs/VcsProcess.ts";
 import { type IgnoreDecision, type IgnoreFile, parseIgnoreFile } from "./IgnorePatterns.ts";
 
 // fff-node's native library stays external; single-executables require disk packages instead of importing them.
+// chronos: defer loading the native fff-node addon until a workspace search index is created.
 const requireForFff = NodeModule.createRequire(import.meta.url);
-const { FileFinder } = requireForFff("@ff-labs/fff-node") as typeof import("@ff-labs/fff-node");
+let cachedFileFinder: (typeof import("@ff-labs/fff-node"))["FileFinder"] | undefined;
+const loadFileFinder = () =>
+  (cachedFileFinder ??= (
+    requireForFff("@ff-labs/fff-node") as typeof import("@ff-labs/fff-node")
+  ).FileFinder);
 
 // A glob intersects existing extension constraints; fff ORs bare `*.ext` constraints together.
 const IMAGE_SEARCH_CONSTRAINT = `**/*.{${PROJECT_FAVICON_EXTENSIONS.map((extension) =>
@@ -582,7 +587,7 @@ const createFinder = Effect.fn("WorkspaceSearchIndex.createFinder")(function* (
 ) {
   const result = yield* Effect.try({
     try: () =>
-      FileFinder.create({
+      loadFileFinder().create({
         basePath: cwd,
         disableMmapCache: true,
         // Content indexing costs CPU/memory; path-only consumers use the lightweight index.
