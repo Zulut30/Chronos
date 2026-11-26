@@ -20,7 +20,6 @@ REQUIRED = {
 # These rows can use literal skill names until their provider branches land.
 PENDING = {
     "chronos-artifacts": "feature/artifacts",
-    "chronos-keyboard": "feature/keyboard-studio",
     "chronos-pc-control": "feature/pc-control",
     "chronos-perf-guard": "perf/guard",
 }

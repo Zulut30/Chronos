@@ -133,6 +133,33 @@ describe("ClientSettings terminal close confirmation", () => {
   it("keeps confirmation enabled for settings without a saved preference", () => {
     expect(decodeClientSettings({}).confirmTerminalClose).toBe(true);
   });
+
+  // chronos: ignore legacy macro pad fields left in saved client or server settings.
+  it("decodes saved settings with stale keyboard fields without errors", () => {
+    const legacyKeyboard = {
+      enabled: true,
+      device: "side-keyboard",
+      active: "default",
+      bindings: { key1: { signal: "k:1", action: { id: "new-draft" } } },
+    };
+    const client = decodeClientSettings({
+      timestampFormat: "24-hour",
+      keyboard: legacyKeyboard,
+      keyboards: { enabled: true },
+    });
+    expect(client.timestampFormat).toBe("24-hour");
+    expect(client).not.toHaveProperty("keyboard");
+    expect(client).not.toHaveProperty("keyboards");
+
+    const server = decodeServerSettings({
+      worktreesDirectory: "/work",
+      keyboard: legacyKeyboard,
+      keyboards: { enabled: true },
+    });
+    expect(server.worktreesDirectory).toBe("/work");
+    expect(server).not.toHaveProperty("keyboard");
+    expect(server).not.toHaveProperty("keyboards");
+  });
 });
 
 describe("ServerSettings usage price overrides", () => {
