@@ -3,6 +3,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, openSync } from "node:fs";
 import { appendFile, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -15,11 +16,13 @@ const { RUNNER_TEMP, FROM_VERSION: from, TO_VERSION: to, GITHUB_REPOSITORY: repo
 const versionPattern = /^\d+\.\d+\.\d+-nightly\.\d+\.\d+\.chronos\.\d+$/u;
 assert.match(from, versionPattern); assert.match(to, versionPattern); assert.notEqual(from, to);
 const root = path.join(RUNNER_TEMP, "chronos-upgrade"), evidence = path.join(root, "evidence");
-const home = path.join(root, "home"), data = path.join(home, "userdata"), projectRoot = path.join(root, "project");
+// NSIS can relaunch via Explorer, without the original launcher environment.
+const home = path.join(homedir(), ".chronos"), data = path.join(home, "userdata"), projectRoot = path.join(root, "project");
+assert.equal(await exists(home), false, "Expected a fresh Windows user profile");
 await Promise.all([evidence, data, projectRoot].map(dir => mkdir(dir, { recursive: true })));
 const { GH_TOKEN, ...childEnv } = process.env;
 const env = { ...childEnv, CHRONOS_HOME: home, T3CODE_HOME: home, T3CODE_PORT: "28581", T3CODE_TELEMETRY_ENABLED: "false" };
-const origin = "http://127.0.0.1:28581", cdpOrigin = "http://127.0.0.1:29481";
+const cdpOrigin = "http://127.0.0.1:29481";
 const exe = path.join(process.env.LOCALAPPDATA, "Programs", "chronos", "Chronos.exe");
 const resources = path.join(path.dirname(exe), "resources");
 const projectId = randomUUID(), threadId = randomUUID(), title = "Chronos upgrade fixture";
@@ -65,10 +68,11 @@ async function fetchRelease(version) {
 }
 async function runtime() {
   const info = JSON.parse(await readFile(path.join(data, "server-runtime.json"), "utf8"));
-  assert.equal(info.origin, origin);
-  const r = await fetch(origin + "/.well-known/t3/environment");
+  const url = new URL(info.origin);
+  assert.equal(url.protocol, "http:"); assert.equal(url.hostname, "127.0.0.1");
+  const r = await fetch(url.origin + "/.well-known/t3/environment");
   assert.ok(r.ok);
-  return { pid: info.pid, identity: (await r.json()).environmentId };
+  return { origin: url.origin, pid: info.pid, identity: (await r.json()).environmentId };
 }
 async function connectPage() {
   const tabs = await (await fetch(cdpOrigin + "/json/list")).json();
@@ -83,6 +87,7 @@ async function evaluate(expression) {
   return reply.result.value;
 }
 async function withRpc(callback) {
+  const { origin } = await runtime();
   const entry = path.join(resources, "server.asar/apps/server/dist/bin.mjs");
   const bearer = execFileSync(exe, [entry, "auth", "session", "issue", "--token-only", "--label", "upgrade-fixture"],
     { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, encoding: "utf8", windowsHide: true }).trim();
@@ -225,6 +230,14 @@ try {
   summary.error = String(error.stack || error); process.exitCode = 1; console.error(error);
 } finally {
   cdp?.close();
+  // Persist the actual post-install state even if NSIS never restarts the app.
+  const inspect = async (file) => (await readFile(file, "utf8").catch(() => null))?.trim();
+  summary.lastStartedVersion = await inspect(path.join(data, "desktop-last-started-version"));
+  summary.backend = await runtime().catch(() => null);
+  summary.installedVersion = execFileSync("pwsh.exe", ["-NoProfile", "-Command",
+    "if(Test-Path -LiteralPath $env:UPGRADE_EXECUTABLE){(Get-Item -LiteralPath $env:UPGRADE_EXECUTABLE).VersionInfo.ProductVersion}"],
+    { env: { ...env, UPGRADE_EXECUTABLE: exe }, encoding: "utf8", windowsHide: true }).trim();
+
   if (mirror) { summary.transfer = mirror.transfer(); await writeFile(path.join(evidence, "requests.json"), JSON.stringify(mirror.requests, null, 2)); await mirror.close(); }
   await writeFile(path.join(evidence, "report.json"), JSON.stringify(summary, null, 2));
   const rows = summary.timings.map(s => `| ${s.name} | ${s.status} | ${s.seconds.toFixed(1)} |`);
