@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 // Runs before the existing strict Russian suite, on its empty, disposable profile.
@@ -26,8 +29,17 @@ export async function verifyUiLanguage(client) {
   }
   async function click(selector) {
     const element = "document.querySelector(" + JSON.stringify(selector) + ")";
-    await until(selector, () => evaluate("!!" + element + "?.getClientRects().length"));
-    const point = await evaluate("(() => {const e=" + element + "; e.scrollIntoView({block:'center'});const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
+    let point;
+    await until(selector, async () => {
+      point = await evaluate(`(() => {
+        const el = ${element};
+        if (!el?.getClientRects().length) return null;
+        el.scrollIntoView({block:'center',behavior:'instant'});
+        const r = el.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+        return el.contains(document.elementFromPoint(x, y)) ? {x, y} : null;
+      })()`);
+      return point;
+    });
     for (const type of ["mousePressed", "mouseReleased"]) {
       await client.send("Input.dispatchMouseEvent", { type, button: "left", clickCount: 1, ...point });
     }
@@ -70,16 +82,37 @@ export async function verifyUiLanguage(client) {
   const exportFile = { version: 1, ...original, id: "smoke-reimport", name: "Reimported Olympus" };
   const storedImports = () => evaluate("localStorage.getItem('t3code:themes:v1')");
   const before = await storedImports();
-  for (let pass = 0; pass < 2; pass++) {
-    const open = await client.probe("performAction", { type: "click", selector: "button", text: "Add theme" });
-    assert.ok(open.ok, open.detail);
-    await click("#theme-json-editor");
-    await evaluate("document.querySelector('#theme-json-editor').select()");
-    await client.send("Input.insertText", { text: JSON.stringify(exportFile) });
-    const submit = await client.probe("performAction", { type: "click", selector: "[role=dialog] button", text: "Add theme" });
-    assert.ok(submit.ok, submit.detail);
-    await until("reimport selects the published theme", () => evaluate("!document.querySelector('#theme-json-editor') && localStorage.getItem('t3code:theme')==='olympus'"));
-    assert.equal(await storedImports(), before, "reimport must not write another theme");
+  const directory = mkdtempSync(join(tmpdir(), "chronos-theme-import-"));
+  const file = join(directory, "Reimported Olympus.json");
+  const content = JSON.stringify(exportFile);
+  try {
+    writeFileSync(file, content);
+    for (let pass = 0; pass < 2; pass++) {
+      const open = await client.probe("performAction", { type: "click", selector: "button", text: "Add theme" });
+      assert.ok(open.ok, open.detail);
+      const dialog = "document.querySelector('#theme-json-editor')?.closest('[role=dialog]')";
+      const fileInput = dialog + "?.querySelector('input[type=file]')";
+      await until("theme file chooser", () => evaluate("!!" + fileInput));
+      const { result } = await client.send("Runtime.evaluate", { expression: fileInput });
+      assert.ok(result.objectId, "missing import dialog file input");
+      try {
+        await client.send("DOM.setFileInputFiles", { objectId: result.objectId, files: [file] });
+      } finally {
+        await client.send("Runtime.releaseObject", { objectId: result.objectId });
+      }
+      const submit = "Array.from(" + dialog + "?.querySelectorAll('button') ?? []).find(b => b.textContent.trim() === 'Add theme' && !b.disabled)";
+      // A large stylesheet is read asynchronously. Submit only after the actual file
+      // has populated the editor and React has enabled its import action.
+      await until("file ready to import", () => evaluate(
+        "document.querySelector('#theme-json-editor')?.value.length === " + content.length + " && !!(" + submit + ")"));
+      // Settings and its nested importer both offer Add theme. Submit in the editor's own dialog.
+      assert.ok(await evaluate("(() => {const button = " + submit + "; if (!button) return false; button.click(); return true})()"));
+      await until("reimport selects the published theme", () => evaluate("!document.querySelector('#theme-json-editor') && localStorage.getItem('t3code:theme')==='olympus'"));
+      assert.equal(await storedImports(), before, "reimport must not write another theme");
+    }
+  } finally {
+    rmSync(file, { force: true });
+    rmdirSync(directory);
   }
   // Simulate older clients with two stored imports and a selected duplicate in both halves.
   // Reload twice to cover hydration as well as a reconnect that republishes the same theme.
