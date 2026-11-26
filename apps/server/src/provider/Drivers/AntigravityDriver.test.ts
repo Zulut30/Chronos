@@ -422,7 +422,11 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
 
         // The agy CLI rejects `yolo` and `auto_edit`; it stays in `default` and T3 answers its requests.
         h.controls.selected = yield* h.makeExecutable("runtime cli", { initialMode: "auto_edit" });
-        for (const runtimeMode of ["full-access", "auto-accept-edits"] as const) {
+        for (const runtimeMode of [
+          "full-access",
+          "auto-accept-edits",
+          "approval-required",
+        ] as const) {
           const requestsBefore = (yield* h.readRequests).length;
           const cliThreadId = ThreadId.make(`thread-antigravity-cli-${runtimeMode}`);
           const cliPolicy = ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
@@ -447,7 +451,9 @@ it.layer(layerTest)("AntigravityDriver", (it) => {
             h.profileDirectory,
             "--app-data-dir",
             "antigravity-acp",
-            ...(runtimeMode === "full-access" ? ["--sandbox=false"] : []),
+            ...(runtimeMode === "full-access"
+              ? ["--sandbox=false", "--dangerously-skip-permissions"]
+              : []),
           ]);
           expect(
             (yield* h.readRequests)

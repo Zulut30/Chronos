@@ -161,6 +161,7 @@ export function antigravityUsesHostShell(
   return (
     policy?.runtimeMode === "full-access" &&
     policy.interactionMode !== "plan" &&
+    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
     (policy.maxRuntimeMode === undefined || policy.maxRuntimeMode === "full-access") &&
     (policy.sandboxPolicy === undefined ||
       unknownRecord(policy.sandboxPolicy)?.type === "dangerFullAccess")

@@ -847,6 +847,20 @@ const isProviderAdapterRuntimeRequestResponseError = Schema.is(
   ProviderAdapter.ProviderAdapterRuntimeRequestResponseError,
 );
 
+function fullAccessAllowsLocalTools(
+  policy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
+): boolean {
+  return (
+    policy.runtimeMode === "full-access" &&
+    policy.interactionMode !== "plan" &&
+    (policy.maxRuntimeMode ?? "full-access") === "full-access" &&
+    (policy.approvalPolicy === undefined || policy.approvalPolicy === "never") &&
+    (policy.sandboxPolicy === undefined ||
+      (Schema.is(CodexSchema.V2TurnStartParams__SandboxPolicy)(policy.sandboxPolicy) &&
+        policy.sandboxPolicy.type === "dangerFullAccess"))
+  );
+}
+
 function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
   readonly approvalPolicy: CodexSchema.V2TurnStartParams__AskForApproval;
   readonly approvalsReviewer: CodexSchema.V2TurnStartParams__ApprovalsReviewer;
@@ -879,16 +893,7 @@ function codexRuntimeModeTurnDefaults(runtimeMode: RuntimeMode): {
       };
     case "full-access":
       return {
-        // `never` also rejects browser and app access prompts before the client sees them.
-        approvalPolicy: {
-          granular: {
-            mcp_elicitations: true,
-            request_permissions: false,
-            rules: false,
-            sandbox_approval: false,
-            skill_approval: false,
-          },
-        },
+        approvalPolicy: "never",
         approvalsReviewer: "user",
         sandboxPolicy: {
           type: "dangerFullAccess",
@@ -2675,6 +2680,39 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
           if (nativeThreadId == null) return;
           rootProviderThreads.set(nativeThreadId, providerThread);
           yield* emitGoalUpdate(nativeThreadId);
+        });
+
+        const recordFullAccessApproval = Effect.fnUntraced(function* (
+          context: ActiveCodexTurnContext,
+          requestId: string,
+        ) {
+          const nativeItemId = `full-access-approval:${context.providerTurnId}:${requestId}`;
+          const { ordinal, startedAt } = yield* resolveItemPosition(context, nativeItemId);
+          yield* emitProviderEvent({
+            type: "turn_item.updated",
+            driver: CODEX_PROVIDER,
+            turnItem: {
+              id: idAllocator.derive.turnItemFromProviderItem({
+                driver: CODEX_PROVIDER,
+                nativeItemId,
+              }),
+              threadId: context.projectionThreadId,
+              runId: context.projectionRunId,
+              nodeId: context.providerNodeId,
+              providerThreadId: context.providerThread.id,
+              providerTurnId: context.providerTurnId,
+              nativeItemRef: { ...codexNativeItemRef(nativeItemId), strength: "weak" },
+              parentItemId: null,
+              ordinal,
+              type: "system_notice",
+              status: "completed",
+              title: "Approved automatically: full access",
+              message: "Approved automatically: full access",
+              startedAt,
+              completedAt: startedAt,
+              updatedAt: startedAt,
+            },
+          });
         });
 
         const emitMcpStartupFailures = Effect.fn("CodexAdapterV2.emitMcpStartupFailures")(
@@ -6305,15 +6343,13 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
                 payload,
               );
             }
-            // T3's Full access policy is granular, under which Codex still asks before commands it
-            // deems dangerous. Managed-network asks enforce the user's allowlist, so they still ask.
+            // Older app-server versions can forward a command approval even under never.
             if (
-              context.input.runtimePolicy.runtimeMode === "full-access" &&
-              context.input.runtimePolicy.approvalPolicy === undefined &&
-              context.input.runtimePolicy.sandboxPolicy === undefined &&
+              fullAccessAllowsLocalTools(context.input.runtimePolicy) &&
               payload.networkApprovalContext == null &&
               (payload.proposedNetworkPolicyAmendments ?? []).length === 0
             ) {
+              yield* recordFullAccessApproval(context, payload.approvalId ?? payload.itemId);
               return {
                 decision: "accept",
               } satisfies CodexSchema.CommandExecutionRequestApprovalResponse;
@@ -6389,6 +6425,12 @@ export const makeCodexAdapterV2 = Effect.fn("makeCodexAdapterV2")(function* (
               );
             }
             const allowance = sessionAllowance(payload.threadId, context);
+            if (fullAccessAllowsLocalTools(context.input.runtimePolicy) && !payload.grantRoot) {
+              yield* recordFullAccessApproval(context, payload.itemId);
+              return {
+                decision: "acceptForSession",
+              } satisfies CodexSchema.FileChangeRequestApprovalResponse;
+            }
             if (allowance.has("file-change")) {
               return {
                 decision: "acceptForSession",

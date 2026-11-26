@@ -2,7 +2,7 @@ import {
   FULL_ACCESS_OVERRIDE_QUESTION,
   fullAccessOverrideExplanation,
 } from "@t3tools/client-runtime/state/thread-requests";
-import { msg, T, useMessages } from "gt-react";
+import { msg, useMessages } from "gt-react";
 import { ShieldIcon } from "lucide-react";
 import { memo, use } from "react";
 import { type PendingApproval } from "../../session-logic";
@@ -86,7 +86,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             <>
               <span className="inline-flex items-center gap-1 text-warning">
                 <ShieldIcon aria-hidden className="size-3 shrink-0" />
-                <T>Waiting for approval</T>
+                {m(msg("Waiting for approval"))}
               </span>
               {onRespondToApproval ? (
                 <>
@@ -107,7 +107,7 @@ export const TimelinePendingApprovalRow = memo(function TimelinePendingApprovalR
             </>
           ) : (
             <span className="text-warning">
-              <T>Provider process is gone. Interrupt or restart the run to respond.</T>
+              {m(msg("Provider process is gone. Interrupt or restart the run to respond."))}
             </span>
           )}
           {approval.fullAccessOverride ? (

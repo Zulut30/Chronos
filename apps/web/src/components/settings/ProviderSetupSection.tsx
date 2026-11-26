@@ -83,14 +83,14 @@ export function ProviderSetupSection(props: ProviderSetupSectionProps) {
       <SettingsRow
         title={gt("Terminal sandbox")}
         description={gt(
-          "Full access uses the host terminal. Auto uses the Antigravity sandbox when available. Other modes apply the thread?s approval rules.",
+          "Full access uses the host terminal. Auto uses the Antigravity sandbox when available. Other modes apply the thread approval rules.",
         )}
         status={
           runningThreads.length ? (
             <ul>
               {runningThreads.map((thread) => (
                 <li key={thread.id}>
-                  {thread.title} ?{" "}
+                  {thread.title} —{" "}
                   {thread.interactionMode === "plan"
                     ? gt("Plan mode")
                     : thread.runtimeMode === "full-access"

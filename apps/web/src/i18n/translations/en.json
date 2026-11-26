@@ -12866,5 +12866,12 @@
   "6b36ce3cce36a70a": "Could not save this setting on this device.",
   "3b3e0dcd9fa14b5d": "Machine names in mentions",
   "c48136729118c2e3": "Use the pencil next to an environment to change its display name in chat mentions.",
-  "d0b0f9c83b3f739e": "Edit machine names"
+  "d0b0f9c83b3f739e": "Edit machine names",
+  "cc5b5b737ee87aa8": "Terminal sandbox",
+  "799d74fdf16baa66": "Host terminal",
+  "5aaf55ebc6d75c3e": "Automatic sandbox",
+  "8dfffc716ee299a3": "Thread approval rules",
+  "6c65fcd2980c7d68": "Antigravity timer",
+  "e76f4c3ce5dcf741": "Full access uses the host terminal. Auto uses the Antigravity sandbox when available. Other modes apply the thread approval rules.",
+  "a9ff74720000da9f": "Approved automatically: full access"
 }

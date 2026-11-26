@@ -684,9 +684,9 @@ export interface AcpAdapterV2Flavor {
    * A tool the agent goes on running after its prompt ends, and reports on by itself when the
    * tool ends. With `deferFinalizeForBackgroundWork`, the turn stays open until then.
    */
+  readonly toolOutlivesPrompt?: (toolCall: AcpToolCallState) => boolean;
   /** The agent starts its own reply on this transport. Project its first live frame immediately. */
   readonly publishesDetachedActivity?: boolean;
-  readonly toolOutlivesPrompt?: (toolCall: AcpToolCallState) => boolean;
   /**
    * Finalize a settled turn held only by running commands once the session has been silent for
    * `timeout`, so a command that never reports back cannot leave the thread in Working forever.
@@ -7675,6 +7675,12 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   );
                   if (disposition === "allow") {
                     const optionId = selectAutoApprovedPermissionOption(answerableParams);
+                    if (
+                      optionId !== undefined &&
+                      context?.input.runtimePolicy.runtimeMode === "full-access"
+                    ) {
+                      yield* emitNotice(context, { title: "Approved automatically: full access" });
+                    }
                     return {
                       _tag: "Immediate" as const,
                       response:
@@ -8070,9 +8076,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           if (
             input.captureIdleProcessGuard &&
             child.idleProcessTree &&
-            (capabilities?.loadSession === true || capabilities?.sessionCapabilities?.resume != null)
+            (capabilities?.loadSession === true ||
+              capabilities?.sessionCapabilities?.resume != null)
           ) {
-            idleProcessGuards.set(child, yield* input.captureIdleProcessGuard(child.idleProcessTree));
+            idleProcessGuards.set(
+              child,
+              yield* input.captureIdleProcessGuard(child.idleProcessTree),
+            );
           }
         });
 
@@ -8530,7 +8540,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           const optionSelections = [...explicitSelections, ...implicitSelections].flatMap(
             (selection) => {
               if (flavor.ownedModelOptionIds?.includes(selection.id) === true) return [];
-              if (!withinCeiling(selection) || (lockMode && isModeChoice(selection.id))) return [];
+              if (!withinCeiling(selection)) return [];
+              if (
+                typeof flavor.lockSessionModeToPolicy === "function" &&
+                lockMode &&
+                isModeChoice(selection.id)
+              )
+                return [];
               return [
                 selection.value === ACP_EMPTY_OPTION_VALUE
                   ? { ...selection, value: "" }
@@ -10448,42 +10464,46 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           },
           canResumeAfterRestart: canLoadSession || canResumeSession,
           // chronos: use native resume only after the live handshake and persisted thread binding.
-          ...(input.captureIdleProcessGuard && (canLoadSession || canResumeSession) ? {
-            canUnloadIdleSession: Effect.gen(function* () {
-              const child = runtime;
-              const guard = idleProcessGuards.get(child);
-              const sessionId = yield* Ref.get(activeSessionId);
-              if (
-                !guard ||
-                sessionId === null ||
-                !(yield* Ref.get(providerThreadByNativeSessionId)).has(sessionId)
-              ) return false;
-              if (flavor.hasPendingReply && (yield* flavor.hasPendingReply(sessionId))) return false;
-              if (!(yield* guard)) return false;
-              const setup = yield* Ref.get(activeSessionSetup);
-              const caps = setup?.initializeResult.agentCapabilities;
-              return (
-                child === runtime &&
-                setup?.sessionId === sessionId &&
-                (caps?.loadSession === true || caps?.sessionCapabilities?.resume != null) &&
-                (yield* Ref.get(activeTurn)) === null &&
-                (yield* Ref.get(loadingSessionId)) === null &&
-                (yield* Ref.get(runtimeTeardownState))._tag === "Idle" &&
-                !(yield* Ref.get(runtimeRestartRequired)) &&
-                (yield* Ref.get(pendingRuntimeRequests)).size === 0 &&
-                (yield* Ref.get(nativeResponseAcknowledgements)).size === 0 &&
-                openAgentRequests.size === 0 &&
-                agentRequests.size === 0 &&
-                !clientTerminals?.hasOpenTerminal() &&
-                rootForegroundWork !== "running" &&
-                !hasWorkingDescendant(sessionId) &&
-                (yield* Ref.get(runningBackgroundTaskIds)).size === 0 &&
-                (yield* Ref.get(midTurnUnreportedCompletedTaskIds)).size === 0 &&
-                (yield* Ref.get(wakeBuffer)).length === 0 &&
-                !(yield* Ref.get(continuationRequested))
-              );
-            }),
-          } : {}),
+          ...(input.captureIdleProcessGuard && (canLoadSession || canResumeSession)
+            ? {
+                canUnloadIdleSession: Effect.gen(function* () {
+                  const child = runtime;
+                  const guard = idleProcessGuards.get(child);
+                  const sessionId = yield* Ref.get(activeSessionId);
+                  if (
+                    !guard ||
+                    sessionId === null ||
+                    !(yield* Ref.get(providerThreadByNativeSessionId)).has(sessionId)
+                  )
+                    return false;
+                  if (flavor.hasPendingReply && (yield* flavor.hasPendingReply(sessionId)))
+                    return false;
+                  if (!(yield* guard)) return false;
+                  const setup = yield* Ref.get(activeSessionSetup);
+                  const caps = setup?.initializeResult.agentCapabilities;
+                  return (
+                    child === runtime &&
+                    setup?.sessionId === sessionId &&
+                    (caps?.loadSession === true || caps?.sessionCapabilities?.resume != null) &&
+                    (yield* Ref.get(activeTurn)) === null &&
+                    (yield* Ref.get(loadingSessionId)) === null &&
+                    (yield* Ref.get(runtimeTeardownState))._tag === "Idle" &&
+                    !(yield* Ref.get(runtimeRestartRequired)) &&
+                    (yield* Ref.get(pendingRuntimeRequests)).size === 0 &&
+                    (yield* Ref.get(nativeResponseAcknowledgements)).size === 0 &&
+                    openAgentRequests.size === 0 &&
+                    agentRequests.size === 0 &&
+                    !clientTerminals?.hasOpenTerminal() &&
+                    rootForegroundWork !== "running" &&
+                    !hasWorkingDescendant(sessionId) &&
+                    (yield* Ref.get(runningBackgroundTaskIds)).size === 0 &&
+                    (yield* Ref.get(midTurnUnreportedCompletedTaskIds)).size === 0 &&
+                    (yield* Ref.get(wakeBuffer)).length === 0 &&
+                    !(yield* Ref.get(continuationRequested))
+                  );
+                }),
+              }
+            : {}),
           events: Stream.fromEffectRepeat(Queue.take(events)),
           ...(flavor.getModelContextWindow === undefined
             ? {}

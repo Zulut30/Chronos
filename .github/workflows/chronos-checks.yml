@@ -162,6 +162,14 @@ jobs:
       - name: Antigravity background work and runtime policy (offline ACP)
         working-directory: apps/server
         run: vp test run src/orchestration-v2/Adapters/AntigravityAdapterV2.test.ts src/provider/Drivers/AntigravityDriver.test.ts src/provider/antigravityAuthSupport.test.ts
+      - name: Provider access modes and command approvals (offline)
+        working-directory: apps/server
+        run: |
+          vp test run src/orchestration-v2/ProviderSessionTransitionPolicy.test.ts
+          vp test run src/orchestration-v2/Adapters/CodexAdapterV2.test.ts -t 'derives concrete Codex turn policies|full access asks about|Codex file-change approval paths|handles MCP access approvals'
+          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'maps default full-access policy|keeps approval-required mode interactive|marks asks that full access|adds nothing to ordinary approvals|asks before restricted Full access'
+          vp test run src/orchestration-v2/Adapters/OpenCode2AdapterV2.test.ts src/orchestration-v2/Adapters/AcpRegistryAdapterV2.test.ts src/orchestration-v2/Adapters/KiroAdapterV2.test.ts src/orchestration-v2/Adapters/GrokAdapterV2.test.ts -t 'permission|approval|runtime mode|autopilot|full access'
+          (cd ../../packages/provider-cursor && vp test run src/server/adapter.test.ts -t 'maps runtime modes to the SDK sandbox')
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
         run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts

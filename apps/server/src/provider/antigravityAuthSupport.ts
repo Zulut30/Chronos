@@ -561,7 +561,7 @@ export function buildAntigravityAcpSpawnInput(input: {
       "--app-data-dir",
       // The CLI joins this beneath gemini-dir, including when the value is absolute.
       "antigravity-acp",
-      ...(input.hostShell ? ["--sandbox=false"] : []),
+      ...(input.hostShell ? ["--sandbox=false", "--dangerously-skip-permissions"] : []),
     ],
     cwd: input.cwd,
     env: antigravityEnvironment(

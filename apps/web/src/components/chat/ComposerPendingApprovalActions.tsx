@@ -51,8 +51,22 @@ export const ComposerPendingApprovalActions = memo(function ComposerPendingAppro
 }: ComposerPendingApprovalActionsProps) {
   const gt = useGT();
   const m = useMessages();
-  // Provider options carry server-authored labels; only the built-in defaults are translated.
-  const optionLabel = (label: string) => (options === DEFAULT_APPROVAL_OPTIONS ? m(label) : label);
+  // Providers can also return these standard captions as plain text.
+  const optionLabel = (label: string) => {
+    if (options === DEFAULT_APPROVAL_OPTIONS) return m(label);
+    switch (label) {
+      case "Approve":
+        return m(DEFAULT_APPROVAL_OPTIONS[3].label);
+      case "Decline":
+        return m(DEFAULT_APPROVAL_OPTIONS[1].label);
+      case "Cancel":
+        return m(DEFAULT_APPROVAL_OPTIONS[0].label);
+      case "Always allow this session":
+        return m(DEFAULT_APPROVAL_OPTIONS[2].label);
+      default:
+        return label;
+    }
+  };
   const primaryOptions = options.filter(
     (option) => option.decision === "decline" || option.decision === "accept",
   );
