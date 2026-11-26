@@ -230,6 +230,9 @@ jobs:
           compression-level: 0
 
   desktop:
+    permissions:
+      contents: read
+      actions: read
     name: Build ${{ matrix.label }}
     needs: [version, bundle]
     runs-on: ${{ matrix.runner }}
@@ -419,6 +422,19 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+      - name: Rehearse candidate Windows update
+        if: matrix.platform == 'win' && github.event_name == 'workflow_dispatch' && !inputs.perf_sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: node chronos/scripts/delivery/release-metrics.mjs candidate "$VERSION" release-publish windows-update.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: matrix.platform == 'win' && github.event_name == 'workflow_dispatch' && !inputs.perf_sha
+        with:
+          name: windows-update-metrics
+          path: windows-update.json
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
     if: github.ref_type == 'tag' && !inputs.perf_sha && startsWith(github.ref_name, 'chronos-v')
@@ -440,7 +456,7 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          install-args: --filter=@t3tools/scripts...
+          install-args: --filter=@t3tools/scripts... --filter=@t3tools/desktop...
 
       - name: Verify exact release gates and locate the smoked desktop
         id: verified
@@ -513,3 +529,15 @@ jobs:
             --title "Chronos ${VERSION}" \
             --notes "$notes" \
             --latest
+
+      - name: Measure the public Windows feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DESKTOP_RUN_ID: ${{ steps.verified.outputs.build }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: node chronos/scripts/delivery/release-metrics.mjs published "$VERSION" release-assets windows-update.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-deployment-metrics
+          path: windows-update.json
+          if-no-files-found: error
