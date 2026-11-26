@@ -121,6 +121,7 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
+          vp test run --project browser src/lib/openPullRequestLink.browser.test.tsx
 
       - name: Trello card link recognition
         working-directory: packages/client-runtime
@@ -170,7 +171,7 @@ jobs:
         run: vp test run src/chronos/issue-trello/driver.test.ts src/issue/IssueTrackerConnections.test.ts src/mcp/toolkits/issues/handlers.test.ts
       - name: Chronos performance regressions
         working-directory: apps/server
-        run: vp test run src/background/KeepAwake.test.ts src/persistence/DatabaseStorage.test.ts src/chronos/perf src/project/ProjectEnrichmentService.test.ts src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts src/orchestration-v2/ProviderSessionManager.test.ts src/orchestration-v2/LiveStreamBudget.test.ts
+        run: vp test run src/background/KeepAwake.test.ts src/persistence/DatabaseStorage.test.ts src/chronos/perf src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts src/orchestration-v2/ProviderSessionManager.test.ts src/orchestration-v2/LiveStreamBudget.test.ts
       - name: First use of server Markdown processors
         working-directory: apps/server
         run: |

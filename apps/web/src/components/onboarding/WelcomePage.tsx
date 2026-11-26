@@ -38,7 +38,7 @@ import {
   TerminalIcon,
 } from "lucide-react";
 import { msg, T, useGT, useLocale, useMessages, Var } from "gt-react";
-import { lazy, Suspense, useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 
 import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
 import { MOBILE_APP_URL } from "../../branding";
@@ -98,8 +98,11 @@ import { terminalEnvironment } from "../../state/terminal";
 import { useThreadRunningTerminalIds } from "../../state/terminalSessions";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { getProviderSummary } from "../settings/providerStatus";
+import { AddProviderInstanceDialog } from "../settings/AddProviderInstanceDialog";
 import { useDesktopCliCommand } from "../settings/CliCommandSettingsRow";
+import { CodexSetupSection } from "../settings/CodexSetupSection";
 import { readCodexSetupMode } from "../settings/CodexSetupSection.logic";
+import { TerminalViewport } from "../ThreadTerminalDrawer";
 import { ProviderInstanceIcon } from "../chat/ProviderInstanceIcon";
 import { ACPRegistryIcon } from "../Icons";
 import { Button } from "../ui/button";
@@ -113,16 +116,6 @@ import { toastManager } from "../ui/toast";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { cn } from "../../lib/utils";
 import { formatRelativeTime } from "../../timestampFormat";
-
-const TerminalViewport = lazy(() =>
-  import("../ThreadTerminalDrawer").then((module) => ({ default: module.TerminalViewport })),
-);
-const AddProviderInstanceDialog = lazy(() =>
-  import("../settings/AddProviderInstanceDialog").then((module) => ({ default: module.AddProviderInstanceDialog })),
-);
-const CodexSetupSection = lazy(() =>
-  import("../settings/CodexSetupSection").then((module) => ({ default: module.CodexSetupSection })),
-);
 
 const AGENT_ONBOARDING_THREAD_ID = ThreadId.make("onboarding-agent-setup");
 const SCAN_LIMIT_MESSAGE = msg(
@@ -761,20 +754,18 @@ function AgentsSection({
         />
       ) : null}
       {addingProvider ? (
-        <Suspense fallback={null}>
-          <AddProviderInstanceDialog
-            open
-            environmentId={environmentId}
-            environmentLabel={label}
-            showMoreProviders
-            onOpenChange={setAddingProvider}
-            onCreated={(_instanceId, driver) => {
-              void refreshProviders({ environmentId, input: {} });
-              // A new Claude Code, Codex, or Pi instance can bring more history to import.
-              if (isImportSource(driver)) onImportSourceEnabled();
-            }}
-          />
-        </Suspense>
+        <AddProviderInstanceDialog
+          open
+          environmentId={environmentId}
+          environmentLabel={label}
+          showMoreProviders
+          onOpenChange={setAddingProvider}
+          onCreated={(_instanceId, driver) => {
+            void refreshProviders({ environmentId, input: {} });
+            // A new Claude Code, Codex, or Pi instance can bring more history to import.
+            if (isImportSource(driver)) onImportSourceEnabled();
+          }}
+        />
       ) : null}
     </WelcomeSection>
   );
@@ -1184,20 +1175,18 @@ function OnboardingCodexSetup({
     });
   };
   return (
-    <Suspense fallback={null}>
-      <CodexSetupSection
-        presentation="onboarding"
-        environmentId={environmentId}
-        instanceId={instanceId}
-        provider={provider}
-        mode={mode}
-        enabled={provider.enabled}
-        readOnly={!canManageProviders}
-        existingCliDisabled={!canOperateTerminal}
-        displayName={agentName(provider)}
-        onModeChange={changeMode}
-      />
-    </Suspense>
+    <CodexSetupSection
+      presentation="onboarding"
+      environmentId={environmentId}
+      instanceId={instanceId}
+      provider={provider}
+      mode={mode}
+      enabled={provider.enabled}
+      readOnly={!canManageProviders}
+      existingCliDisabled={!canOperateTerminal}
+      displayName={agentName(provider)}
+      onModeChange={changeMode}
+    />
   );
 }
 
@@ -1461,21 +1450,19 @@ function AgentInstallTerminal({
       </div>
       <div className="h-64">
         {terminalReady ? (
-          <Suspense fallback={null}>
-            <TerminalViewport
-              threadRef={threadRef}
-              threadId={AGENT_ONBOARDING_THREAD_ID}
-              terminalId={terminalId}
-              terminalLabel={gt("Install {agent}", { agent: driver })}
-              cwd={cwd}
-              providerInstanceId={providerInstanceId}
-              advancedTypography={advancedTypography}
-              onSessionExited={onClose}
-              autoFocus
-              visible
-              keybindings={keybindings}
-            />
-          </Suspense>
+          <TerminalViewport
+            threadRef={threadRef}
+            threadId={AGENT_ONBOARDING_THREAD_ID}
+            terminalId={terminalId}
+            terminalLabel={gt("Install {agent}", { agent: driver })}
+            cwd={cwd}
+            providerInstanceId={providerInstanceId}
+            advancedTypography={advancedTypography}
+            onSessionExited={onClose}
+            autoFocus
+            visible
+            keybindings={keybindings}
+          />
         ) : null}
       </div>
     </div>
