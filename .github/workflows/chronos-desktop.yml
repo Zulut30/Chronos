@@ -476,6 +476,7 @@ jobs:
         run: |
           set -euo pipefail
           node chronos/scripts/verify-release.mjs release-assets "$VERSION"
+          node chronos/scripts/delivery/windows-feed.mjs release-assets/nightly.yml "$VERSION"
           cd release-assets
           cp "Chronos-${VERSION}-x64.exe" Chronos-Setup-x64.exe
           cp "Chronos-${VERSION}-arm64.dmg" Chronos-mac-arm64.dmg
