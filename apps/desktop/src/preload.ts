@@ -51,6 +51,14 @@ ipcRenderer.on("chronos:show-artifact", (_event,id:string,confirmDelete:boolean)
   window.dispatchEvent(new CustomEvent("chronos:show-artifact",{detail:(confirmDelete ? "delete/" : "open/")+id}));
 });
 
+// chronos: release transient renderer caches and Blink resource cache after minimize or hide.
+ipcRenderer.on("chronos:memory-trim", () => {
+  window.dispatchEvent(new Event("chronos:memory-trim"));
+  try {
+    webFrame.clearCache();
+  } catch {}
+});
+
 contextBridge.exposeInMainWorld("chronosArtifactLibrary", {
   request: (action:string,args:unknown) => ipcRenderer.invoke("chronos:artifact-library",action,args),
 });

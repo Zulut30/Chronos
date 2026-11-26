@@ -107,7 +107,7 @@ jobs:
 
       - name: Shell reducer and positional index
         working-directory: packages/client-runtime
-        run: vp test run src/chronos/threadPositions.test.ts src/state/shellReducer.test.ts src/state/threadShell.test.ts
+        run: vp test run src/chronos/threadPositions.test.ts src/state/shellReducer.test.ts src/state/threadShell.test.ts src/state/threads-atoms.test.ts
 
       - name: Web unit tests
         working-directory: apps/web

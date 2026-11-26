@@ -2,6 +2,7 @@ import {
   EnvironmentId,
   EventId,
   ORCHESTRATION_V2_WS_METHODS,
+  ThreadId,
   TurnItemId,
   type OrchestrationV2ThreadHistoryPage,
   type OrchestrationV2ThreadProjection,
@@ -404,6 +405,114 @@ describe("createEnvironmentThreadStateAtoms", () => {
 
       unmount();
       yield* Deferred.await(subscription.closed);
+    }),
+  );
+
+  it.effect("caps retained inactive thread snapshots at 6 and evicts the oldest", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      const atoms = Array.from({ length: 8 }, (_, index) =>
+        h.details.stateAtom({
+          environmentId: TARGET.environmentId,
+          threadId: ThreadId.make(`thread-lru-${index}`),
+        }),
+      );
+      for (const atom of atoms) {
+        const unmount = h.registry.mount(atom);
+        const sub = yield* Queue.take(h.subscriptions);
+        yield* Queue.offer(sub.events, { kind: "synchronized" });
+        yield* observeState(h.registry, atom, (state) => state.status === "live");
+        unmount();
+        yield* Deferred.await(sub.closed);
+        yield* Effect.yieldNow;
+      }
+
+      const loadsBefore = h.counts().diskLoads;
+      const unmountOldest = h.registry.mount(atoms[0]!);
+      const oldestSub = yield* Queue.take(h.subscriptions);
+      expect(oldestSub.afterSequence).toBeUndefined();
+      expect(h.counts().diskLoads).toBe(loadsBefore + 1);
+      unmountOldest();
+      yield* Deferred.await(oldestSub.closed);
+      yield* Effect.yieldNow;
+
+      const unmountRecent = h.registry.mount(atoms[7]!);
+      const recentSub = yield* Queue.take(h.subscriptions);
+      expect(recentSub.afterSequence).toBe(SNAPSHOT.snapshotSequence);
+      expect(h.counts().diskLoads).toBe(loadsBefore + 1);
+      unmountRecent();
+      yield* Deferred.await(recentSub.closed);
+    }),
+  );
+
+  it.effect("drops inactive thread snapshots on chronos:memory-trim while sparing mounted threads", () =>
+    Effect.gen(function* () {
+      const listeners = new Map<string, Set<() => void>>();
+      const globalTarget = globalThis as {
+        addEventListener?: (type: string, listener: () => void) => void;
+      };
+      const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, "addEventListener");
+      globalTarget.addEventListener = function (this: unknown, type: string, listener: () => void) {
+        if (this !== globalThis) throw new TypeError("Illegal invocation");
+        const set = listeners.get(type) ?? new Set<() => void>();
+        set.add(listener);
+        listeners.set(type, set);
+      };
+
+      return yield* Effect.gen(function* () {
+        const h = yield* makeHarness();
+        const inactiveAtom = h.details.stateAtom({
+          environmentId: TARGET.environmentId,
+          threadId: ThreadId.make("thread-trim-inactive"),
+        });
+        const activeAtom = h.details.stateAtom({
+          environmentId: TARGET.environmentId,
+          threadId: ThreadId.make("thread-trim-active"),
+        });
+
+        const unmountInactive = h.registry.mount(inactiveAtom);
+        const inactiveSub = yield* Queue.take(h.subscriptions);
+        yield* Queue.offer(inactiveSub.events, { kind: "synchronized" });
+        yield* observeState(h.registry, inactiveAtom, (state) => state.status === "live");
+        unmountInactive();
+        yield* Deferred.await(inactiveSub.closed);
+        yield* Effect.yieldNow;
+
+        const unmountActive = h.registry.mount(activeAtom);
+        const activeSub = yield* Queue.take(h.subscriptions);
+        yield* Queue.offer(activeSub.events, { kind: "synchronized" });
+        yield* observeState(h.registry, activeAtom, (state) => state.status === "live");
+
+        for (const listener of listeners.get("chronos:memory-trim") ?? []) {
+          listener();
+        }
+
+        unmountActive();
+        yield* Deferred.await(activeSub.closed);
+        yield* Effect.yieldNow;
+
+        const remountInactive = h.registry.mount(inactiveAtom);
+        const nextInactive = yield* Queue.take(h.subscriptions);
+        expect(nextInactive.afterSequence).toBeUndefined();
+        remountInactive();
+        yield* Deferred.await(nextInactive.closed);
+
+        const remountActive = h.registry.mount(activeAtom);
+        const nextActive = yield* Queue.take(h.subscriptions);
+        expect(nextActive.afterSequence).toBe(SNAPSHOT.snapshotSequence);
+        remountActive();
+        yield* Deferred.await(nextActive.closed);
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (previousDescriptor === undefined) {
+              Reflect.deleteProperty(globalTarget, "addEventListener");
+            } else {
+              Object.defineProperty(globalThis, "addEventListener", previousDescriptor);
+            }
+          }),
+        ),
+      );
     }),
   );
 });

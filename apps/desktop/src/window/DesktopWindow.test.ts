@@ -150,6 +150,7 @@ function makeFakeBrowserWindow() {
     isFullScreen: window.isFullScreen,
     isMaximized: window.isMaximized,
     isMinimized: window.isMinimized,
+    isVisible: window.isVisible,
     loadURL: window.loadURL,
     maximize: window.maximize,
     openDevTools: webContents.openDevTools,
@@ -1816,6 +1817,80 @@ describe("DesktopWindow", () => {
         assert.equal(yield* Ref.get(createCount), 1);
         assert.equal(fakeWindow.send.mock.calls.length, 0);
         assert.equal(onReveal.mock.calls.length, 0);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+
+  it.effect("sends chronos:memory-trim after minimize or hide delay while still hidden", () =>
+    Effect.gen(function* () {
+      const fakeWindow = makeFakeBrowserWindow();
+      const createCount = yield* Ref.make(0);
+      const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      const layer = layerTest({ window: fakeWindow.window, createCount, mainWindow });
+
+      yield* Effect.gen(function* () {
+        const desktopWindow = yield* DesktopWindow.DesktopWindow;
+        yield* desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773"));
+        fakeWindow.send.mockClear();
+
+        fakeWindow.isMinimized.mockReturnValue(true);
+        fakeWindow.windowListeners.get("minimize")?.();
+        yield* TestClock.adjust(2_999);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.equal(fakeWindow.send.mock.calls.length, 0);
+
+        yield* TestClock.adjust(1);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.deepEqual(fakeWindow.send.mock.calls, [["chronos:memory-trim"]]);
+
+        fakeWindow.send.mockClear();
+        fakeWindow.isMinimized.mockReturnValue(false);
+        fakeWindow.isVisible.mockReturnValue(false);
+        fakeWindow.windowListeners.get("hide")?.();
+        yield* TestClock.adjust(3_000);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.deepEqual(fakeWindow.send.mock.calls, [["chronos:memory-trim"]]);
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+
+  it.effect("cancels pending chronos:memory-trim when restored, shown, or closed early", () =>
+    Effect.gen(function* () {
+      const fakeWindow = makeFakeBrowserWindow();
+      const createCount = yield* Ref.make(0);
+      const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      const layer = layerTest({ window: fakeWindow.window, createCount, mainWindow });
+
+      yield* Effect.gen(function* () {
+        const desktopWindow = yield* DesktopWindow.DesktopWindow;
+        yield* desktopWindow.handleBackendReady(new URL("http://127.0.0.1:3773"));
+        fakeWindow.send.mockClear();
+
+        fakeWindow.isMinimized.mockReturnValue(true);
+        fakeWindow.windowListeners.get("minimize")?.();
+        yield* TestClock.adjust(1_500);
+        fakeWindow.isMinimized.mockReturnValue(false);
+        fakeWindow.windowListeners.get("restore")?.();
+        yield* TestClock.adjust(3_000);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.equal(fakeWindow.send.mock.calls.length, 0);
+
+        fakeWindow.isVisible.mockReturnValue(false);
+        fakeWindow.windowListeners.get("hide")?.();
+        yield* TestClock.adjust(1_500);
+        fakeWindow.isVisible.mockReturnValue(true);
+        fakeWindow.windowListeners.get("show")?.();
+        yield* TestClock.adjust(3_000);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.equal(fakeWindow.send.mock.calls.length, 0);
+
+        fakeWindow.isMinimized.mockReturnValue(true);
+        fakeWindow.windowListeners.get("minimize")?.();
+        yield* TestClock.adjust(1_500);
+        fakeWindow.windowListeners.get("closed")?.();
+        yield* TestClock.adjust(3_000);
+        yield* Effect.promise(() => Promise.resolve());
+        assert.equal(fakeWindow.send.mock.calls.length, 0);
       }).pipe(Effect.provide(layer));
     }),
   );

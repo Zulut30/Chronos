@@ -67,6 +67,9 @@ import {
 } from "./threadState.ts";
 
 const THREAD_SUBSCRIPTION_RETRY_DELAY = "250 millis";
+// chronos: cap retained inactive thread snapshots and drop them on desktop memory trim.
+const CHRONOS_MEMORY_TRIM_EVENT = "chronos:memory-trim";
+const MAX_RETAINED_INACTIVE_THREAD_SNAPSHOTS = 6;
 
 function statusWithoutLiveData(
   data: Option.Option<OrchestrationV2ThreadProjection>,
@@ -199,6 +202,9 @@ interface ThreadResumeSnapshot {
 interface ThreadResumeCache {
   snapshot: ThreadResumeSnapshot | undefined;
   owner: object | undefined;
+  activeScopes?: number | undefined;
+  onActivate?: (() => void) | undefined;
+  onInactive?: (() => void) | undefined;
 }
 
 function matchesThreadSnapshot(
@@ -269,7 +275,23 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
       ? undefined
       : candidate;
   const owner = {};
-  if (resumeCache) resumeCache.owner = owner;
+  if (resumeCache) {
+    // chronos: register before the persistence finalizer so LIFO flushes before LRU eviction.
+    yield* Effect.acquireRelease(
+      Effect.sync(() => {
+        resumeCache.owner = owner;
+        resumeCache.activeScopes = (resumeCache.activeScopes ?? 0) + 1;
+        resumeCache.onActivate?.();
+      }),
+      () =>
+        Effect.sync(() => {
+          resumeCache.activeScopes = Math.max(0, (resumeCache.activeScopes ?? 1) - 1);
+          if (resumeCache.activeScopes === 0) {
+            resumeCache.onInactive?.();
+          }
+        }),
+    );
+  }
   const loaded =
     retained === undefined
       ? yield* cache.loadThread(environmentId, threadId).pipe(
@@ -1269,13 +1291,71 @@ export function createEnvironmentThreadStateAtoms<R, E>(
     E
   >,
 ) {
+  // chronos: track inactive thread resume caches via WeakRef for 6-entry LRU and minimize trim.
+  const inactiveEntries = new Map<string, WeakRef<ThreadResumeCache>>();
+  const markActive = (key: string): void => {
+    inactiveEntries.delete(key);
+  };
+  const trimInactive = (): void => {
+    for (const [key, ref] of inactiveEntries) {
+      inactiveEntries.delete(key);
+      const entry = ref.deref();
+      if (entry !== undefined && (entry.activeScopes ?? 0) === 0) {
+        entry.snapshot = undefined;
+      }
+    }
+  };
+  let attachedAddEventListener: ((type: string, listener: () => void) => void) | undefined;
+  const ensureTrimListener = (): void => {
+    const addEventListener = (
+      globalThis as {
+        readonly addEventListener?: (type: string, listener: () => void) => void;
+      }
+    ).addEventListener;
+    if (
+      typeof addEventListener !== "function" ||
+      attachedAddEventListener === addEventListener
+    ) {
+      return;
+    }
+    attachedAddEventListener = addEventListener;
+    addEventListener.call(globalThis, CHRONOS_MEMORY_TRIM_EVENT, trimInactive);
+  };
+  const markInactive = (key: string, entry: ThreadResumeCache): void => {
+    ensureTrimListener();
+    inactiveEntries.delete(key);
+    for (const [existingKey, ref] of inactiveEntries) {
+      const existing = ref.deref();
+      if (existing === undefined || existing.snapshot === undefined) {
+        inactiveEntries.delete(existingKey);
+      }
+    }
+    if (entry.snapshot === undefined) return;
+    inactiveEntries.set(key, new WeakRef(entry));
+    for (const [oldestKey, ref] of inactiveEntries) {
+      if (inactiveEntries.size <= MAX_RETAINED_INACTIVE_THREAD_SNAPSHOTS) break;
+      inactiveEntries.delete(oldestKey);
+      const oldest = ref.deref();
+      if (oldest !== undefined && (oldest.activeScopes ?? 0) === 0) {
+        oldest.snapshot = undefined;
+      }
+    }
+  };
+
   // Cache definitions must outlive collectible live-atom definitions. The
   // registry retains these nodes without retaining environment or RPC scopes.
   const resumeFamily = Atom.family((key: string) =>
-    Atom.make((): ThreadResumeCache => ({
-      snapshot: undefined,
-      owner: undefined,
-    })).pipe(
+    Atom.make((): ThreadResumeCache => {
+      ensureTrimListener();
+      const entry: ThreadResumeCache = {
+        snapshot: undefined,
+        owner: undefined,
+        activeScopes: 0,
+        onActivate: () => markActive(key),
+        onInactive: () => markInactive(key, entry),
+      };
+      return entry;
+    }).pipe(
       Atom.setIdleTTL(THREAD_SNAPSHOT_IDLE_TTL_MS),
       Atom.withLabel(`environment-thread-resume:${key}`),
     ),

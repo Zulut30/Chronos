@@ -477,6 +477,7 @@ async function runDesktopAudit() {
       await sleep(15000);
       const minimizedVisibility = await evaluate("document.visibilityState");
       const afterMinimize = await readRendererState(false);
+      const afterMinimizeAfterGc = await readRendererState(true);
       const restoreState = controlWindow(app.pid, 9, minState.hwnd); // SW_RESTORE
       assert(!restoreState.iconic, "Window did not restore");
       await sleep(1000);
@@ -486,6 +487,7 @@ async function runDesktopAudit() {
         ok: true,
         before: beforeMinimize,
         after: afterMinimize,
+        afterAfterGc: afterMinimizeAfterGc,
         minimizedVisibility,
         restoredOk,
         delta: {
@@ -493,6 +495,12 @@ async function runDesktopAudit() {
           gpuPrivateMiB: Number((afterMinimize.processMemory.gpu.privateMiB - beforeMinimize.processMemory.gpu.privateMiB).toFixed(3)),
           totalPrivateMiB: Number((afterMinimize.processMemory.total.privateMiB - beforeMinimize.processMemory.total.privateMiB).toFixed(3)),
           heapUsedMiB: Number((afterMinimize.heapUsedMiB - beforeMinimize.heapUsedMiB).toFixed(3)),
+        },
+        deltaAfterGc: {
+          rendererPrivateMiB: Number((afterMinimizeAfterGc.processMemory.renderer.privateMiB - beforeMinimize.processMemory.renderer.privateMiB).toFixed(3)),
+          gpuPrivateMiB: Number((afterMinimizeAfterGc.processMemory.gpu.privateMiB - beforeMinimize.processMemory.gpu.privateMiB).toFixed(3)),
+          totalPrivateMiB: Number((afterMinimizeAfterGc.processMemory.total.privateMiB - beforeMinimize.processMemory.total.privateMiB).toFixed(3)),
+          heapUsedMiB: Number((afterMinimizeAfterGc.heapUsedMiB - beforeMinimize.heapUsedMiB).toFixed(3)),
         },
       };
     } catch (error) {
@@ -527,5 +535,6 @@ console.log(JSON.stringify({
   oneThreadTotalPrivateMiB: desktopAudit.oneThread.processMemory.total.privateMiB,
   switchDelta: desktopAudit.switchLeak.delta,
   minimizeDelta: desktopAudit.minimize.delta ?? desktopAudit.minimize.error,
+  minimizeDeltaAfterGc: desktopAudit.minimize.deltaAfterGc,
 }, null, 2));
 assert(desktopAudit.minimize.ok, "Minimize check failed: " + desktopAudit.minimize.error);

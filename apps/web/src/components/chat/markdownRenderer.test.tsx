@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vite-plus/test";
 
+import { runMemoryTrim } from "../../chronos/perf/memoryTrim";
 import { createMarkdownRenderer } from "./markdownRenderer";
 
 // Visible in the markup, so every URL attribute must pass through it.
@@ -37,5 +38,12 @@ describe("createMarkdownRenderer", () => {
     const element = renderAndRemember("Kept *message*");
     renderAndRemember("x".repeat(600_000));
     expect(render("Kept *message*")).toBe(element);
+  });
+
+  it("drops cached elements when a memory trim fires", () => {
+    const element = renderAndRemember("Trimmed *message*");
+    expect(render("Trimmed *message*")).toBe(element);
+    runMemoryTrim();
+    expect(render("Trimmed *message*")).not.toBe(element);
   });
 });

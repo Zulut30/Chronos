@@ -4,6 +4,7 @@ import { urlAttributes } from "html-url-attributes";
 import type { ReactElement } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 
+import { registerMemoryTrimmer } from "../../chronos/perf/memoryTrim";
 import { wordsHast, type WordsHastOptions } from "../../markdown/wordsHast";
 
 export type MarkdownUrlTransform = (url: string, key: string, node: Element) => string;
@@ -17,7 +18,8 @@ interface MarkdownRendererOptions {
 // Elements are immutable, so a remount (a thread switch, a row scrolled back into view)
 // reuses one instead of parsing again. Parsing is most of the cost of rendering markdown.
 // An element and the hast it keeps hold about 20 bytes per source character, so ~10 MB.
-const MAX_CACHED_CHARS = 500_000;
+// chronos: cap retained markdown parse trees and release them on desktop memory trim.
+const MAX_CACHED_CHARS = 250_000;
 interface Rendered {
   readonly tree: Root;
   element?: ReactElement;
@@ -25,6 +27,10 @@ interface Rendered {
 const rendered = new Map<string, Rendered>();
 let cachedChars = 0;
 let nextRendererId = 0;
+registerMemoryTrimmer(() => {
+  rendered.clear();
+  cachedChars = 0;
+});
 
 // A short block still holds a whole element tree.
 const ENTRY_OVERHEAD_CHARS = 200;

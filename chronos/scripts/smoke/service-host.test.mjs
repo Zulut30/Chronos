@@ -23,6 +23,26 @@ async function listen() {
   return socket;
 }
 
+async function waitTcpPort(port, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const ok = await new Promise((resolve) => {
+      const sock = net.connect({ host: "127.0.0.1", port });
+      sock.once("connect", () => {
+        sock.destroy();
+        resolve(true);
+      });
+      sock.once("error", () => {
+        sock.destroy();
+        resolve(false);
+      });
+    });
+    if (ok) return;
+    await delay(25);
+  }
+  throw Error("Port did not start listening: " + port);
+}
+
 async function run(shared, measure) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chronos-host-"));
   const children = [], sockets = [];
@@ -137,7 +157,7 @@ test("host starts workers on demand, keeps Studio bridge alive across idle sleep
   const bridgeAbort = new AbortController();
   try {
     for (const [name] of entries) host.send(name);
-    await delay(150);
+    await Promise.all(entries.map(([name]) => waitTcpPort(ports[name])));
     // Open Studio SSE bridge + send CORS preflight & context while studio-service is asleep.
     const studioBase = "http://127.0.0.1:" + ports["studio-service"];
     const bridgeRes = await fetch(studioBase + "/api/bridge", { signal: bridgeAbort.signal });
@@ -164,7 +184,8 @@ test("host starts workers on demand, keeps Studio bridge alive across idle sleep
     });
     assert.equal(ctxPost.status, 200);
     const studioLog = path.join(tmp, "logs", "services", "studio-service.log");
-    assert.equal(fs.readFileSync(studioLog, "utf8").includes("T3 Studio on"), false, "studio-service should still be asleep");
+    const readLog = (p) => (fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "");
+    assert.equal(readLog(studioLog).includes("T3 Studio on"), false, "studio-service should still be asleep");
 
     // First real request wakes studio-service, replays buffered context, and delivers SSE open event.
     const ctxGet = await (await fetch(studioBase + "/api/context")).json();
@@ -185,8 +206,11 @@ test("host starts workers on demand, keeps Studio bridge alive across idle sleep
     assert.equal(skillsHealth.port, ports["skills-manager"]);
 
     // Wait for idle sleep, verify sleep logged, and verify transparent re-wake.
-    await delay(700);
-    assert.ok(fs.readFileSync(studioLog, "utf8").includes("Sleeping idle worker"), "studio-service should sleep when idle");
+    const sleepDeadline = Date.now() + 2500;
+    while (!readLog(studioLog).includes("Sleeping idle worker") && Date.now() < sleepDeadline) {
+      await delay(50);
+    }
+    assert.ok(readLog(studioLog).includes("Sleeping idle worker"), "studio-service should sleep when idle");
     const wakeHealth = await (await fetch(studioBase + "/api/health")).json();
     assert.equal(wakeHealth.ok, true);
     assert.equal(wakeHealth.port, ports["studio-service"]);
@@ -226,7 +250,10 @@ test("first concurrent requests and preflight to sleeping services wait for read
   try {
     host.send("tasks-service");
     host.send("integrations-service");
-    await delay(150);
+    await Promise.all([
+      waitTcpPort(ports["tasks-service"]),
+      waitTcpPort(ports["integrations-service"]),
+    ]);
 
     // Reproduce 30-tasks.js home screen loadAll(): 3 concurrent requests to a sleeping tasks-service.
     const tasksBase = "http://127.0.0.1:" + ports["tasks-service"];
@@ -269,7 +296,7 @@ test("first concurrent requests and preflight to sleeping services wait for read
   const failExited = once(failHost, "exit");
   try {
     failHost.send("tasks-service");
-    await delay(150);
+    await waitTcpPort(failPort);
     const trustedErr = await fetch("http://127.0.0.1:" + failPort + "/api/tasks", {
       headers: { origin: "t3code://app" },
     });
