@@ -2,7 +2,7 @@ import { Toolbar } from "@base-ui/react/toolbar";
 import { type ProviderInstanceId } from "@t3tools/contracts";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { msg, T, useLocale, useMessages } from "gt-react";
-import { providerStatusMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: translate known server diagnostics.
+import { serverMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: translate known server diagnostics.
 import { StarIcon } from "lucide-react";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -29,7 +29,7 @@ function describeUnavailableInstance(
   }
   const diagnostic = entry.snapshot.message?.trim();
   if (diagnostic) {
-    const message = providerStatusMessage(diagnostic, locale);
+    const message = serverMessage(diagnostic, locale);
     return resolve(
       entry.status === "error"
         ? msg("{label}: Unavailable. {message}", { label, message })

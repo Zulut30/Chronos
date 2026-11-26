@@ -18,7 +18,7 @@ import * as Arr from "effect/Array";
 import * as Result from "effect/Result";
 import { Fragment, useState, type ReactElement, type ReactNode } from "react";
 import { T, useGT, useLocale, useMessages, Var } from "gt-react";
-import { providerStatusMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: match the model picker's status detail.
+import { serverMessage } from "~/chronos/olympus/l10n/providerCopy"; // chronos: match the model picker's status detail.
 import {
   isProviderDriverKind,
   resolveProviderInstanceEnabled,
@@ -1020,7 +1020,7 @@ export function ProviderInstanceCard({
       <span className={cn("size-1.5 shrink-0 rounded-full", statusStyle.dot)} aria-hidden />
     ) : null;
   const needsAttention = statusKey === "warning" || statusKey === "error";
-  const detail = summary.detail && providerStatusMessage(summary.detail, locale);
+  const detail = summary.detail && serverMessage(summary.detail, locale);
   const statusDiagnostic = hasCompatibilityWarning && needsAttention ? detail : null;
   const inlineStatusDetail = hasCompatibilityWarning
     ? compatibility?.status === "broken"

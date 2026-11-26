@@ -27,14 +27,15 @@ export function effortLabel(label: string, locale: string): string {
   ).join(" · ");
 }
 
-const healthMessages = new Map([
+const serverMessages = new Map([
+  ["Stopped by user", "По команде пользователя"],
   ["Sign in with Cursor or add CURSOR_API_KEY in provider settings.", "Войдите в Cursor или добавьте CURSOR_API_KEY в настройках провайдера."],
   ["Antigravity is installed. Google account access is not checked yet.", "Antigravity установлен. Доступ к аккаунту Google ещё не проверен."],
   ["Enter a Gemini API key in the Antigravity provider settings.", "Введите API-ключ Gemini в настройках провайдера Antigravity."],
 ]);
 
-export function providerStatusMessage(message: string, locale: string): string {
-  return locale.startsWith("ru") ? healthMessages.get(message) ?? message : message;
+export function serverMessage(message: string, locale: string): string {
+  return locale.startsWith("ru") ? serverMessages.get(message) ?? message : message;
 }
 
 const notices = new Map([
