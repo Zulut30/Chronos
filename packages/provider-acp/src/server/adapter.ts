@@ -1860,13 +1860,22 @@ export function acpPostSettleWakeEvidence(
     "extractBackgroundToolMutation" | "publishesDetachedActivity"
   > = {},
 ): boolean {
-  if (
-    flavor.publishesDetachedActivity &&
-    (notification.update.sessionUpdate === "terminal_update" ||
-      notification.update.sessionUpdate === "terminal_output_chunk" ||
-      notification.update.sessionUpdate === "tool_call_content_chunk")
-  )
-    return true;
+  if (flavor.publishesDetachedActivity) {
+    const update = notification.update;
+    switch (update.sessionUpdate) {
+      case "notice":
+        return update.title.trim().length > 0;
+      case "compaction_update":
+      case "compaction_summary_chunk":
+      case "terminal_update":
+      case "terminal_output_chunk":
+      case "tool_call_content_chunk":
+        return true;
+      default:
+        // Even a single space is significant between two buffered text chunks.
+        return acpRootSessionUpdateIngestsOutput(notification);
+    }
+  }
   if (!acpRootSessionUpdateIngestsOutput(notification)) return false;
   const update = notification.update;
   if (
@@ -5223,7 +5232,7 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
           notice: {
             readonly title: string;
             readonly description?: string;
-            readonly level?: "info";
+            readonly level?: "info" | "warning" | "error";
           },
         ) {
           const nativeItemId = `${context.nativeTurnId}:notice:${context.itemOrdinals.size}`;
@@ -6589,7 +6598,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                 } else if (event._tag === "PlanUpdated") {
                   yield* emitPlan(context, event.payload, update.sessionUpdate !== "plan");
                 } else if (event._tag === "NoticeReceived") {
-                  yield* emitNotice(context, event);
+                  yield* emitNotice(context, {
+                    ...event,
+                    level:
+                      event.severity === "warning" || event.severity === "error"
+                        ? event.severity
+                        : "info",
+                  });
                 } else if (event._tag === "UnknownUpdate") {
                   yield* emitTool(context, {
                     toolCallId: `${context.nativeTurnId}:unsupported:${event.updateType}`,
@@ -7679,12 +7694,13 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                       : params,
                   );
                   if (disposition === "allow") {
-                    const optionId = selectAutoApprovedPermissionOption(answerableParams);
-                    if (
-                      optionId !== undefined &&
-                      context &&
-                      ProviderAdapter.hasUnrestrictedToolAccess(context.input.runtimePolicy)
-                    ) {
+                    const fullAccess = ProviderAdapter.hasUnrestrictedToolAccess(
+                      context?.input.runtimePolicy ?? latestRuntimePolicy,
+                    );
+                    const optionId = fullAccess
+                      ? selectPermissionOptionId(answerableParams, "accept")
+                      : selectAutoApprovedPermissionOption(answerableParams);
+                    if (optionId !== undefined && context && fullAccess) {
                       yield* emitNotice(context, ProviderAdapter.fullAccessApprovalNotice);
                     }
                     return {

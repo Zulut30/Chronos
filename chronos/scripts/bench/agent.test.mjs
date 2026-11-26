@@ -73,6 +73,7 @@ test("native timer wakes after end_turn on the same ACP transport", async () => 
     child.stdin.write(JSON.stringify({ id: 1, method: "session/prompt", params: {} }) + "\n");
     assert.equal((await next()).result.stopReason, "end_turn");
     await writeFile(join(root, "wake"), "");
+    assert.equal((await next()).params.update.title, "Fixture checks resumed");
     assert.equal((await next()).params.update.sessionUpdate, "agent_thought_chunk");
     assert.equal((await next()).params.update.status, "in_progress");
     await writeFile(join(root, "finish"), "");

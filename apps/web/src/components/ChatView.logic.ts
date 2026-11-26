@@ -1665,8 +1665,7 @@ export function deriveThreadPendingBackgroundTasks(projection: ThreadStructure |
   const liveWaitIds = new Set(liveWaits.map((task) => task.taskId));
   return [
     ...liveWaits.map((task) =>
-      task.kind === "background_task" &&
-      (task.description === "Run schedule" || task.description === "Running schedule")
+      task.description === "Run schedule" || task.description === "Running schedule"
         ? { ...task, description: m(msg("Antigravity timer")) }
         : task,
     ),

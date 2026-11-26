@@ -1613,6 +1613,7 @@ describe("AntigravityAdapterV2 work after the prompt ends", () => {
         );
         const turn = working.find((event) => event.type === "provider_turn.updated");
         if (turn?.type !== "provider_turn.updated") return assert.fail("continuation turn missing");
+        assert.include(JSON.stringify(working), "Fixture checks resumed");
         assert.include(JSON.stringify(working), "Checking results.");
         assert.isTrue(yield* h.session.hasPendingBackgroundWork!);
         if (ending === "stop") {

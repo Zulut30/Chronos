@@ -22,6 +22,7 @@ function startWake() {
   wakeTimer = setInterval(() => {
     if (!started && existsSync(join(root, "wake"))) {
       started = true;
+      update({ sessionUpdate: "notice", severity: "info", title: "Fixture checks resumed" });
       update({ sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "Checking results." } });
       update({ sessionUpdate: "tool_call", toolCallId: "timer", title: "Run schedule", kind: "other",
         status: "in_progress", rawInput: { DurationSeconds: 560 } });
