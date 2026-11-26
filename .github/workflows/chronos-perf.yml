@@ -6,6 +6,9 @@ on:
       target:
         description: Branch to compare with main (defaults to the workflow ref)
         type: string
+      desktop_run_id:
+        description: Full manual desktop run for the candidate SHA
+        type: string
       audit:
         description: Compare main with itself and audit the four development branches
         type: boolean
@@ -29,21 +32,30 @@ jobs:
       actions: read
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      reuse: ${{ steps.verified.outputs.reuse }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          sparse-checkout: chronos/scripts/bench
+          sparse-checkout: chronos/scripts
           persist-credentials: true
+      - id: verified
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node chronos/scripts/delivery/verified-build.mjs
       - name: Verify comparator and benchmark fixture
         run: node --test chronos/scripts/bench/guard-compare.test.mjs chronos/scripts/bench/guard-shards.test.mjs chronos/scripts/bench/agent.test.mjs
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET: ${{ inputs.target }}
+          DESKTOP_RUN_ID: ${{ inputs.desktop_run_id }}
+          PREVIOUS_MAIN: ${{ github.event.before }}
           AUDIT: ${{ inputs.audit }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: node chronos/scripts/bench/guard-plan.mjs
   compare:
+    if: needs.packages.outputs.reuse != 'true'
     needs: packages
     strategy:
       fail-fast: false

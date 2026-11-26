@@ -47,10 +47,14 @@ env:
 jobs:
   version:
     name: Resolve version
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       desktop_matrix: ${{ steps.platforms.outputs.matrix }}
+      reuse: ${{ steps.verified.outputs.reuse }}
       version: ${{ steps.version.outputs.version }}
       upstream: ${{ steps.version.outputs.upstream }}
       tag: ${{ steps.version.outputs.tag }}
@@ -60,6 +64,11 @@ jobs:
         with:
           ref: ${{ inputs.perf_sha }}
           sparse-checkout: chronos
+      - id: verified
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node chronos/scripts/delivery/verified-build.mjs
       - name: Select desktop platforms
         id: platforms
         env:
@@ -90,7 +99,7 @@ jobs:
           node chronos/scripts/chronos-version.mjs "${args[@]}"
 
   bundle:
-    if: github.ref_type != 'tag'
+    if: github.ref_type != 'tag' && needs.version.outputs.reuse != 'true'
     name: Build JS bundle
     needs: version
     runs-on: ubuntu-24.04
@@ -131,7 +140,8 @@ jobs:
 
   # Vite builds do not typecheck; this covers the packages Chronos patches.
   typecheck:
-    if: github.ref_type != 'tag' && !inputs.perf_sha
+    needs: version
+    if: github.ref_type != 'tag' && !inputs.perf_sha && needs.version.outputs.reuse != 'true'
     name: Typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -432,20 +442,11 @@ jobs:
         with:
           install-args: --filter=@t3tools/scripts...
 
-      - name: Locate the tested build of this commit
+      - name: Verify exact release gates and locate the smoked desktop
         id: verified
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          head=$(git rev-parse HEAD)
-          test "$head" = "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
-          runs="repos/$GITHUB_REPOSITORY/actions/workflows"
-          checked=$(gh api "$runs/chronos-checks.yml/runs?head_sha=$head&status=success" --jq '.workflow_runs[0].id // empty')
-          build=$(gh api "$runs/chronos-desktop.yml/runs?head_sha=$head&event=workflow_dispatch&status=success" --jq '.workflow_runs[0].id // empty')
-          test -n "$checked" && test -n "$build" || { echo "A successful Chronos checks run and a manual desktop build are required for $head"; exit 1; }
-          echo "build=$build" >> "$GITHUB_OUTPUT"
+        run: node chronos/scripts/delivery/verified-build.mjs release
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
