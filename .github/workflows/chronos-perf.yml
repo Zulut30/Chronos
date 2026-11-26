@@ -35,7 +35,7 @@ jobs:
           sparse-checkout: chronos/scripts/bench
           persist-credentials: true
       - name: Verify comparator and benchmark fixture
-        run: node --test chronos/scripts/bench/guard-compare.test.mjs chronos/scripts/bench/agent.test.mjs
+        run: node --test chronos/scripts/bench/guard-compare.test.mjs chronos/scripts/bench/guard-shards.test.mjs chronos/scripts/bench/agent.test.mjs
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
