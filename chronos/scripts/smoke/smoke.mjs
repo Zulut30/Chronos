@@ -673,7 +673,7 @@ async function run() {
 
     if (opts.verifyOlympus && opts.strictEn) {
       const { verifyUiLanguage } = await import("./ui-language.mjs");
-      report.uiLanguage = await verifyUiLanguage(client);
+      report.uiLanguage = await verifyUiLanguage(client, { readyProvider: opts.requireProvider });
       const { verifySidebarFooter } = await import("./sidebar-footer.mjs");
       report.sidebarFooter = await verifySidebarFooter(client);
       console.log("[PASS] English panels, theme migration, Russian restored");

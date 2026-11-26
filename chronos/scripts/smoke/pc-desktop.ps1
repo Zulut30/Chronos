@@ -50,14 +50,17 @@ try {
   Get-Process -Id $owned | Select-Object ProcessName,SessionId,Responding,HasExited | Out-Host
   $until = [DateTime]::UtcNow.AddSeconds(15)
   do {
-    try { $snap = Invoke-Desktop @('snapshot','--app','notepad.exe','-i'); break }
+    try { $snap = Invoke-Desktop @('snapshot','--app','notepad.exe','-i','--wait-for','textfield:Text Editor','--timeout-ms','15000','--wait-timeout','15000'); break }
     catch { if ([DateTime]::UtcNow -ge $until) { throw }; Start-Sleep -Milliseconds 300 }
   } while ($true)
   if ([InputProbe]::Sample() -ne $baseline) { throw 'Launch changed the input desktop' }
   $nodes = @(Nodes $snap.tree)
   $nodes | Select-Object role,name,ref_id,available_actions | Format-Table -Wrap | Out-Host
-  $edit = $nodes | Where-Object { $_.available_actions -contains 'SetValue' -or $_.role -in 'edit','textbox','text area','document','text_field','textarea','text-field' } | Select-Object -First 1
-  if (-not $edit.ref_id) { throw 'Notepad has no semantic text field' }
+  # Only the edit control in our document is a valid write target. Scrollbars and
+  # unnamed groups can also report SetValue. An incomplete tree cannot prove identity.
+  $edits = @($nodes | Where-Object { $_.role -in 'edit','textbox','textfield','text_field','text-field' -and $_.name -eq 'Text Editor' -and $_.available_actions -contains 'SetValue' })
+  if ($edits.Count -ne 1 -or -not $edits[0].ref_id) { throw 'Notepad has no unique semantic text field' }
+  $edit = $edits[0]
   $text = 'Chronos background test'
   Invoke-Desktop @('set-value',$edit.ref_id,$text) | Out-Null
   if ([InputProbe]::Sample() -ne $baseline) { throw 'Writing changed focus or cursor' }
@@ -80,7 +83,7 @@ try {
     function Get-FixtureControl([string]$Name) {
       $untilVisible = [DateTime]::UtcNow.AddSeconds(15)
       do {
-        $tree = (Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i')).tree
+        $tree = (Invoke-Desktop @('snapshot','--app','ChronosFields.exe','-i','--timeout-ms','15000')).tree
         $nodes = @(Nodes $tree | Where-Object ref_id)
         $matchesByName = @($nodes | Where-Object { $_.name -eq $Name })
         if ($matchesByName.Count -eq 1) { return $matchesByName[0].ref_id }

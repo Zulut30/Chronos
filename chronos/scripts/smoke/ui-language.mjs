@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 // Runs before the existing strict Russian suite, on its empty, disposable profile.
-export async function verifyUiLanguage(client) {
+export async function verifyUiLanguage(client, { readyProvider = false } = {}) {
   async function evaluate(expression) {
     const result = await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     if (result.exceptionDetails) throw Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
@@ -60,10 +60,11 @@ export async function verifyUiLanguage(client) {
     "#cards article > h2", "#cards article > p", ".row[data-name] .name", ".endpoint", "#path code",
     "[data-open] .name > span:first-child", ".subh .lbl", "button.mname[data-open]",
   ].join(",");
-  async function scan(id, expected, loadedPanel) {
+  async function scan(id, expected, loadedPanel, prepare) {
     let lines;
     await until(id + " control " + expected, async () => {
       await client.pumpFrames(1, 0);
+      if (prepare && !(await prepare())) return false;
       lines = await client.visibleLines(undefined, undefined, userContent, loadedPanel);
       return lines.some(line => line.includes(expected));
     });
@@ -153,8 +154,12 @@ export async function verifyUiLanguage(client) {
   await route("/usage");
   await scan("usage", "Usage");
   await route("/");
-  await client.probe("ensureDraft");
-  await scan("home", "What should we work on?");
+  await scan("home", "What should we work on?", undefined, async () => {
+    // Opening settings directly can precede the first-run redirect. Let the real
+    // onboarding finish when it appears after reload, then enter the draft normally.
+    const welcome = await client.probe("dismissOnboarding", { readyProvider });
+    return !welcome.wasWelcome && await client.probe("ensureDraft");
+  });
   for (const [id, selector, text, loadedPanel] of [
     ["Tasks", "[data-oly-tasks]", "All projects"],
     ["Studio", "button[aria-label=Studio]", "Boards", "#view .cards [data-new]"],
