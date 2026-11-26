@@ -292,3 +292,5 @@ node chronos/scripts/sync-skills.mjs
 Инструменты локальных артефактов зарегистрированы в MCP Студии. [Хранилище и состояние реализации](parity/artifacts.md).
 
 Карточки ссылок в ChatMarkdown, локальная библиотека и инструмент сессии `artifact_studio` описаны в [отчёте об артефактах](parity/artifacts.md).
+
+Обработка фоновых команд и таймеров Antigravity, пробуждений ACP и режимов терминала описана в [отчёте о провайдере](parity/antigravity-background.md).

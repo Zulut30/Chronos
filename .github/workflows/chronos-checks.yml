@@ -153,7 +153,16 @@ jobs:
           # The server tsconfig includes ../../scripts/lib, whose imports resolve from @t3tools/scripts.
           install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
+        id: server_types
         run: vp run --filter t3 typecheck
+      - name: Diagnose provider and server type errors at their source
+        if: failure() && steps.server_types.outcome == 'failure'
+        run: |
+          for package in packages/provider-core packages/provider-acp packages/provider-opencode apps/server; do
+            echo "::group::TypeScript diagnostics for $package"
+            pnpm exec effect-tsgo tsc --noEmit --pretty false -p "$package/tsconfig.json" || true
+            echo "::endgroup::"
+          done
       - name: Auth, migrations, projection index and WSL keep awake
         working-directory: apps/server
         run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
@@ -173,6 +182,21 @@ jobs:
           vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
           vp test run src/orchestration-v2/Adapters/AcpAdapterV2.test.ts -t 'loads the persisted ACP session during startup'
           vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'resumes the native session on a fresh session instance|resumes an imported native session|resumes the session a /clear selected'
+      - name: Antigravity background work and runtime policy (offline ACP)
+        working-directory: apps/server
+        run: vp test run src/orchestration-v2/Adapters/AntigravityAdapterV2.test.ts src/provider/Drivers/AntigravityDriver.test.ts src/provider/antigravityAuthSupport.test.ts
+      - name: Provider access modes and command approvals (offline)
+        working-directory: apps/server
+        run: |
+          vp test run src/orchestration-v2/ProviderSessionTransitionPolicy.test.ts
+          vp test run src/orchestration-v2/Adapters/CodexAdapterV2.test.ts -t 'derives concrete Codex turn policies|full access asks about|Codex file-change approval paths|handles MCP access approvals'
+          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'maps default full-access policy|keeps approval-required mode interactive|marks asks that full access|adds nothing to ordinary approvals|asks before restricted Full access'
+          vp test run src/orchestration-v2/Adapters/OpenCode2AdapterV2.test.ts src/orchestration-v2/Adapters/AcpRegistryAdapterV2.test.ts src/orchestration-v2/Adapters/KiroAdapterV2.test.ts src/orchestration-v2/Adapters/GrokAdapterV2.test.ts src/orchestration-v2/Adapters/FxAdapterV2.test.ts -t 'permission|approval|runtime mode|autopilot|[Ff]ull access'
+          (cd ../../packages/provider-acp && vp test run src/server/clientPolicy.test.ts)
+          (cd ../../packages/provider-opencode && vp test run src/server/adapter.test.ts -t 'maps runtime modes|enforces non-interactive|identified local tool')
+          (cd ../../packages/provider-muse && vp test run src/server/adapter.test.ts src/server/sdk.test.ts src/server/protocol.test.ts)
+          (cd ../../packages/provider-pi && vp test run src/server/mcpExtensionSource.test.ts)
+          (cd ../../packages/provider-cursor && vp test run src/server/adapter.test.ts -t 'maps runtime modes to the SDK sandbox')
       - name: Olympus provider, quota and usage regressions
         working-directory: apps/server
         run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts

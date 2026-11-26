@@ -226,15 +226,7 @@ describe("CodexAdapterV2 runtime policy", () => {
       assert.equal(auto.approvalPolicy, "on-request");
       assert.equal(auto.approvalsReviewer, "auto_review");
       assert.equal(auto.sandboxPolicy?.type, "workspaceWrite");
-      assert.deepEqual(fullAccess.approvalPolicy, {
-        granular: {
-          mcp_elicitations: true,
-          request_permissions: false,
-          rules: false,
-          sandbox_approval: false,
-          skill_approval: false,
-        },
-      });
+      assert.equal(fullAccess.approvalPolicy, "never");
       assert.equal(fullAccess.approvalsReviewer, "user");
       assert.equal(fullAccess.sandboxPolicy?.type, "dangerFullAccess");
     }),
@@ -2083,6 +2075,14 @@ describe("CodexAdapterV2 post-settle continuation", () => {
       );
       assert.equal(request?.kind, asks ? "command" : undefined);
       if (!asks) {
+        assert.isTrue(
+          harness.events.some(
+            (event) =>
+              event.type === "turn_item.updated" &&
+              event.turnItem.type === "system_notice" &&
+              event.turnItem.title === "Approved automatically: full access",
+          ),
+        );
         assert.deepEqual(
           harness.terminalEvents().map((event) => event.status),
           ["completed"],
@@ -13450,22 +13450,31 @@ describe("CodexAdapterV2 post-settle continuation", () => {
         const harness = yield* makeCodexReplayHarness(
           makeCodexReplayTranscript({
             scenario,
-            entries: [...codexReplayPreamble({ nativeThreadId, nativeTurnId, prompt }), ...entries],
+            entries: [
+              ...codexReplayPreamble({
+                nativeThreadId,
+                nativeTurnId,
+                prompt,
+                turnPolicy: { approvalPolicy: "untrusted", sandboxPolicy: { type: "readOnly" } },
+              }),
+              ...entries,
+            ],
           }),
           (event) =>
             event.type === "runtime_request.updated" && event.runtimeRequest.status === "pending"
               ? Queue.offer(pending, event.runtimeRequest)
               : Effect.void,
         );
-        yield* harness.runtime.startTurn(
-          makeCodexTestTurnInput({
+        yield* harness.runtime.startTurn({
+          ...makeCodexTestTurnInput({
             threadId: harness.threadId,
             providerThread: harness.providerThread,
             now: yield* DateTime.now,
             attemptId: RunAttemptId.make(`${scenario}-attempt`),
             text: prompt,
           }),
-        );
+          runtimePolicy: { ...CODEX_TEST_RUNTIME_POLICY, runtimeMode: "approval-required" },
+        });
         return {
           harness,
           answerNext: Queue.take(pending).pipe(

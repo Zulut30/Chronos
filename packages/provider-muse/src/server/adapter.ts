@@ -1027,6 +1027,14 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
           completedAt: time,
           updatedAt: time,
         };
+        if (
+          entry.item.type === "approval_request" &&
+          !entry.shown &&
+          status === "resolved" &&
+          (entry.response?.decision === "accept" || entry.response?.decision === "acceptForSession")
+        ) {
+          entry.item = { ...entry.item, ...ProviderAdapter.fullAccessApprovalNotice };
+        }
         pending.delete(entry.request.id);
         yield* emit({
           type: "runtime_request.updated",
@@ -1326,19 +1334,31 @@ export const makeMuseAdapterV2 = Effect.fn("makeMuseAdapterV2")(function* (
                   required: true,
                 })),
               };
-        // Muse does not propagate allowAll to workflow children; T3 answers for them.
-        const autoApprove = child && input.runtimePolicy.runtimeMode === "full-access";
+        const choices = native.type === "approval" ? museApprovalChoices(native.value) : undefined;
+        const sessionGrant = choices?.get("acceptForSession");
+        const onceGrant = choices?.get("accept");
+        const autoDecision =
+          ProviderAdapter.hasUnrestrictedToolAccess(
+            turn?.input.runtimePolicy ?? input.runtimePolicy,
+          ) &&
+          (subject?.kind === "shell" || subject?.kind === "fileAccess")
+            ? sessionGrant?.decision === "approvedForSession" && sessionGrant.scope === "session"
+              ? "acceptForSession"
+              : onceGrant?.decision === "approved" && onceGrant.scope === "once"
+                ? "accept"
+                : undefined
+            : undefined;
         const entry: PendingRequest = {
           native,
           request: runtimeRequest,
           node,
           item,
-          shown: !autoApprove || previous?.shown === true,
+          shown: !autoDecision || previous?.shown === true,
         };
         pending.set(requestId, entry);
         if (entry.shown) yield* showRequest(entry);
-        if (autoApprove)
-          yield* decideApproval(entry, "accept").pipe(
+        if (autoDecision)
+          yield* decideApproval(entry, autoDecision).pipe(
             Effect.catch(() =>
               Effect.gen(function* () {
                 // Native updates may settle or replace this entry while the RPC is in flight.
