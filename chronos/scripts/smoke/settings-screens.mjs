@@ -3,6 +3,7 @@ import { writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { seedQuotaNotices } from "./settings-quota.mjs";
 import { withSmokeFrame } from "./artifacts.mjs";
 
 async function seedGallery(executable) {
@@ -29,10 +30,25 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
   const act = async (step) => assert.ok((await client.probe("performAction", step)).ok);
   const wait = async (selector) => assert.ok((await ready(client, { selector })).ready, selector);
   const evaluate = async (expression) => {
-    const reply = await client.send("Runtime.evaluate", { expression, returnByValue: true });
-    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.text);
+    const reply = await client.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
+    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description ?? reply.exceptionDetails.text);
     return reply.result.value;
   };
+  // The initial route can redirect to onboarding after the renderer has hydrated.
+  const deadline = Date.now() + 45000;
+  while (!await evaluate(`!!document.querySelector("button[aria-label='День / ночь']")`)) {
+    if (Date.now() > deadline) throw Error("Onboarding did not reach the workspace: " + (await client.probe("appInfo")).pathname);
+    await client.probe("dismissOnboarding", { readyProvider: true });
+    await client.pumpFrames(1, 200);
+  }
+  if (sample) {
+    const deadline = Date.now() + 15000;
+    while (!await evaluate("window.__olyStudio?.ws?.readyState === WebSocket.OPEN")) {
+      if (Date.now() > deadline) throw Error("Settings fixture has no open local connection");
+      await client.pumpFrames(1, 100);
+    }
+  }
+  const quotaCases = sample ? await seedQuotaNotices(evaluate) : [];
   // Resolve CSS colors in Chromium, including oklch and alpha. Store no input values.
   function inspect(root) {
     const canvas = document.createElement("canvas");
@@ -117,6 +133,33 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
       await act({ type: "click", selector: log });
       await capture("pc-log", "#pc-control-history, #pc-control details");
       await capture("native-notifications", "#notifications");
+      await act({type:"navigate",to:"/settings/scheduled-tasks"});
+      await wait("#scheduled-tasks button");
+      await act({type:"click",selector:"#scheduled-tasks button",text:"Новая задача"});
+      await wait("#scheduled-task-title");
+      if (!(await evaluate('!!document.querySelector("#scheduled-task-catch-up")'))) {
+        await act({type:"click",selector:"[role=dialog] button",text:"В определённое время"});
+      }
+      await capture("scheduled-catch-up", "div:has(> #scheduled-task-catch-up)");
+      await capture("scheduled-catch-up-focus", "div:has(> #scheduled-task-catch-up)", "#scheduled-task-catch-up");
+      for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"Escape",code:"Escape",windowsVirtualKeyCode:27});
+      await evaluate('window.__TSR_ROUTER__.navigate({to:"/settings/providers",search:{instanceId:"antigravity"}})');
+      if (await evaluate('!!document.querySelector("#claude-low-memory-unload")')) {
+        await capture("claude-low-memory", "#claude-low-memory-unload");
+        await capture("claude-low-memory-focus", "#claude-low-memory-unload", "#claude-low-memory-unload [role=switch]");
+      }
+      await capture("antigravity-sandbox", 'section[aria-label="Настройка Antigravity"]');
+      await act({type:"navigate",to:"/settings/threads"});
+      await capture("quota-settings", "#usage-limits");
+      for (const {route, knownReset} of quotaCases) {
+        await act({type:"navigate",to:route});
+        const notice = '[role=alert][data-chat-composer-collapsed-controls]';
+        await wait(notice);
+        assert.match(await evaluate(`document.querySelector(${JSON.stringify(notice)}).textContent`), /Antigravity/);
+        await capture(knownReset ? "quota-reset" : "quota-unknown-reset", notice);
+      }
+      await act({type:"navigate",to:"/settings/general"});
+      await wait("[data-oly-ik-nav] button");
       for (const [id, button, panel, loaded] of [
         ["api-keys", "[data-oly-ik-nav] button", ".oly-ik-panel", "[data-oly-ik-input]"],
         ["mcp", "[data-oly-mcp-nav] button", ".oly-mcp-pane", ".oly-mcp-pane iframe"],

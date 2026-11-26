@@ -11,8 +11,9 @@ import { useEnvironments, usePrimaryEnvironmentId } from "~/state/environments";
 import { usePeerLinkHosts } from "~/state/peerLinks";
 import { useEnvironmentQuery } from "~/state/query";
 import { useEnvironmentScope } from "~/state/session";
+import { useOptionalSettingsScope } from "./SettingsScopeContext";
 import { isWslSettingsRowVisible } from "./ConnectionsSettings.logic";
-import { isProviderSettingsEnvironmentAvailable } from "./ProviderSettingsPanel.logic";
+import { hasAntigravitySettings, isProviderSettingsEnvironmentAvailable } from "./ProviderSettingsPanel.logic";
 import {
   filterAvailableSettingsSearchItems,
   getThreadAutoSettlementSearchAvailability,
@@ -28,6 +29,8 @@ export function useHasSecretProvidersEnvironment() {
 
 export function useAvailableSettingsSearchItems() {
   const { environments } = useEnvironments();
+  const scope = useOptionalSettingsScope();
+  const providerEnvironments = scope ? environments.filter((item) => item.environmentId === scope.environment?.environmentId) : environments;
   // Explicit booleans keep flags out of the filter cache so environment updates do not rebuild the list.
   const hasEnvironment =
     environments.some((environment) => environment.serverConfig !== null) === true;
@@ -83,7 +86,11 @@ export function useAvailableSettingsSearchItems() {
     hasCloudPublicConfig: cloudPublicConfig,
     hasEnvironment,
     hasProviderSettingsEnvironment,
-    hasClaudeIdleUnloadEnvironment: environments.some((environment) =>
+    hasAntigravityEnvironment: providerEnvironments.some((environment) => environment.connection.phase === "connected" && hasAntigravitySettings(environment.serverConfig)),
+    hasLowMemoryUnloadEnvironment: providerEnvironments.some((environment) =>
+      environment.serverConfig?.settings.claudeLowMemoryUnloadEnabled !== undefined,
+    ),
+    hasClaudeIdleUnloadEnvironment: providerEnvironments.some((environment) =>
       environment.serverConfig?.settings.claudeIdleUnloadMinutes !== undefined,
     ),
     canManageLocalBackend,

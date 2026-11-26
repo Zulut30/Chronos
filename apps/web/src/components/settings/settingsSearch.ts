@@ -68,6 +68,8 @@ export interface SettingsSearchItem {
   readonly environmentOnly?: boolean;
   readonly providerSettingsOnly?: boolean;
   readonly claudeIdleUnloadOnly?: boolean;
+  readonly lowMemoryUnloadOnly?: boolean;
+  readonly antigravityOnly?: boolean;
   readonly localBackendManagementOnly?: boolean;
   readonly localEnvironmentOnly?: boolean;
   readonly primaryEnvironmentOnly?: boolean;
@@ -87,6 +89,8 @@ export interface SettingsSearchAvailability {
   readonly hasEnvironment: boolean;
   readonly hasProviderSettingsEnvironment: boolean;
   readonly hasClaudeIdleUnloadEnvironment?: boolean;
+  readonly hasLowMemoryUnloadEnvironment?: boolean;
+  readonly hasAntigravityEnvironment?: boolean;
   readonly canManageLocalBackend: boolean;
   readonly isWslSettingsRowVisible: boolean;
   readonly hasThreadAutoSettlement: boolean;
@@ -269,9 +273,14 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["Управление ПК журнал действий", "computer control history"],
   },
   {
-    id: "claude-idle-unload", title: msg("Unload idle Claude threads"), to: "/settings/providers",
+    id: "claude-idle-unload", title: msg("Unload idle Claude and ACP threads"), to: "/settings/providers",
     scope: "environment-defaults", providerSettingsOnly: true, claudeIdleUnloadOnly: true,
-    searchTerms: ["Выгружать Claude при простое память минуты", "idle unload memory minutes"],
+    searchTerms: ["Выгружать Claude при простое минуты", "idle unload timeout minutes ACP"],
+  },
+  {
+    id: "claude-low-memory-unload", title: msg("Unload sooner when Windows is low on memory"), to: "/settings/providers",
+    scope: "environment-defaults", providerSettingsOnly: true, lowMemoryUnloadOnly: true,
+    searchTerms: ["нехватка памяти ОЗУ Windows выгружать раньше", "low memory RAM pressure Windows Claude ACP"],
   },
   {
     id: "storage-worktree-keep-when",
@@ -518,7 +527,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "auto-resume-limited-threads",
     title: msg("Resume after usage limits"),
     to: "/settings/threads",
-    searchTerms: [msg("usage quota rate limit reset recover continue")],
+    searchTerms: [msg("usage quota rate limit reset recover continue"), "Antigravity subscription quota", "квота Antigravity продолжить после сброса"],
   },
   {
     id: "working-shelf",
@@ -1142,6 +1151,22 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/scheduled-tasks",
   },
   {
+    id: "scheduled-task-catch-up",
+    title: msg("Run one missed occurrence on next startup"),
+    to: "/settings/scheduled-tasks",
+    targetId: "scheduled-tasks",
+    searchTerms: ["catch up missed fixed time schedule", "расписание догоняющий запуск пропущенная задача"],
+  },
+  {
+    id: "antigravity-terminal-sandbox",
+    title: msg("Terminal sandbox"),
+    to: "/settings/providers",
+    scope: "environment-defaults",
+    providerSettingsOnly: true,
+    antigravityOnly: true,
+    searchTerms: ["Antigravity full access host terminal permissions", "Antigravity песочница полный доступ терминал"],
+  },
+  {
     id: "agent-browser-access",
     title: msg("Agent browser access"),
     to: "/settings/browser",
@@ -1694,7 +1719,9 @@ export function filterAvailableSettingsSearchItems(
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&
+      (!item.lowMemoryUnloadOnly || availability.hasLowMemoryUnloadEnvironment === true) &&
       (!item.claudeIdleUnloadOnly || availability.hasClaudeIdleUnloadEnvironment === true) &&
+      (!item.antigravityOnly || availability.hasAntigravityEnvironment === true) &&
       (!item.localBackendManagementOnly || availability.canManageLocalBackend) &&
       (!item.localEnvironmentOnly || !availability.localEnvironmentDisabled) &&
       (!item.primaryEnvironmentOnly || availability.hasPrimaryEnvironment === true) &&

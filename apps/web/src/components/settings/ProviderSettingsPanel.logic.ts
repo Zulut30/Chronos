@@ -6,6 +6,7 @@ import {
   type ProjectSettingsOverrides,
   type ProviderInstanceId,
   sessionGrantsScope,
+  type ServerConfig,
   type ServerSettings,
   type SessionGrantInput,
 } from "@t3tools/contracts";
@@ -13,6 +14,13 @@ import {
 export interface ProviderEnvironmentOptionLike {
   readonly environmentId: EnvironmentId;
   readonly label: string;
+}
+
+export function hasAntigravitySettings(config: ServerConfig | null) {
+  return config !== null && (
+    config.providers.some((instance) => instance.driver === "antigravity") ||
+    Object.values(config.settings.providerInstances ?? {}).some((instance) => instance.driver === "antigravity")
+  );
 }
 
 export function isProviderSettingsEnvironmentAvailable(input: {

@@ -2160,7 +2160,7 @@ it.effect.each([
 );
 
 // chronos: a viewer or recovered memory during the guarded probe vetoes an early close.
-it.effect.each(["hidden", "viewed", "recovered", "disabled"] as const)(
+it.effect.each(["hidden", "viewed", "recovered", "pressure-off", "disabled"] as const)(
   "Claude pressure sweep preserves the ordinary deadline for %s",
   (scenario) => Effect.gen(function* () {
     const state = yield* Ref.make(emptyState);
@@ -2193,7 +2193,10 @@ it.effect.each(["hidden", "viewed", "recovered", "disabled"] as const)(
         if (scenario === "recovered") pressure = false;
         return true;
       }),
-      serverSettingsLayer: ServerSettings.layerTest({ claudeIdleUnloadMinutes: scenario === "disabled" ? 0 : 10 }),
+      serverSettingsLayer: ServerSettings.layerTest({
+        claudeIdleUnloadMinutes: scenario === "disabled" ? 0 : 10,
+        ...(scenario === "pressure-off" ? { claudeLowMemoryUnloadEnabled: false } : {}),
+      }),
     })), Effect.scoped);
   }),
 );

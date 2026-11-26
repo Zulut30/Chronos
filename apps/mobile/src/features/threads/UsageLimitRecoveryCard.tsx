@@ -149,7 +149,7 @@ export function UsageLimitRecoveryCard({
       };
   return (
     <View
-      accessibilityRole={chatGptLimit ? "alert" : undefined}
+      accessibilityRole={chatGptLimit || code === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE ? "alert" : undefined}
       className="mx-3 mb-2 flex-row gap-2 rounded-xl border border-warning-foreground/25 bg-screen p-3"
     >
       {chatGptLimit ? (
@@ -187,7 +187,9 @@ export function UsageLimitRecoveryCard({
                   : resetPassed
                     ? gt("Usage limit reached. Reset {date}.", { date: resetDate })
                     : gt("Usage limit reached. Resets {date}.", { date: resetDate })
-                : gt(
+                : code === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+                  ? gt("Antigravity did not report a reset time. Retry when your subscription quota renews.")
+                  : gt(
                     "Usage limit reached. The provider did not report a reset time. Retry manually when your limit is available.",
                   )}
         </Text>

@@ -1,3 +1,4 @@
+import { smokeRpc } from "./local-rpc.mjs";
 import assert from "node:assert/strict";
 import {execFileSync,spawn} from "node:child_process";
 import path from "node:path";
@@ -236,28 +237,7 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     // Use the app's own authenticated session to create an empty local thread; no model turn is run.
     await evaluate(`(async()=>{
       document.querySelector('dialog.art-dialog [aria-label="Закрыть"]').click();
-      const socket=window.__olyStudio.ws;
-      async function call(tag,payload) {
-        const id=String(800000000+Math.floor(Math.random()*9000000));
-        return new Promise((resolve,reject)=>{
-          let buffer="";
-          const cleanup=()=>{clearTimeout(timer);socket.removeEventListener("message",receive);};
-          const timer=setTimeout(()=>{cleanup();reject(Error(tag+" timed out"));},15000);
-          function receive(event) {
-            if(typeof event.data!=="string")return;
-            if(event.data.charCodeAt(0)===30){buffer+=event.data.slice(1);return;}
-            const raw=buffer+event.data;buffer="";
-            if(!raw.includes(id))return;
-            for(const msg of [JSON.parse(raw)].flat()){
-              if(msg._tag!=="Exit" || String(msg.requestId)!==id)continue;
-              cleanup();
-              if(msg.exit._tag==="Success")resolve(msg.exit.value);else reject(Error(tag+" failed"));
-            }
-          }
-          socket.addEventListener("message",receive);
-          socket.send(JSON.stringify({_tag:"Request",id,tag,payload,headers:[]}));
-        });
-      }
+      const call = (${smokeRpc});
       const {environment}=await call("server.getConfig",{});
       const {projectId}=await call("projects.ensureScratch",{});
       const threadId=crypto.randomUUID();

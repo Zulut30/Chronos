@@ -1,18 +1,22 @@
 {
   "en": {
     "title": "Unload idle Claude and ACP threads",
-    "description": "Minutes of inactivity before Chronos closes Claude or a resumable ACP agent such as Antigravity. The next message resumes the conversation. Set to 0 to disable.",
+    "description": "Close idle Claude and resumable ACP agents, including Antigravity, after this many minutes. The next message resumes the conversation. Set to 0 to disable idle unloading.",
     "decrease": "Decrease idle time",
     "input": "Provider idle time in minutes",
     "increase": "Increase idle time",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "lowMemoryTitle": "Unload sooner when Windows is low on memory",
+    "lowMemoryDescription": "When memory is low, unload idle agents after one minute if nobody is viewing their threads. Requires a nonzero idle timeout."
   },
   "ru": {
     "title": "Выгружать Claude и ACP при простое",
-    "description": "Через сколько минут простоя закрывать Claude или ACP-агент с нативным возобновлением, включая Antigravity. Следующее сообщение продолжит тот же разговор. Значение 0 отключает выгрузку.",
+    "description": "Через сколько минут простоя закрывать Claude и возобновляемые ACP-агенты, включая Antigravity. Следующее сообщение продолжит разговор. Значение 0 отключает выгрузку при простое.",
     "decrease": "Уменьшить время простоя",
     "input": "Время простоя провайдера в минутах",
     "increase": "Увеличить время простоя",
-    "minutes": "мин"
+    "minutes": "мин",
+    "lowMemoryTitle": "Выгружать раньше при нехватке памяти в Windows",
+    "lowMemoryDescription": "Если памяти мало и треды никто не просматривает, выгружать агенты через минуту простоя. Работает при тайм-ауте больше нуля."
   }
 }

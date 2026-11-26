@@ -12917,5 +12917,11 @@
   "a171b7e4fc651336": "End session",
   "6857566b35bdfc48": "Computer control is unavailable because this build lacks the agent-desktop component.",
   "a99e69dce82e3b0f": "Stop all computer control actions. To control apps on this Mac, allow Chronos in System Settings → Privacy & Security → Accessibility.",
-  "92a45cd40283156f": "Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."
+  "92a45cd40283156f": "Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE.",
+  "53284105a7423abf": "Unload idle Claude and ACP threads",
+  "a560fd7a855648e6": "Run one missed occurrence on next startup",
+  "091ed640e9c9fbb7": "Active thread permissions",
+  "87846c5910d14aa7": "If the environment was offline at the scheduled time, run the task once when it starts.",
+  "1b694b2d5f43f68b": "Antigravity did not report a reset time. Retry when your subscription quota renews.",
+  "c251d5fb6872abff": "Unload sooner when Windows is low on memory"
 }
