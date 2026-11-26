@@ -29,6 +29,7 @@ const workerExits = vi.hoisted(() => new WeakMap<NodeWorkerThreads.Worker, Promi
 const silentWorkers = vi.hoisted(() => ({ on: false, readyOnTerminate: false }));
 const failingWorkers = vi.hoisted(() => ({ message: undefined as string | undefined }));
 const checkpointWorkers = vi.hoisted((): Array<NodeWorkerThreads.Worker> => []);
+const checkpointWaiters = vi.hoisted((): Array<(worker: NodeWorkerThreads.Worker) => void> => []);
 
 vi.mock("node:worker_threads", async (importOriginal) => {
   const actual = await importOriginal<typeof NodeWorkerThreads>();
@@ -43,7 +44,10 @@ vi.mock("node:worker_threads", async (importOriginal) => {
       );
       startedWorkers.push(this);
       workerExits.set(this, new Promise((resolve) => this.once("exit", () => resolve())));
-      if (args[1]?.workerData?.frames !== undefined) checkpointWorkers.push(this);
+      if (args[1]?.workerData?.frames !== undefined) {
+        checkpointWorkers.push(this);
+        while (checkpointWaiters.length > 0) checkpointWaiters.shift()!(this);
+      }
     }
     override terminate() {
       // A "ready" already queued when termination starts reaches the parent before "exit".
@@ -1055,14 +1059,11 @@ const setSqliteIdleEnv = (value: string | undefined) => {
   else process.env.CHRONOS_SQLITE_WORKER_IDLE_MS = value;
 };
 const waitForCheckpointWorkerAfter = (countBefore: number) =>
-  new Promise<NodeWorkerThreads.Worker>((resolve) => {
-    const poll = () => {
-      const next = checkpointWorkers.at(-1);
-      if (checkpointWorkers.length > countBefore && next !== undefined) resolve(next);
-      else setImmediate(poll);
-    };
-    poll();
-  });
+  checkpointWorkers.length > countBefore
+    ? Promise.resolve(checkpointWorkers.at(-1)!)
+    : new Promise<NodeWorkerThreads.Worker>((resolve) => {
+        checkpointWaiters.push(resolve);
+      });
 
 it.live("starts checkpoint worker lazily and retires idle reader and checkpoint workers cleanly", () =>
   withLogLines((lines) =>

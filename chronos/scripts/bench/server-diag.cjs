@@ -55,6 +55,7 @@ if (wt.isMainThread && root) {
       workersSpawned: spawned,
       workersAlive: alive.size,
       workersByKind: byKind,
+      fffLoaded: Object.keys(require.cache).some((k) => k.includes("fff")),
     };
     fs.writeFileSync(marker + ".tmp", JSON.stringify(out, null, 2));
     fs.renameSync(marker + ".tmp", marker + ".json");

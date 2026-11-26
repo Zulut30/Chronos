@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off
+// @effect-diagnostics nodeBuiltinImport:off -- Bridge stdio tests feed PassThrough streams directly.
 import * as NodeStream from "node:stream";
 
 import { describe, expect, it, vi } from "vite-plus/test";
