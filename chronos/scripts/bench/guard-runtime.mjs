@@ -44,7 +44,16 @@ try {
     binary = join(sb.root, "agy.exe");
     copyFileSync(process.execPath, binary);
     const fixture = pathToFileURL(join(import.meta.dirname, "agent.mjs")).href;
-    writeFileSync(join(sb.work, "acp"), "process.argv = [process.execPath, 'fixture', " + JSON.stringify(sb.root) + ", '1', '1', 'acp-lifecycle']; import(" + JSON.stringify(fixture) + ").catch(e => { console.error(e); process.exitCode=1; });");
+    const fixtureLog = JSON.stringify(join(sb.root, "acp-fixture.log"));
+    writeFileSync(join(sb.work, "acp"), [
+      "const { appendFileSync } = require('node:fs');",
+      "appendFileSync(" + fixtureLog + ", 'starting fixture\\n');",
+      "process.argv = [process.execPath, 'fixture', " + JSON.stringify(sb.root) + ", '1', '1', 'acp-lifecycle'];",
+      "import(" + JSON.stringify(fixture) + ").catch(error => {",
+      "  appendFileSync(" + fixtureLog + ", String(error.stack) + '\\n');",
+      "  process.exit(1);",
+      "});",
+    ].join("\n"));
     Object.assign(env, {
       CHRONOS_TRACE_IDLE_UNLOAD: "1", CHRONOS_BENCH_LIFECYCLE: "1", CHRONOS_BENCH_EXE: exe, CHRONOS_BENCH_ENTRY: entry,
       HTTP_PROXY: "http://127.0.0.1:9", HTTPS_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost",
@@ -102,6 +111,14 @@ try {
   const app = idle
     ? sb.start(exe, ["--remote-debugging-port=" + debug, "--user-data-dir=" + sb.profile], { ...env, T3CODE_PORT: String(port) })
     : sb.start(exe, [entry, "serve", "--base-dir", sb.home, "--port", String(port), "--host", "127.0.0.1", "--no-browser"], { ...env, ELECTRON_RUN_AS_NODE: "1" });
+  // Keep only startup errors from this isolated credential-free server.
+  let startupErrors = "";
+  if (acp) {
+    for (const stream of [app.stdout, app.stderr]) stream.on("data", chunk => {
+      const lines = String(chunk).split("\n").filter(line => /error|cause|failure/i.test(line));
+      startupErrors = (startupErrors + lines.join("\n")).slice(-9000);
+    });
+  }
   if (env.CHRONOS_TRACE_IDLE_UNLOAD) app.stderr.on("data", chunk => {
     for (const row of String(chunk).split("\n")) if (row.startsWith("chronos-idle ")) console.log(row);
   });
@@ -144,7 +161,14 @@ try {
     const launch = (id, text) => rpc.call("orchestration.launchThread", { commandId: crypto.randomUUID(), threadId: id, projectId, title: "Guard", generateTitle: false, modelSelection: settings.defaultModelSelection, runtimeMode: "approval-required", interactionMode: "default", workspaceStrategy: { type: "root" }, initialMessage: { text, attachments: [] } });
     if (acp) {
       const { measureAcp } = await import("./acp-experiment.mjs");
-      experimentResult = await measureAcp({ launch, rpc, sb, threadId, expectUnload: claudeExperiment === "idle-head" });
+      try {
+        experimentResult = await measureAcp({ launch, rpc, sb, threadId, expectUnload: claudeExperiment === "idle-head" });
+      } catch (error) {
+        const fixtureLog = join(sb.root, "acp-fixture.log");
+        if (existsSync(fixtureLog)) console.error(readFileSync(fixtureLog, "utf8").slice(-3000));
+        console.error(startupErrors.replace(/(Bearer\s+|token[=: ]+)\S+/gi, "$1[redacted]"));
+        throw error;
+      }
     } else if (claudeExperiment) {
       const { measureClaude } = await import("./claude-experiment.mjs");
       experimentThreadId = threadId;

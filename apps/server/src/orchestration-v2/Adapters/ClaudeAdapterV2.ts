@@ -193,8 +193,7 @@ import * as ServerConfig from "../../config.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ProcessRunner from "../../processRunner.ts";
 // chronos: identify additional jobs before releasing an idle query.
-import { traceIdleUnload } from "../../chronos/claudeIdleUnload.ts";
-import { captureIdleProcessGuard } from "../../chronos/claudeProcessGuard.ts";
+import { captureIdleProcessGuard, traceIdleUnload } from "../../chronos/claudeProcessGuard.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
 import { spawnAndCollect } from "@t3tools/provider-core/server/snapshotProbe";

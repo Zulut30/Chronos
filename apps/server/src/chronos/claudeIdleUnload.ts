@@ -11,7 +11,7 @@ import { ProjectionStoreV2 } from "../orchestration-v2/ProjectionStore.ts";
 import { ThreadViewers } from "../orchestration-v2/ThreadViewers.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import { ProcessRunner } from "../processRunner.ts";
-import { captureIdleProcessGuard } from "./claudeProcessGuard.ts";
+import { captureIdleProcessGuard, idleUnloadTracing, traceIdleUnload } from "./claudeProcessGuard.ts";
 import { TerminalManager } from "../terminal/Manager.ts";
 
 interface IdleEntry {
@@ -28,12 +28,6 @@ interface IdleRelease {
   readonly onlyIfIdleGeneration: number;
   readonly gracefulSubscribers: true;
   readonly keepIf: Effect.Effect<boolean>;
-}
-
-// Opt-in diagnostics log only lifecycle state, never prompts, paths or process arguments.
-export function traceIdleUnload(phase: string, fields: object) {
-  if (process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1")
-    process.stderr.write("chronos-idle " + JSON.stringify({ phase, ...fields }) + "\n");
 }
 
 const MINUTE = 60_000;
@@ -134,18 +128,27 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
       ![...live.values()].some(
         (entry) => entry.chronosIdleSince !== undefined && entry.busyTurns.size === 0,
       )
-    )
+    ) {
+      if (live.size && idleUnloadTracing()) {
+        traceIdleUnload("active", { sessions: live.size, busy: [...live.values()].map((entry) => entry.busyTurns.size) });
+      }
       return;
+    }
     const delay = yield* minutes;
     if (delay === 0) {
       traceIdleUnload("disabled", { settings: Option.isSome(settings) });
       return;
     }
     const now = yield* Clock.currentTimeMillis;
-    if (process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1") {
+    if (idleUnloadTracing()) {
       traceIdleUnload("sweep", {
-        delay, terminals: Option.isSome(terminals), viewers: Option.isSome(viewers),
-        sessions: [...live.values()].map(e => ({ busy: e.busyTurns.size, age: now - (e.chronosIdleSince ?? now), due: due(e, now - (e.chronosIdleSince ?? now), delay) })),
+        delay,
+        terminals: Option.isSome(terminals),
+        viewers: Option.isSome(viewers),
+        sessions: [...live.values()].map((entry) => {
+          const age = now - (entry.chronosIdleSince ?? now);
+          return { busy: entry.busyTurns.size, age, due: due(entry, age, delay) };
+        }),
       });
     }
     for (const entry of live.values()) {
@@ -170,15 +173,19 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
               traceIdleUnload("protected", { by: "thread-work" });
               return true;
             }
-            if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork))
+            if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork)) {
+              traceIdleUnload("protected", { by: "background-work" });
               return true;
+            }
             if (!runtime.canUnloadIdleSession || !(yield* runtime.canUnloadIdleSession)) {
               traceIdleUnload("protected", { by: "adapter", driver: runtime.driver });
               return true;
             }
             // Probes yield. Recheck config and the activity token under the manager's request permit.
-            if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork))
+            if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork)) {
+              traceIdleUnload("protected", { by: "background-work" });
               return true;
+            }
             const timeout = yield* minutes;
             const latest = (yield* entries).get(String(id));
             const age = (yield* Clock.currentTimeMillis) - since;

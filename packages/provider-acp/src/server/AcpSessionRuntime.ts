@@ -2467,7 +2467,8 @@ export const make = Effect.fn("AcpSessionRuntime.make")(function* (
         sessionId = options.resumeSessionId;
         if (
           initializeResult.agentCapabilities?.loadSession === true &&
-          (options.resumeMethod !== "resume" || initializeResult.agentCapabilities?.sessionCapabilities?.resume == null)
+          (options.resumeMethod !== "resume" ||
+            initializeResult.agentCapabilities?.sessionCapabilities?.resume == null)
         ) {
           const loadPayload = {
             sessionId,

@@ -58,6 +58,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     continue;
   }
   if (id == null) continue;
+  if (lifecycle && method) appendFileSync(join(root, "acp-fixture.log"), method + "\n");
   let result = {};
   if (method === "initialize") {
     result = {

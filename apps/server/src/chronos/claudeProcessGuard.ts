@@ -3,6 +3,15 @@ import type { ProcessRunner } from "../processRunner.ts";
 
 type Tree = ReadonlySet<string>;
 
+// Opt-in diagnostics log only lifecycle state, never paths, arguments or prompts.
+export const idleUnloadTracing = () => process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1";
+
+export function traceIdleUnload(phase: string, fields: object) {
+  if (idleUnloadTracing()) {
+    process.stderr.write("chronos-idle " + JSON.stringify({ phase, ...fields }) + "\n");
+  }
+}
+
 // Only keep identities (PID and creation time), never arguments or environment. A later
 // helper, even one with a familiar MCP executable name, could be doing the agent's work.
 export function processTree(
@@ -117,5 +126,7 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
       ),
       Effect.orElseSucceed(() => undefined),
     );
-  return idleProcessGuard(yield* read, read);
+  const initial = yield* read;
+  traceIdleUnload("process-baseline", { available: initial !== undefined, count: initial?.size });
+  return idleProcessGuard(initial, read);
 });

@@ -1780,7 +1780,7 @@ export const layerWithOptions = (
           return;
         }
 
-        // chronos: Claude uses one settings-aware clock and never expires a background pin.
+        // chronos: resumable Claude and ACP sessions share one clock and never expire a background pin.
         if (entry.runtime.canUnloadIdleSession !== undefined)
           return yield* claudeIdle.touch(entry.runtime);
         yield* cancelIdleFiber(entry.idleFiber);

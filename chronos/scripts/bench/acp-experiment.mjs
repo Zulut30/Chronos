@@ -11,7 +11,7 @@ export async function measureAcp({ launch, rpc, sb, threadId, expectUnload }) {
   });
   const waitAnswer = (text, count) => sb.wait("ACP completed with " + text, async () => {
     const p = await get(threadId);
-    if (p.runs.at(-1)?.status === "failed") throw Error(JSON.stringify([p.providerSessions.at(-1)?.lastError, p.turnItems.slice(-2)]).slice(-1800));
+    if (p.runs.at(-1)?.status === "failed") throw Error(JSON.stringify([p.providerSessions.at(-1)?.lastError, p.turnItems.at(-1)?.failure]));
     return p.runs.length === count && p.runs.at(-1).status === "completed" &&
       p.turnItems.some(i => i.type === "assistant_message" && i.text?.trim() === text) && p;
   });
@@ -52,10 +52,15 @@ export async function measureAcp({ launch, rpc, sb, threadId, expectUnload }) {
     const sample = memory(ids);
     assert.equal(sample.count, 2);
     await cmd(type, threadId);
-    return sb.wait(type + " exits both original processes", () => {
-      const remaining = memory(ids, sample);
-      return remaining.count === 0 && remaining;
-    }, 20000);
+    const deadline = Date.now() + 20000;
+    let remaining;
+    do {
+      remaining = memory(ids, sample);
+      if (remaining.count === 0) break;
+      await sleep(500);
+    } while (Date.now() < deadline);
+    if (expectUnload) assert.equal(remaining.count, 0, type + " exits both original processes");
+    return remaining;
   };
   const archive = await checkClose("thread.archive", reopened);
   await cmd("thread.unarchive", threadId);

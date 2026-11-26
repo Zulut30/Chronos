@@ -7965,14 +7965,20 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
         });
 
         // chronos: guards belong to a specific process, including staged replacements.
-        const idleProcessGuards = new WeakMap<AcpSessionRuntime.AcpSessionRuntime["Service"], Effect.Effect<boolean>>();
+        const idleProcessGuards = new WeakMap<
+          AcpSessionRuntime.AcpSessionRuntime["Service"],
+          Effect.Effect<boolean>
+        >();
         const guardStartedProcess = Effect.fnUntraced(function* (
           child: AcpSessionRuntime.AcpSessionRuntime["Service"],
           setup: AcpSessionRuntime.AcpSessionRuntimeStartResult,
         ) {
           const capabilities = setup.initializeResult.agentCapabilities;
-          if (input.captureIdleProcessGuard && child.idleProcessTree &&
-              (capabilities?.loadSession === true || capabilities?.sessionCapabilities?.resume != null)) {
+          if (
+            input.captureIdleProcessGuard &&
+            child.idleProcessTree &&
+            (capabilities?.loadSession === true || capabilities?.sessionCapabilities?.resume != null)
+          ) {
             idleProcessGuards.set(child, yield* input.captureIdleProcessGuard(child.idleProcessTree));
           }
         });
@@ -10335,25 +10341,35 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
               const child = runtime;
               const guard = idleProcessGuards.get(child);
               const sessionId = yield* Ref.get(activeSessionId);
-              if (!guard || sessionId === null || !(yield* Ref.get(providerThreadByNativeSessionId)).has(sessionId)) return false;
+              if (
+                !guard ||
+                sessionId === null ||
+                !(yield* Ref.get(providerThreadByNativeSessionId)).has(sessionId)
+              ) return false;
               if (flavor.hasPendingReply && (yield* flavor.hasPendingReply(sessionId))) return false;
               if (!(yield* guard)) return false;
               const setup = yield* Ref.get(activeSessionSetup);
               const caps = setup?.initializeResult.agentCapabilities;
-              return child === runtime && setup?.sessionId === sessionId &&
+              return (
+                child === runtime &&
+                setup?.sessionId === sessionId &&
                 (caps?.loadSession === true || caps?.sessionCapabilities?.resume != null) &&
-                (yield* Ref.get(activeTurn)) === null && (yield* Ref.get(loadingSessionId)) === null &&
+                (yield* Ref.get(activeTurn)) === null &&
+                (yield* Ref.get(loadingSessionId)) === null &&
                 (yield* Ref.get(runtimeTeardownState))._tag === "Idle" &&
                 !(yield* Ref.get(runtimeRestartRequired)) &&
                 (yield* Ref.get(pendingRuntimeRequests)).size === 0 &&
                 (yield* Ref.get(nativeResponseAcknowledgements)).size === 0 &&
-                openAgentRequests.size === 0 && agentRequests.size === 0 &&
-                !clientTerminals?.hasOpenTerminal() && rootForegroundWork !== "running" &&
+                openAgentRequests.size === 0 &&
+                agentRequests.size === 0 &&
+                !clientTerminals?.hasOpenTerminal() &&
+                rootForegroundWork !== "running" &&
                 !hasWorkingDescendant(sessionId) &&
                 (yield* Ref.get(runningBackgroundTaskIds)).size === 0 &&
                 (yield* Ref.get(midTurnUnreportedCompletedTaskIds)).size === 0 &&
                 (yield* Ref.get(wakeBuffer)).length === 0 &&
-                !(yield* Ref.get(continuationRequested));
+                !(yield* Ref.get(continuationRequested))
+              );
             }),
           } : {}),
           events: Stream.fromEffectRepeat(Queue.take(events)),
