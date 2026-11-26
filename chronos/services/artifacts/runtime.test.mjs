@@ -25,6 +25,11 @@ test("two artifact clients share only the selected document namespace; batch rol
   assert.match(response.headers.get("Content-Security-Policy"),/default-src 'none'/);
   assert.equal(resource(a,other,url).status,403);
   assert.equal(allowed(new URL("https://cdn.jsdelivr.net/x"),id,false),true);
+  for (const url of ["https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.js",
+    "https://unpkg.com/@scope/lib@1.0.0/app.js","https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"])
+    assert.equal(allowed(new URL(url),id,false,"script"),true);
+  for (const url of ["https://unpkg.com/lib@latest/app.js","https://cdn.jsdelivr.net/npm/lib@3/app.js"])
+    assert.equal(allowed(new URL(url),id,false,"script"),false);
   for(const u of ["https://cdn.jsdelivr.net.example.org","http://127.0.0.1:4520","file:///foo"]) assert.equal(allowed(new URL(u),id,false),false);
   assert.equal(allowed(new URL("https://unpkg.com"),id,true),false);
   assert.throws(()=>a.remove(id,9));

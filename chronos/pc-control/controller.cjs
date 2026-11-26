@@ -2,7 +2,7 @@ const net = require("node:net");
 const fs = require("node:fs");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
-const { makeNative } = require("./native.cjs");
+const { checkAvailability, makeNative } = require("./native.cjs");
 
 const defaults = { enabled: false, all: false, apps: [], mode: "risk" };
 const operations = [
@@ -68,6 +68,7 @@ function createController({
   key,
   shortcut,
   notify,
+  availability = { available: true },
   native = makeNative(tools, path.join(dir, "sessions")),
 }) {
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -88,6 +89,7 @@ function createController({
   let history = read(logFile, []);
   history = Array.isArray(history) ? history.map((entry) => ({ ...entry, id: entry.id ?? randomUUID() })) : [];
   let server,
+    closing = Promise.resolve(),
     registered = false,
     configuring = false;
   const sessions = new Map(),
@@ -104,6 +106,8 @@ function createController({
       active: activeState(),
       history,
       pending: [...pending.values()].map((p) => p.public),
+      available: availability.available !== false,
+      ...(availability.reason ? { unavailableReason: availability.reason } : {}),
     };
   }
   function record(op, status) {
@@ -379,15 +383,25 @@ function createController({
     }
     client.on("data", onData);
   }
+  function unlinkUnixSocket() {
+    if (process.platform === "win32" || typeof socket !== "string") return;
+    try {
+      fs.unlinkSync(socket);
+    } catch {
+      // Socket file was already removed.
+    }
+  }
   function stop() {
     settings = { ...settings, enabled: false };
     for (const task of active) task.abort();
     for (const client of connections) client.destroy();
     for (const s of sessions.values()) void release(s);
     if (server) {
-      server.close();
+      const closingServer = server;
       server = undefined;
+      closing = new Promise((resolve) => closingServer.close(() => resolve()));
     }
+    unlinkUnixSocket();
     if (registered) {
       shortcut.unregister(hotkey);
       registered = false;
@@ -396,10 +410,15 @@ function createController({
   }
   async function configure(input) {
     const next = policy(input);
+    if (next.enabled && availability.available === false) {
+      throw new Error(availability.reason || "Управление ПК недоступно на этом компьютере.");
+    }
     if (configuring) throw new Error("Настройки уже меняются.");
     configuring = true;
     try {
       stop();
+      await closing;
+      unlinkUnixSocket();
       if (next.enabled) {
         registered = shortcut.register(hotkey, emergency);
         if (!registered)
@@ -434,8 +453,8 @@ function createController({
     async restore() {
       const prior = read(settingsFile, defaults);
       try {
-        if (policy(prior).enabled) await configure(prior);
-        else settings = policy(prior);
+        if (availability.available !== false && policy(prior).enabled) await configure(prior);
+        else settings = { ...policy(prior), ...(availability.available === false ? { enabled: false } : {}) };
       } catch {
         stop();
       }
@@ -450,4 +469,4 @@ function createController({
     },
   };
 }
-module.exports = { createController };
+module.exports = { createController, checkAvailability };

@@ -10,7 +10,7 @@ if (process.isMainFrame && location.protocol === "chronos-artifact:") {
   for (const method of ["open","save"]) if(caps.includes("files."+method))
     files[method] = args => ipcRenderer.invoke("chronos:artifact-api","files."+method,args);
   if (Object.keys(files).length) api.files = files;
-  if (caps.includes("theme")) {
+  {
     const media = matchMedia("(prefers-color-scheme: dark)");
     let current = {mode:media.matches ? "dark" : "light",tokens:{}};
     function apply(value) {
@@ -22,7 +22,7 @@ if (process.isMainFrame && location.protocol === "chronos-artifact:") {
       for (const [key,value] of Object.entries(current.tokens)) if (/^--[a-z-]+$/.test(key) && CSS.supports("color",value)) root.style.setProperty(key,value);
       window.dispatchEvent(new Event("chronosthemechange"));
     }
-    api.theme = {get:()=>current};
+    if (caps.includes("theme")) api.theme = {get:()=>current};
     ipcRenderer.on("chronos:artifact-theme",(_event,theme)=>apply(theme));
     media.addEventListener("change",() => apply({mode:media.matches ? "dark" : "light",tokens:{}}));
     window.addEventListener("DOMContentLoaded",()=>apply(current),{once:true});

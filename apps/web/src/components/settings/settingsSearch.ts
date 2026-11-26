@@ -984,7 +984,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "app-version",
     title: msg("Version"),
     to: "/settings/about",
-    searchTerms: [msg("about check for updates download install upgrade release")],
+    searchTerms: [msg("about check for updates download install upgrade release"), "macOS DMG Rosetta", "обновления скачать установить образ для Mac"],
   },
   {
     id: "update-track",

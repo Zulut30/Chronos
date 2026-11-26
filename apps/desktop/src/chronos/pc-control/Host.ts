@@ -44,12 +44,18 @@ export const startPcControl = Effect.fn("Chronos.pcControl")(function* (
     "./controller.cjs",
   ) as {
     createController(options: Record<string, unknown>): Controller;
+    checkAvailability?: (
+      tools: string,
+      platform?: NodeJS.Platform,
+    ) => { readonly available: boolean; readonly reason?: string };
   };
+  const availability = factory.checkAvailability?.(tools, env.platform) ?? { available: true };
   const controller = factory.createController({
     dir: NodePath.join(env.baseDir, "pc-control"),
     tools,
     socket,
     key,
+    availability,
     shortcut: globalShortcut,
     notify() {
       const main = runSync(windows.main);
@@ -57,13 +63,17 @@ export const startPcControl = Effect.fn("Chronos.pcControl")(function* (
         main.value.webContents.send("chronos:pc-changed");
     },
   });
-  setPcAgentEnvironment({
-    CHRONOS_PC_SOCKET: socket,
-    CHRONOS_PC_CAPABILITY: key,
-    CHRONOS_PC_NODE: yield* HostProcess.ExecutablePath,
-    CHRONOS_PC_CLI: NodePath.join(tools, "bin", "client.cjs"),
-    CHRONOS_PC_BIN: NodePath.join(tools, "bin"),
-  });
+  if (availability.available) {
+    setPcAgentEnvironment({
+      CHRONOS_PC_SOCKET: socket,
+      CHRONOS_PC_CAPABILITY: key,
+      CHRONOS_PC_NODE: yield* HostProcess.ExecutablePath,
+      CHRONOS_PC_CLI: NodePath.join(tools, "bin", "client.cjs"),
+      CHRONOS_PC_BIN: NodePath.join(tools, "bin"),
+    });
+  } else {
+    setPcAgentEnvironment({});
+  }
   yield* Effect.addFinalizer(() =>
     Effect.sync(() => {
       setPcAgentEnvironment({});

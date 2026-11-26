@@ -1,10 +1,31 @@
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { withSmokeFrame } from "./artifacts.mjs";
 
-export async function captureSettings(client, out, ready) {
+async function seedGallery(executable) {
+  if (!executable || process.env.RUNNER_ENVIRONMENT !== "github-hosted" || process.platform !== "win32") return null;
+  const home = process.env.CHRONOS_HOME;
+  if (!home || resolve(home) !== resolve(process.env.RUNNER_TEMP, "settings-profile")) return null;
+  const entry = join(dirname(executable), "resources/chronos-services/artifacts/store.mjs");
+  const {openArtifacts} = await import(pathToFileURL(entry).href);
+  const store = openArtifacts(home);
+  try {
+    const input = {
+      source:join(home, "example.html"), title:"Пример", description:"Два файла и две версии для проверки выбора.",
+      label:"Первая версия", icon:"📄", capabilities:[],
+      files:{"index.html":"<!doctype html><html lang=ru><title>Пример</title><p>Пример документа</p></html>", "notes.txt":"Заметки"}
+    };
+    const {id} = store.publish(input);
+    store.publish({...input, expectedVersion:1, label:"Вторая версия"});
+    return id;
+  } finally { store.close(); }
+}
+
+export async function captureSettings(client, out, ready, {executable, updatesOnly = false} = {}) {
+  const sample = updatesOnly ? null : await seedGallery(executable);
   const act = async (step) => assert.ok((await client.probe("performAction", step)).ok);
   const wait = async (selector) => assert.ok((await ready(client, { selector })).ready, selector);
   const evaluate = async (expression) => {
@@ -78,6 +99,11 @@ export async function captureSettings(client, out, ready) {
         const shot = await client.send("Page.captureScreenshot", { format: "png" });
         writeFileSync(join(out, name + ".png"), Buffer.from(shot.data, "base64"));
       };
+      if (updatesOnly) {
+        await act({type:"navigate",to:"/settings/about"});
+        await capture("macos-updates", "#updates");
+        continue;
+      }
       await act({ type: "navigate", to: "/settings/general" });
       await wait("#pc-control form");
       await capture("pc-control", "#pc-control");
@@ -108,9 +134,32 @@ export async function captureSettings(client, out, ready) {
       await act({type:"navigate",to:"/"});
       await wait("button[aria-label='Артефакты']");
       await act({type:"click",selector:"button[aria-label='Артефакты']"});
-      const gallery = "iframe[src*='artifacts.html'],webview[src*='artifacts.html']";
-      await capture("artifacts", gallery, null, {selector:gallery, prefix:"http://127.0.0.1:4520/artifacts.html", ready:"#search"});
-      await act({type:"closeOlympus",global:"__olyStudioShell"});
+      const native = "[data-artifact-gallery]";
+      const guest = "iframe[src*='artifacts.html'],webview[src*='artifacts.html']";
+      await wait(native + "," + guest);
+      if (await evaluate(`!!document.querySelector("${native}")`)) {
+        if (sample) await wait(`article[data-id="${sample}"] .art-cover`);
+        await capture("artifacts", native);
+        const sort = native + " [data-slot=select-trigger]";
+        if (await evaluate(`!!document.querySelector(${JSON.stringify(sort)})`)) {
+          await act({type:"click",selector:sort});
+          await wait("[role=option]");
+          await capture("artifacts-sort", native);
+          for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"Escape",code:"Escape",windowsVirtualKeyCode:27});
+        }
+        if (sample) {
+          await act({type:"click",selector:`article[data-id="${sample}"] .art-cover`});
+          await wait("[data-artifact-view] .art-controls");
+          await capture("artifact-version", "[data-artifact-view]");
+          await act({type:"click",selector:".art-segment button",text:"Код"});
+          await wait(".art-code pre");
+          await capture("artifact-source", "[data-artifact-view]");
+        }
+        await act({type:"click",selector:'.art-head button[aria-label="Закрыть"]'});
+      } else {
+        await capture("artifacts", guest, null, {selector:guest, prefix:"http://127.0.0.1:4520/artifacts.html", ready:"#search"});
+        await act({type:"closeOlympus",global:"__olyStudioShell"});
+      }
     }
   }
   // Let the normal smoke suite start with a fresh settings dialog, its default scroll, and no active guest.

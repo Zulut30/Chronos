@@ -8,6 +8,21 @@ function scopedListener(target: EventTarget, signal: AbortSignal) {
     });
 }
 
+function patchMacosIntegrationsCopy(root: ParentNode) {
+  const intro = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-intro");
+  if (intro?.textContent?.includes("переменных окружения Windows")) {
+    intro.textContent = intro.textContent.replace(
+      "переменных окружения Windows вашего пользователя",
+      "локальном файле профиля Chronos (~/.chronos/integrations-service/keys.env)",
+    );
+  }
+  const down = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-down p");
+  if (down?.textContent?.includes("Windows")) {
+    down.textContent =
+      "Не удалось связаться с локальным сервисом 127.0.0.1:4522 (integrations-service). Он запускается вместе с Chronos — перезапустите приложение и нажмите «Повторить».";
+  }
+}
+
 export function openSettingsHost(
   layout: HTMLElement,
   mount: (scope: ReturnType<typeof createScope>) => void,
@@ -22,7 +37,9 @@ export function openSettingsHost(
     delete layout.dataset.chronosSettings;
     throw error;
   }
+  const isMac = window.desktopBridge?.getClientPlatform?.() === "darwin";
   const feedback = new MutationObserver(() => {
+    if (isMac) patchMacosIntegrationsCopy(layout);
     const mcp = layout.querySelector(".oly-mcp-error");
     if (mcp) mcp.setAttribute("role", mcp.querySelector("button") ? "alert" : "status");
     for (const message of layout.querySelectorAll(

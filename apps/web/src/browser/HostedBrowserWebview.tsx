@@ -6,7 +6,6 @@ import type {
 import { useShallow } from "zustand/react/shallow";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { artifactId, ArtifactView } from "~/chronos/artifacts/ArtifactView"; // chronos: isolated artifact tab
 import { previewBridge } from "~/components/preview/previewBridge";
 import {
   preventThumbButtonFocus,
@@ -39,6 +38,7 @@ import {
   planWebviewCrashRecovery,
   type WebviewCrashRecoveryState,
 } from "./webviewCrashRecovery";
+
 
 interface ElectronWebview extends HTMLElement {
   src: string;
@@ -86,7 +86,6 @@ export function HostedBrowserWebview(props: {
   const clientSettingsHydrated = useClientSettingsHydrated();
   const config = usePreviewWebviewConfig(threadRef.environmentId, profileId);
   const [initialSrc] = useState(() => initialUrl ?? "about:blank");
-  const artifact = artifactId(initialUrl ?? initialSrc); // chronos: Studio's stable viewer URL
   const tabLeaseRef = useRef<AcquiredDesktopTab | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const webviewRef = useRef<ElectronWebview | null>(null);
@@ -405,7 +404,7 @@ export function HostedBrowserWebview(props: {
             transformStyle: viewportTransform && fullDetail ? "preserve-3d" : undefined,
           }}
         >
-          {artifact ? <ArtifactView id={artifact} /> : <webview
+          <webview
             ref={setWebviewRef}
             // Electron needs allowpopups at attachment. React drops boolean values for unknown attributes.
             {...({ allowpopups: "true" } as unknown as { readonly allowpopups?: boolean })}
@@ -442,7 +441,7 @@ export function HostedBrowserWebview(props: {
               transform: viewportTransform,
               transformOrigin: "top left",
             }}
-          />}
+          />
         </div>
         {active && effectiveViewport._tag !== "fill" && !fittedSourceViewport ? (
           <>

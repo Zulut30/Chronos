@@ -14,18 +14,29 @@ export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export function own(url,id) {
   return url.protocol === scheme + ":" && url.hostname === id && !url.port && !url.username && !url.password;
 }
-export function allowed(url,id,mainFrame) {
-  return own(url,id) || (!mainFrame && cdns.includes(url.origin) && !url.username && !url.password);
+export function allowed(url,id,mainFrame,type) {
+  if (own(url,id)) return true;
+  if (mainFrame || !cdns.includes(url.origin) || url.username || url.password) return false;
+  if (type !== "script") return true;
+  const version = /^(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/;
+  const parts = url.pathname.split("/");
+  if (url.hostname === "cdnjs.cloudflare.com")
+    return parts[1] === "ajax" && parts[2] === "libs" && version.test(parts[4] ?? "");
+  const pkg = url.hostname === "unpkg.com" ? 1 : 2;
+  if (pkg === 2 && parts[1] !== "npm" && parts[1] !== "gh") return false;
+  const component = parts[pkg + (parts[1] === "gh" || parts[pkg]?.startsWith("@") ? 1 : 0)] ?? "";
+  const pin = component.slice(component.lastIndexOf("@")+1);
+  return component.includes("@") && (version.test(pin) || (parts[1] === "gh" && /^[0-9a-f]{40}$/i.test(pin)));
 }
 const mime = {html:"text/html; charset=utf-8",htm:"text/html; charset=utf-8",js:"text/javascript",mjs:"text/javascript",
   css:"text/css",json:"application/json",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",
   svg:"image/svg+xml",ico:"image/x-icon",pdf:"application/pdf",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",otf:"font/otf",avif:"image/avif"};
-export function resource(store,id,raw) {
+export function resource(store,id,raw,version) {
   const url = new URL(raw);
   if (!own(url,id)) return new Response(null,{status:403});
   let name;
   try {name=decodeURIComponent(url.pathname.slice(1)) || "index.html";} catch {return new Response(null,{status:400});}
-  const file = store.file(id,name);
+  const file = store.file(id,name,version);
   if (!file) return new Response(null,{status:404});
   return new Response(file,{headers:{"Content-Type":mime[name.split(".").pop().toLowerCase()] || "application/octet-stream",
     "Content-Security-Policy":csp,"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"}});

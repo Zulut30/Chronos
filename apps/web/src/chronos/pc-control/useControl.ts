@@ -20,6 +20,8 @@ export interface Approval {
 export interface State {
   settings: Settings;
   active: boolean;
+  available?: boolean;
+  unavailableReason?: string;
   pending: Approval[];
   history: { id: string; time: number; op: string; status: string }[];
 }

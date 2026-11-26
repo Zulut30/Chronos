@@ -12833,5 +12833,8 @@
   "3433b1de49b7e93e": "Expand menu",
   "0699bc3ac93c5c4e": "Click",
   "506705376c24c857": "Fill field",
-  "a171b7e4fc651336": "End session"
+  "a171b7e4fc651336": "End session",
+  "6857566b35bdfc48": "Computer control is unavailable because this build lacks the agent-desktop component.",
+  "a99e69dce82e3b0f": "Stop all computer control actions. To control apps on this Mac, allow Chronos in System Settings → Privacy & Security → Accessibility.",
+  "92a45cd40283156f": "Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."
 }

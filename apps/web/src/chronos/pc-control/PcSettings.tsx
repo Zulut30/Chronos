@@ -1,4 +1,4 @@
-import { msg, useGT, useMessages } from "gt-react";
+import { msg, useGT, useLocale, useMessages } from "gt-react";
 import { useState } from "react";
 import { SettingsRow, SettingsSection } from "../../components/settings/settingsLayout";
 import { FoldedSettingsSection } from "../../components/settings/FoldedSettingsSection";
@@ -25,8 +25,10 @@ const modes = {
 function Permissions({
   settings,
   send,
+  isMac,
 }: {
   settings: Settings;
+  isMac: boolean;
   send: (input: unknown) => Promise<void>;
 }) {
   const gt = useGT();
@@ -85,7 +87,7 @@ function Permissions({
               id="pc-control-apps"
               rows={3}
               className="w-full @min-[32rem]/settings-row:w-64"
-              placeholder={"notepad.exe\nhttps://example.org"}
+              placeholder={isMac ? "TextEdit\nhttps://example.org" : "notepad.exe\nhttps://example.org"}
               value={apps}
               onChange={(event) => setApps(event.target.value)}
             />
@@ -150,20 +152,30 @@ export default function PcSettings() {
   const gt = useGT();
   const m = useMessages();
   const { state, send, error, retry } = useControl();
+  const locale = useLocale();
+  const isMac = window.desktopBridge?.getClientPlatform?.() === "darwin";
+  if (state?.available === false) {
+    const reason = gt("Computer control is unavailable because this build lacks the agent-desktop component.");
+    return (
+      <SettingsSection id="pc-control" title={gt("Computer control")}>
+        <SettingsRow title={<span role="status">{locale.startsWith("ru") ? state.unavailableReason || reason : reason}</span>} />
+      </SettingsSection>
+    );
+  }
   return (
     <>
       <SettingsSection id="pc-control" title={gt("Computer control")}>
         {state && (
           <>
-            <Permissions settings={state.settings} send={send} />
+            <Permissions settings={state.settings} send={send} isMac={isMac} />
             <SettingsRow
               title={gt("Emergency stop")}
               description={
                 <>
-                  {gt(
-                    "Stop all computer control actions. On Windows this also closes windows opened on the agent’s private desktop.",
-                  )}{" "}
-                  <Kbd>Ctrl / ⌘ + Alt + Shift + F12</Kbd>
+                  {isMac
+                    ? gt("Stop all computer control actions. To control apps on this Mac, allow Chronos in System Settings → Privacy & Security → Accessibility.")
+                    : gt("Stop all computer control actions. On Windows this also closes windows opened on the agent’s private desktop.")}{" "}
+                  <Kbd>{isMac ? "⌘ + Option + Shift + F12" : "Ctrl / ⌘ + Alt + Shift + F12"}</Kbd>
                 </>
               }
               control={

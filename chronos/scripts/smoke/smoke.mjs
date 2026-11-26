@@ -35,7 +35,8 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
-  --settings-screens          Capture native and Olympus panels at 1280 and 900 in both themes
+  --macos-settings-screens   Capture the native macOS update section on the installed app
+  --settings-screens         Capture native and Olympus panels at 1280 and 900 in both themes
   --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
@@ -108,6 +109,8 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--macos-settings-screens") {
+      opts.macSettingsScreens = true;
     } else if (arg === "--settings-screens") {
       opts.settingsScreens = true;
     } else if (arg === "--verify-olympus") {
@@ -172,6 +175,20 @@ function killProcessTree(pid) {
   } else {
     try {
       process.kill(pid, "SIGTERM");
+    } catch {
+      return;
+    }
+    const deadline = Date.now() + 3000;
+    while (Date.now() < deadline) {
+      try {
+        process.kill(pid, 0);
+      } catch {
+        return;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+    try {
+      process.kill(pid, "SIGKILL");
     } catch {
       // Ignore already exited.
     }
@@ -606,9 +623,9 @@ async function run() {
     }
 
     initialTheme = await client.probe("getThemeState");
-    if (opts.settingsScreens) {
+    if (opts.settingsScreens || opts.macSettingsScreens) {
       const { captureSettings } = await import("./settings-screens.mjs");
-      await captureSettings(client, opts.outDir, waitUntilReady);
+      await captureSettings(client, opts.outDir, waitUntilReady, {executable:opts.launch, updatesOnly:opts.macSettingsScreens});
       await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, mobile: false });
     }
     const appVersion =
