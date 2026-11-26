@@ -170,9 +170,11 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   assert.ok(!preference.exceptionDetails);
   await act({ type: "navigate", to: thread });
   await wait({ selector: "[data-message-role=assistant] .chat-markdown :not(pre) > code" });
+  // The file manager keeps its platform name: Explorer is translated, Finder stays as is.
+  const openInFileManager = process.platform === "darwin" ? "Открыть в Finder" : "Открыть в Проводнике";
   await wait({ assertions: [{
-    selector: "button[data-toolbar-control][aria-label='Открыть в Проводнике']",
-    text: "Открыть в Проводнике",
+    selector: `button[data-toolbar-control][aria-label='${openInFileManager}']`,
+    text: openInFileManager,
   }] });
   for (const dark of [true, false]) {
     await scheme(dark);
