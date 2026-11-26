@@ -55,19 +55,20 @@ it.effect("uses BSD-compatible ps flags with LC_ALL=C on macOS and parses single
     ].join("\n");
     let current = boot;
     const runner: ProcessRunner["Service"] = {
-      run: (input: ProcessRunInput) => {
-        calls.push({ command: input.command, args: input.args, env: input.env });
-        return Effect.succeed({
-          code: ChildProcessSpawner.ExitCode(0),
-          stdout: current,
-          stderr: "",
-          timedOut: false,
-          stdoutTruncated: false,
-          stderrTruncated: false,
-          stdoutInvalidUtf8: false,
-          stderrInvalidUtf8: false,
-        });
-      },
+      run: (input: ProcessRunInput) =>
+        Effect.sync(() => {
+          calls.push({ command: input.command, args: input.args, env: input.env });
+          return {
+            code: ChildProcessSpawner.ExitCode(0),
+            stdout: current,
+            stderr: "",
+            timedOut: false,
+            stdoutTruncated: false,
+            stderrTruncated: false,
+            stdoutInvalidUtf8: false,
+            stderrInvalidUtf8: false,
+          };
+        }),
     };
 
     const check = yield* captureIdleProcessGuard(runner, false, "", 100, () => []);
