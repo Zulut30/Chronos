@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -11,8 +11,9 @@ import { createSandbox } from "./sandbox.mjs";
 const [distribution, scenario, output, claudeExperiment] = process.argv.slice(2);
 assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
 assert.equal(process.platform, "win32");
-assert(["unused", "disabled", "claudeAgent", "codex"].includes(scenario));
-if (claudeExperiment) {
+assert(["unused", "disabled", "claudeAgent", "codex", "antigravity"].includes(scenario));
+const acp = scenario === "antigravity";
+if (claudeExperiment && !acp) {
   assert.equal(scenario, "claudeAgent");
   assert(["default", "smol", "gc", "idle-base", "idle-head"].includes(claudeExperiment));
 }
@@ -38,7 +39,20 @@ const post = async (path, body, bearer) => {
 try {
   let invoked = false;
   const model = scenario === "codex" ? "gpt-5.4" : "claude-sonnet-4-6";
-  if (!idle) {
+  if (acp) {
+    assert(idleExperiment);
+    binary = join(sb.root, "agy.exe");
+    copyFileSync(process.execPath, binary);
+    const fixture = pathToFileURL(join(import.meta.dirname, "agent.mjs")).href;
+    writeFileSync(join(sb.work, "acp"), "process.argv = [process.execPath, 'fixture', " + JSON.stringify(sb.root) + ", '1', '1', 'acp-lifecycle']; import(" + JSON.stringify(fixture) + ").catch(e => { console.error(e); process.exitCode=1; });");
+    Object.assign(env, {
+      CHRONOS_TRACE_IDLE_UNLOAD: "1", CHRONOS_BENCH_LIFECYCLE: "1", CHRONOS_BENCH_EXE: exe, CHRONOS_BENCH_ENTRY: entry,
+      HTTP_PROXY: "http://127.0.0.1:9", HTTPS_PROXY: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1,localhost",
+    });
+    settings.claudeIdleUnloadMinutes = 1;
+    settings.providerInstances.antigravity = { driver: "antigravity", enabled: true, config: { binaryPath: binary } };
+    settings.defaultModelSelection = { instanceId: "antigravity", model: "antigravity-default" };
+  } else if (!idle) {
     binary = process.env[scenario === "codex" ? "BENCH_CODEX" : "BENCH_CLAUDE"];
     assert(binary && existsSync(binary), "Expected pinned vendor executable");
     const { claudeMock } = claudeExperiment ? await import("./claude-experiment.mjs") : {};
@@ -65,6 +79,7 @@ try {
     if (claudeExperiment === "smol") env.BUN_OPTIONS = "--smol";
     if (claudeExperiment === "gc") env.BUN_JSC_aggressiveHeapThresholdInMB = "64";
     if (idleExperiment) {
+      env.CHRONOS_TRACE_IDLE_UNLOAD = "1";
       // Simulate the threshold crossing without starving the VM or changing OS state.
       env.CHRONOS_CLAUDE_LOW_MEMORY_MIB = "1048576";
       settings.claudeIdleUnloadMinutes = 10;
@@ -87,6 +102,9 @@ try {
   const app = idle
     ? sb.start(exe, ["--remote-debugging-port=" + debug, "--user-data-dir=" + sb.profile], { ...env, T3CODE_PORT: String(port) })
     : sb.start(exe, [entry, "serve", "--base-dir", sb.home, "--port", String(port), "--host", "127.0.0.1", "--no-browser"], { ...env, ELECTRON_RUN_AS_NODE: "1" });
+  if (env.CHRONOS_TRACE_IDLE_UNLOAD) app.stderr.on("data", chunk => {
+    for (const row of String(chunk).split("\n")) if (row.startsWith("chronos-idle ")) console.log(row);
+  });
   const stateFile = join(sb.userdata, "server-runtime.json");
   const state = await sb.wait("private server", () => existsSync(stateFile) && JSON.parse(readFileSync(stateFile)));
   assert.equal(state.origin, origin);
@@ -124,7 +142,10 @@ try {
     const { ticket } = await (await post("/api/auth/websocket-ticket/rpc", {}, bearer)).json();
     rpc = await rpcClient(origin.replace("http:", "ws:") + "/ws?orchestrationProtocol=2&wsTicket=" + encodeURIComponent(ticket));
     const launch = (id, text) => rpc.call("orchestration.launchThread", { commandId: crypto.randomUUID(), threadId: id, projectId, title: "Guard", generateTitle: false, modelSelection: settings.defaultModelSelection, runtimeMode: "approval-required", interactionMode: "default", workspaceStrategy: { type: "root" }, initialMessage: { text, attachments: [] } });
-    if (claudeExperiment) {
+    if (acp) {
+      const { measureAcp } = await import("./acp-experiment.mjs");
+      experimentResult = await measureAcp({ launch, rpc, sb, threadId, expectUnload: claudeExperiment === "idle-head" });
+    } else if (claudeExperiment) {
       const { measureClaude } = await import("./claude-experiment.mjs");
       experimentThreadId = threadId;
       experimentResult = await measureClaude({ launch, rpc, sb, app, binary, threadId, idleExperiment, expectUnload: claudeExperiment === "idle-head" });

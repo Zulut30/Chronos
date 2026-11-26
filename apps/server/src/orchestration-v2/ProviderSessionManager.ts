@@ -3329,6 +3329,7 @@ export const layerWithOptions = (
                 .execute(
                   input.modelSelection.instanceId,
                   adapter.openSession({
+                    captureIdleProcessGuard: claudeIdle.capture, // chronos: scoped ACP process ownership.
                     threadId: input.threadId,
                     providerSessionId: input.providerSessionId,
                     modelSelection: input.modelSelection,

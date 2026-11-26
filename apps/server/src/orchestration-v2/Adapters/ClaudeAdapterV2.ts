@@ -193,6 +193,7 @@ import * as ServerConfig from "../../config.ts";
 import * as PortScanner from "../../preview/PortScanner.ts";
 import * as ProcessRunner from "../../processRunner.ts";
 // chronos: identify additional jobs before releasing an idle query.
+import { traceIdleUnload } from "../../chronos/claudeIdleUnload.ts";
 import { captureIdleProcessGuard } from "../../chronos/claudeProcessGuard.ts";
 import * as ServerSettings from "../../serverSettings.ts";
 import { expandHomePath } from "@t3tools/provider-core/server/pathExpansion";
@@ -14914,12 +14915,16 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               )
             )
               return false;
-            if (!live.query.idleProcessTreeSafe || !(yield* live.query.idleProcessTreeSafe))
+            if (!live.query.idleProcessTreeSafe || !(yield* live.query.idleProcessTreeSafe)) {
+              traceIdleUnload("claude", { by: "process-tree" });
               return false;
+            }
+            const transcript = yield* claudeTranscriptState(
+              clearedNativeSessions.get(live.nativeThreadId) ?? live.nativeThreadId,
+            ).pipe(Effect.orElseSucceed(() => "missing"));
+            traceIdleUnload("claude", { transcript });
             return (
-              (yield* claudeTranscriptState(
-                clearedNativeSessions.get(live.nativeThreadId) ?? live.nativeThreadId,
-              ).pipe(Effect.orElseSucceed(() => "missing"))) === "conversation" &&
+              transcript === "conversation" &&
               (yield* Ref.get(activeTurn)) === null &&
               (yield* Ref.get(pendingRuntimeRequests)).size === 0 &&
               (yield* Ref.get(queryContext)) === live

@@ -10,6 +10,8 @@ import * as Schedule from "effect/Schedule";
 import { ProjectionStoreV2 } from "../orchestration-v2/ProjectionStore.ts";
 import { ThreadViewers } from "../orchestration-v2/ThreadViewers.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
+import { ProcessRunner } from "../processRunner.ts";
+import { captureIdleProcessGuard } from "./claudeProcessGuard.ts";
 import { TerminalManager } from "../terminal/Manager.ts";
 
 interface IdleEntry {
@@ -26,6 +28,12 @@ interface IdleRelease {
   readonly onlyIfIdleGeneration: number;
   readonly gracefulSubscribers: true;
   readonly keepIf: Effect.Effect<boolean>;
+}
+
+// Opt-in diagnostics log only lifecycle state, never prompts, paths or process arguments.
+export function traceIdleUnload(phase: string, fields: object) {
+  if (process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1")
+    process.stderr.write("chronos-idle " + JSON.stringify({ phase, ...fields }) + "\n");
 }
 
 const MINUTE = 60_000;
@@ -50,6 +58,7 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
   const settings = yield* Effect.serviceOption(ServerSettingsService);
   const terminals = yield* Effect.serviceOption(TerminalManager);
   const viewers = yield* Effect.serviceOption(ThreadViewers);
+  const runner = yield* Effect.serviceOption(ProcessRunner);
   const store = yield* ProjectionStoreV2;
   const entries = Ref.get(sessions);
   const minutes = Option.isSome(settings)
@@ -128,8 +137,17 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
     )
       return;
     const delay = yield* minutes;
-    if (delay === 0) return;
+    if (delay === 0) {
+      traceIdleUnload("disabled", { settings: Option.isSome(settings) });
+      return;
+    }
     const now = yield* Clock.currentTimeMillis;
+    if (process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1") {
+      traceIdleUnload("sweep", {
+        delay, terminals: Option.isSome(terminals), viewers: Option.isSome(viewers),
+        sessions: [...live.values()].map(e => ({ busy: e.busyTurns.size, age: now - (e.chronosIdleSince ?? now), due: due(e, now - (e.chronosIdleSince ?? now), delay) })),
+      });
+    }
     for (const entry of live.values()) {
       const { runtime } = entry;
       const since = entry.chronosIdleSince;
@@ -148,11 +166,16 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
           )
             return;
           const keepIf = Effect.gen(function* () {
-            if (yield* hasWork(current)) return true;
+            if (yield* hasWork(current)) {
+              traceIdleUnload("protected", { by: "thread-work" });
+              return true;
+            }
             if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork))
               return true;
-            if (!runtime.canUnloadIdleSession || !(yield* runtime.canUnloadIdleSession))
+            if (!runtime.canUnloadIdleSession || !(yield* runtime.canUnloadIdleSession)) {
+              traceIdleUnload("protected", { by: "adapter", driver: runtime.driver });
               return true;
+            }
             // Probes yield. Recheck config and the activity token under the manager's request permit.
             if (runtime.hasPendingBackgroundWork && (yield* runtime.hasPendingBackgroundWork))
               return true;
@@ -173,7 +196,7 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
             keepIf,
           });
           if ((yield* entries).get(String(id))?.runtime !== runtime) {
-            yield* Effect.logInfo("chronos.claude.idle-unloaded", {
+            yield* Effect.logInfo(runtime.driver === "claudeAgent" ? "chronos.claude.idle-unloaded" : "chronos.acp.idle-unloaded", {
               providerSessionId: id,
               threadIds: [...current.attachedThreadIds],
               idleMs: now - since,
@@ -195,5 +218,12 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
     }
   });
   yield* sweep.pipe(Effect.repeat(Schedule.spaced("30 seconds")), Effect.forkScoped);
-  return { touch };
+  const capture = (processTree: { pid: number; tracked: () => ReadonlyArray<number>; unit?: string }) =>
+    Option.isSome(runner)
+      ? captureIdleProcessGuard(
+          runner.value, process.platform === "win32", process.env.SystemRoot ?? "C:\\Windows",
+          processTree.pid, processTree.tracked, processTree.unit,
+        )
+      : Effect.succeed(Effect.succeed(false));
+  return { touch, capture };
 });

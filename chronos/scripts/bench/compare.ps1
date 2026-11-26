@@ -57,6 +57,11 @@ foreach ($pass in 1..3) {
           if ($LASTEXITCODE) { throw "Runtime profile $profile failed" }
         }
       }
+      'acp-idle' {
+        $profile = if ($build -eq $builds[0]) { 'idle-base' } else { 'idle-head' }
+        node "$PSScriptRoot/guard-runtime.mjs" $pkg antigravity "$out/acp-$profile.json" $profile
+        if ($LASTEXITCODE) { throw "ACP $profile failed" }
+      }
       'claude-idle' {
         $profile = if ($build -eq $builds[0]) { 'idle-base' } else { 'idle-head' }
         node "$PSScriptRoot/guard-runtime.mjs" $pkg claudeAgent "$out/$profile.json" $profile

@@ -4881,11 +4881,15 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                 .map((session) => session.id)
             : (providerSwitchPlan?.releaseProviderSessionIds ?? []),
     );
-    const liveSessions = (providerContext?.providerSessions ?? []).filter(
+    const liveSessions = yield* Effect.filter(
+      (providerContext?.providerSessions ?? []).filter((session) => detachSessionIds.has(session.id)),
       (session) =>
-        detachSessionIds.has(session.id) &&
-        session.status !== "stopped" &&
-        session.status !== "error",
+        session.status !== "stopped" && session.status !== "error"
+          ? Effect.succeed(true)
+          : command.type === "thread.archive" || command.type === "thread.settle"
+            // chronos: an ended projection can still have a live, bound ACP transport.
+            ? providerSessions.isLive(session.id)
+            : Effect.succeed(false),
     );
     if (
       command.type !== "thread.archive" &&

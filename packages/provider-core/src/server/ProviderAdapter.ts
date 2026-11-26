@@ -565,6 +565,12 @@ export const ProviderAdapterV2Error = Schema.Union([
 export type ProviderAdapterV2Error = typeof ProviderAdapterV2Error.Type;
 
 export interface ProviderAdapterV2OpenSessionInput {
+  /** chronos: capture startup helpers before an ACP session can accept prompts. */
+  readonly captureIdleProcessGuard?: (process: {
+    readonly pid: number;
+    readonly tracked: () => ReadonlyArray<number>;
+    readonly unit?: string;
+  }) => Effect.Effect<Effect.Effect<boolean>>;
   readonly threadId: ThreadId;
   readonly providerSessionId: ProviderSessionId;
   readonly modelSelection: ModelSelection;
