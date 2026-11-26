@@ -1570,10 +1570,10 @@ describe("DesktopUpdates under a managed policy", () => {
         assert.isNull(download.state.message);
         assert.equal(harness.downloadCount(), 0);
 
-        const install = yield* updates.install();
+        const install = yield* updates.install;
         assert.isFalse(install.accepted);
-        assert.isFalse(install.failed);
-        assert.equal(harness.quitAndInstallCount(), 0);
+        assert.isFalse(install.completed);
+        assert.equal(harness.quitAndInstalls(), 0);
       }),
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });

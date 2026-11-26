@@ -1,5 +1,7 @@
 import { assert, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
+import type { ProcessRunInput, ProcessRunner } from "../processRunner.ts";
 import {
   captureIdleProcessGuard,
   idleProcessGuard,
@@ -43,31 +45,30 @@ it("counts reparented POSIX processes owned by the group, tracker or systemd sco
 it.effect("uses BSD-compatible ps flags with LC_ALL=C on macOS and parses single-digit days", () =>
   Effect.gen(function* () {
     const calls: Array<{
-      command: string;
-      args?: ReadonlyArray<string>;
-      env?: Readonly<Record<string, string | undefined>>;
+      readonly command: string;
+      readonly args: ReadonlyArray<string>;
+      readonly env: NodeJS.ProcessEnv | undefined;
     }> = [];
     const boot = [
       "  100     1   100 Thu Nov  5 08:00:00 2026",
       "  101   100   100 Thu Nov  5 08:00:01 2026",
     ].join("\n");
     let current = boot;
-    const runner = {
-      run: (input: {
-        command: string;
-        args?: ReadonlyArray<string>;
-        env?: Readonly<Record<string, string | undefined>>;
-      }) => {
+    const runner: ProcessRunner["Service"] = {
+      run: (input: ProcessRunInput) => {
         calls.push({ command: input.command, args: input.args, env: input.env });
         return Effect.succeed({
-          code: 0,
+          code: ChildProcessSpawner.ExitCode(0),
           stdout: current,
           stderr: "",
+          timedOut: false,
           stdoutTruncated: false,
           stderrTruncated: false,
+          stdoutInvalidUtf8: false,
+          stderrInvalidUtf8: false,
         });
       },
-    } as Parameters<typeof captureIdleProcessGuard>[0];
+    };
 
     const check = yield* captureIdleProcessGuard(runner, false, "", 100, () => []);
     assert.deepEqual(calls[0], {
