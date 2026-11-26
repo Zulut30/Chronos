@@ -48,3 +48,32 @@ test("MCP discovers tools lazily, publishes and reads", async t => {
   await call("artifact_restore",{id,version:2,expectedVersion:2});
   assert.deepEqual((await call("artifact_read",{id})).files,args.files);
 });
+
+test("the WSL tool bridge uses the desktop profile and preserves caller scope", async t => {
+  const {artifactTools} = await import("./tools-wsl.mjs");
+  const root = mkdtempSync(path.join(tmpdir(),"chronos-artifact-host-"));
+  const vars = {CHRONOS_ARTIFACT_WINDOWS_NODE:process.execPath,
+    CHRONOS_ARTIFACT_WINDOWS_RUNNER:path.join(import.meta.dirname,"wsl-host.mjs"), CHRONOS_ARTIFACT_WINDOWS_HOME:root};
+  const previous = Object.fromEntries(Object.keys(vars).map(key => [key,process.env[key]]));
+  Object.assign(process.env,vars);
+  t.after(() => {
+    for (const [key,value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    rmSync(root,{recursive:true,force:true});
+  });
+  const publish = artifactTools.find(tool => tool.name === "artifact_publish");
+  const context = {allowFile:false,environmentId:"local",threadId:"thread-one"};
+  // The host receives the native path after wslpath translation.
+  const args = {source:path.join(root,"source.html"),title:"Host page",description:"Host.",icon:"book",label:"First"};
+  const input = {...args,files:{"index.html":"first"}};
+  // Exercise the actual Windows/Electron host boundary on its target platform.
+  if (process.platform !== "win32") {t.skip("Windows host");return;}
+  await assert.rejects(publish.run(args,context),/index.html/);
+  const created = await publish.run(input,context);
+  assert.equal(created.version,1);
+  const db = (await import("./store.mjs")).openArtifacts(root);
+  try {assert.deepEqual({...db.origin(created.id)},{environmentId:"local",threadId:"thread-one"});}
+  finally {db.close();}
+  await assert.rejects(publish.run({...input,id:created.id,expectedVersion:0},context),/версия — 1/);
+});

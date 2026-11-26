@@ -28,7 +28,8 @@ export async function verifyArtifacts(client, opts, desktopPid) {
   try {
     const input={source:path.join(process.env.RUNNER_TEMP,"artifact-smoke.html"),title:"Проверка артефакта",label:"Проверка",icon:"🗂",description:"Тест приложения",capabilities:["theme","db"],
       files:{"index.html":`<!doctype html><html lang="ru"><meta charset="utf-8"><title>Проверка артефакта</title><body>Готово<script>
-      new PerformanceObserver(async list => {
+      document.body.style.background="rgb(55,101,160)";
+      if(window.chronos) new PerformanceObserver(async list => {
         const frame=list.getEntries().find(e=>e.name==="first-contentful-paint");
         if(!frame) return;
         const value={firstPaintAt:performance.timeOrigin+frame.startTime,node:typeof require,mode:chronos.theme.get().mode,files:typeof chronos.files,host:location.hostname,alias:typeof claude.db.get};
@@ -43,6 +44,16 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     await evaluate(`document.querySelector('button[aria-label="Артефакты"]').click()`);
     await waitFor("Studio gallery",()=>evaluate(`Boolean(document.querySelector('[data-artifact-gallery] .art-card'))`));
     await waitFor("static gallery snapshot",()=>evaluate(`Boolean(document.querySelector('.art-cover img[src^="data:image/jpeg"]')) && !document.querySelector('[data-artifact-gallery] iframe,[data-artifact-gallery] webview')`));
+    await waitFor("thumbnail contains the JavaScript-rendered background",()=>evaluate(`(() => {
+      const img=document.querySelector('.art-cover img');
+      if(!img?.naturalWidth)return false;
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,16,16);
+      const [r,g,b]=ctx.getImageData(8,8,1,1).data;
+      return Math.abs(r-55)<8 && Math.abs(g-101)<8 && Math.abs(b-160)<8;
+    })()`));
+    assert.equal(store.documents(id,"get",{collection:"probe",key:"frame"}),null);
     await evaluate(`document.querySelector('.art-cover').click()`);
     const row=await waitFor("isolated page wrote to MCP database",()=>store.documents(id,"get",{collection:"probe",key:"frame"}));
     assert.equal(row.host,id);

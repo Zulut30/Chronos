@@ -1,3 +1,4 @@
+import { artifactWords } from "~/chronos/artifacts/gallery";
 import { msg, T, useGT, useMessages } from "gt-react";
 import { contextMenuSourceOf } from "../contextMenuSource";
 import { m, type MessageResolver } from "../i18n/messages";
@@ -601,7 +602,7 @@ function surfaceTitle(
   resolve: MessageResolver = m,
 ): string {
   switch (surface.kind) {
-    case "artifacts": return "Артефакты"; // chronos: document tab
+    case "artifacts": return artifactWords.library; // chronos: document tab
     case "diff":
       return resolve(msg("Diff"));
     case "files":

@@ -706,6 +706,18 @@ const resolveWslStartConfig = Effect.fn("desktop.backendConfiguration.resolveWsl
   const distroArgs = distroForConfig ? ["-d", distroForConfig] : [];
   const forwardedEnv: Record<string, string> = { [DESKTOP_HOST_SCOPE_ENV]: input.hostScope };
   const forwardedEnvNames: string[] = [DESKTOP_HOST_SCOPE_ENV];
+  if (environment.isPackaged && isChronosVersion(environment.appVersion)) {
+    // Run SQLite operations on the Windows side. WSL and Windows must never share a WAL directly.
+    const artifacts = environment.path.join(environment.resourcesPath, "chronos-services", "artifacts");
+    Object.assign(forwardedEnv, {
+      CHRONOS_ARTIFACT_TOOLS: environment.path.join(artifacts, "tools-wsl.mjs"),
+      CHRONOS_ARTIFACT_WINDOWS_NODE: process.execPath,
+      CHRONOS_ARTIFACT_WINDOWS_RUNNER: environment.path.join(artifacts, "wsl-host.mjs"),
+      CHRONOS_ARTIFACT_WINDOWS_HOME: environment.baseDir,
+    });
+    forwardedEnvNames.push("CHRONOS_ARTIFACT_TOOLS/p", "CHRONOS_ARTIFACT_WINDOWS_NODE/p",
+      "CHRONOS_ARTIFACT_WINDOWS_RUNNER", "CHRONOS_ARTIFACT_WINDOWS_HOME");
+  }
   for (const name of WSL_FORWARDED_ENV_NAMES) {
     const value = env[name];
     if (value !== undefined && value.length > 0) {

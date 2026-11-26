@@ -1,3 +1,5 @@
+import artifactWords from "../../../../../chronos/l10n/artifacts.ru.json";
+export { artifactWords };
 export const galleryUrl = "http://127.0.0.1:4520/artifacts.html";
 const viewer = "http://127.0.0.1:4520/artifact-view.html?id=";
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -14,7 +16,7 @@ export async function openArtifactsUrl(url:string) {
       __olyStudioShell?:{open(url:string,title:string):Promise<unknown>};
       __olyStudio?:{openInPanel(url:string,options:{title:string}):Promise<unknown>};
     };
-    const title = artifactId(url) ? "Просмотр артефакта" : "Артефакты";
+    const title = artifactId(url) ? artifactWords.viewer : artifactWords.library;
     if (studio.__olyStudioShell) await studio.__olyStudioShell.open(url,title);
     else if (studio.__olyStudio) await studio.__olyStudio.openInPanel(url,{title});
     else window.open(url,"_blank","noopener");
