@@ -3842,6 +3842,13 @@ const make = Effect.gen(function* () {
         ...(result.run.delegatedTaskId === undefined ? {} : { taskId: result.run.delegatedTaskId }),
         status: result.run.status,
         delivery: result.delivery,
+        ...(result.delivery === "queued" && result.run.status === "queued"
+          ? {
+              note: result.run.queueHeld
+                ? "Queued. Resume the thread to send this message."
+                : "Queued. This message will be sent after the current turn.",
+            }
+          : {}),
       } satisfies OrchestratorMcpThreadSendResult;
     }),
     waitForThread: Effect.fn("OrchestratorMcpService.waitForThread")(function* (scope, input) {

@@ -116,6 +116,7 @@ jobs:
         run: |
           pnpm exec playwright install --with-deps chromium
           vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
+          vp test run --project browser src/components/chat/QueuedRunsControl.browser.test.tsx
           vp test run --project browser src/lib/openPullRequestLink.browser.test.tsx
 
       - name: Trello card link recognition
@@ -157,6 +158,7 @@ jobs:
         working-directory: apps/server
         run: |
           vp test run src/provider/acp/AntigravityTurnOutcome.test.ts src/orchestration-v2/UsageLimitRecoveryWorker.test.ts
+          vp test run src/mcp/OrchestratorMcpToolkit.integration.test.ts -t 'reports distinct child results'
           vp test run src/scheduledTasks/ScheduledTaskService.schedule.test.ts
           vp test run src/terminal/Manager.test.ts -t 'opens the available Windows shell'
           vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options|prepares a worktree in the selected project'

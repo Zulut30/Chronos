@@ -12868,5 +12868,6 @@
   "7cd354570f9e8e68": "Skipped: the app was closed",
   "9cca3054224a1637": "Run one missed occurrence on next startup",
   "a9d9eb4b919f9f92": "Antigravity subscription quota reached",
-  "02e86b138ee62faf": "Continue after reset"
+  "02e86b138ee62faf": "Continue after reset",
+  "e3adedbb19f4f3c8": "Queued · will be sent after the current turn"
 }
