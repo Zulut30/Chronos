@@ -130,6 +130,9 @@ jobs:
             throw "Chronos.exe not found after silent install"
           }
           Write-Host "Installed Chronos executable: $exe"
+          $env:ELECTRON_RUN_AS_NODE = "1"
+          & $exe --no-global-search-paths chronos/scripts/smoke/windows-payload.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "CHRONOS_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare an offline composer provider for the full UI suite
