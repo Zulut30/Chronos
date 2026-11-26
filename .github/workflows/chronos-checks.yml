@@ -150,6 +150,14 @@ jobs:
           install-args: --filter=t3... --filter=@t3tools/scripts...
       - name: Server typecheck
         run: vp run --filter t3 typecheck
+      - name: Diagnose provider and server type errors at their source
+        if: failure()
+        run: |
+          for package in packages/provider-core packages/provider-acp packages/provider-opencode apps/server; do
+            echo "::group::TypeScript diagnostics for $package"
+            pnpm exec effect-tsgo tsc --noEmit --pretty false -p "$package/tsconfig.json" || true
+            echo "::endgroup::"
+          done
       - name: Auth, migrations, projection index and WSL keep awake
         working-directory: apps/server
         run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
