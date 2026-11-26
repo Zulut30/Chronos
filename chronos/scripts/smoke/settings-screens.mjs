@@ -27,7 +27,10 @@ async function seedGallery(executable) {
 
 export async function captureSettings(client, out, ready, {executable, updatesOnly = false} = {}) {
   const sample = updatesOnly ? null : await seedGallery(executable);
-  const act = async (step) => assert.ok((await client.probe("performAction", step)).ok);
+  const act = async (step) => {
+    const result = await client.probe("performAction", step);
+    assert.ok(result.ok, result.detail);
+  };
   const wait = async (selector) => assert.ok((await ready(client, { selector })).ready, selector);
   const evaluate = async (expression) => {
     const reply = await client.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
@@ -138,12 +141,13 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
       await act({type:"click",selector:"#scheduled-tasks button",text:"Новая задача"});
       await wait("#scheduled-task-title");
       if (!(await evaluate('!!document.querySelector("#scheduled-task-catch-up")'))) {
-        await act({type:"click",selector:"[role=dialog] button",text:"В определённое время"});
+        await act({type:"click",selector:"[role=dialog] button",text:"В заданное время"});
       }
       await capture("scheduled-catch-up", "div:has(> #scheduled-task-catch-up)");
       await capture("scheduled-catch-up-focus", "div:has(> #scheduled-task-catch-up)", "#scheduled-task-catch-up");
       for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"Escape",code:"Escape",windowsVirtualKeyCode:27});
       await evaluate('window.__TSR_ROUTER__.navigate({to:"/settings/providers",search:{instanceId:"antigravity"}})');
+      await wait('section[aria-label="Настройка Antigravity"]');
       if (await evaluate('!!document.querySelector("#claude-low-memory-unload")')) {
         await capture("claude-low-memory", "#claude-low-memory-unload");
         await capture("claude-low-memory-focus", "#claude-low-memory-unload", "#claude-low-memory-unload [role=switch]");
