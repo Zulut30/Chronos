@@ -1,4 +1,4 @@
-const { BrowserWindow, session } = require("electron");
+const { BrowserWindow, session, webContents } = require("electron");
 const { resource, own, uuid } = require("./policy.mjs");
 const { encodeSnapshot } = require("./assets.mjs");
 const { db } = require("./runtime.cjs");
@@ -13,6 +13,17 @@ async function thumbnail(id, version) {
     const existing = db().thumbnail(id,version);
     if (existing) return Buffer.from(existing).toString("base64");
     if (db().metadata(id).version !== version) return null;
+    const live = webContents.getAllWebContents().find(contents =>
+      contents.getURL() === "chronos-artifact://"+id+"/index.html" &&
+      contents.session === session.fromPartition("persist:chronos-artifact-"+id) && !contents.isLoading());
+    if (live) {
+      const image = await live.capturePage();
+      if (!image.isEmpty()) {
+        const bytes = image.resize({width:400}).toJPEG(78);
+        db().saveThumbnail(id,version,bytes);
+        return bytes.toString("base64");
+      }
+    }
     const ses = session.fromPartition("chronos-artifact-thumbnail");
     ses.protocol.handle("chronos-artifact", req => resource(db(),id,req.url,version));
     ses.webRequest.onBeforeRequest((req,reply) => {

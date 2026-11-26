@@ -30,7 +30,10 @@ async function publish(input, context = {}) {
     } finally {await handle.close();}
   }
   const db = await artifactStore();
-  const result = db.publish({...input,files},context);
+  const result = db.publish({...input,files},{
+    threadId:context.threadId ?? input.origin?.threadId,
+    environmentId:context.environmentId ?? input.origin?.environmentId,
+  });
   const link = "http://127.0.0.1:4520/artifact-view.html?id="+result.id;
   const label = input.title.replace(/[\[\]\\]/g," ");
   return {...result,link,markdown:"["+label+"]("+link+")",quickstart};
@@ -44,7 +47,8 @@ function tool(name, description, properties, required, run) {
 export const artifactTools = [
   tool("guide", quickstart, {}, [], async () => ({quickstart})),
   tool("publish", quickstart,
-    { id: string, source: string, title: string, description: string, icon: string, label: string,
+    { id: string, source: string, origin: {type:"object",description:"Тред-источник при прямом вызове Студии. В artifact_studio определяется автоматически.",
+      properties:{threadId:string,environmentId:string},required:["threadId","environmentId"]}, title: string, description: string, icon: string, label: string,
       capabilities: {type:"array",items:{type:"string",enum:capabilities}},
       expectedVersion: { type: "integer" }, files: { type: "object", additionalProperties: {oneOf:[string,{type:"object",properties:{encoding:{const:"base64"},data:string},required:["encoding","data"],additionalProperties:false}]} } },
     ["title","description","icon","label"], publish),

@@ -19,7 +19,7 @@ type Bridge = Window & {
   chronosArtifactInstaller?:{install(id:string,image:string,theme:unknown):Promise<boolean>};
   __TSR_ROUTER__?:{navigate(input:{to:string;search?:Record<string,string>}):Promise<void>};
 };
-const bridge = () => window as Bridge;
+const bridge = () => window as unknown as Bridge;
 function request<T>(action:string,args:Record<string,unknown> = {}) {
   return bridge().chronosArtifactLibrary.request(action,args) as Promise<T>;
 }
