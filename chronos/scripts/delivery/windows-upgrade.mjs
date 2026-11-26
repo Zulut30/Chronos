@@ -164,13 +164,17 @@ try {
     const route = "/" + oldRuntime.identity + "/" + threadId;
     await waitFor("thread route", () => evaluate(`window.__TSR_ROUTER__?.navigate({ to: ${JSON.stringify(route)} }).then(() => true)`));
     await waitFor("native gallery button", () => click('button[aria-label="Артефакты"]'));
-    await waitFor("fixture in gallery", () => click(`article[data-id="${artifactId}"] .art-cover`));
-    await waitFor("artifact actions", () => click('button[aria-label="Действия"]'));
+    // Older builds use the Studio gallery; newer builds use the native gallery.
+    // Both deliver the same packaged Studio open request to the desktop window.
+    await waitFor("gallery opened", () => evaluate(`Boolean(document.querySelector('[data-artifact-gallery],dialog iframe[src*="/artifacts.html"],webview[src*="/artifacts.html"]'))`));
+    const { showArtifact } = await import(pathToFileURL(path.join(resources, "chronos-services/artifacts/gallery.mjs")));
+    await waitFor("Studio delivered the fixture", () => showArtifact(artifactId));
+    await waitFor("artifact view", () => evaluate(`Boolean(document.querySelector('webview[src^="chronos-artifact://${artifactId}/"]'))`));
     await waitFor("install as app command", () => evaluate(`(() => {
-      const button = [...document.querySelectorAll(".art-menu button")].find(b => !b.disabled && b.textContent === "Установить как приложение");
-      if (!button) return false;
-      button.click();
-      return true;
+      const button = [...document.querySelectorAll("button")].find(b => b.getClientRects().length && !b.disabled && b.textContent === "Установить как приложение");
+      if (button) { button.click(); return true; }
+      if (!document.querySelector(".art-menu")) document.querySelector('button[aria-label="Действия"]')?.click();
+      return false;
     })()`));
     await waitFor("artifact shortcut ownership", () => evaluate(`window.chronosArtifactInstaller.installed(${JSON.stringify(artifactId)})`));
     oldShell = await shellState();
