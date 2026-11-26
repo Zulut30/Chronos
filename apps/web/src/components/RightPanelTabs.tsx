@@ -601,6 +601,7 @@ function surfaceTitle(
   resolve: MessageResolver = m,
 ): string {
   switch (surface.kind) {
+    case "artifacts": return "Артефакты"; // chronos: document tab
     case "diff":
       return resolve(msg("Diff"));
     case "files":
@@ -692,6 +693,7 @@ function SurfaceIcon({
   pullRequestStatusSeed: PullRequestTabStatusSeed | undefined;
 }) {
   switch (surface.kind) {
+    case "artifacts": return <Files className="size-3 shrink-0" />; // chronos: document tab
     case "preview":
       return <PreviewFavicon capturedUrl={previewCapturedUrl} url={previewUrl} />;
     case "diff":

@@ -91,10 +91,15 @@ export async function verifyArtifacts(client, opts, desktopPid) {
     })()`);
     await showArtifact(id);
     await waitFor("artifact guest visible inside thread right panel",()=>evaluate(`(() => {
-      const guest=document.querySelector('[data-electron-browser-host] webview[src="chronos-artifact://${id}/index.html"]');
+      const guest=document.querySelector('[data-artifact-tab] webview[src="chronos-artifact://${id}/index.html"]');
       const r=guest?.getBoundingClientRect();
       return !!r && r.width>100 && r.height>100 && r.right>0 && r.left<innerWidth && !document.querySelector('dialog[open] webview');
     })()`));
+    await evaluate(`document.querySelector('[data-artifact-tab] .art-segment button:nth-child(2)').click()`);
+    await waitFor("source stays in native artifact tab",()=>evaluate(`document.querySelector('[data-artifact-tab] pre')?.textContent.includes("PerformanceObserver")`));
+    await evaluate(`document.querySelector('[data-artifact-tab] [aria-label="К артефактам"]').click()`);
+    await waitFor("gallery stays in native tab",()=>evaluate(`Boolean(document.querySelector('[data-artifact-tab] .art-cover'))`));
+    await evaluate(`document.querySelector('[data-artifact-tab] .art-cover').click()`);
     const footprint=()=>JSON.parse(execFileSync("powershell.exe",["-NoProfile","-File",
       path.join(import.meta.dirname,"artifact-process-tree.ps1"),String(desktopPid)],{encoding:"utf8",windowsHide:true}));
     const readFrame=()=>store.documents(id,"get",{collection:"probe",key:"frame"});

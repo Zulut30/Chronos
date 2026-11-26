@@ -22,6 +22,7 @@ import type { ChatFileAttachment } from "./types";
 
 const RIGHT_PANEL_KINDS = [
   "diff",
+  "artifacts", // chronos: local document panel
   "files",
   "file",
   "preview",
@@ -45,6 +46,7 @@ export interface DeviceTabTarget {
 }
 
 export type RightPanelSurface =
+  | { id: "artifacts"; kind: "artifacts"; url: string }
   | { id: `browser:${string}`; kind: "preview"; resourceId: string }
   | { id: "browser:new"; kind: "preview"; resourceId: null }
   | { id: "device" | `device:${string}`; kind: "device"; target?: DeviceTabTarget; title?: string }
@@ -197,6 +199,7 @@ interface RightPanelStoreState {
   setLinkedThreadTitle: (ref: ScopedThreadRef, surfaceId: string, title: string) => void;
   openDevice: (ref: ScopedThreadRef, target: DeviceTabTarget, automatic?: boolean) => void;
   renameDevice: (ref: ScopedThreadRef, surfaceId: string, title: string) => void;
+  openArtifacts: (ref: ScopedThreadRef, url: string) => void;
   openBrowser: (ref: ScopedThreadRef, tabId: string | null) => void;
   openFile: (ref: ScopedThreadRef, relativePath: string, line?: number) => void;
   /** Moves in place; "" opens the root explorer. folderTrail keeps the return path; keepSource opens beside the source. */
@@ -291,6 +294,8 @@ const singletonSurface = (
   >,
 ): RightPanelSurface => {
   switch (kind) {
+    case "artifacts":
+      return { id: "artifacts", kind, url: "http://127.0.0.1:4520/artifacts.html" };
     case "diff":
       return { id: "diff", kind };
     case "files":
@@ -616,6 +621,7 @@ export function migratePersistedRightPanelState(persistedState: unknown): {
                     }
                     // Also drops kinds this build does not know, such as one a newer build saved.
                     if (!(RIGHT_PANEL_KINDS as ReadonlyArray<unknown>).includes(kind)) return [];
+                    if (surface.kind === "artifacts" && typeof surface.url !== "string") return [];
                     if (surface.kind === "linked-thread") {
                       const decoded = decodeLinkedThreadSurface(surface);
                       return decoded === null ? [] : [decoded];
@@ -929,6 +935,13 @@ export const useRightPanelStore = create<RightPanelStoreState>()(
             ),
           })),
         ),
+      // chronos: a document owns its tab independently of browser navigation and its guest handshake.
+      openArtifacts: (ref, url) =>
+        set((state) => userAction(state, scopedThreadKey(ref), (current) => {
+          const surface = {id:"artifacts", kind:"artifacts", url} as const;
+          const next = upsertSurface(current, surface);
+          return {...next, surfaces:next.surfaces.map(entry => entry.id === surface.id ? surface : entry)};
+        })),
       openBrowser: (ref, tabId) =>
         set((state) =>
           userAction(state, scopedThreadKey(ref), (current) => {

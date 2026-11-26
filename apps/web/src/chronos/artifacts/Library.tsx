@@ -4,8 +4,6 @@ import { ArrowLeft, ArrowUpRight, Check, Code2, Copy, Download, Ellipsis, Extern
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { readThreadShell } from "~/state/entities";
-import { useRightPanelSurfaceClose } from "~/hooks/useRightPanelSurfaceClose";
-import { selectThreadRightPanelState, useRightPanelStore } from "~/rightPanelStore";
 import words from "../../../../../chronos/l10n/artifacts.ru.json";
 import { ArtifactView, readTheme } from "./ArtifactView";
 import { artifactId, artifactUrl, galleryUrl } from "./gallery";
@@ -195,20 +193,10 @@ function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
     <footer className="art-bottom"><small><LockKeyhole/>{words.private}</small><button onClick={()=>run(continueInChat)}>{words.chat}<ArrowUpRight/></button></footer>
     </>}{status && <p role="status" className="art-notice">{status}</p>}</section>;
 }
-function Library({url,onClose}:{url:string;onClose:()=>void}) {
-  const [id,select]=useState(()=>artifactId(url));
-  return id ? <Viewer key={id} id={id} back={()=>select(null)} onClose={onClose}/> :
-    <Gallery open={select} onClose={onClose} confirmId={new URL(url).searchParams.get("delete")}/>;
-}
-const emptyLabels = new Map<string,string>();
-export function ArtifactTab({url,threadRef,tabId}:{url:string;threadRef:ScopedThreadRef;tabId:string}) {
-  const {closeSurface}=useRightPanelSurfaceClose({threadRef,terminalLabelsById:emptyLabels});
-  const close=()=>{
-    const tab=selectThreadRightPanelState(useRightPanelStore.getState().byThreadKey,threadRef).surfaces
-      .find(s=>s.kind==="preview" && s.resourceId===tabId);
-    if(tab) closeSurface(tab);
-  };
-  return <Library key={url} url={url} onClose={close}/>;
+export function Library({url,onClose,navigate}:{url:string;onClose:()=>void;navigate:(url:string)=>void}) {
+  const id=artifactId(url);
+  return id ? <Viewer key={id} id={id} back={()=>navigate(galleryUrl)} onClose={onClose}/> :
+    <Gallery open={id=>navigate(artifactUrl(id))} onClose={onClose} confirmId={new URL(url).searchParams.get("delete")}/>;
 }
 let dialog:HTMLDialogElement | null=null, root:Root|null=null;
 export function openLibraryDialog(url=galleryUrl) {
@@ -218,5 +206,5 @@ export function openLibraryDialog(url=galleryUrl) {
     dialog.addEventListener("close",()=>{root?.unmount();root=null;dialog?.remove();dialog=null;},{once:true});
     dialog.showModal();
   }
-  root?.render(<Library key={url} url={url} onClose={()=>dialog?.close()}/>);
+  root?.render(<Library key={url} url={url} navigate={openLibraryDialog} onClose={()=>dialog?.close()}/>);
 }

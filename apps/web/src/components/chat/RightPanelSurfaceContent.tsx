@@ -29,6 +29,7 @@ import { PullRequestDetailGhost } from "../pullRequest/PullRequestGhosts";
 import { PullRequestsUnavailableState } from "../pullRequest/PullRequestsUnavailableState";
 import { ThreadPullRequestsPanel } from "../pullRequest/ThreadPullRequestsPanel";
 
+const ArtifactLibrary = lazy(() => import("../../chronos/artifacts/Library").then(module => ({ default: module.Library }))); // chronos: load only for a visible artifact tab
 const PreviewPanel = lazy(() =>
   import("../preview/PreviewPanel").then((module) => ({ default: module.PreviewPanel })),
 );
@@ -91,6 +92,11 @@ export function RightPanelSurfaceContent(props: {
   const gt = useGT();
   if (surface === null) return null;
   switch (surface.kind) {
+    case "artifacts":
+      return visible ? <div className="relative h-full min-h-0 w-full" data-artifact-tab="">
+        <Suspense fallback={null}><ArtifactLibrary key={surface.url} url={surface.url}
+          navigate={url => useRightPanelStore.getState().openArtifacts(threadRef,url)}
+          onClose={() => onCloseSurface(surface)}/></Suspense></div> : null;
     case "preview":
       return (
         <Suspense fallback={null}>
