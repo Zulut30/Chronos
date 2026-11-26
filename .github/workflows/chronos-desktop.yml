@@ -117,7 +117,15 @@ jobs:
         run: node scripts/update-release-package-versions.ts "${{ needs.version.outputs.upstream }}"
 
       - name: Build JS bundle
-        run: vp run build:desktop:bundle
+        env:
+          HISTORICAL_PERF_SHA: ${{ inputs.perf_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          vp run build:desktop:bundle 2>&1 | tee "$RUNNER_TEMP/chronos-bundle.log"
+          if [[ -z "$HISTORICAL_PERF_SHA" || -f chronos/scripts/parity/check-bundle-translation.mjs ]]; then
+            node chronos/scripts/parity/check-bundle-translation.mjs "$RUNNER_TEMP/chronos-bundle.log"
+          fi
 
       - name: Upload JS bundle
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

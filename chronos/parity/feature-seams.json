@@ -1,0 +1,945 @@
+{
+  "05-oly-core.js": {
+    "sha256": "316e94900ad6ee1a5de0298e4f243d5bd13c08f77aace882dd822e5992610069",
+    "expressions": [
+      "matches(sel)"
+    ],
+    "globals": [
+      "__olyCore"
+    ],
+    "selectors": [
+      ".chat-markdown,[data-user-message-bubble],pre,code,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm",
+      ".chat-markdown,[data-user-message-bubble],pre,code,.font-mono,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm"
+    ],
+    "window": [
+      "WebSocket"
+    ]
+  },
+  "10-plan-mode.js": {
+    "sha256": "eb069222c5d348c7349c292719967d61211310c1707da04eeaecddbdd02e5e0d",
+    "attributes": [
+      "aria-expanded",
+      "aria-label",
+      "data-mode",
+      "data-mode-check",
+      "data-mode-copy",
+      "data-mode-desc",
+      "data-mode-icon",
+      "data-mode-id",
+      "data-plan-icon",
+      "data-plan-sep",
+      "title"
+    ],
+    "globals": [
+      "__olyPlanMode",
+      "__olyPlanUi",
+      "__olyWrapModeText"
+    ],
+    "selectors": [
+      ".oly-plan",
+      "[aria-checked=true]",
+      "[data-plan-icon]",
+      "[data-plan-label]",
+      "[data-slot=composer-host]",
+      "button",
+      "button[data-composer-shortcut~=\"composer.effort\"]"
+    ]
+  },
+  "15-lang-icons.js": {
+    "sha256": "698ddb15cab3bad993e30cf1b637321d97afdfc3b81665fe8193383334aaf50b",
+    "globals": [
+      "__olyLangIcons"
+    ]
+  },
+  "17-servers.js": {
+    "sha256": "28da8c8d464977bf3c0945ad63f7bca4b42a29fc9905d9d1dd817333cf158da2",
+    "attributes": [
+      "data-oly-server-runtime"
+    ],
+    "globals": [
+      "__olyCore"
+    ],
+    "selectors": [
+      "button > span > span:nth-child(2)",
+      "li",
+      "section:has(#thread-details-servers-heading)"
+    ]
+  },
+  "20-speed.js": {
+    "sha256": "f7c10e7ac6ffa0e7167a07daab08bf79c97c765ca54b3b420615630d829f95e2",
+    "attributes": [
+      "aria-checked",
+      "aria-label",
+      "data-armed",
+      "data-live"
+    ],
+    "classes": [
+      "oly-cmb",
+      "oly-eff-speed",
+      "oly-seg-speed"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olySpeed"
+    ],
+    "selectors": [
+      ".chat-markdown,[data-user-message-bubble],pre,code,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm",
+      ".flex-1",
+      ".ms-auto",
+      ".oly-dl-speed",
+      ".oly-pick-speed",
+      ".oly-plan",
+      ".oly-speed",
+      ".oly-stats",
+      ".oly-stats-reset",
+      ".oly-stats-reset[data-armed=true]",
+      ".sr-only",
+      ":scope>div",
+      ":scope>div>dt",
+      "[aria-label]",
+      "[data-effort-level]",
+      "[data-model-picker-effort]",
+      "[data-model-picker-option-menu]",
+      "[data-slot=combobox-item-content] .truncate",
+      "[data-slot=combobox-item]",
+      "[data-slot=composer-host]",
+      "[data-slot=scroll-area-viewport]",
+      "[role=dialog][data-slot=dialog-popup]",
+      "[role=menuitemradio]",
+      "[role=radio]",
+      "[role=radiogroup]",
+      "[role=radiogroup] [role=radio]",
+      "button[data-composer-shortcut~=\"composer.effort\"]",
+      "dd",
+      "dl",
+      "dt",
+      "h2[data-slot=dialog-title]",
+      "label"
+    ],
+    "window": [
+      "WebSocket"
+    ]
+  },
+  "22-budget.js": {
+    "sha256": "cdf044efb22be6e4c47d3cbe704c1b678d7e97543e4b8311f68d4574eaa01bdb",
+    "attributes": [
+      "data-low"
+    ],
+    "endpoints": [
+      "http://127.0.0.1:4522/api/balances/saved"
+    ],
+    "globals": [
+      "__TSR_ROUTER__",
+      "__olyBudget",
+      "__olyBudgetEvents",
+      "__olyCore",
+      "__olyIntegrations"
+    ],
+    "selectors": [
+      ".chat-markdown,pre,code,.xterm,[contenteditable=true],.oly-budget-pop,.oly-notify-wrap",
+      ".oly-plan,button[data-composer-shortcut~=\"composer.effort\"]",
+      ".oly-speed",
+      "[data-oly-ik-nav]",
+      "[data-slot=composer-host]"
+    ],
+    "window": [
+      "WebSocket"
+    ]
+  },
+  "24-thread-details.js": {
+    "sha256": "9731067d5a550ba898d43f94bd6c96559985370571307eee5475f710b678ce62",
+    "attributes": [
+      "aria-haspopup",
+      "aria-label",
+      "data-oly-td-title",
+      "tabindex"
+    ],
+    "expressions": [
+      "getAttribute(k)",
+      "hasAttribute(k)"
+    ],
+    "globals": [
+      "__olyBgTasks",
+      "__olyPanels",
+      "__olyThreadDetails"
+    ],
+    "selectors": [
+      "[data-slot=\"tooltip-popup\"],[data-slot=\"menu-popup\"]",
+      "[data-thread-details-card]",
+      "[data-thread-details-card] [data-oly-td=\"usage\"]",
+      "[data-thread-details-card],[data-slot=\"tooltip-popup\"],[data-slot=\"menu-popup\"]"
+    ]
+  },
+  "25-bg-tasks.js": {
+    "sha256": "c390e728fa6b965e25c342beed308f911bbd37ed2d2e2cebe3b9ba501044b862",
+    "attributes": [
+      "data-oly-bg-act",
+      "data-oly-bg-ids",
+      "data-oly-bg-thread",
+      "data-since",
+      "data-until",
+      "data-workspace-focus-key",
+      "href",
+      "title"
+    ],
+    "expressions": [
+      "querySelector(':scope>section>div>h3#'+id)",
+      "querySelector('[data-work-entry-id=\"'+CSS.escape(id)+'\"]')"
+    ],
+    "globals": [
+      "__olyBgTasks",
+      "__olyCore"
+    ],
+    "selectors": [
+      "#oly-bg-base",
+      "[data-thread-details-card]",
+      "[data-workspace-focus-key^=\"details:\"]",
+      "a[href]",
+      "section.oly-bg",
+      "section.oly-bg [data-oly-bg-act]",
+      "section.oly-bg time[data-since]",
+      "section:not(.oly-bg)"
+    ],
+    "window": [
+      "WebSocket"
+    ]
+  },
+  "26-notifications.js": {
+    "sha256": "b3e471eddfce16f70424ee27d8f2696fd2a2a93a391340f12d039aaf5c3b25e6",
+    "attributes": [
+      "data-mode",
+      "data-oly-notify-menu",
+      "data-place",
+      "data-sidebar",
+      "data-size",
+      "data-slot",
+      "href"
+    ],
+    "globals": [
+      "__TSR_ROUTER__",
+      "__olyBudgetEvents",
+      "__olyNotifications"
+    ],
+    "selectors": [
+      "[data-slot=sidebar-container],[data-slot=sidebar-gap]",
+      "[data-slot=sidebar-content]",
+      "[data-slot=sidebar-footer]:not(nav[data-workspace-area=settings-nav] *)",
+      "[data-slot=sidebar-footer]:not(nav[data-workspace-area=settings-nav] *)>ul[data-sidebar=menu]",
+      "[data-slot=sidebar-trigger]",
+      "[data-slot=sidebar-wrapper],[data-slot=sidebar-inset]",
+      "[data-slot^=sidebar],.peer,[data-sidebar]",
+      "a[href]",
+      "button",
+      "input[type=search][role=combobox]",
+      "li[data-slot=sidebar-menu-item]",
+      "nav[data-workspace-area=settings-nav],[data-slot=composer-host],.oly-notify-menu"
+    ],
+    "window": [
+      "Notification",
+      "crypto",
+      "focus"
+    ]
+  },
+  "28-model-account.js": {
+    "sha256": "bf09f3249218988d452843d4448e5549428ab8717906c218520368b8f964bb52",
+    "attributes": [
+      "data-model-picker-provider"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyModelAccount"
+    ],
+    "selectors": [
+      "#oly-model-account-style",
+      ".oly-acct",
+      ".oly-acct-mail",
+      ".oly-acct-plan",
+      "[data-model-picker-content]",
+      "[data-model-picker-provider]",
+      "[data-model-picker-sidebar]",
+      "[data-model-picker-sidebar] [aria-pressed=\"true\"]",
+      "input[placeholder]"
+    ]
+  },
+  "30-tasks.js": {
+    "sha256": "a6bf6760e8a1384ef43862f6c6690f5d6993b155a3237389c09d99df50ee2f49",
+    "attributes": [
+      "data-act",
+      "data-ci",
+      "data-crm",
+      "data-ct",
+      "data-f",
+      "data-gid",
+      "data-i",
+      "data-id",
+      "data-md",
+      "data-openchat",
+      "data-openthread",
+      "data-quick-status",
+      "data-run",
+      "data-sel",
+      "data-sidebar-action-for",
+      "data-sidebar-row",
+      "data-status",
+      "data-tf",
+      "data-tv",
+      "data-updated"
+    ],
+    "classes": [
+      "armed",
+      "composer-tiptap",
+      "oly-tk-card",
+      "oly-tk-search"
+    ],
+    "endpoints": [
+      "http://127.0.0.1:4518/api/",
+      "http://127.0.0.1:4520/api/boards?dir="
+    ],
+    "expressions": [
+      "querySelector('.oly-tk-card[data-id=\"'+focusId+'\"]')",
+      "querySelector('.oly-tk-card[data-id=\"'+id+'\"]')",
+      "querySelector(':is(.oly-tk-nav,.oly-tk-head,.oly-tk-body) '+s)",
+      "querySelector('[data-f=\"'+f+'\"]')",
+      "querySelector('[data-f=\"'+k+'\"]')",
+      "querySelector(s)",
+      "querySelectorAll(':is(.oly-tk-nav,.oly-tk-head,.oly-tk-body) '+s)",
+      "querySelectorAll(sel)"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyPlan",
+      "__olyPlanUi",
+      "__olyTasks"
+    ],
+    "selectors": [
+      ".composer-tiptap",
+      ".dragging",
+      ".oly-tk-add input",
+      ".oly-tk-addbtn",
+      ".oly-tk-board",
+      ".oly-tk-body",
+      ".oly-tk-body :is(input,textarea,select):focus",
+      ".oly-tk-card",
+      ".oly-tk-card [data-openchat]",
+      ".oly-tk-card [data-run]",
+      ".oly-tk-card:not(.dragging)",
+      ".oly-tk-card[aria-selected=true]",
+      ".oly-tk-checks input:checked",
+      ".oly-tk-dbody",
+      ".oly-tk-detail",
+      ".oly-tk-detail .sv",
+      ".oly-tk-detail [data-f=cnew]",
+      ".oly-tk-drop",
+      ".oly-tk-err",
+      ".oly-tk-head",
+      ".oly-tk-launch",
+      ".oly-tk-launch .oly-tk-lboard",
+      ".oly-tk-launch input[name=oly-tk-lmode]:checked",
+      ".oly-tk-ldesc",
+      ".oly-tk-list",
+      ".oly-tk-list.over",
+      ".oly-tk-main",
+      ".oly-tk-nav",
+      ".oly-tk-opt",
+      ".oly-tk-row .oly-tk-rowcount",
+      ".oly-tk-title",
+      ".sv",
+      ":scope > .oly-tk-nav",
+      ":scope > .oly-tk-row",
+      "[data-act=addnote]",
+      "[data-act=addproj]",
+      "[data-act=addtitle]",
+      "[data-act=autostart]",
+      "[data-act=dclose]",
+      "[data-act=del]",
+      "[data-act=gcancel]",
+      "[data-act=gdel]",
+      "[data-act=gsave]",
+      "[data-act=launch]",
+      "[data-act=q]",
+      "[data-act=retry]",
+      "[data-act=tochat]",
+      "[data-chat-composer-form=\"true\"]",
+      "[data-chat-composer-main-surface]",
+      "[data-ci]",
+      "[data-composer-shortcut=\"composer.workspace\"]",
+      "[data-crm]",
+      "[data-ct]",
+      "[data-f=cnew]",
+      "[data-f=desc]",
+      "[data-f=due]",
+      "[data-f=gname]",
+      "[data-f=labels]",
+      "[data-f=note]",
+      "[data-f=priority]",
+      "[data-f=project]",
+      "[data-f=status]",
+      "[data-l=board]",
+      "[data-l=boardpath]",
+      "[data-l=close]",
+      "[data-l=draft]",
+      "[data-l=send]",
+      "[data-md]",
+      "[data-openthread]",
+      "[data-quick-status]",
+      "[data-reset-filters]",
+      "[data-sel]",
+      "[data-sidebar-action-for^=\"folder:\"]",
+      "[data-sidebar-row]",
+      "[data-slot=composer-host]",
+      "[data-slot=composer-host] .composer-tiptap",
+      "[data-slot=select-value]",
+      "[data-slot=sidebar-group] > div",
+      "[data-slot=sidebar] input[type=search]",
+      "[data-slot=workspace-breadcrumb-text]",
+      "[data-tf]",
+      "[data-tv]",
+      "[role=option]",
+      "button",
+      "input,textarea,select,[contenteditable=true]",
+      "input:not([type=checkbox]),textarea",
+      "input[data-f]:not([type=checkbox]),textarea[data-f]",
+      "input[name=oly-tk-lmode]",
+      "input[name=oly-tk-lwt]",
+      "span.truncate"
+    ],
+    "window": [
+      "PointerEvent"
+    ]
+  },
+  "40-files.js": {
+    "sha256": "79b98e58b16399b6bdcef6f9e9b869b9ee6e0c62d46f0232c2633861c37618bf",
+    "attributes": [
+      "aria-expanded",
+      "aria-haspopup",
+      "class",
+      "data-active-tab",
+      "data-changed-file-row",
+      "data-context-menu",
+      "data-diffs-header",
+      "data-item-path",
+      "data-item-type",
+      "data-level",
+      "data-oly-dl",
+      "href",
+      "role"
+    ],
+    "classes": [
+      "chat-markdown-file-link",
+      "oly-icon-local"
+    ],
+    "endpoints": [
+      "http://127.0.0.1:4519"
+    ],
+    "expressions": [
+      "getAttribute(a)",
+      "hasAttribute(a)",
+      "querySelector(s)",
+      "querySelector(sel)"
+    ],
+    "globals": [
+      "__olyFiles"
+    ],
+    "selectors": [
+      "#oly-files-css",
+      "#oly-files-toasts",
+      ".oly-ftoast-act",
+      ".oly-ftoast-bar i",
+      ".oly-ftoast-d",
+      ".oly-ftoast-ic",
+      ".oly-ftoast-t",
+      ".oly-ftoast-x",
+      ".oly-icon-local",
+      ":scope > .oly-dl-head",
+      ":scope > button",
+      ":scope > div > [role=menuitem]",
+      ":scope > svg",
+      "[data-context-menu-chevron], span.ms-auto",
+      "[data-context-menu][role=menu][data-level=\"0\"]:not([data-oly-dl])",
+      "[data-file-breadcrumbs]",
+      "[data-right-panel-tab-list]",
+      "[data-surface-subheader]",
+      "[data-title]",
+      "button",
+      "h3",
+      "input",
+      "input[name=\"project-files-search\"]",
+      "li[data-file-crumb]",
+      "span",
+      "span.truncate"
+    ],
+    "window": [
+      "WebSocket"
+    ]
+  },
+  "50-machines.js": {
+    "sha256": "49bb7932283e6bd1816765b0eee99d9d38c46739049f021c7433dfeb9f11cdac",
+    "attributes": [
+      "aria-label",
+      "data-machine-index",
+      "data-oly-keep",
+      "data-oly-machines",
+      "data-sig",
+      "title"
+    ],
+    "expressions": [
+      "getAttribute(a)"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyMachines",
+      "__olyMentions",
+      "__olyReferences"
+    ],
+    "selectors": [
+      "#oly-machines-style",
+      ".chat-markdown,[data-user-message-bubble],pre,code,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm",
+      ".chat-markdown,[data-user-message-bubble],pre,code,.font-mono,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm,[data-oly-machines]",
+      ".oly-mach-empty",
+      "[aria-selected=true]",
+      "[class]",
+      "[data-composer-command-drawer]",
+      "[data-machine-index]",
+      "[data-oly-machines=edit]",
+      "[data-oly-machines=rename]",
+      "[data-oly-machines]",
+      "[data-slot=command-item]",
+      "button[aria-label]",
+      "div",
+      "div.grid",
+      "p.truncate.text-sm.font-medium",
+      "span.truncate.text-xs.text-muted-foreground"
+    ],
+    "window": [
+      "desktopBridge"
+    ]
+  },
+  "55-composer.js": {
+    "sha256": "e3a509e8c39816fd007752e08b62d0d36a2574b758401b9765c5bb3c77d3ac9f",
+    "attributes": [
+      "aria-selected",
+      "data-catalog",
+      "data-filter",
+      "data-oly-display",
+      "data-oly-mention-view",
+      "data-oly-mode-chip",
+      "data-oly-mode-source",
+      "data-view"
+    ],
+    "endpoints": [
+      "http://127.0.0.1:4517/api/prompts"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyMentions",
+      "__olyPlan",
+      "__olyPlanUi",
+      "__olyReferences"
+    ],
+    "selectors": [
+      ".chat-markdown,[data-user-message-bubble]",
+      ".chat-markdown,[data-user-message-bubble],.oly-search-menu,.oly-prompt-dialog,.xterm",
+      ".user-message-markdown",
+      ".user-message-markdown p",
+      ":not(br,strong,b,em,i,del,s,u,mark,code,kbd,sub,sup)",
+      "[data-composer-command-drawer]",
+      "[data-composer-drawer-layer]",
+      "[data-oly-display]",
+      "[data-oly-mode-chip]",
+      "[data-oly-mode-source]",
+      "[data-slot=composer-host]",
+      "[data-testid=\"composer-editor\"],.composer-tiptap",
+      "[data-user-message-bubble]",
+      "button",
+      "button:not([hidden])",
+      "code,kbd"
+    ]
+  },
+  "60-studio.js": {
+    "sha256": "a0729da41f31125ea426da499625e267059a333450225f07f5ae86c6591f0d42",
+    "attributes": [
+      "class",
+      "data-active-tab",
+      "data-board",
+      "data-hub",
+      "data-theme-id"
+    ],
+    "classes": [
+      "dark",
+      "flex-1",
+      "min-w-0"
+    ],
+    "endpoints": [
+      "/api/board/create",
+      "/api/boards?dir=",
+      "/api/bridge",
+      "/api/context",
+      "/api/locations?cwd=",
+      "/api/recent",
+      "http://127.0.0.1:4518/api/projects",
+      "http://127.0.0.1:4518/api/thread/",
+      "http://127.0.0.1:4520"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyStudio",
+      "__olyStudioShell"
+    ],
+    "selectors": [
+      ".group",
+      ".oly-studio-pop",
+      ".oly-studio-toast",
+      "[data-active-tab]",
+      "[data-board]",
+      "[data-hub]",
+      "[data-new]",
+      "[data-oly-skills]",
+      "[data-oly-studio-launch]",
+      "[data-oly-studio-mi]",
+      "[data-oly-studio-overlay]",
+      "[data-oly-studio]",
+      "[data-right-panel-tab-list]",
+      "[data-slot=composer-host] .composer-tiptap",
+      "[data-slot=menu-item]",
+      "[data-slot=menu-popup]",
+      "[data-slot=sidebar] button[aria-label=\"Usage\"],[data-slot=sidebar] button[aria-label=\"Расход\"]",
+      "[data-surface-launcher-keys]",
+      "button",
+      "button:not(:first-of-type)",
+      "button[aria-label=\"Toggle right panel\"],button[aria-label=\"Показать или скрыть правую панель\"]",
+      "input",
+      "li",
+      "svg"
+    ],
+    "window": [
+      "WebSocket",
+      "desktopBridge"
+    ]
+  },
+  "70-openrouter.js": {
+    "sha256": "a0a9f35e6f4b2b1263126669cf127d77f2630e412813de323a4524967e6489cc",
+    "attributes": [
+      "class",
+      "data-filter",
+      "data-i",
+      "data-oly-or-orig",
+      "data-provider-accent-color"
+    ],
+    "expressions": [
+      "querySelector(`#oly-or-opt-${active}`)",
+      "querySelectorAll(`[data-provider-accent-color=\"${ACCENT}\" i]`)"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyMentions",
+      "__olyOpenRouter",
+      "__olyReferences"
+    ],
+    "selectors": [
+      "#oly-openrouter-style",
+      ".chat-markdown,[data-user-message-bubble],pre,code,.composer-tiptap,[contenteditable=\"true\"],textarea,input,select,.xterm",
+      ".oly-or-chip",
+      ".oly-or-chips",
+      ".oly-or-count",
+      ".oly-or-hint",
+      ".oly-or-item",
+      ".oly-or-item,.oly-or-list",
+      ".oly-or-list",
+      ".oly-or-title",
+      ":scope > [data-oly-or-logo]",
+      ":scope > [data-oly-or-orig]",
+      "[data-composer-command-drawer]",
+      "[data-composer-command-drawer] [data-slot=\"command-item\"],[data-composer-command-drawer] [data-composer-item-id]",
+      "[data-composer-drawer-layer]",
+      "[data-oly-or-logo]",
+      "[data-oly-or-orig]",
+      "[data-testid=\"composer-editor\"]"
+    ]
+  },
+  "80-integrations.js": {
+    "sha256": "ebfb65a0ddb13b87431c5ebc49e8c7769a7af87cf805795f874c9c732e755509",
+    "attributes": [
+      "class",
+      "data-active",
+      "data-confirm",
+      "data-id",
+      "data-oly-ik-act",
+      "data-oly-ik-input",
+      "data-oly-ik-open",
+      "data-settings-section"
+    ],
+    "endpoints": [
+      "/api/keys",
+      "/api/keys/delete",
+      "/api/test",
+      "http://127.0.0.1:4522"
+    ],
+    "expressions": [
+      "querySelector(`[data-oly-ik-input=\"${id}\"]`)",
+      "querySelector(sel)"
+    ],
+    "globals": [
+      "__olyIntegrations"
+    ],
+    "selectors": [
+      ".oly-ik-eye",
+      ".oly-ik-panel",
+      ".oly-ik-panel,[data-oly-ik-crumb]",
+      "[data-oly-ik-act]",
+      "[data-oly-ik-crumb]",
+      "[data-oly-ik-input]",
+      "[data-oly-ik-nav]",
+      "[data-oly-ik-nav] [data-slot=\"sidebar-menu-button\"]",
+      "[data-slot=\"sidebar-menu-button\"]",
+      "[data-slot=\"sidebar-menu-button\"][data-settings-section=\"/settings/providers\"]",
+      "[data-slot=\"sidebar-menu-button\"][data-settings-section]",
+      "[data-slot=\"sidebar-menu-button\"][data-settings-section][data-active=\"true\"]",
+      "[data-workspace-area=\"settings\"]",
+      "[id]",
+      "header nav ol",
+      "li",
+      "span",
+      "svg"
+    ]
+  },
+  "87-ru-fixes.js": {
+    "sha256": "9c617dcf023e879613dac25ea53f1d0bd1a40c461962542047e34bf5f2395dc3",
+    "globals": [
+      "__olyCore",
+      "__olyRuFixes"
+    ],
+    "selectors": [
+      ".chat-markdown,[data-user-message-bubble],pre,code,.composer-tiptap,[contenteditable=\"true\"],textarea,input,.xterm",
+      "[data-changed-files-header]"
+    ]
+  },
+  "88-rich-markdown.chat.js": {
+    "sha256": "739406df824fed4a3cffdc433184b41568d25598edc086fee0dd5af0fb569726"
+  },
+  "88-rich-text.js": {
+    "sha256": "c151a51c8c0f864803eb02faeedbf55d140b883d2eaf2e02d827940afd98ff1d",
+    "attributes": [
+      "aria-label",
+      "style",
+      "title"
+    ],
+    "endpoints": [
+      "/api/context",
+      "/api/open",
+      "/api/wp/local-publish",
+      "/api/wp/sites",
+      "http://127.0.0.1:4520"
+    ],
+    "globals": [
+      "__olyRichText",
+      "__olyStudio"
+    ],
+    "selectors": [
+      "#oly-rich-text",
+      "*",
+      ".chat-markdown",
+      ".oly-wp-action",
+      ".oly-wp-action,.oly-wp-pop,.oly-wp-toast",
+      ".oly-wp-pop",
+      ".oly-wp-toast",
+      "[data-message-role=\"assistant\"]",
+      "[data-oly-rich],mark,u",
+      "[data-thread-item] [data-sidebar-row][aria-current]:not([aria-current=\"false\"]) .truncate",
+      "[data-timeline-row-id],[data-message-id]",
+      "[role=status]",
+      "[type=button]",
+      "[type=submit]",
+      "button",
+      "button,svg,[aria-hidden=\"true\"],script,style",
+      "h1,h2",
+      "img",
+      "mark",
+      "pre,code,[contenteditable=\"true\"],textarea,input",
+      "u"
+    ]
+  },
+  "90-mcp-manager.js": {
+    "sha256": "14e0607abd90cf5dd9a1252d06c63b6d80ae5608f7aa6a7b6be2447383685c07",
+    "attributes": [
+      "aria-current",
+      "aria-label",
+      "class",
+      "data-active",
+      "data-theme-id"
+    ],
+    "classes": [
+      "dark"
+    ],
+    "endpoints": [
+      "api/health",
+      "http://127.0.0.1:4523",
+      "http://127.0.0.1:4523/"
+    ],
+    "globals": [
+      "__olyMcpManager"
+    ],
+    "selectors": [
+      "[data-app-modal]",
+      "[data-oly-mcp-nav]",
+      "[data-oly-mcp-nav] button",
+      "[data-settings-section=\"/settings/providers\"]",
+      "[data-settings-section]",
+      "[data-settings-section][data-active=\"true\"]",
+      "button",
+      "iframe",
+      "li",
+      "nav[data-workspace-area=settings-nav]",
+      "span",
+      "ul"
+    ]
+  },
+  "91-prompts-settings.js": {
+    "sha256": "686332849829ed7dca79ed20d251557cbd138de06132cafa04ea982b113eaf8b",
+    "attributes": [
+      "aria-current",
+      "aria-hidden",
+      "class",
+      "data-active"
+    ],
+    "classes": [
+      "oly-ps-item"
+    ],
+    "endpoints": [
+      "http://127.0.0.1:4517/api/prompts"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyIntegrations",
+      "__olyMcpManager",
+      "__olyPlanUi",
+      "__olyPromptsSettings"
+    ],
+    "selectors": [
+      "[aria-label=\"Поиск в настройках\"],[aria-label=\"Очистить поиск по настройкам\"]",
+      "[data-app-modal]",
+      "[data-oly-mcp-nav]",
+      "[data-oly-prompts-nav]",
+      "[data-oly-ps-nav-button]",
+      "[data-settings-section=\"/settings/providers\"]",
+      "[data-settings-section]",
+      "[data-settings-section][data-active=\"true\"]",
+      "button",
+      "button,a,[role=option]",
+      "header button:is([aria-label=\"Закрыть\"],[aria-label=\"Закрыть настройки\"],[aria-label=\"Close settings\"],[aria-label=\"Close\"])",
+      "li",
+      "nav[data-workspace-area=\"settings-nav\"]",
+      "span"
+    ],
+    "window": [
+      "confirm",
+      "navigation"
+    ]
+  },
+  "92-studio-shell.js": {
+    "sha256": "19c08e2129f7e32ed80772b1f64978fede7efd14ccb469c66e809e8c27193a8f",
+    "attributes": [
+      "data-theme-id"
+    ],
+    "classes": [
+      "dark"
+    ],
+    "endpoints": [
+      "/api/locations",
+      "http://127.0.0.1:4520"
+    ],
+    "globals": [
+      "__olyStudio",
+      "__olyStudioShell"
+    ],
+    "selectors": [
+      "iframe"
+    ]
+  },
+  "93-chat-panels.js": {
+    "sha256": "3216c563a87a3167b5c1c41c6ec75e980b807671211bde2bdb97b2f9e130ed0f",
+    "attributes": [
+      "aria-label",
+      "aria-pressed",
+      "data-act",
+      "data-mode",
+      "data-oly-foreign",
+      "data-oly-pm",
+      "data-oly-promote",
+      "data-oly-split-tab",
+      "data-oly-tabctl",
+      "data-oly-zones",
+      "data-side-chat-pane",
+      "data-thread-item"
+    ],
+    "globals": [
+      "__TSR_ROUTER__",
+      "__olyPanelHost",
+      "__olyPanels"
+    ],
+    "selectors": [
+      "#oly-panels-css",
+      ".oly-pn-ghost",
+      ".oly-pn-toast",
+      ":scope > [data-oly-promote]",
+      ":scope > [data-oly-tabctl]",
+      "[data-a=follow]",
+      "[data-a=split]",
+      "[data-active-tab]",
+      "[data-oly-pm]",
+      "[data-right-panel-tab-list]",
+      "[data-side-chat-pane]",
+      "[data-slot=sidebar]",
+      "[data-slot=sidebar] [data-thread-item] > [data-sidebar-row]:not([draggable])",
+      "[data-thread-item]",
+      "[data-thread-item] > [data-sidebar-row]",
+      "[data-workspace-area=panel],[data-oly-zones]",
+      "[role=menu][data-context-menu]",
+      "[role=menuitem]",
+      "[role=menuitem]:not([disabled]):not([aria-disabled=true])",
+      "[role=separator]",
+      "button, a",
+      "button, a, input",
+      "main[data-slot=sidebar-inset]",
+      "main[data-slot=sidebar-inset] [data-oly-split=on]",
+      "main[data-slot=sidebar-inset] [data-right-panel-tabbar]",
+      "main[data-slot=sidebar-inset] [data-thread-context-drop]",
+      "main[data-slot=sidebar-inset] [data-workspace-area=panel]",
+      "script[type=module][src]",
+      "span"
+    ]
+  },
+  "extras.js": {
+    "sha256": "cbbd17bfb07c5a76988006cb52ce9757e10eb58d1d741216da8970623bdf93fd",
+    "attributes": [
+      "data-message-id",
+      "data-oly-busy",
+      "data-theme-id"
+    ],
+    "classes": [
+      "dark"
+    ],
+    "endpoints": [
+      "api/health",
+      "http://127.0.0.1:4517",
+      "http://127.0.0.1:4517/"
+    ],
+    "globals": [
+      "__olyCore",
+      "__olyPlanUi",
+      "__olySmooth"
+    ],
+    "selectors": [
+      ".oly-skills-overlay",
+      ".tabular-nums",
+      "[data-message-id]",
+      "[data-oly-skills]",
+      "[data-slot=sidebar] button[aria-label=\"Usage\"],[data-slot=sidebar] button[aria-label=\"Расход\"]",
+      "[data-workspace-area^=conv]",
+      "[data-workspace-area^=conv],[data-slot=sidebar-inner]",
+      "button",
+      "li",
+      "main",
+      "svg"
+    ]
+  }
+}

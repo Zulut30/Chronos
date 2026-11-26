@@ -1,3 +1,4 @@
+import { verifyAnchors, globals } from "./verify-seams.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -31,6 +32,8 @@ function seedChat(exe, home) {
 export async function verifyOlympusScreens({ client, opts, checks, ready, settle, classify }) {
   // This test provisions a provider and a project. Only enable it on the disposable hosted runner.
   assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
+  const globalState = await client.probe("checkGlobals", { expected: Object.keys(globals) });
+  assert.ok(globalState.ok, globalState.missing.map(name => "Olympus " + globals[name] + " / " + name).join("\n"));
   const home = process.env.CHRONOS_HOME;
   assert.equal(resolve(home), resolve(process.env.RUNNER_TEMP, "chronos-home"));
   const source = join(dirname(opts.launch), "resources/chronos-themes/olympus.json");
@@ -99,6 +102,7 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
 
   await act({ type: "navigate", to: "/settings/general" });
   await wait({ selector: "[data-oly-ps-nav-button]" });
+  await verifyAnchors(ready, client, "settings");
   await focus("[data-settings-section='/settings/providers']");
   for (const selector of ["[data-oly-ik-nav] button", "[data-oly-mcp-nav] button", "[data-oly-ps-nav-button]"]) {
     await press("ArrowDown", 40);
@@ -169,5 +173,15 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     await scheme(dark);
     await capture("chat", dark);
   }
+  await verifyAnchors(ready, client, "chat");
+  const card = "[data-thread-details-card]";
+  const wasOpen = (await client.probe("checkReady", { selector: card })).ready;
+  if (!wasOpen) await act({ type: "click", selector: "[data-thread-panel-toggle] button" });
+  await verifyAnchors(ready, client, "details");
+  if (!wasOpen) await act({ type: "click", selector: "[data-thread-panel-toggle] button" });
+
+  await act({ type: "click", selector: "[data-chat-provider-model-picker]" });
+  await verifyAnchors(ready, client, "picker");
+  await press("Escape", 27);
   return results;
 }
