@@ -5,13 +5,13 @@ import {pathToFileURL} from "node:url";
 import {setTimeout as delay} from "node:timers/promises";
 import {writeFileSync} from "node:fs";
 
-async function verifyGallery(client, id) {
-  const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
-  const target = await waitFor("gallery document", async () => {
+export async function withSmokeFrame(client, prefix, read) {
+  const match = url => url.startsWith(prefix);
+  const target = await waitFor("packaged frame " + prefix, async () => {
     const { frameTree } = await client.send("Page.getFrameTree");
     const frame = frameTree.childFrames?.find(node => match(node.frame.url));
     if (frame) {
-      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"gallery-smoke"});
+      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"chronos-smoke"});
       return { contextId:executionContextId };
     }
     const { targetInfos } = await client.send("Target.getTargets");
@@ -24,6 +24,14 @@ async function verifyGallery(client, id) {
     return reply.result.value;
   };
   try {
+    return await read(evaluate);
+  } finally {
+    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
+  }
+}
+
+async function verifyGallery(client, id) {
+  await withSmokeFrame(client, "http://127.0.0.1:4520/artifacts.html", async evaluate => {
     const card = `document.querySelector('article[data-id="${id}"]')`;
     await waitFor("gallery card",()=>evaluate(card + " !== null"));
     const search = value => evaluate(`document.querySelector("#search").value=${JSON.stringify(value)};document.querySelector("#search").dispatchEvent(new Event("input"));true`);
@@ -44,9 +52,7 @@ async function verifyGallery(client, id) {
     await evaluate('document.querySelector("button[value=delete]").click()');
     await waitFor("deletion",()=>evaluate(card+' === null && document.activeElement.id === "search"'));
     await search("");
-  } finally {
-    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
-  }
+  });
 }
 
 async function waitFor(label,test) {

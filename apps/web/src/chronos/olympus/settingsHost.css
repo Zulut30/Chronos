@@ -73,7 +73,7 @@ html[data-theme-id]
 /* The glass themes soften input borders. Use the native foreground token on editable controls. */
 [data-chronos-settings]
   :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
-  :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field :is(input, textarea, select)) {
+  :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field[data-slot="input-group"]) {
   border-color: var(--muted-foreground);
 }
 [data-chronos-settings] #pc-control [data-slot="switch"][data-unchecked] {
@@ -89,4 +89,10 @@ html[data-theme-id]
 }
 html[data-theme-id] [data-chronos-settings] .oly-ik-panel .oly-ik-eye {
   color: var(--foreground);
+}
+
+[data-chronos-settings] :is(#pc-control, [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
+  :is(input, textarea)::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
 }
