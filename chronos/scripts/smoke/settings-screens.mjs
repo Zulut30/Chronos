@@ -14,7 +14,7 @@ async function seedGallery(executable) {
   const store = openArtifacts(home);
   try {
     const input = {
-      source:join(home, "example.html"), title:"Пример", description:"Два файла и две версии для проверки выбора.",
+      source:join(home, "example.html"), title:"Пример документа", description:"Два файла и две версии для проверки выбора.",
       label:"Первая версия", icon:"📄", capabilities:[],
       files:{"index.html":"<!doctype html><html lang=ru><title>Пример</title><p>Пример документа</p></html>", "notes.txt":"Заметки"}
     };
@@ -144,7 +144,7 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
         if (await evaluate(`!!document.querySelector(${JSON.stringify(sort)})`)) {
           await act({type:"click",selector:sort});
           await wait("[role=option]");
-          await capture("artifacts-sort", native);
+          await capture("artifacts-sort", "[data-slot=select-popup]");
           for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"Escape",code:"Escape",windowsVirtualKeyCode:27});
         }
         if (sample) {
