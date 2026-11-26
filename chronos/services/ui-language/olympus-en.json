@@ -1146,7 +1146,16 @@
     "Добавить задачу в «Бэклог»": "Add task to “Backlog”",
     "Добавить задачу в «В работе»": "Add task to “In progress”",
     "Добавить задачу в «На проверке»": "Add task to “In review”",
-    "Добавить задачу в «Готово»": "Add task to “Done”"
+    "Добавить задачу в «Готово»": "Add task to “Done”",
+    "Next message mode: выполнение": "Next message mode: execution",
+    "Next message mode: планирование": "Next message mode: planning",
+    "Next message mode: мозговой штурм": "Next message mode: brainstorming",
+    "Next message mode: охотник за багами": "Next message mode: bug hunter",
+    "Next message mode: планирование дизайна": "Next message mode: design planning",
+    "Add task to “Бэклог”": "Add task to “Backlog”",
+    "Add task to “В работе”": "Add task to “In progress”",
+    "Add task to “На проверке”": "Add task to “In review”",
+    "Add task to “Готово”": "Add task to “Done”"
   },
   "templates": {
     "Режим следующего сообщения: {1}": "Next message mode: {1}",

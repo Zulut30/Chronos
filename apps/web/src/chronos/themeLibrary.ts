@@ -1,7 +1,7 @@
 import { THEME_COLOR_ROLES, type ThemeDefinition } from "@t3tools/shared/themePalettes";
 
 type Source = readonly ThemeDefinition[];
-const names = (theme: ThemeDefinition) => theme.label.trim().normalize("NFKC").replace(/\s+/gu, " ").toLowerCase();
+export const themeNameKey = (label: string) => label.trim().normalize("NFKC").replace(/\s+/gu, " ").toLowerCase();
 const modes = ["light", "dark"] as const;
 
 // Compare what each half paints. File ids, collection metadata, base-half order and JSON
@@ -38,7 +38,7 @@ export function createThemeLibrary(
       palette(b).every((half, index) => half === null || half === palette(a)[index]);
   }
   function sameName(a: ThemeDefinition, b: ThemeDefinition) {
-    return names(a) === names(b) && modes.every(mode =>
+    return themeNameKey(a.label) === themeNameKey(b.label) && modes.every(mode =>
       !(mode === b.appearance || b.variants?.[mode]) || mode === a.appearance || !!a.variants?.[mode]);
   }
   function add(theme: ThemeDefinition) {

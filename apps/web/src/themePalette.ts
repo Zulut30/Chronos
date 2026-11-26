@@ -32,7 +32,7 @@ import {
 
 import { m } from "./i18n/messages";
 import { appAtomRegistry, subscribeAtomChanges } from "./rpc/atomRegistry";
-import { createThemeLibrary } from "./chronos/themeLibrary";
+import { createThemeLibrary, themeNameKey } from "./chronos/themeLibrary";
 import { applyThemeBackground } from "./themeBackground";
 import { applyThemeCss } from "./themeCss";
 import { themeServerEnvironmentThemesAtom } from "./state/server";
@@ -437,18 +437,37 @@ export function migrateThemeSelections(ids = themeLibrary().ids) {
     const snapshot = getCustomThemeLibrarySnapshot();
     if (snapshot.status !== "ready" || !snapshot.themes.length || appAtomRegistry.get(publishedThemesAtom) === null) return;
     const registry = themeLibrary(snapshot.themes);
-    const redundant = new Set(snapshot.themes.filter(theme => {
-      const owner = ids.get(theme.id);
-      return owner && owner.id !== theme.id && registry.matchingContent(theme)?.id === owner.id;
-    }).map(theme => theme.id));
-    if (!redundant.size) return;
+    const aliases = snapshot.themes.filter(theme => ids.has(theme.id) && ids.get(theme.id)!.id !== theme.id);
+    if (!aliases.length) return;
+    const redundant = new Set<string>();
+    const renamed = new Map<string, string>();
+    const occupied = new Set([...ids.values(), ...snapshot.themes].map(theme => themeNameKey(theme.label)));
+    for (const theme of aliases) {
+      if (registry.matchingContent(theme)?.id === ids.get(theme.id)!.id) {
+        redundant.add(theme.id);
+      } else {
+        // This legacy import shares a name but contains a distinct user palette. Keep
+        // it accessible under its original ID and a unique name in the active library.
+        let label: string;
+        let index = 2;
+        do {
+          const suffix = " (" + index++ + ")";
+          label = theme.label.slice(0, 48 - suffix.length).trimEnd() + suffix;
+        } while (occupied.has(themeNameKey(label)));
+        occupied.add(themeNameKey(label));
+        renamed.set(theme.id, label);
+      }
+    }
     // Another renderer can publish a new local snapshot before its storage event arrives.
     const current = readWritableCustomThemeLibrary();
     if (JSON.stringify(current.storedThemes) !== JSON.stringify(snapshot.storedThemes)) return;
-    saveCustomThemes(
-      current.storedThemes.filter(entry => !isRecord(entry) || typeof entry.id !== "string" || !redundant.has(entry.id)),
-      current.themes.filter(theme => !redundant.has(theme.id)),
-    );
+    const entries = current.storedThemes.flatMap((entry): unknown[] => {
+      if (!isRecord(entry) || typeof entry.id !== "string") return [entry];
+      if (redundant.has(entry.id)) return [];
+      const label = renamed.get(entry.id);
+      return [label ? { ...entry, label } : entry];
+    });
+    saveCustomThemes(entries, parseStoredThemes(entries));
   } catch { /* Read-only stores still resolve aliases in memory. */ }
 }
 

@@ -89,9 +89,14 @@ export async function verifyUiLanguage(client) {
       "document.documentElement.lang==='en' && !!document.querySelector('[data-theme-library-card=olympus]') && localStorage.getItem('t3code:theme')==='olympus' && Object.values(JSON.parse(localStorage.getItem('t3code:theme-halves:v1'))).every(id=>id==='olympus')"));
     const ids = await evaluate("Array.from(document.querySelectorAll('[data-theme-library-card]'),e=>e.dataset.themeLibraryCard)");
     assert.equal(new Set(ids).size, ids.length);
-    assert(!ids.some(id => id.startsWith("smoke-olympus")));
+    assert(!ids.includes("smoke-olympus-b"));
     await until("redundant Graphite import removed from storage", async () =>
       !JSON.parse((await storedImports()) || "[]").some(theme => theme.id === "smoke-olympus-b"));
+    const imports = JSON.parse((await storedImports()) || "[]");
+    const edited = imports.find(theme => theme.id === "smoke-olympus-a");
+    assert.equal(edited?.label, original.label + " (2)", "distinct edited palette retains a unique name");
+    assert.equal(edited.colors.canvas, "#012345");
+    await until("renamed edit is selectable", () => evaluate("!!document.querySelector('[data-theme-library-card=smoke-olympus-a]')"));
   }
   for (const [id, selector, text] of [
     ["API keys", "[data-oly-ik-nav] button", "Scrape.do"],
