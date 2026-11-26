@@ -111,4 +111,7 @@ export async function captureSettings(client, out, ready) {
       await act({type:"closeOlympus",global:"__olyStudioShell"});
     }
   }
+  // Let the normal smoke suite start with a fresh settings dialog, its default scroll, and no active guest.
+  await act({type:"navigate",to:"/"});
+  await wait("button[aria-label='Артефакты']");
 }

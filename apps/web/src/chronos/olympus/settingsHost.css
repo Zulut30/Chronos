@@ -4,8 +4,9 @@ html [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel) {
   font-family: var(--font-sans);
 }
 
-html[data-theme-id] [data-chronos-settings] .oly-mcp-pane,
-html[data-theme-id] [data-chronos-settings] .oly-mcp-pane iframe {
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane,
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane > header,
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane iframe {
   background: var(--background);
 }
 
