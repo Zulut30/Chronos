@@ -128,6 +128,17 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     await wait({ selector: `#settings-search-result-${result}[aria-selected=true]` });
     await press("Enter", 13);
     await wait({ allSelectors: [pane, `${navButton}[aria-current=page]`] });
+    if (result === "olympus-mcp") {
+      await wait({ selector: ".oly-mcp-pane iframe" });
+      await focus(settingsSearch);
+      // Reproduce a late subframe load after the user has started another search.
+      const keptFocus = await client.send("Runtime.evaluate", {
+        expression: `document.querySelector(".oly-mcp-pane iframe").dispatchEvent(new Event("load"));
+          document.activeElement === document.querySelector(${JSON.stringify(settingsSearch)})`,
+        returnByValue: true,
+      });
+      assert.equal(keptFocus.result.value, true, "loading the MCP frame must preserve search focus");
+    }
   }
 
   await act({ type: "navigate", to: "/" });

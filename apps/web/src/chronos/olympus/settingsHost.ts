@@ -129,6 +129,18 @@ function createScope(layout: HTMLElement, signal: AbortSignal) {
       createElement(tag: string) {
         const node = document.createElement(tag);
         if (tag === "style") styles.push(node);
+        if (tag === "iframe" || tag === "button" || tag === "input") {
+          const focus = node.focus.bind(node);
+          node.focus = (options) => {
+            // MCP focuses its frame on load and Prompts focuses a control after fetching.
+            // Keep typing in the sidebar when a panel finishes loading in the background.
+            if (
+              node.closest(".oly-mcp-pane, .oly-ps-pane") &&
+              document.activeElement?.closest("nav[data-workspace-area=settings-nav] :is([role=combobox], [role=option])")
+            ) return;
+            focus(options);
+          };
+        }
         return node;
       },
       createElementNS: document.createElementNS.bind(document),
