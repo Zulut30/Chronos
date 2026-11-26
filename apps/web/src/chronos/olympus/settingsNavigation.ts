@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { settingsPanels } from "./settingsPanels";
 
 const [{ selector: apiKeys }, { selector: mcp }, { selector: prompts }] = settingsPanels;
@@ -12,8 +12,11 @@ function visiblePanelButton(nav: HTMLElement) {
   return nav.nextElementSibling?.hasAttribute("data-oly-ik-open") ? apiKeys : null;
 }
 
-export function useOlympusSettingsNav(activePath: string, hash: string) {
-  const ref = useRef<HTMLElement>(null);
+function loadPanelModules() {
+  return Promise.all([import("./settingsHost"), import("chronos-olympus:settings")]);
+}
+
+export function useOlympusSettingsNav(ref: RefObject<HTMLElement | null>, activePath: string, hash: string) {
   const router = useRouter();
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -23,7 +26,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     if (!layout) return;
     let active = true;
     let stop: (() => void) | undefined;
-    void Promise.all([import("./settingsHost"), import("chronos-olympus:settings")])
+    void loadPanelModules()
       .then(([host, panels]) => {
         if (active) stop = host.openSettingsHost(layout, panels.mount);
       })
@@ -34,7 +37,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       active = false;
       stop?.();
     };
-  }, [attempt]);
+  }, [attempt, ref]);
   const pendingPanel = useRef<string | null>(null);
 
   // The modules close on URL changes. Consume the search anchor before opening its panel.
@@ -70,7 +73,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     observer.observe(nav, { subtree: true, childList: true });
     openPanel();
     return () => observer.disconnect();
-  }, [activePath, hash, router]);
+  }, [activePath, hash, router, ref]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Olympus mounts and marks its buttons outside React.
   useEffect(() => {
@@ -120,10 +123,9 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       nav.removeEventListener("click", selectSection, true);
       observer.disconnect();
     };
-  }, [activePath, router]);
+  }, [activePath, router, ref]);
 
   return {
-    ref,
     loadFailed,
     retry: () => {
       setLoadFailed(false);

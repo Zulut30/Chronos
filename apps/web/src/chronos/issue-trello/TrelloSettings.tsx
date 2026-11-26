@@ -26,7 +26,7 @@ export function TrelloCredentials({
     }
   };
   return (
-    <div className="grid w-full min-w-0 gap-2">
+    <div data-chronos-trello="" className="grid w-full min-w-0 gap-2">
       <SecretInput
         id={id}
         size="sm"

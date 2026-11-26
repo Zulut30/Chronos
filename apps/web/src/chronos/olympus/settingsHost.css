@@ -69,3 +69,24 @@ html[data-theme-id]
 [data-chronos-settings] .oly-ik-panel .oly-ik-field input::placeholder {
   font-family: var(--font-sans);
 }
+
+/* The glass themes soften input borders. Use the native foreground token on editable controls. */
+[data-chronos-settings]
+  :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
+  :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field :is(input, textarea, select)) {
+  border-color: var(--muted-foreground);
+}
+[data-chronos-settings] #pc-control [data-slot="switch"][data-unchecked] {
+  background-color: var(--muted-foreground);
+}
+[data-chronos-settings] #pc-control [data-slot="switch"][data-unchecked] [data-slot="switch-thumb"] {
+  background-color: var(--background);
+}
+[data-chronos-settings] :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane, .oly-mcp-pane)
+  :is(button, input, select, textarea, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel .oly-ik-eye {
+  color: var(--foreground);
+}

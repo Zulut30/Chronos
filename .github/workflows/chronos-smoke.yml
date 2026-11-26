@@ -11,6 +11,10 @@ on:
         description: "Run ID of chronos-desktop.yml that produced the chronos-win-x64 artifact"
         required: true
         type: string
+      settings_baseline_run_id:
+        description: "Also compare settings screenshots from two portable Windows ZIPs (baseline desktop run ID)"
+        required: false
+        type: string
       require_provider:
         description: "Provision an offline Codex CLI and require all composer checks"
         required: false
@@ -31,6 +35,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  settings-screens:
+    if: inputs.settings_baseline_run_id != ''
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stage: before
+            run: ${{ inputs.settings_baseline_run_id }}
+          - stage: after
+            run: ${{ inputs.desktop_run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/smoke
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          run-id: ${{ matrix.run }}
+          github-token: ${{ github.token }}
+          name: chronos-win-portable
+          path: ${{ runner.temp }}/portable
+      - name: Capture settings from the unpacked Windows ZIP
+        shell: pwsh
+        env:
+          CHRONOS_HOME: ${{ runner.temp }}/settings-profile
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'settings-package'
+          7z x -bd -bso0 "-o$pkg" "$env:RUNNER_TEMP/portable/chronos-portable.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node chronos/scripts/smoke/smoke.mjs --launch "$pkg/Chronos.exe" --port 29671 --launch-timeout 120000 --extra-arg --disable-gpu --only settings-general --profile clean --settings-screens --out "$env:RUNNER_TEMP/settings-report"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: chronos-settings-${{ matrix.stage }}-${{ matrix.run }}
+          path: ${{ runner.temp }}/settings-report
+          if-no-files-found: error
+
   composer-browser:
     if: inputs.require_provider
     runs-on: ubuntu-24.04

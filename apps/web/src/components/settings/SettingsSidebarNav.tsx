@@ -141,7 +141,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const activePath = SETTINGS_DETAIL_PAGE_PARENTS[pathname] ?? pathname;
-  const olympusNav = useOlympusSettingsNav(activePath, currentHash); // chronos: route search results to Olympus panels.
+  const navRef = useRef<HTMLElement>(null);
+  const olympusNav = useOlympusSettingsNav(navRef, activePath, currentHash); // chronos: route search results to Olympus panels.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.
@@ -262,7 +263,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
 
   return (
     <nav
-      ref={olympusNav.ref}
+      ref={navRef}
       {...navArea}
       role="navigation"
       className={cn(

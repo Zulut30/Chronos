@@ -45,7 +45,8 @@ export function useControl() {
     const api = window.chronosPC;
     let generation = 0;
     function refresh() {
-      const id = ++generation;
+      generation = generation + 1;
+      const id = generation;
       void api.settings({ op: "state" }).then(
         (value) => {
           if (id !== generation) return;
@@ -60,7 +61,7 @@ export function useControl() {
     const remove = api.subscribe(refresh);
     refresh();
     return () => {
-      generation++;
+      generation = generation + 1;
       remove();
     };
   }, [attempt]);

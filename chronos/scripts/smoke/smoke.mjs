@@ -35,6 +35,7 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --settings-screens          Capture native and Olympus panels at 1280 and 900 in both themes
   --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
@@ -107,6 +108,8 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--settings-screens") {
+      opts.settingsScreens = true;
     } else if (arg === "--verify-olympus") {
       opts.verifyOlympus = true;
     } else if (arg === "--verify-pc-control") {
@@ -599,6 +602,11 @@ async function run() {
     }
 
     initialTheme = await client.probe("getThemeState");
+    if (opts.settingsScreens) {
+      const { captureSettings } = await import("./settings-screens.mjs");
+      await captureSettings(client, opts.outDir, waitUntilReady);
+      await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, mobile: false });
+    }
     const appVersion =
       appInfo.version || extractVersionFromUserAgent(cdpVersion?.["User-Agent"]) || "unknown";
 

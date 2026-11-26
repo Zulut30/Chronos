@@ -202,3 +202,8 @@ footer .hint{margin-right:auto}
  footer{flex-wrap:wrap}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Inside settings the host supplies the T3 palette, including for keyboard navigation. */
+.embedded:not(.oly) :is(.input, .filter, .agent-tabs, .switch) { border-color: var(--muted); }
+.embedded:not(.oly) :is(.agent-tabs [aria-selected=true], .filter [aria-checked=true]) { background: var(--accent); color: var(--on-accent); }
+.embedded:not(.oly) :focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }

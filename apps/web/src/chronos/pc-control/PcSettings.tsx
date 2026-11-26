@@ -31,10 +31,16 @@ function Permissions({
 }) {
   const gt = useGT();
   const m = useMessages();
-  const formId = "pc-control-permissions";
+  const saved = JSON.stringify(settings);
+  const [lastSaved, setLastSaved] = useState(saved);
   const [draft, setDraft] = useState(settings);
   const [apps, setApps] = useState(settings.apps.join("\n"));
   const [pending, setPending] = useState(false);
+  if (saved !== lastSaved) {
+    setLastSaved(saved);
+    setDraft(settings);
+    setApps(settings.apps.join("\n"));
+  }
   const allowed = apps
     .split("\n")
     .map((line) => line.trim())
@@ -47,20 +53,6 @@ function Permissions({
 
   return (
     <>
-      <form
-        hidden
-        id={formId}
-        onSubmit={async (event) => {
-          event.preventDefault();
-          if (pending || !changed) return;
-          setPending(true);
-          try {
-            await send({ op: "configure", settings: { ...draft, apps: allowed } });
-          } finally {
-            setPending(false);
-          }
-        }}
-      />
       <SettingsRow
         devicePreference
         title={gt("Allow agents to control this computer")}
@@ -86,11 +78,11 @@ function Permissions({
       {!draft.all && (
         <SettingsRow
           devicePreference
-          title={<label htmlFor={formId + "-apps"}>{gt("Allowed apps and websites")}</label>}
+          title={<label htmlFor="pc-control-apps">{gt("Allowed apps and websites")}</label>}
           description={gt("Enter one app name, executable path or website address per line.")}
           control={
             <Textarea
-              id={formId + "-apps"}
+              id="pc-control-apps"
               rows={3}
               className="w-full @min-[32rem]/settings-row:w-64"
               placeholder={"notepad.exe\nhttps://example.org"}
@@ -135,15 +127,19 @@ function Permissions({
         devicePreference
         title={gt("Permission changes")}
         control={
-          <Button
-            type="submit"
-            form={formId}
-            variant="outline"
-            size="sm"
-            disabled={!changed || pending}
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (pending || !changed) return;
+              setPending(true);
+              await send({ op: "configure", settings: { ...draft, apps: allowed } });
+              setPending(false);
+            }}
           >
-            {gt("Apply")}
-          </Button>
+            <Button type="submit" variant="outline" size="sm" aria-disabled={!changed || pending}>
+              {gt("Apply")}
+            </Button>
+          </form>
         }
       />
     </>
@@ -159,11 +155,7 @@ export default function PcSettings() {
       <SettingsSection id="pc-control" title={gt("Computer control")}>
         {state && (
           <>
-            <Permissions
-              key={JSON.stringify(state.settings)}
-              settings={state.settings}
-              send={send}
-            />
+            <Permissions settings={state.settings} send={send} />
             <SettingsRow
               title={gt("Emergency stop")}
               description={
