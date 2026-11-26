@@ -448,7 +448,13 @@ async function verifyPcControl(client) {
   await wait('!!document.querySelector("#pc-control form")');
   const initial = await evaluate(state);
   if (initial.settings.enabled) throw new Error("Управление включено в новом профиле");
-  await evaluate('document.querySelector("#pc-control input[type=checkbox]").click()');
+  const enable = '#pc-control [role=switch][aria-label="Разрешить агентам управлять ПК"]';
+  await wait('document.querySelector(' + JSON.stringify(enable) + ')?.getAttribute("aria-checked") === "false"');
+  await evaluate('document.querySelector(' + JSON.stringify(enable) + ').focus()');
+  for (const type of ["rawKeyDown", "keyUp"]) {
+    await client.send("Input.dispatchKeyEvent", { type, key: " ", code: "Space", windowsVirtualKeyCode: 32 });
+  }
+  await wait('document.querySelector(' + JSON.stringify(enable) + ')?.getAttribute("aria-checked") === "true"');
   await evaluate('document.querySelector("#pc-control button[type=submit]").click()');
   await wait(state + '.then(s => s.settings.enabled)');
   await evaluate('document.querySelector("#pc-control [data-pc-stop]").click()');
@@ -628,7 +634,11 @@ async function run() {
       ok: false,
     };
 
-    // 1. Check Olympus globals (28 expected).
+    // The three settings modules live only while the settings dialog is open.
+    await client.probe("performAction", { type: "navigate", to: "/settings/general" });
+    const settingsReady = await waitUntilReady(client, { selector: "[data-oly-ps-nav-button]" });
+    if (!settingsReady.ready) throw new Error("Olympus settings did not mount");
+
     const globalsResult = await client.probe("checkGlobals", { expected: checks.globals || [] });
     report.checks.globals = globalsResult;
 

@@ -374,7 +374,9 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
       connectionPhase: selectedEnvironment.connection.phase,
       hasServerConfig: selectedEnvironment.serverConfig !== null,
     });
+  const unloadTarget = searchTargetId === "claude-idle-unload";
   const searchableEnvironmentId = options.find((environment) =>
+    (!unloadTarget || environment.serverConfig?.settings.claudeIdleUnloadMinutes !== undefined) &&
     isProviderSettingsEnvironmentAvailable({
       connectionPhase: environment.connection.phase,
       hasServerConfig: environment.serverConfig !== null,
@@ -384,9 +386,9 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
   {
     if (
       !target.scoped &&
-      (searchTargetId === searchableSetting("provider-health-check-interval").id ||
+      (unloadTarget || searchTargetId === searchableSetting("provider-health-check-interval").id ||
         searchTargetId === searchableSetting("usage-providers").id) &&
-      !selectedEnvironmentCanRenderSettings &&
+      (!selectedEnvironmentCanRenderSettings || (unloadTarget && selectedEnvironment?.serverConfig?.settings.claudeIdleUnloadMinutes === undefined)) &&
       searchableEnvironmentId !== undefined
     ) {
       searchRedirectEnvironmentId = searchableEnvironmentId;

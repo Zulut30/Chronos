@@ -16,12 +16,13 @@ export function ClaudeIdleUnloadRow({
   if (minutes === undefined) return null;
   return (
     <SettingsRow
+      id="claude-idle-unload"
       serverScoped
       settingKeys={["claudeIdleUnloadMinutes"]}
       title={copy.title}
       description={copy.description}
       control={
-        <fieldset disabled={disabled} className="disabled:opacity-50">
+        <fieldset disabled={disabled} className="flex items-center gap-2 disabled:opacity-50">
           <IntervalSecondsField
             value={minutes}
             step={1}
@@ -29,6 +30,7 @@ export function ClaudeIdleUnloadRow({
             labels={copy}
             onCommit={onCommit}
           />
+          <span className="text-xs text-muted-foreground">{copy.minutes}</span>
         </fieldset>
       }
     />

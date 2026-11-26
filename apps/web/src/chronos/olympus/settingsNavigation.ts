@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { settingsPanels } from "./settingsPanels";
 
 const [{ selector: apiKeys }, { selector: mcp }, { selector: prompts }] = settingsPanels;
@@ -15,6 +15,26 @@ function visiblePanelButton(nav: HTMLElement) {
 export function useOlympusSettingsNav(activePath: string, hash: string) {
   const ref = useRef<HTMLElement>(null);
   const router = useRouter();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- immutable Olympus modules attach to the mounted settings layout.
+  useEffect(() => {
+    const layout = ref.current?.parentElement;
+    if (!layout) return;
+    let active = true;
+    let stop: (() => void) | undefined;
+    void Promise.all([import("./settingsHost"), import("chronos-olympus:settings")])
+      .then(([host, panels]) => {
+        if (active) stop = host.openSettingsHost(layout, panels.mount);
+      })
+      .catch(() => {
+        if (active) setLoadFailed(true);
+      });
+    return () => {
+      active = false;
+      stop?.();
+    };
+  }, [attempt]);
   const pendingPanel = useRef<string | null>(null);
 
   // The modules close on URL changes. Consume the search anchor before opening its panel.
@@ -22,10 +42,17 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
   useEffect(() => {
     const nav = ref.current;
     if (!nav) return;
-    const panel = activePath === "/settings/providers" && settingsPanels.find((p) => p.id === hash.replace(/^#/, ""));
+    const panel =
+      activePath === "/settings/providers" &&
+      settingsPanels.find((p) => p.id === hash.replace(/^#/, ""));
     if (panel) {
       pendingPanel.current = panel.selector;
-      void router.navigate({ hash: "", replace: true, resetScroll: false, hashScrollIntoView: false });
+      void router.navigate({
+        hash: "",
+        replace: true,
+        resetScroll: false,
+        hashScrollIntoView: false,
+      });
       return;
     }
     const selector = pendingPanel.current;
@@ -51,7 +78,8 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     if (!nav) return;
 
     function selectSection(event: MouseEvent) {
-      const button = event.target instanceof Element && event.target.closest(settingsSectionButtons);
+      const button =
+        event.target instanceof Element && event.target.closest(settingsSectionButtons);
       if (!button) return;
       if (!button.matches(apiKeys)) globalThis.__olyIntegrations?.close();
       if (!button.matches(mcp)) globalThis.__olyMcpManager?.close();
@@ -94,5 +122,12 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     };
   }, [activePath, router]);
 
-  return ref;
+  return {
+    ref,
+    loadFailed,
+    retry: () => {
+      setLoadFailed(false);
+      setAttempt((value) => value + 1);
+    },
+  };
 }

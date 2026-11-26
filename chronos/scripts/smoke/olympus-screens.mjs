@@ -122,6 +122,11 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   }
 
   await act({ type: "navigate", to: "/" });
+  const closed = await client.send("Runtime.evaluate", {
+    expression: "![globalThis.__olyIntegrations, globalThis.__olyMcpManager, globalThis.__olyPromptsSettings].some(Boolean)",
+    returnByValue: true,
+  });
+  assert.equal(closed.result.value, true, "closing settings releases the Olympus modules");
   await focus("[data-oly-tasks]");
   await act({ type: "click", selector: "[data-oly-tasks]" });
   await wait({ allSelectors: [".oly-tk-dialog:focus-within", ".oly-tk-dialog [data-sel='all']"] });

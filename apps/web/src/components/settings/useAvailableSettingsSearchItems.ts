@@ -83,6 +83,9 @@ export function useAvailableSettingsSearchItems() {
     hasCloudPublicConfig: cloudPublicConfig,
     hasEnvironment,
     hasProviderSettingsEnvironment,
+    hasClaudeIdleUnloadEnvironment: environments.some((environment) =>
+      environment.serverConfig?.settings.claudeIdleUnloadMinutes !== undefined,
+    ),
     canManageLocalBackend,
     isWslSettingsRowVisible: wslSettingsRowVisible,
     hasThreadAutoSettlement,

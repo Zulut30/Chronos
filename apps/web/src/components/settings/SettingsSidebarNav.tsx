@@ -141,7 +141,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const activePath = SETTINGS_DETAIL_PAGE_PARENTS[pathname] ?? pathname;
-  const navRef = useOlympusSettingsNav(activePath, currentHash); // chronos: route search results to Olympus panels.
+  const olympusNav = useOlympusSettingsNav(activePath, currentHash); // chronos: route search results to Olympus panels.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.
@@ -262,7 +262,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
 
   return (
     <nav
-      ref={navRef}
+      ref={olympusNav.ref}
       {...navArea}
       role="navigation"
       className={cn(
@@ -437,6 +437,10 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
           </div>
         </SidebarGroup>
       </SidebarContent>
+      {olympusNav.loadFailed && <div className="px-2 py-1 text-xs">
+        <p role="alert">{gt("Could not load Olympus settings.")}</p>
+        <Button size="sm" variant="outline" onClick={olympusNav.retry}>{gt("Retry")}</Button>
+      </div>}
       <SidebarFooter className="max-md:hidden">
         <Suspense fallback={null}>
           <T3ConnectSidebarSignIn />

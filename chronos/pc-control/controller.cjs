@@ -86,7 +86,7 @@ function createController({
   }
   let settings = { ...defaults };
   let history = read(logFile, []);
-  if (!Array.isArray(history)) history = [];
+  history = Array.isArray(history) ? history.map((entry) => ({ ...entry, id: entry.id ?? randomUUID() })) : [];
   let server,
     registered = false,
     configuring = false;
@@ -108,7 +108,7 @@ function createController({
   }
   function record(op, status) {
     // No application/window titles, hosts, refs, URIs, values, stdout or errors in the journal.
-    history = [...history.slice(-99), { time: Date.now(), op, status }];
+    history = [...history.slice(-99), { id: randomUUID(), time: Date.now(), op, status }];
     try {
       save(logFile, history);
     } catch {

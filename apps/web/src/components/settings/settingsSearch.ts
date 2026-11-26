@@ -67,6 +67,7 @@ export interface SettingsSearchItem {
   readonly cloudOnly?: boolean;
   readonly environmentOnly?: boolean;
   readonly providerSettingsOnly?: boolean;
+  readonly claudeIdleUnloadOnly?: boolean;
   readonly localBackendManagementOnly?: boolean;
   readonly localEnvironmentOnly?: boolean;
   readonly primaryEnvironmentOnly?: boolean;
@@ -85,6 +86,7 @@ export interface SettingsSearchAvailability {
   readonly hasCloudPublicConfig: boolean;
   readonly hasEnvironment: boolean;
   readonly hasProviderSettingsEnvironment: boolean;
+  readonly hasClaudeIdleUnloadEnvironment?: boolean;
   readonly canManageLocalBackend: boolean;
   readonly isWslSettingsRowVisible: boolean;
   readonly hasThreadAutoSettlement: boolean;
@@ -258,9 +260,19 @@ const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
 export const SETTINGS_SEARCH_ITEMS = [
   ...olympusSearchItems,
   ...panelSearchItems,
-  // chronos: find local computer control by its Russian name and safety settings.
-  { id: "pc-control", title: msg("Управление ПК"), to: "/settings/general", desktopOnly: true,
-    searchTerms: [msg("Фоновый ввод, приложения, формы, подтверждения, аварийная остановка")] },
+  {
+    id: "pc-control", title: msg("Computer control"), to: "/settings/general", desktopOnly: true,
+    searchTerms: ["Управление ПК подтверждения приложения сайты аварийная остановка", "permissions approvals apps websites emergency stop"],
+  },
+  {
+    id: "pc-control-history", title: msg("Action log"), to: "/settings/general", desktopOnly: true,
+    searchTerms: ["Управление ПК журнал действий", "computer control history"],
+  },
+  {
+    id: "claude-idle-unload", title: msg("Unload idle Claude threads"), to: "/settings/providers",
+    scope: "environment-defaults", providerSettingsOnly: true, claudeIdleUnloadOnly: true,
+    searchTerms: ["Выгружать Claude при простое память минуты", "idle unload memory minutes"],
+  },
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
@@ -1682,6 +1694,7 @@ export function filterAvailableSettingsSearchItems(
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&
+      (!item.claudeIdleUnloadOnly || availability.hasClaudeIdleUnloadEnvironment === true) &&
       (!item.localBackendManagementOnly || availability.canManageLocalBackend) &&
       (!item.localEnvironmentOnly || !availability.localEnvironmentDisabled) &&
       (!item.primaryEnvironmentOnly || availability.hasPrimaryEnvironment === true) &&

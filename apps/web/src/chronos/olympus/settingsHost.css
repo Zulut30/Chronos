@@ -1,0 +1,71 @@
+/* The modules append their styles after the application sheet. Scope overrides to the dialog. */
+html [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel) {
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+}
+
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane,
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane iframe {
+  background: var(--background);
+}
+
+html[data-theme-id] [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane) > header {
+  height: var(--workspace-topbar-height);
+  min-height: var(--workspace-topbar-height);
+  border-color: var(--border);
+  padding-inline: var(--workspace-gutter-start) var(--workspace-gutter-end);
+}
+
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header h2,
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button {
+  font: 500 var(--text-sm)/1.4 var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--foreground);
+}
+
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+[data-chronos-settings]
+  :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel)
+  :is(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-chronos-settings] .oly-ik-panel .oly-ik-down {
+  flex-wrap: wrap;
+}
+[data-chronos-settings] .oly-ik-panel .oly-ik-down > div {
+  flex: 1 1 16rem;
+}
+[data-chronos-settings] .oly-ps-pane :is(.oly-ps-cmd, .oly-ps-mode) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme-id]
+  [data-chronos-settings]
+  .oly-ik-panel
+  :is(.oly-ik-intro, .oly-ik-meta, .oly-ik-result, .oly-ik-badge) {
+  color: var(--muted-foreground);
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel .oly-ik-link {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel :is([data-state="ok"], [data-ok="true"]) {
+  color: var(--success);
+}
+html[data-theme-id]
+  [data-chronos-settings]
+  :is(.oly-ps-error, .oly-ik-panel [data-state="err"], .oly-ik-panel [data-ok="false"]) {
+  color: var(--destructive);
+}
+[data-chronos-settings] .oly-ik-panel .oly-ik-field input::placeholder {
+  font-family: var(--font-sans);
+}
