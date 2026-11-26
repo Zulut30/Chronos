@@ -656,8 +656,8 @@ const boxClaude: ServerProvider = {
             type: "select",
             label: "Effort",
             options: [
-              { id: "low", label: "Low" },
               { id: "max", label: "Max" },
+              { id: "low", label: "Low" },
             ],
           },
         ],

@@ -32,9 +32,9 @@ export function delegatedReasoning(
   const value =
     sameProvider && typeof parentLevel === "string" && levels.includes(parentLevel)
       ? parentLevel
-      : levels.includes("high")
-        ? "high"
-        : levels.at(-1);
+      : (["high", "ultra", "max", "xhigh", "medium", "low", "minimal"].find((level) =>
+          levels.includes(level),
+        ) ?? levels.at(-1));
   return value === undefined ? undefined : [{ id: descriptor.id, value }];
 }
 
