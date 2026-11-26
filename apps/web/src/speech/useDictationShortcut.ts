@@ -60,17 +60,6 @@ function ownsShortcut(id: symbol) {
   return entries.find(([, read]) => !read().targetRef && !read().ownsFocus)?.[0] === id;
 }
 
-// chronos: the pad toggles the same focused dictation target as the composer shortcut.
-export function togglePadDictation() {
-  for (const [id, read] of shortcutTargets) {
-    if (!ownsShortcut(id)) continue;
-    const { speech, disabled } = read();
-    if (speech.state.phase === "recording") void speech.stop();
-    else if (!disabled && speech.available && (speech.state.phase === "idle" || speech.state.phase === "error")) void speech.start();
-    return;
-  }
-}
-
 const targetScope = (field: HTMLElement | null | undefined) =>
   field?.closest('[role="dialog"]') ?? field;
 

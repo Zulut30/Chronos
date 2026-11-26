@@ -27,8 +27,6 @@ export type SettingsPath =
   | "/settings/appearance"
   | "/settings/chat"
   | "/settings/diffs"
-  // chronos: local macro pad editor.
-  | "/settings/keyboards"
   | "/settings/keybindings"
   | "/settings/snap-shot"
   | "/settings/providers"
@@ -107,7 +105,6 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/appearance": msg("Appearance"),
   "/settings/chat": msg("Chat"),
   "/settings/diffs": msg("Diffs & pull requests"),
-  "/settings/keyboards": "Клавиатуры",
   "/settings/keybindings": msg("Keybindings"),
   "/settings/snap-shot": msg("SnapShots"),
   "/settings/providers": msg("Providers"),
@@ -153,7 +150,6 @@ const ALL_SETTINGS_NAV_GROUPS: ReadonlyArray<SettingsNavGroup> = [
       "/settings/chat",
       "/settings/diffs",
       "/settings/keybindings",
-      "/settings/keyboards",
       "/settings/voice",
       "/settings/snap-shot",
     ],
@@ -1046,7 +1042,6 @@ export const SETTINGS_SEARCH_ITEMS = [
     to: "/settings/keybindings",
     searchTerms: [msg("keyboard shortcuts hotkeys commands bindings json")],
   },
-  { id:"keyboards",title:"Клавиатуры",to:"/settings/keyboards",searchTerms:["макропад ручки обучение профиль клавиатуры"] },
   ...KEYBINDING_SEARCH_ITEMS,
   {
     id: "snap-shot-enabled",
@@ -1545,7 +1540,6 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/chat": null,
   "/settings/diffs": null,
   "/settings/snap-shot": null,
-  "/settings/keyboards": null,
   "/settings/keybindings": null,
   "/settings/providers": null,
   "/settings/threads": null,
