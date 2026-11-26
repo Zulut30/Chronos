@@ -1,3 +1,4 @@
+import "../settingsSelect.css";
 import { msg, useGT, useLocale, useMessages } from "gt-react";
 import { useState } from "react";
 import { SettingsRow, SettingsSection } from "../../components/settings/settingsLayout";
@@ -115,7 +116,7 @@ function Permissions({
             >
               <SelectValue>{m(modes[draft.mode])}</SelectValue>
             </SelectTrigger>
-            <SelectPopup align="end" alignItemWithTrigger={false}>
+            <SelectPopup data-chronos-settings-options="" align="end" alignItemWithTrigger={false}>
               {Object.entries(modes).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {m(label)}

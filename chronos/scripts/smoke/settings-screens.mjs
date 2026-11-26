@@ -45,7 +45,7 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
       return [...context.getImageData(0, 0, 1, 1).data];
     }
     const visible = {};
-    for (const el of root.querySelectorAll("h2,h3,p,label,button,input,textarea,select,summary,[role=switch],[data-slot=input-control],[data-slot=textarea-control],[data-slot=number-field-group],[data-slot=input-group],.oly-ps-note,.oly-ps-error")) {
+    for (const el of root.querySelectorAll("h2,h3,p,label,button,input,textarea,select,summary,[role=switch],[role=option],[data-slot=input-control],[data-slot=textarea-control],[data-slot=number-field-group],[data-slot=input-group],.oly-ps-note,.oly-ps-error")) {
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height || r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight) continue;
       const s = getComputedStyle(el);
@@ -54,6 +54,7 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
       visible[[el.tagName, el.dataset.slot || "", field?.name || label].join("/")] = {
         label, slot: el.dataset.slot || "", role: el.getAttribute("role"), tag: el.tagName,
         x:r.x,y:r.y,w:r.width,h:r.height,fg:rgb(s.color),border:rgb(s.borderTopColor),bg:rgb(s.backgroundColor),
+        selected:el.hasAttribute("data-selected"), highlighted:el.hasAttribute("data-highlighted"),
         focus:el.matches(":focus-visible"), disabled:el.matches(":disabled,[aria-disabled=true]")
       };
     }
@@ -145,6 +146,12 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
           await act({type:"click",selector:sort});
           await wait("[role=option]");
           await capture("artifacts-sort", "[data-slot=select-popup]");
+          const options = await evaluate(`[...document.querySelectorAll('[data-chronos-settings-options] [role=option]')].map(el => ({name:el.textContent.trim(), selected:el.getAttribute('aria-selected')}))`);
+          assert.equal(options.length, 2);
+          assert.ok(options.every(option => option.name));
+          assert.equal(options.filter(option => option.selected === "true").length, 1);
+          for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"ArrowDown",code:"ArrowDown",windowsVirtualKeyCode:40});
+          await capture("artifacts-sort-keyboard", "[data-slot=select-popup]");
           for (const type of ["rawKeyDown","keyUp"]) await client.send("Input.dispatchKeyEvent",{type,key:"Escape",code:"Escape",windowsVirtualKeyCode:27});
         }
         if (sample) {

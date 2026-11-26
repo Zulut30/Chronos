@@ -1,3 +1,4 @@
+import "../settingsSelect.css";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ArrowLeft, ArrowUpRight, Check, Code2, Copy, Download, Ellipsis, ExternalLink, FileCode2, LockKeyhole, Pin, RotateCcw, Trash2, X } from "lucide-react";
@@ -43,7 +44,7 @@ function ArtifactSelect({ label, value, options, onChange, container, triggerRef
       <SelectTrigger ref={triggerRef} size="sm" aria-label={label} className="w-auto max-w-full">
         <SelectValue />
       </SelectTrigger>
-      <SelectPopup portalContainer={container} align="end" alignItemWithTrigger={false}>
+      <SelectPopup data-chronos-settings-options="" portalContainer={container} align="end" alignItemWithTrigger={false}>
         {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
       </SelectPopup>
     </Select>
