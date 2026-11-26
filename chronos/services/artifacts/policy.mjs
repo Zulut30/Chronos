@@ -14,8 +14,19 @@ export const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 export function own(url,id) {
   return url.protocol === scheme + ":" && url.hostname === id && !url.port && !url.username && !url.password;
 }
-export function allowed(url,id,mainFrame) {
-  return own(url,id) || (!mainFrame && cdns.includes(url.origin) && !url.username && !url.password);
+export function allowed(url,id,mainFrame,type) {
+  if (own(url,id)) return true;
+  if (mainFrame || !cdns.includes(url.origin) || url.username || url.password) return false;
+  if (type !== "script") return true;
+  const version = /^(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$/;
+  const parts = url.pathname.split("/");
+  if (url.hostname === "cdnjs.cloudflare.com")
+    return parts[1] === "ajax" && parts[2] === "libs" && version.test(parts[4] ?? "");
+  const pkg = url.hostname === "unpkg.com" ? 1 : 2;
+  if (pkg === 2 && parts[1] !== "npm" && parts[1] !== "gh") return false;
+  const component = parts[pkg + (parts[1] === "gh" || parts[pkg]?.startsWith("@") ? 1 : 0)] ?? "";
+  const pin = component.slice(component.lastIndexOf("@")+1);
+  return component.includes("@") && (version.test(pin) || (parts[1] === "gh" && /^[0-9a-f]{40}$/i.test(pin)));
 }
 const mime = {html:"text/html; charset=utf-8",htm:"text/html; charset=utf-8",js:"text/javascript",mjs:"text/javascript",
   css:"text/css",json:"application/json",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",webp:"image/webp",gif:"image/gif",

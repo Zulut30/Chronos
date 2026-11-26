@@ -1,4 +1,18 @@
 <!doctype html>
-<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Просмотр артефакта</title><link rel="stylesheet" href="artifacts.css">
-<main><p>Для просмотра страницы откройте «Артефакты» в настольном Chronos.</p></main></html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Просмотр артефакта</title><link rel="stylesheet" href="artifacts.css"></head>
+<body><main><h1>Просмотр артефакта</h1><button id="open">Открыть в Chronos</button><p role="status"></p></main>
+<script type="module">
+const button = document.querySelector("#open"), status = document.querySelector('[role="status"]');
+button.onclick = async () => {
+  button.disabled = true;
+  try {
+    const id = new URL(location.href).searchParams.get("id");
+    const response = await fetch("/api/artifacts/open", {method:"POST", headers:{"content-type":"application/json","x-oly":"1"}, body:JSON.stringify({id})});
+    const result = await response.json();
+    if (!response.ok) throw Error(result.error);
+    status.textContent = "Открыто в Chronos";
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+};
+</script></body></html>

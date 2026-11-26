@@ -67,7 +67,7 @@ function preferences(id,version) {
     ses.protocol.handle("chronos-artifact",req => resource(db(),id,req.url,version));
     ses.webRequest.onBeforeRequest((req,reply) => {
       const url = URL.parse(req.url);
-      reply({cancel:!url || !allowed(url,id,req.resourceType === "mainFrame")});
+      reply({cancel:!url || !allowed(url,id,req.resourceType === "mainFrame",req.resourceType)});
     });
     ses.setPermissionRequestHandler((_wc,_perm,reply) => reply(false));
     ses.setPermissionCheckHandler(() => false);

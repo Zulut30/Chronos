@@ -186,7 +186,7 @@ function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
     </div>
     {menu && <div className="art-menu"><button onClick={()=>run(async()=>{const src=(await selectedFiles())[file];if(typeof src==="string") await navigator.clipboard.writeText(src);else if(src) await navigator.clipboard.writeText(src.data);setStatus(words.copied);})}><Copy/>{words.copy}</button>
       <button onClick={()=>run(async()=>download(await selectedFiles(),details.title))}><Download/>{words.download}</button>
-      <button onClick={()=>run(()=>request<void>("openWindow",{id}))}><ExternalLink/>{words.window}</button>
+      <button onClick={()=>run(()=>request<void>("openWindow",{id,version:version===details.version?undefined:version,theme:readTheme()}))}><ExternalLink/>{words.window}</button>
       {bridge().chronosArtifactInstaller && <button onClick={()=>run(async()=>{await install(details);setStatus(words.installed);})}><Check/>{words.install}</button>}
     </div>}
     {code ? <div className="art-code">{files && Object.keys(files).length>1 && <select aria-label={words.source} value={file} onChange={e=>setFile(e.target.value)}>{Object.keys(files).map(name=><option key={name}>{name}</option>)}</select>}

@@ -62,7 +62,7 @@ exports.request = async function request(action,args = {}) {
     case "details": return {...store.metadata(id),origin:store.origin(id),history:store.history(id)};
     case "files": return encodeSnapshot(store.read(id,version)).files;
     case "thumbnail": return thumbnail(id,version);
-    case "openWindow": return require("./standalone.cjs").open(id);
+    case "openWindow": return require("./standalone.cjs").open(id,version,args.theme);
     case "pin": return store.pin(id,args.pinned === true);
     case "trash": return store.remove(id,expectedVersion);
     case "recover": return store.recover(id);

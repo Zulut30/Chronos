@@ -9,26 +9,35 @@ function requestId(argv) {
   const id=flag?.slice("--chronos-artifact=".length);
   return id && uuid.test(id) ? id : null;
 }
-async function open(id) {
+async function open(id,version,theme) {
   await app.whenReady();
+  let window;
   try {
     const existing=windows.get(id);
-    if(existing && !existing.isDestroyed()) {existing.restore();existing.show();existing.focus();return;}
-    const metadata=runtime.db().metadata(id);
+    const metadata=runtime.db().metadata(id,version);
+    if(existing && !existing.isDestroyed()) {
+      if (existing.artifactVersion === metadata.version && existing.historicVersion === version) {
+        existing.restore();existing.show();existing.focus();return;
+      }
+      existing.destroy();
+    }
     const icon=path.join(app.getPath("appData"),"Chronos","artifact-icons",id+".ico");
-    const window=new BrowserWindow({title:metadata.title,width:900,height:680,autoHideMenuBar:true,show:false,
-      ...(fs.existsSync(icon)?{icon}:{}),webPreferences:runtime.preferences(id)});
+    window=new BrowserWindow({title:metadata.title,width:900,height:680,autoHideMenuBar:true,show:false,
+      ...(fs.existsSync(icon)?{icon}:{}),webPreferences:runtime.preferences(id,version)});
+    window.artifactVersion=metadata.version;
+    window.historicVersion=version;
     windows.set(id,window);
     window.removeMenu();
     runtime.protect(window.webContents);
     window.webContents.on("did-finish-load",()=>{
-      try {window.webContents.send("chronos:artifact-theme",JSON.parse(fs.readFileSync(icon.slice(0,-4)+".json","utf8")));} catch {}
+      try {window.webContents.send("chronos:artifact-theme",theme ?? JSON.parse(fs.readFileSync(icon.slice(0,-4)+".json","utf8")));} catch {}
     });
     window.once("closed",()=>windows.delete(id));
     window.once("ready-to-show",()=>window.show());
     await window.loadURL("chronos-artifact://"+id+"/index.html");
   } catch (e) {
-    windows.get(id)?.destroy();
+    if (window?.isDestroyed()) return;
+    window?.destroy();
     dialog.showErrorBox("Не удалось открыть артефакт",e.message);
     if (!BrowserWindow.getAllWindows().length) app.quit();
   }
