@@ -377,8 +377,9 @@ jobs:
             --build-version "${VERSION%.*}.$(( ${VERSION##*.} - 1 ))" --mock-updates --mock-update-server-port 29482 \
             --output-dir "$RUNNER_TEMP/chronos-update-source"
 
-      - name: Remove signing keychain and temporary certificate trust
+      - name: Delete private signing keychain
         if: always() && matrix.platform == 'mac'
+        timeout-minutes: 1
         run: bash chronos/ci/macos-keychain.sh clean
 
       - name: Verify bundled Olympus services in the distributable
@@ -448,12 +449,17 @@ jobs:
           hdiutil attach -nobrowse -readonly -mountpoint "$dmg_mount" release/*.dmg
           verify_bundle "$dmg_mount/Chronos.app"
 
-      - name: Install a differential update with Squirrel.Mac and verify automatic relaunch
+      - name: Upload prior signed ZIP for the clean Mac update test
         if: matrix.platform == 'mac' && matrix.arch == 'arm64' && github.event_name == 'workflow_dispatch'
-        timeout-minutes: 8
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: node chronos/scripts/delivery/macos-upgrade.mjs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: mac-update-source
+          path: |
+            ${{ runner.temp }}/chronos-update-source/*.zip
+            ${{ runner.temp }}/chronos-update-source/*.zip.blockmap
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
       - name: Collect release assets
         env:
@@ -497,6 +503,37 @@ jobs:
           name: windows-update-metrics
           path: windows-update.json
           if-no-files-found: error
+
+  mac-update:
+    name: Verify native update on a clean Mac
+    if: github.event_name == 'workflow_dispatch' && !inputs.perf_sha
+    needs: [version, desktop]
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            chronos/ci
+            chronos/scripts
+            scripts/lib
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: mac-update-source
+          path: ${{ runner.temp }}/chronos-update-source
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: chronos-mac-arm64
+          path: release
+      - name: Install a differential update with Squirrel.Mac and verify automatic relaunch
+        timeout-minutes: 8
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: node chronos/scripts/delivery/macos-upgrade.mjs
 
   release:
     name: Publish GitHub Release

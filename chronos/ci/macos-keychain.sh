@@ -6,11 +6,10 @@ umask 077
 chain="$RUNNER_TEMP/chronos-signing.keychain-db"
 cert="$RUNNER_TEMP/chronos-signing.pem"
 if [[ "${1:-}" == clean ]]; then
-  if [[ -e "$cert.trusted" ]]; then
-    sudo security remove-trusted-cert -d "$cert"
-  fi
+  # The runner VM owns the admin-domain code-signing trust and is destroyed after this job.
+  # The update and Keychain rehearsal runs on a separate VM without this identity or trust.
   if [[ -e "$chain" ]]; then security delete-keychain "$chain"; fi
-  rm -f "$cert.trusted" "$cert"
+  rm -f "$cert"
   exit 0
 fi
 
@@ -32,6 +31,5 @@ security find-certificate -p -c 'Chronos Desktop Updates' "$chain" > "$cert"
 actual=$(openssl x509 -in "$cert" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)
 test "$actual" = "$(cat chronos/ci/macos-signing.sha1)"
 sudo security add-trusted-cert -d -r trustRoot -p codeSign -k "$chain" "$cert"
-touch "$cert.trusted"
 security find-identity -v -p codesigning "$chain" | grep -F "$actual"
 printf 'CSC_KEYCHAIN=%s\n' "$chain" >> "$GITHUB_ENV"
