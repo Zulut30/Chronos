@@ -794,7 +794,7 @@
     ]
   },
   "91-prompts-settings.js": {
-    "sha256": "686332849829ed7dca79ed20d251557cbd138de06132cafa04ea982b113eaf8b",
+    "sha256": "a76e92835293ec29f21aeaf8001a0f62ac0709869aea18a7bd6d87d2408f10eb",
     "attributes": [
       "aria-current",
       "aria-hidden",
@@ -825,6 +825,7 @@
       "[data-settings-section][data-active=\"true\"]",
       "button",
       "button,a,[role=option]",
+      "chronos-prompt-mode [aria-expanded=\"true\"]",
       "header button:is([aria-label=\"Закрыть\"],[aria-label=\"Закрыть настройки\"],[aria-label=\"Close settings\"],[aria-label=\"Close\"])",
       "li",
       "nav[data-workspace-area=\"settings-nav\"]",

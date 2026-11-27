@@ -38,6 +38,7 @@ Options:
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
   --macos-settings-screens   Capture the native macOS update section on the installed app
   --settings-screens         Capture native and Olympus panels at 1280 and 900 in both themes
+  --prompt-mode <write|read> Exercise the template mode in two launches of a disposable CI profile
   --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
@@ -114,6 +115,9 @@ function parseArgs(argv) {
       opts.macSettingsScreens = true;
     } else if (arg === "--settings-screens") {
       opts.settingsScreens = true;
+    } else if (arg === "--prompt-mode") {
+      opts.promptMode = argv[++i];
+      if (!["write", "read"].includes(opts.promptMode)) throw Error("Expected --prompt-mode write or read");
     } else if (arg === "--verify-olympus") {
       opts.verifyOlympus = true;
     } else if (arg === "--verify-pc-control") {
@@ -572,6 +576,11 @@ async function run() {
     }
 
     initialTheme = await client.probe("getThemeState");
+    if (opts.promptMode) {
+      const { checkPromptMode } = await import("./features/prompt-mode.mjs");
+      await checkPromptMode(client, opts);
+      return;
+    }
     const appVersion =
       appInfo.version || extractVersionFromUserAgent(cdpVersion?.["User-Agent"]) || "unknown";
 

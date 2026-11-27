@@ -2,7 +2,7 @@
 if (globalThis.__olyPromptsSettings) return;
 // «Шаблоны промптов» in Settings. The page is built from the same Tailwind classes / data-slot hooks as T3's own
 // settings pages (header with breadcrumbs, settings-group, settings-row, buttons, input-group), so every theme styles
-// it like a native page. Own CSS below only covers the bits T3 has no class for (row hover, !command badge, select).
+// it like a native page. Own CSS below only covers the bits T3 has no class for (row hover, !command badge).
 const navSelector = 'nav[data-workspace-area="settings-nav"]';
 const api = 'http://127.0.0.1:4517/api/prompts';
 const fallbackModes = {default:'Выполнение', plan:'Планирование', brainstorm:'Мозговой штурм',
@@ -50,7 +50,6 @@ const ICON = {
   plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
   search:'<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   right:'<path d="m9 18 6-6-6-6"/>',
-  down:'<path d="m6 9 6 6 6-6"/>',
   trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
   nav:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>'
 };
@@ -119,6 +118,12 @@ function settingsRow() {
   return r;
 }
 function control(kind) {
+  if (kind === 'select') {
+    const wrap = el('chronos-prompt-mode', 'block oly-ps-field'), input = el('select');
+    input.hidden = true;
+    wrap.append(input);
+    return {wrap, input};
+  }
   const wrap = el('div', C.inputGroup + ' oly-ps-field'), slot = el('span');
   wrap.setAttribute('data-slot', 'input-group');
   slot.setAttribute('data-slot', kind === 'textarea' ? 'textarea-control' : 'input-control');
@@ -127,7 +132,6 @@ function control(kind) {
   if (kind === 'input') input.setAttribute('data-slot', 'input');
   slot.append(input);
   wrap.append(slot);
-  if (kind === 'select') wrap.append(svg('down', 'oly-ps-chev'));
   return {wrap, input};
 }
 function excerpt(text) {
@@ -282,7 +286,7 @@ function edit(s, record, draft) {
     const label = el('label', C.h3, labelText);
     input.name = key;
     input.id = 'oly-ps-' + key;
-    label.htmlFor = input.id;
+    label.htmlFor = kind === 'select' ? input.id + '-trigger' : input.id;
     head.append(label);
     text.append(head);
     if (hint) {
@@ -441,7 +445,10 @@ addEventListener('click', e => {
 addEventListener('keydown', e => {
   const s = active;
   if (!s?.form || e.isComposing) return;
-  if (e.key === 'Escape') { stop(e); cancelEdit(s); }
+  if (e.key === 'Escape') {
+    if (s.form.querySelector('chronos-prompt-mode [aria-expanded="true"]')) return;
+    stop(e); cancelEdit(s);
+  }
   else if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyS' || e.key.toLowerCase() === 's')) {
     stop(e);
     if (!s.busy) s.form.requestSubmit();
@@ -495,9 +502,6 @@ style.textContent = `
 .oly-ps-pane .oly-ps-field{width:100%}
 @container settings-row (min-width:32rem){.oly-ps-pane .oly-ps-field{width:300px}}
 .oly-ps-pane .oly-ps-wide .oly-ps-field{width:100%;margin-top:10px}
-.oly-ps-pane .oly-ps-field select{appearance:none;-webkit-appearance:none;cursor:pointer;color:inherit;background:transparent;font:inherit;padding-inline-end:28px}
-.oly-ps-pane .oly-ps-field select option{color:var(--popover-foreground,var(--foreground));background:var(--popover,var(--background))}
-.oly-ps-chev{position:absolute;inset-inline-end:8px;top:50%;width:14px;height:14px;transform:translateY(-50%);pointer-events:none;color:var(--muted-foreground)}
 .oly-ps-prefix{flex:none;padding-inline-start:9px;margin-inline-end:-8px;font:500 13px ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--muted-foreground)}
 .oly-ps-pane .oly-ps-field textarea{min-height:200px;padding:8px 9px;resize:vertical;font:inherit;line-height:1.55;background:transparent}
 .oly-ps-pane .oly-ps-field input[readonly]{color:var(--muted-foreground)}

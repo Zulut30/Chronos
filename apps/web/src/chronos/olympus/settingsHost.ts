@@ -1,4 +1,5 @@
 import "./settingsHost.css";
+import { registerPromptModeSelect } from "./promptModeSelect";
 
 function scopedListener(target: EventTarget, signal: AbortSignal) {
   return (name: string, listener: EventListener, options?: boolean | AddEventListenerOptions) =>
@@ -27,6 +28,7 @@ export function openSettingsHost(
   mount: (scope: ReturnType<typeof createScope>) => void,
 ) {
   const lifetime = new AbortController();
+  registerPromptModeSelect();
   const scope = createScope(layout, lifetime.signal);
   layout.dataset.chronosSettings = "";
   try {
