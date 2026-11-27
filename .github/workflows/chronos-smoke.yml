@@ -172,7 +172,9 @@ jobs:
       - name: Checkout smoke scripts
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          sparse-checkout: chronos/scripts/smoke
+          sparse-checkout: |
+            chronos/scripts/smoke
+            apps/web/src/chronos/olympus
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -223,6 +225,13 @@ jobs:
           & $exe --no-global-search-paths chronos/scripts/smoke/windows-payload.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "CHRONOS_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Inspect shipped host anchors, module bytes, DICT and panel shims
+        if: inputs.require_services && inputs.require_provider
+        shell: pwsh
+        run: |
+          $archive = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/server.asar'
+          node chronos/scripts/smoke/verify-packed-seams.mjs $archive
 
       - name: Prepare an offline composer provider for the full UI suite
         if: inputs.require_provider

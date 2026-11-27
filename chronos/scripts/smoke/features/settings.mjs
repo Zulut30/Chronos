@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { seedQuotaNotices } from "./settings-quota.mjs";
-import { withSmokeFrame } from "./artifacts.mjs";
+import { withSmokeFrame } from "./artifact-gallery.mjs";
 
 async function seedGallery(executable) {
   if (!executable || process.env.RUNNER_ENVIRONMENT !== "github-hosted" || process.platform !== "win32") return null;
@@ -25,7 +25,7 @@ async function seedGallery(executable) {
   } finally { store.close(); }
 }
 
-export async function captureSettings(client, out, ready, {executable, updatesOnly = false} = {}) {
+async function captureSettings(client, out, ready, {executable, updatesOnly = false} = {}) {
   const sample = updatesOnly ? null : await seedGallery(executable);
   const act = async (step) => {
     const result = await client.probe("performAction", step);
@@ -228,4 +228,18 @@ export async function captureSettings(client, out, ready, {executable, updatesOn
   // Let the normal smoke suite start with a fresh settings dialog, its default scroll, and no active guest.
   await act({type:"navigate",to:"/"});
   await wait("button[aria-label='Артефакты']");
+}
+
+export async function prepare({ client, opts, viewport, ready }) {
+  if (opts.settingsScreens || opts.macSettingsScreens) {
+    await captureSettings(client, opts.outDir, ready, {
+      executable: opts.launch, updatesOnly: opts.macSettingsScreens,
+    });
+    await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, mobile: false });
+  }
+  // Settings-only globals exist while their real panel host is mounted.
+  const action = await client.probe("performAction", { type: "navigate", to: "/settings/general" });
+  assert.ok(action.ok, action.detail);
+  const mounted = await ready(client, { selector: "[data-oly-ps-nav-button]" });
+  assert.ok(mounted.ready, "Olympus settings did not mount");
 }

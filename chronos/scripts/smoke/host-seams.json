@@ -1,0 +1,762 @@
+[
+  {
+    "selector": "[data-active]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "\"data-active\": isActive",
+    "modules": [
+      "80-integrations.js",
+      "90-mcp-manager.js",
+      "91-prompts-settings.js"
+    ]
+  },
+  {
+    "selector": "[data-active-tab]",
+    "owner": "apps/web/src/components/RightPanelTabs.tsx",
+    "marker": "data-active-tab",
+    "modules": [
+      "40-files.js",
+      "60-studio.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-app-modal]",
+    "owner": "apps/web/src/components/AppRouteModal.tsx",
+    "marker": "data-app-modal",
+    "modules": [
+      "90-mcp-manager.js",
+      "91-prompts-settings.js"
+    ]
+  },
+  {
+    "selector": "[data-chat-composer-form]",
+    "owner": "apps/web/src/components/chat/ChatComposer.tsx",
+    "marker": "data-chat-composer-form",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-chat-composer-main-surface]",
+    "owner": "apps/web/src/components/chat/ComposerSurface.tsx",
+    "marker": "data-chat-composer-main-surface",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-composer-command-drawer]",
+    "owner": "apps/web/src/components/chat/ComposerCommandMenu.tsx",
+    "marker": "data-composer-command-drawer",
+    "modules": [
+      "50-machines.js",
+      "55-composer.js",
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-composer-drawer-layer]",
+    "owner": "apps/web/src/components/chat/ComposerCommandMenuLayer.tsx",
+    "marker": "data-composer-drawer-layer",
+    "modules": [
+      "55-composer.js",
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-composer-item-id]",
+    "owner": "apps/web/src/components/chat/ComposerCommandMenu.tsx",
+    "marker": "data-composer-item-id",
+    "modules": [
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-composer-shortcut]",
+    "owner": "apps/web/src/components/chat/ProviderModelPicker.tsx",
+    "marker": "data-composer-shortcut={props.triggerShortcuts}",
+    "modules": [
+      "10-plan-mode.js",
+      "20-speed.js",
+      "22-budget.js",
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-context-menu]",
+    "owner": "apps/web/src/contextMenuFallback.ts",
+    "marker": "dataset.contextMenu =",
+    "modules": [
+      "40-files.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-context-menu-chevron]",
+    "owner": "apps/web/src/contextMenuFallback.ts",
+    "marker": "dataset.contextMenuChevron =",
+    "modules": [
+      "40-files.js"
+    ]
+  },
+  {
+    "selector": "[data-effort-level]",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "\"data-effort-level\":",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-file-breadcrumbs]",
+    "owner": "apps/web/src/components/files/FilePreviewPanel.tsx",
+    "marker": "data-file-breadcrumbs",
+    "modules": [
+      "40-files.js"
+    ]
+  },
+  {
+    "selector": "[data-file-crumb]",
+    "owner": "apps/web/src/components/files/FileBreadcrumbs.tsx",
+    "marker": "data-file-crumb",
+    "modules": [
+      "40-files.js"
+    ]
+  },
+  {
+    "selector": "[data-level]",
+    "owner": "apps/web/src/contextMenuFallback.ts",
+    "marker": "dataset.level =",
+    "modules": [
+      "40-files.js"
+    ]
+  },
+  {
+    "selector": "[data-message-id]",
+    "owner": "apps/web/src/components/chat/MessagesTimeline.tsx",
+    "marker": "data-message-id",
+    "modules": [
+      "88-rich-text.js",
+      "extras.js"
+    ]
+  },
+  {
+    "selector": "[data-message-role]",
+    "owner": "apps/web/src/components/chat/MessagesTimeline.tsx",
+    "marker": "data-message-role",
+    "modules": [
+      "88-rich-text.js"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-content]",
+    "owner": "apps/web/src/components/chat/ModelPickerContent.tsx",
+    "marker": "data-model-picker-content",
+    "modules": [
+      "28-model-account.js"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-effort]",
+    "owner": "apps/web/src/components/chat/ProviderModelPicker.tsx",
+    "marker": "data-model-picker-effort",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-option-menu]",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "data-model-picker-option-menu",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-provider]",
+    "owner": "apps/web/src/components/chat/ModelPickerSidebar.tsx",
+    "marker": "data-model-picker-provider={entry.instanceId}",
+    "modules": [
+      "28-model-account.js"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-sidebar]",
+    "owner": "apps/web/src/components/chat/ModelPickerSidebar.tsx",
+    "marker": "data-model-picker-sidebar",
+    "modules": [
+      "28-model-account.js"
+    ]
+  },
+  {
+    "selector": "[data-provider-accent-color]",
+    "owner": "apps/web/src/components/chat/ModelPickerSidebar.tsx",
+    "marker": "data-provider-accent-color",
+    "modules": [
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-right-panel-tab-list]",
+    "owner": "apps/web/src/components/RightPanelTabs.tsx",
+    "marker": "data-right-panel-tab-list",
+    "modules": [
+      "40-files.js",
+      "60-studio.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-right-panel-tabbar]",
+    "owner": "apps/web/src/components/RightPanelTabs.tsx",
+    "marker": "data-right-panel-tabbar",
+    "modules": [
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-settings-section]",
+    "owner": "apps/web/src/components/settings/SettingsSidebarNav.tsx",
+    "marker": "data-settings-section",
+    "modules": [
+      "80-integrations.js",
+      "90-mcp-manager.js",
+      "91-prompts-settings.js"
+    ]
+  },
+  {
+    "selector": "[data-side-chat-pane]",
+    "owner": "apps/web/src/components/chat/SideThreadPane.tsx",
+    "marker": "data-side-chat-pane",
+    "modules": [
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-sidebar]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-sidebar",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-sidebar-action-for]",
+    "owner": "apps/web/src/components/sidebar/SidebarProjectFolderHeader.tsx",
+    "marker": "data-sidebar-action-for",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-sidebar-row]",
+    "owner": "apps/web/src/components/sidebar/SidebarThreadRow.tsx",
+    "marker": "data-sidebar-row={threadKey}",
+    "modules": [
+      "30-tasks.js",
+      "88-rich-text.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-surface-launcher-keys]",
+    "owner": "apps/web/src/components/RightPanelTabs.tsx",
+    "marker": "data-surface-launcher-keys",
+    "modules": [
+      "60-studio.js"
+    ]
+  },
+  {
+    "selector": "[data-surface-subheader]",
+    "owner": "apps/web/src/components/diffs/DiffFileTree.tsx",
+    "marker": "data-surface-subheader",
+    "modules": [
+      "40-files.js"
+    ]
+  },
+  {
+    "selector": "[data-testid]",
+    "owner": "apps/web/src/components/ComposerPromptEditorTiptap.tsx",
+    "marker": "\"data-testid\": \"composer-editor\"",
+    "modules": [
+      "55-composer.js",
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-theme-id]",
+    "owner": "apps/web/src/themePalette.ts",
+    "marker": "dataset.themeId =",
+    "modules": [
+      "60-studio.js",
+      "90-mcp-manager.js",
+      "92-studio-shell.js",
+      "extras.js"
+    ]
+  },
+  {
+    "selector": "[data-thread-details-card]",
+    "owner": "apps/web/src/components/chat/ThreadDetailsCard.tsx",
+    "marker": "data-thread-details-card",
+    "modules": [
+      "24-thread-details.js",
+      "25-bg-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-thread-item]",
+    "owner": "apps/web/src/components/sidebar/SidebarThreadRow.tsx",
+    "marker": "data-thread-item",
+    "modules": [
+      "88-rich-text.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-timeline-row-id]",
+    "owner": "apps/web/src/components/chat/MessagesTimeline.tsx",
+    "marker": "data-timeline-row-id",
+    "modules": [
+      "88-rich-text.js"
+    ]
+  },
+  {
+    "selector": "[data-user-message-bubble]",
+    "owner": "apps/web/src/components/chat/TimelineUserMessageRow.tsx",
+    "marker": "data-user-message-bubble",
+    "modules": [
+      "05-oly-core.js",
+      "20-speed.js",
+      "50-machines.js",
+      "55-composer.js",
+      "70-openrouter.js",
+      "87-ru-fixes.js"
+    ]
+  },
+  {
+    "selector": "[data-workspace-area]",
+    "owner": "apps/web/src/lib/workspaceFocus.ts",
+    "marker": "\"data-workspace-area\":",
+    "modules": [
+      "26-notifications.js",
+      "80-integrations.js",
+      "90-mcp-manager.js",
+      "91-prompts-settings.js",
+      "93-chat-panels.js",
+      "extras.js"
+    ]
+  },
+  {
+    "selector": "[data-workspace-focus-key]",
+    "owner": "apps/web/src/components/chat/ThreadDetailsCard.tsx",
+    "marker": "data-workspace-focus-key",
+    "modules": [
+      "25-bg-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"combobox-item\"]",
+    "owner": "apps/web/src/components/ui/combobox.tsx",
+    "marker": "data-slot=\"combobox-item\"",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"combobox-item-content\"]",
+    "owner": "apps/web/src/components/ui/combobox.tsx",
+    "marker": "data-slot=\"combobox-item-content\"",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"command-item\"]",
+    "owner": "apps/web/src/components/ui/command.tsx",
+    "marker": "data-slot=\"command-item\"",
+    "modules": [
+      "50-machines.js",
+      "70-openrouter.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"composer-host\"]",
+    "owner": "apps/web/src/components/chat/ComposerSurface.tsx",
+    "marker": "data-slot=\"composer-host\"",
+    "modules": [
+      "10-plan-mode.js",
+      "20-speed.js",
+      "22-budget.js",
+      "26-notifications.js",
+      "30-tasks.js",
+      "55-composer.js",
+      "60-studio.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"dialog-popup\"]",
+    "owner": "apps/web/src/components/ui/dialog.tsx",
+    "marker": "data-slot=\"dialog-popup\"",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"dialog-title\"]",
+    "owner": "apps/web/src/components/ui/dialog.tsx",
+    "marker": "data-slot=\"dialog-title\"",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"menu-item\"]",
+    "owner": "apps/web/src/components/ui/menu.tsx",
+    "marker": "data-slot=\"menu-item\"",
+    "modules": [
+      "60-studio.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"menu-popup\"]",
+    "owner": "apps/web/src/components/ui/menu.tsx",
+    "marker": "data-slot=\"menu-popup\"",
+    "modules": [
+      "24-thread-details.js",
+      "60-studio.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"scroll-area-viewport\"]",
+    "owner": "apps/web/src/components/ui/scroll-area.tsx",
+    "marker": "data-slot=\"scroll-area-viewport\"",
+    "modules": [
+      "20-speed.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"select-value\"]",
+    "owner": "apps/web/src/components/ui/select.tsx",
+    "marker": "data-slot=\"select-value\"",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar\"",
+    "modules": [
+      "30-tasks.js",
+      "60-studio.js",
+      "93-chat-panels.js",
+      "extras.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-container\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-container\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-content\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-content\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-footer\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-footer\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-gap\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-gap\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-group\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-group\"",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-inner\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-inner\"",
+    "modules": [
+      "extras.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-inset\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-inset\"",
+    "modules": [
+      "26-notifications.js",
+      "93-chat-panels.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-menu-button\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "\"data-slot\": \"sidebar-menu-button\"",
+    "modules": [
+      "80-integrations.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-menu-item\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-menu-item\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-trigger\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-trigger\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"sidebar-wrapper\"]",
+    "owner": "apps/web/src/components/ui/sidebar.tsx",
+    "marker": "data-slot=\"sidebar-wrapper\"",
+    "modules": [
+      "26-notifications.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"tooltip-popup\"]",
+    "owner": "apps/web/src/components/ui/tooltip.tsx",
+    "marker": "data-slot=\"tooltip-popup\"",
+    "modules": [
+      "24-thread-details.js"
+    ]
+  },
+  {
+    "selector": "[data-slot=\"workspace-breadcrumb-text\"]",
+    "owner": "apps/web/src/components/chat/ChatHeader.tsx",
+    "marker": "data-slot=\"workspace-breadcrumb-text\"",
+    "modules": [
+      "30-tasks.js"
+    ]
+  },
+  {
+    "selector": ".composer-tiptap",
+    "owner": "apps/web/src/components/ComposerPromptEditorTiptap.tsx",
+    "marker": "\"composer-tiptap\"",
+    "modules": [
+      "05",
+      "20",
+      "30",
+      "50",
+      "55",
+      "60",
+      "70",
+      "87"
+    ]
+  },
+  {
+    "selector": ".chat-markdown",
+    "owner": "apps/web/src/components/ChatMarkdown.tsx",
+    "marker": "\"chat-markdown\"",
+    "modules": [
+      "05",
+      "20",
+      "22",
+      "50",
+      "55",
+      "70",
+      "87",
+      "88"
+    ]
+  },
+  {
+    "selector": ".user-message-markdown",
+    "owner": "apps/web/src/components/chat/TimelineUserMessageRow.tsx",
+    "marker": "user-message-markdown",
+    "modules": [
+      "55"
+    ]
+  },
+  {
+    "selector": "nav[data-workspace-area=settings-nav]",
+    "owner": "apps/web/src/components/settings/SettingsSidebarNav.tsx",
+    "marker": "workspaceAreaProps(\"settings-nav\"",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ],
+    "compiled": "settings-nav"
+  },
+  {
+    "selector": "nav.nextElementSibling",
+    "owner": "apps/web/src/routes/_chat.settings.tsx",
+    "marker": "data-chronos-settings-content=\"\"",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ],
+    "compiled": "data-chronos-settings-content"
+  },
+  {
+    "selector": "[data-workspace-focus-key^=\"details:\"]",
+    "owner": "apps/web/src/components/chat/ThreadDetailsCard.tsx",
+    "marker": "details:${threadRef.environmentId}",
+    "modules": [
+      "25"
+    ],
+    "compiled": "details:"
+  },
+  {
+    "selector": "#thread-details-usage-heading",
+    "owner": "apps/web/src/components/chat/ThreadDetailsUsage.tsx",
+    "marker": "headingId=\"thread-details-usage-heading\"",
+    "modules": [
+      "24"
+    ]
+  },
+  {
+    "selector": "#thread-details-lineage-heading",
+    "owner": "apps/web/src/components/chat/ThreadRelationshipsControl.tsx",
+    "marker": "headingId=\"thread-details-lineage-heading\"",
+    "modules": [
+      "24"
+    ]
+  },
+  {
+    "selector": "[data-thread-context-drop]",
+    "owner": "apps/web/src/components/chat/threadContextDrag.ts",
+    "marker": "const DROP_TARGET_ATTRIBUTE = \"data-thread-context-drop\"",
+    "modules": [
+      "93"
+    ]
+  },
+  {
+    "selector": "window / Fiber",
+    "owner": "apps/web/src/components/chat/ThreadDetailsUsage.tsx",
+    "marker": "window={",
+    "modules": [
+      "24"
+    ],
+    "compiled": "window"
+  },
+  {
+    "selector": "instanceEntries / Fiber",
+    "owner": "apps/web/src/components/chat/ProviderModelPicker.tsx",
+    "marker": "instanceEntries={props.instanceEntries}",
+    "modules": [
+      "28"
+    ],
+    "compiled": "instanceEntries"
+  },
+  {
+    "selector": "div.grid p.truncate.text-sm.font-medium",
+    "owner": "apps/web/src/components/settings/EnvironmentRow.tsx",
+    "marker": "<p className=\"truncate text-sm font-medium text-foreground\"",
+    "compiled": "truncate text-sm font-medium",
+    "modules": [
+      "50"
+    ]
+  },
+  {
+    "selector": "[data-model-picker-effort] .ms-auto",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "ms-auto min-w-0 truncate text-muted-foreground",
+    "compiled": "ms-auto min-w-0 truncate",
+    "modules": [
+      "20"
+    ]
+  },
+  {
+    "selector": "[data-effort-level] .flex-1",
+    "owner": "apps/web/src/components/chat/ComposerModelEffort.tsx",
+    "marker": "flex min-w-0 flex-1 flex-col",
+    "compiled": "flex min-w-0 flex-1 flex-col",
+    "modules": [
+      "20"
+    ]
+  },
+  {
+    "selector": "[data-chronos-settings-layout]",
+    "owner": "apps/web/src/routes/_chat.settings.tsx",
+    "marker": "data-chronos-settings-layout=\"\"",
+    "compiled": "data-chronos-settings-layout",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ]
+  },
+  {
+    "selector": "[data-chronos-settings-nav]",
+    "owner": "apps/web/src/components/settings/SettingsSidebarNav.tsx",
+    "marker": "data-chronos-settings-nav=\"\"",
+    "compiled": "data-chronos-settings-nav",
+    "modules": [
+      "80",
+      "90",
+      "91"
+    ]
+  },
+  {
+    "selector": "[data-chronos-editor]",
+    "owner": "apps/web/src/components/ComposerPromptEditorTiptap.tsx",
+    "marker": "\"data-chronos-editor\": \"\"",
+    "compiled": "data-chronos-editor",
+    "modules": [
+      "05",
+      "55",
+      "60"
+    ]
+  },
+  {
+    "selector": "[data-chronos-markdown]",
+    "owner": "apps/web/src/components/ChatMarkdown.tsx",
+    "marker": "data-chronos-markdown=\"\"",
+    "compiled": "data-chronos-markdown",
+    "modules": [
+      "05",
+      "88"
+    ]
+  },
+  {
+    "selector": "[data-chronos-thread-details]",
+    "owner": "apps/web/src/components/chat/ThreadDetailsCard.tsx",
+    "marker": "data-chronos-thread-details=\"\"",
+    "compiled": "data-chronos-thread-details",
+    "modules": [
+      "24",
+      "25"
+    ]
+  },
+  {
+    "selector": "[data-chronos-model-picker]",
+    "owner": "apps/web/src/components/chat/ModelPickerContent.tsx",
+    "marker": "data-chronos-model-picker=\"\"",
+    "compiled": "data-chronos-model-picker",
+    "modules": [
+      "20",
+      "28"
+    ]
+  }
+]

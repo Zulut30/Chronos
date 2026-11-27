@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
-import { assemblePrologue, settingsFeatureAsset, settingsFeatureFiles, standaloneFeature } from "../../apps/web/src/chronos/olympus/featureAssets.ts";
+import { assemblePrologue, standaloneFeature } from "../../apps/web/src/chronos/olympus/featureAssets.ts";
 import { featureIds, featureKey } from "../../apps/web/src/chronos/olympus/featureFlags.ts";
 import { choiceValue, followsChat, modelFilter, preferenceKeys as keys, writeFeature, writePreference } from "../../apps/web/src/chronos/olympus/chatPreferences.ts";
 
@@ -34,18 +34,6 @@ test("emitted prologue contains every module's exact bytes once, in release orde
     const bytes = readFileSync(new URL("features/" + file, dir));
     assert.ok(Buffer.from(standaloneFeature(file, bytes.toString("utf8"))).includes(bytes));
   }
-});
-
-test("settings code loads separately with the exact release bytes and no import-time effects", async () => {
-  const main = assemblePrologue(imports, read);
-  const asset = settingsFeatureAsset(read);
-  for (const name of settingsFeatureFiles) {
-    const original = read("features/" + name);
-    assert.ok(!main.includes(original), name);
-    assert.ok(asset.includes(original), name);
-  }
-  const { mount } = await import("data:text/javascript," + encodeURIComponent(asset));
-  assert.equal(typeof mount, "function");
 });
 
 test("feature settings affect the next window, protect core and enforce the notification dependency", () => {

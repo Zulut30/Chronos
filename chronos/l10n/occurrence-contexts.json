@@ -1152,7 +1152,7 @@
     "The update download failed. Try Download update again.": [[true,[0,"VariableDeclarator/init"]]],
     "The update install failed. Try Restart to update again.": [[true,[0,"VariableDeclarator/init"]]],
     "The update track did not change.": [[true,[0,"ConditionalExpression/alternate"]]],
-    "The user did not save this secret for shell use. Ask again with request_secret and delivery: \"file\".": [[null,[0,".not_a_file_request"],[1,"{load_failed,not_found,already_answered,agent_stopped,store_failed,reference_unreadable,record_failed,invalid_ref,read_failed,ref_unavailable,ref_expired,consume_failed,not_a_file_request}"]]],
+    "The user did not save this secret for shell use. Ask again with request_secret and delivery: \"file\".": [[null,[0,".not_a_file_request"],[1,"{load_failed,not_found,already_answered,agent_stopped,store_failed,reference_unreadable,record_failed,invalid_ref,read_failed,ref_unavailable,ref_expired,consume_failed,not_a_file_request}"]],[null,[0,".not_a_file_request"],[1,"{load_failed,not_found,already_answered,fields_mismatch,agent_stopped,store_failed,reference_unreadable,record_failed,invalid_ref,read_failed,ref_unavailable,ref_expired,consume_failed,not_a_file_request}"]]],
     "The voice connection closed. Please record again.": [[true,[0,"CallExpression/arguments0"]]],
     "The workspace folder could not be accessed.": [[true,[0,"ConditionalExpression/consequent"]]],
     "Theme \"${e}\" does not support Highlights": [[true,[0,"CallExpression/arguments0"]]],
