@@ -110,7 +110,7 @@ export const OrchestratorMcpTarget = Schema.Struct({
   options: Schema.optional(
     OrchestratorMcpTargetOptions.annotate({
       description:
-        "Ids vary by provider; see `orchestrator_capabilities`. Given values override inherited. [] or {} clears.",
+        "Without options a delegate inherits reasoning on the same provider, or uses high (highest available) on another. Explicit values override defaults. [] or {} clears.",
     }),
   ),
   environmentId: Schema.optional(
@@ -122,7 +122,7 @@ export const OrchestratorMcpTarget = Schema.Struct({
   projectId: Schema.optional(
     ProjectId.annotate({
       description:
-        "With `environmentId`: its project to run in. Default: the one with this project's repository.",
+        "Project in the selected environment. Locally defaults to this thread's project. A worktree in another local project starts from its default branch.",
     }),
   ),
 });
@@ -179,7 +179,7 @@ export const OrchestratorMcpDelegateTaskInput = Schema.Struct({
   isolation: Schema.optional(
     Schema.Literals(["shared", "worktree"]).annotate({
       description:
-        "'shared' (default): parent checkout. 'worktree': new prepared checkout from the parent commit, for a separate checkout or PR per child. Uncommitted edits stay out.",
+        "'shared' (default): parent checkout, or the selected project's root. 'worktree': separate checkout from the parent commit, or the selected project's default branch. Uncommitted edits stay out.",
     }),
   ),
   mode: Schema.optional(
@@ -579,6 +579,7 @@ export const OrchestratorMcpThreadSendResult = Schema.Struct({
   taskId: Schema.optional(NodeId),
   status: OrchestrationV2RunStatus,
   delivery: Schema.Literals(["started", "queued", "steered", "restarted"]),
+  note: Schema.optional(Schema.String),
 });
 export type OrchestratorMcpThreadSendResult = typeof OrchestratorMcpThreadSendResult.Type;
 
@@ -653,6 +654,7 @@ export type OrchestratorMcpCapabilitiesInput = typeof OrchestratorMcpCapabilitie
 
 export const OrchestratorMcpModelOption = Schema.Struct({
   id: Schema.String,
+  role: Schema.optional(Schema.Literal("reasoning")),
   values: Schema.Array(ProviderOptionSelectionValue),
   default: Schema.optional(ProviderOptionSelectionValue),
 });

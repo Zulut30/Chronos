@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 
+export function check({ client }) {
+  return verifySidebarFooter(client);
+}
+
 export async function verifySidebarFooter(client, { verify = true, capture } = {}) {
   const read = async expression => {
     const reply = await client.send("Runtime.evaluate", { expression, returnByValue: true });

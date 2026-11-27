@@ -1,7 +1,23 @@
+// @effect-diagnostics-next-line nodeBuiltinImport:off -- The Windows probe needs a hidden process with an immediately closed stdin and a bounded, abortable capture.
+import { execFile } from "node:child_process";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+import * as FileSystem from "effect/FileSystem";
+import * as Option from "effect/Option";
+import * as Path from "effect/Path";
+import { promisify } from "node:util";
 import * as Effect from "effect/Effect";
 import type { ProcessRunner } from "../processRunner.ts";
 
 type Tree = ReadonlySet<string>;
+
+// Opt-in diagnostics log only lifecycle state, never paths, arguments or prompts.
+export const idleUnloadTracing = () => process.env.CHRONOS_TRACE_IDLE_UNLOAD === "1";
+
+export function traceIdleUnload(phase: string, fields: object) {
+  if (idleUnloadTracing()) {
+    process.stderr.write("chronos-idle " + JSON.stringify({ phase, ...fields }) + "\n");
+  }
+}
 
 // Only keep identities (PID and creation time), never arguments or environment. A later
 // helper, even one with a familiar MCP executable name, could be doing the agent's work.
@@ -77,6 +93,48 @@ export const idleProcessGuard = (
         ),
       );
 
+const execFileAsync = promisify(execFile);
+
+const windowsTreeReader = Effect.fnUntraced(function* (systemRoot: string, pid: number) {
+  const path = yield* Effect.serviceOption(Path.Path);
+  const fs = yield* Effect.serviceOption(FileSystem.FileSystem);
+  const environment = yield* HostProcess.Environment;
+  const executable = yield* HostProcess.ExecutablePath;
+  let monitor = environment.CHRONOS_WINDOWS_INHIBITOR;
+  // A packaged Electron server can also be launched directly without the desktop bootstrap.
+  if (!monitor && process.versions.electron && Option.isSome(path) && Option.isSome(fs)) {
+    const candidate = path.value.join(
+      path.value.dirname(executable), "resources", "resource-monitor", "t3-resource-monitor.exe",
+    );
+    if (yield* fs.value.exists(candidate).pipe(Effect.orElseSucceed(() => false))) monitor = candidate;
+  }
+  traceIdleUnload("windows-reader", { source: monitor ? "resource-monitor" : "cim" });
+  const command = monitor ?? systemRoot + "/System32/WindowsPowerShell/v1.0/powershell.exe";
+  const args = monitor
+    ? ["--chronos-process-tree", String(pid)]
+    : [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
+      ];
+  return Effect.tryPromise({
+    try: async (signal) => {
+      const result = execFileAsync(command, args, {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 5000,
+        maxBuffer: 2 * 1024 * 1024,
+        signal,
+      });
+      result.child.stdin?.end();
+      const { stdout } = await result;
+      return processTree(stdout, pid);
+    },
+    catch: () => "snapshot unavailable",
+  }).pipe(Effect.orElseSucceed(() => undefined));
+});
+
 export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   runner: ProcessRunner["Service"],
   windows: boolean,
@@ -85,37 +143,37 @@ export const captureIdleProcessGuard = Effect.fnUntraced(function* (
   tracked: () => ReadonlyArray<number>,
   unit?: string,
 ) {
-  if (pid === undefined) return Effect.succeed(false);
-  const command = windows
-    ? {
-        command: systemRoot + "\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        args: [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CreationDate | ForEach-Object { $born=if ($_.CreationDate) {$_.CreationDate.ToFileTimeUtc()} else {'?'}; '{0} {1} {2}' -f $_.ProcessId,$_.ParentProcessId,$born }",
-        ],
-      }
-    : {
-        command: "ps",
-        args: [
-          "-A",
-          "-ww",
-          "-o",
-          unit === undefined ? "pid=,ppid=,pgid=,lstart=" : "pid=,ppid=,pgid=,lstart=,cgroup=",
-        ],
-      };
-  const read = runner
-    .run({ ...command, timeout: "5 seconds", maxOutputBytes: 2 * 1024 * 1024 })
-    .pipe(
-      Effect.map((out) =>
-        out.code !== 0 || out.stdoutTruncated
-          ? undefined
-          : windows
-            ? processTree(out.stdout, pid)
-            : posixIdleTree(out.stdout, pid, tracked(), unit),
-      ),
-      Effect.orElseSucceed(() => undefined),
-    );
-  return idleProcessGuard(yield* read, read);
+  if (pid === undefined) {
+    traceIdleUnload("process-baseline", { available: false, reason: "missing-pid" });
+    return Effect.succeed(false);
+  }
+  const read = windows ? yield* windowsTreeReader(systemRoot, pid) : runner.run({
+    command: "ps",
+    // Separate -o options are required for BSD ps on macOS (it treats everything after the first '=' as a column header),
+    // and LC_ALL=C keeps lstart in the fixed English `Dow Mon DD HH:MM:SS YYYY` format regardless of OS locale.
+    args: [
+      "-A",
+      "-ww",
+      "-o",
+      "pid=",
+      "-o",
+      "ppid=",
+      "-o",
+      "pgid=",
+      "-o",
+      "lstart=",
+      ...(unit === undefined ? [] : ["-o", "cgroup="]),
+    ],
+    env: { LC_ALL: "C" },
+    timeout: "5 seconds",
+    maxOutputBytes: 2 * 1024 * 1024,
+  }).pipe(
+    Effect.map((out) =>
+      out.code === 0 && !out.stdoutTruncated ? posixIdleTree(out.stdout, pid, tracked(), unit) : undefined,
+    ),
+    Effect.orElseSucceed(() => undefined),
+  );
+  const initial = yield* read;
+  traceIdleUnload("process-baseline", { available: initial !== undefined, count: initial?.size });
+  return idleProcessGuard(initial, read);
 });

@@ -6,7 +6,7 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
-const { createController } = require("./controller.cjs");
+const { checkAvailability, createController } = require("./controller.cjs");
 const { makeNative } = require("./native.cjs");
 
 test("cold browser startup and navigation get independent IPC requests", async (t) => {
@@ -150,4 +150,37 @@ test("policy binds refs, requires trusted approval in every mode, and cancels pe
   controller.stop();
   await controller.restore();
   assert.deepEqual(controller.state().settings, { ...settings, mode: "every" });
+  // Re-applying settings while already enabled must rebind the socket cleanly without EADDRINUSE.
+  await controller.ui({ op: "configure", settings: { ...settings, mode: "risk" } });
+  assert.equal(controller.state().settings.enabled, true);
+  assert.equal(controller.state().settings.mode, "risk");
+});
+
+test("unavailable agent-desktop reports clear Russian reason and refuses enabling", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-unavail-"));
+  t.after(async () => {
+    await fs.rm(dir, { recursive: true, force: true, maxRetries: 3 });
+  });
+  const availability = checkAvailability(dir, "darwin");
+  assert.equal(availability.available, false);
+  assert.match(availability.reason, /agent-desktop/);
+
+  const controller = createController({
+    dir,
+    tools: dir,
+    socket: path.join(dir, "broker"),
+    key: randomUUID(),
+    shortcut: { register: () => true, unregister() {} },
+    notify() {},
+    availability,
+  });
+  t.after(() => controller.stop());
+
+  assert.equal(controller.state().available, false);
+  assert.equal(controller.state().unavailableReason, availability.reason);
+  await assert.rejects(
+    controller.ui({ op: "configure", settings: { enabled: true, all: false, apps: [], mode: "risk" } }),
+    /agent-desktop/,
+  );
+  assert.equal(controller.state().settings.enabled, false);
 });

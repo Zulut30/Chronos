@@ -1,5 +1,6 @@
 // Resolve both package identities before any timing. Only this metadata job can request builds.
 import assert from "node:assert/strict";
+import { checkDesktop } from "../delivery/verified-build.mjs";
 import { appendFileSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -17,6 +18,11 @@ async function api(path, body) {
 const workflow = "/actions/workflows/chronos-desktop.yml";
 async function packageFor(target) {
   const { sha } = target;
+  if (target.run) {
+    assert.match(String(target.run), /^\d+$/);
+    checkDesktop(await api("/actions/runs/" + target.run), sha);
+    return { ...target, pinned: false };
+  }
   const pinnedTitle = "Perf Windows " + sha;
   const deadline = Date.now() + 1000 * 60 * 85;
   let requestedAt = 0;
@@ -33,7 +39,7 @@ async function packageFor(target) {
       api(workflow + "/runs?head_sha=" + sha + "&per_page=100"),
       api(workflow + "/runs?event=workflow_dispatch&branch=" + encodeURIComponent(env.GITHUB_REF_NAME) + "&per_page=100"),
     ]);
-    const normal = normalList.workflow_runs.filter(r => r.head_sha === sha && !r.display_title.startsWith("Perf Windows "));
+    const normal = normalList.workflow_runs.filter(r => r.head_sha === sha && !r.display_title.startsWith("Perf Windows ") && (r.status !== "completed" || r.conclusion === "success"));
     const pinned = pinnedList.workflow_runs.filter(r => r.display_title === pinnedTitle);
     const packaged = await available(normal, false) ?? await available(pinned, true);
     if (packaged) return packaged;
@@ -58,13 +64,27 @@ if (env.PAIR) {
   appendFileSync(env.GITHUB_OUTPUT, "pair=" + JSON.stringify(pair) + "\n");
 } else {
   const audit = env.AUDIT === "true" || (env.GITHUB_REF_NAME === "perf/guard" && env.COMMIT_MESSAGE?.includes("[perf-audit]"));
-  const refs = audit ? ["main", "feature/artifacts", "feature/pc-control", "perf/round-3", "fix/stability-2026-11-25"] : [env.TARGET || env.GITHUB_REF_NAME];
+  // Historical audit tips, reachable from main after their branches were retired.
+  const auditTips = {
+    "feature/artifacts": "74dc71fdcfbda5a8e7925346c3159f21cfa0ba45",
+    "feature/pc-control": "7c3fe21852f87b117c5c0c5bef840520d20e92b0",
+    "perf/round-3": "1ea16cbfa900dac9e42528e5ad9a8174e3b0a985",
+    "fix/stability-2026-11-25": "4fa969e79ace1dbc133256661380202118dff8c7"
+  };
+  const refs = audit ? ["main", ...Object.keys(auditTips)] : [env.TARGET || env.GITHUB_REF_NAME];
   const targets = new Map();
   for (const ref of new Set(["main", ...refs])) {
     assert.match(ref, /^[\w./-]+$/);
-    const sha = !audit && !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : (await api("/commits/" + encodeURIComponent(ref))).sha;
+    const pinned = audit ? auditTips[ref] : !env.TARGET && ref === env.GITHUB_REF_NAME ? env.GITHUB_SHA : undefined;
+    const sha = pinned ?? (await api("/commits/" + encodeURIComponent(ref))).sha;
     targets.set(ref, { ref, sha });
   }
-  const base = targets.get("main");
+  const onMainPush = env.GITHUB_EVENT_NAME === "push" && env.GITHUB_REF_NAME === "main";
+  const base = onMainPush ? { ref: "main", sha: env.PREVIOUS_MAIN } : targets.get("main");
+  assert.match(base.sha, /^[0-9a-f]{40}$/);
+  if (env.DESKTOP_RUN_ID) {
+    assert.ok(!audit && /^\d+$/.test(env.DESKTOP_RUN_ID), "Select one candidate desktop run");
+    targets.set(refs[0], { ...targets.get(refs[0]), run: Number(env.DESKTOP_RUN_ID) });
+  }
   appendFileSync(env.GITHUB_OUTPUT, "matrix=" + JSON.stringify({ include: refs.map(ref => ({ name: ref.replaceAll("/", "-"), base, head: targets.get(ref) })) }) + "\n");
 }

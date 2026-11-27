@@ -1,14 +1,15 @@
-# Functional CDP smoke checks for a built Windows Chronos installer on windows-latest.
-# Downloads the `chronos-win-x64` artifact from a `chronos-desktop.yml` run, installs
-# silently (/S), launches Chronos with --remote-debugging-port=9333 and runs functional
-# checks without screenshot comparison.
+# Functional CDP smoke checks for built Windows (x64) and macOS (Apple Silicon arm64) Chronos installers.
+# Downloads `chronos-win-x64` and `chronos-mac-arm64` from a `chronos-desktop.yml` run, installs each
+# build cleanly, launches Chronos with --remote-debugging-port=9333 and verifies startup, main screens,
+# bundled Olympus services, zero console errors and Russian UI (screenshots uploaded as CI artifacts).
 name: Chronos smoke
+run-name: "${{ inputs.require_services && inputs.require_provider && format('Strict desktop {0}', inputs.desktop_run_id) || format('Diagnostic desktop {0}', inputs.desktop_run_id) }}"
 
 on:
   workflow_dispatch:
     inputs:
       desktop_run_id:
-        description: "Run ID of chronos-desktop.yml that produced the chronos-win-x64 artifact"
+        description: "Run ID of chronos-desktop.yml that produced the desktop artifacts"
         required: true
         type: string
       require_provider:
@@ -31,7 +32,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  desktop:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/delivery
+      - name: Verify smoke build identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DESKTOP_RUN_ID: ${{ inputs.desktop_run_id }}
+        run: node chronos/scripts/delivery/verified-build.mjs smoke
   composer-browser:
+    needs: desktop
     if: inputs.require_provider
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -52,6 +65,7 @@ jobs:
           vp test run --project browser src/components/ChatView.browser.test.tsx -t 'Shift model selection launches|Enter on an empty prompt resumes'
 
   smoke-windows:
+    needs: desktop
     name: Functional smoke (Windows x64)
     runs-on: windows-latest
     timeout-minutes: 20
@@ -69,7 +83,9 @@ jobs:
       - name: Checkout smoke scripts
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          sparse-checkout: chronos/scripts/smoke
+          sparse-checkout: |
+            chronos/scripts/smoke
+            apps/web/src/chronos/olympus
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -116,7 +132,17 @@ jobs:
             throw "Chronos.exe not found after silent install"
           }
           Write-Host "Installed Chronos executable: $exe"
+          $env:ELECTRON_RUN_AS_NODE = "1"
+          & $exe --no-global-search-paths chronos/scripts/smoke/windows-payload.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           "CHRONOS_EXE=$exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Inspect shipped host anchors, module bytes, DICT and panel shims
+        if: inputs.require_services && inputs.require_provider
+        shell: pwsh
+        run: |
+          $archive = Join-Path (Split-Path $env:CHRONOS_EXE) 'resources/server.asar'
+          node chronos/scripts/smoke/verify-packed-seams.mjs $archive
 
       - name: Prepare an offline composer provider for the full UI suite
         if: inputs.require_provider
@@ -185,6 +211,10 @@ jobs:
               "- **Unexpected English phrases:** $($rep.summary.unexpectedEnglishPhrases.Count)"
             ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           }
+          if ($exitCode -eq 0 -and $env:REQUIRE_PROVIDER -eq 'true' -and $env:REQUIRE_SERVICES -eq 'true') {
+            node chronos/scripts/smoke/strict-report.mjs $reportPath
+            exit $LASTEXITCODE
+          }
           exit $exitCode
 
       - name: Verify installed desktop control and measure the CLI
@@ -215,6 +245,200 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chronos-smoke-report-${{ inputs.desktop_run_id }}
+          path: ${{ runner.temp }}/chronos-smoke-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+  smoke-macos:
+    needs: desktop
+    name: Functional smoke (macOS arm64)
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - name: Validate desktop_run_id input
+        shell: bash
+        env:
+          DESKTOP_RUN_ID: ${{ inputs.desktop_run_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$DESKTOP_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "desktop_run_id must be a numeric GitHub Actions run ID, got: '$DESKTOP_RUN_ID'" >&2
+            exit 1
+          fi
+
+      - name: Checkout smoke scripts
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: |
+            chronos/scripts/smoke
+            chronos/scripts/macos-after-pack.cjs
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Download chronos-mac-arm64 artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          run-id: ${{ inputs.desktop_run_id }}
+          github-token: ${{ github.token }}
+          name: chronos-mac-arm64
+          path: ${{ runner.temp }}/chronos-installer
+
+      - name: Install Chronos from DMG and verify signature, ASAR integrity and native helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg=$(find "$RUNNER_TEMP/chronos-installer" -maxdepth 1 -name 'Chronos-*-arm64.dmg' -print -quit)
+          if [[ -z "$dmg" ]]; then
+            ls -la "$RUNNER_TEMP/chronos-installer"
+            echo "No Chronos-*-arm64.dmg found in $RUNNER_TEMP/chronos-installer" >&2
+            exit 1
+          fi
+
+          mount_dir=$(mktemp -d)
+          install_dir="$RUNNER_TEMP/Applications"
+          mkdir -p "$install_dir"
+          cleanup() { hdiutil detach "$mount_dir" -force >/dev/null 2>&1 || true; rm -rf "$mount_dir"; }
+          trap cleanup EXIT
+
+          echo "Mounting $(basename "$dmg")..."
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg"
+          ditto "$mount_dir/Chronos.app" "$install_dir/Chronos.app"
+          hdiutil detach "$mount_dir" -force >/dev/null 2>&1 || true
+
+          app="$install_dir/Chronos.app"
+          exe="$app/Contents/MacOS/Chronos"
+          test -x "$exe"
+
+          echo "Verifying ad-hoc code signature and ElectronAsarIntegrity..."
+          codesign --verify --deep --strict --verbose=2 "$app"
+          /usr/bin/plutil -lint "$app/Contents/Info.plist"
+          expected=$(node -e 'console.log(require("./chronos/scripts/macos-after-pack.cjs").computeAsarHeaderHash(process.argv[1]))' "$app/Contents/Resources/app.asar")
+          actual=$(/usr/libexec/PlistBuddy -c 'Print :ElectronAsarIntegrity:Resources/app.asar:hash' "$app/Contents/Info.plist")
+          test "$actual" = "$expected" || { echo "ElectronAsarIntegrity mismatch: plist=$actual computed=$expected" >&2; exit 1; }
+
+          echo "Verifying bundled arm64 native helpers and macOS ps idle-unload format..."
+          "$app/Contents/Resources/chronos-pc/agent-desktop" --version
+          "$app/Contents/Resources/chronos-pc/agent-browser" --version
+          node -e '
+            const { execFileSync } = require("node:child_process");
+            const out = execFileSync("ps", ["-A", "-ww", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "lstart="], {
+              encoding: "utf8",
+              env: { ...process.env, LC_ALL: "C" },
+            });
+            const re = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+\S+\s+\d{4})(?:\s+(.*))?$/u;
+            const lines = out.trim().split(/\r?\n/);
+            if (!lines.length) throw new Error("Empty ps output");
+            let foundSelf = false;
+            for (const line of lines) {
+              const m = re.exec(line);
+              if (!m) throw new Error("Unexpected BSD ps line: " + line);
+              if (Number(m[1]) === process.pid) foundSelf = true;
+            }
+            if (!foundSelf) throw new Error("Self PID missing from ps output");
+            console.log("BSD ps idle-unload check passed (" + lines.length + " processes parsed)");
+          '
+
+          echo "CHRONOS_APP=$app" >> "$GITHUB_ENV"
+          echo "CHRONOS_EXE=$exe" >> "$GITHUB_ENV"
+
+      - name: Prepare an offline composer provider for the full UI suite
+        if: inputs.require_provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @openai/codex@0.172.0
+          provider_home="$RUNNER_TEMP/smoke-codex"
+          mkdir -p "$provider_home"
+          cat > "$provider_home/config.toml" <<'EOF'
+          model_provider = "local-smoke"
+          [model_providers.local-smoke]
+          name = "Local smoke"
+          base_url = "http://127.0.0.1:1/v1"
+          wire_api = "responses"
+          requires_openai_auth = false
+          EOF
+          echo "CODEX_HOME=$provider_home" >> "$GITHUB_ENV"
+
+      - name: Run functional smoke suite (with screenshots)
+        shell: bash
+        env:
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+          CHRONOS_HOME: ${{ runner.temp }}/chronos-home
+          REQUIRE_PROVIDER: ${{ inputs.require_provider }}
+          REQUIRE_SERVICES: ${{ inputs.require_services }}
+          CHRONOS_VERIFY_ARTIFACTS: ${{ inputs.require_services && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          out_dir="$RUNNER_TEMP/chronos-smoke-report"
+          mkdir -p "$out_dir" "$CHRONOS_HOME"
+
+          smoke_args=(
+            --launch "$CHRONOS_EXE"
+            --port 9333
+            --launch-timeout 120000
+            --profile clean
+            --strict-en
+            --verify-chat-settings
+            --verify-pc-control
+            --out "$out_dir"
+          )
+          if [[ "$REQUIRE_PROVIDER" == "true" ]]; then smoke_args+=(--require-provider); fi
+          if [[ "$REQUIRE_PROVIDER" == "true" && "$REQUIRE_SERVICES" == "true" ]]; then
+            smoke_args+=(--verify-olympus)
+          fi
+          if [[ "$REQUIRE_SERVICES" != "true" ]]; then smoke_args+=(--allow-offline-services); fi
+
+          set +e
+          node chronos/scripts/smoke/smoke.mjs "${smoke_args[@]}"
+          exit_code=$?
+          set -e
+
+          report_path="$out_dir/report.json"
+          if [[ -f "$report_path" ]]; then
+            shot_count=$(find "$out_dir" -name '*.png' | wc -l | tr -d ' ')
+            node -e '
+              const fs = require("node:fs");
+              const rep = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+              const shots = process.argv[2];
+              const lines = [
+                "## Chronos smoke report (macOS arm64)",
+                "",
+                `- **App version:** \`${rep.app.version}\``,
+                `- **Result:** ${rep.ok ? "PASS" : "FAIL"} (${rep.summary.passedChecks}/${rep.summary.totalChecks} checks passed, ${rep.summary.skippedChecks} skipped)`,
+                `- **Globals:** ${rep.checks.globals.presentCount}/${rep.checks.globals.expectedCount}`,
+                `- **Scheme:** index=${rep.checks.scheme.index.status}, wasm=${rep.checks.scheme.discoveredCount}`,
+                `- **Errors:** ${rep.summary.totalErrors}`,
+                `- **Unexpected English phrases:** ${rep.summary.unexpectedEnglishPhrases.length}`,
+                `- **Screenshots captured:** ${shots}`,
+              ];
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            ' "$report_path" "$shot_count"
+          fi
+          if [[ "$exit_code" == 0 && "$REQUIRE_PROVIDER" == true && "$REQUIRE_SERVICES" == true ]]; then
+            node chronos/scripts/smoke/strict-report.mjs "$report_path"
+          fi
+          exit "$exit_code"
+
+      - name: Verify installed web control with a local form
+        if: ${{ !cancelled() && env.CHRONOS_APP != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]]; then
+            node chronos/scripts/smoke/pc-web.cjs "$CHRONOS_APP/Contents/Resources/chronos-pc"
+          else
+            echo "Google Chrome is not installed on this macOS runner; skipping web form control probe."
+          fi
+
+      - name: Upload macOS smoke report and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chronos-smoke-macos-report-${{ inputs.desktop_run_id }}
           path: ${{ runner.temp }}/chronos-smoke-report/
           if-no-files-found: warn
           retention-days: 14

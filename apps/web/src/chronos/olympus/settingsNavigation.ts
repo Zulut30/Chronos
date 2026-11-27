@@ -12,6 +12,21 @@ function visiblePanelButton(nav: HTMLElement) {
   return nav.nextElementSibling?.hasAttribute("data-oly-ik-open") ? apiKeys : null;
 }
 
+function patchMacosIntegrationsCopy(root: ParentNode) {
+  if (window.desktopBridge?.getClientPlatform?.() !== "darwin") return;
+  const intro = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-intro");
+  // The immutable module may have mounted either before or after the English observer.
+  if (intro?.textContent.includes("Windows")) {
+    const copy = "Ключи веб-сервисов для ИИ-агентов: поиск и парсинг страниц, X (Twitter), Reddit, расшифровки YouTube. Хранятся в локальном файле профиля Chronos (~/.chronos/integrations-service/keys.env) и не показываются после сохранения.";
+    intro.textContent = window.__chronosEnglishText?.(copy) ?? copy;
+  }
+  const down = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-down p");
+  if (down?.textContent?.includes("Windows")) {
+    down.textContent =
+      "Не удалось связаться с локальным сервисом 127.0.0.1:4522 (integrations-service). Он запускается вместе с Chronos — перезапустите приложение и нажмите «Повторить».";
+  }
+}
+
 export function useOlympusSettingsNav(activePath: string, hash: string) {
   const ref = useRef<HTMLElement>(null);
   const router = useRouter();
@@ -70,6 +85,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
           button.removeAttribute("aria-current");
         }
       }
+      if (nav.parentElement) patchMacosIntegrationsCopy(nav.parentElement);
     };
 
     // The modules clone nav buttons and can restore an old selection after their panel closes.
@@ -80,6 +96,15 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       attributes: true,
       attributeFilter: ["data-active", "aria-current"],
     });
+    const layoutObserver =
+      window.desktopBridge?.getClientPlatform?.() === "darwin" && nav.parentElement
+        ? new MutationObserver(() => {
+            if (nav.parentElement) patchMacosIntegrationsCopy(nav.parentElement);
+          })
+        : null;
+    if (layoutObserver && nav.parentElement) {
+      layoutObserver.observe(nav.parentElement, { childList: true, subtree: true });
+    }
     nav.addEventListener("click", selectSection, true);
     const unsubscribe = router.subscribe("onBeforeLoad", ({ fromLocation, toLocation }) => {
       if (fromLocation?.href === toLocation.href) return;
@@ -91,6 +116,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       unsubscribe();
       nav.removeEventListener("click", selectSection, true);
       observer.disconnect();
+      layoutObserver?.disconnect();
     };
   }, [activePath, router]);
 

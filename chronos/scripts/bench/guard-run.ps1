@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Results, [ValidateSet('prepare','first','remaining')][string]$Stage)
+param([Parameter(Mandatory)][string]$Results, [ValidateSet('prepare','measure')][string]$Stage)
 $ErrorActionPreference = 'Stop'
 if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'Requires a disposable CI VM' }
 $budget = Get-Content -Raw chronos/perf-budget.json | ConvertFrom-Json
@@ -42,12 +42,14 @@ if ($Stage -eq 'prepare') {
 }
 
 $pair = Get-Content -Raw (Join-Path $Results 'pair.json') | ConvertFrom-Json
-$rounds = if ($Stage -eq 'first') {1} else {2..$budget.rounds}
-foreach ($round in $rounds) {
+$groups = Get-Content -Raw chronos/scripts/bench/guard-shards.json | ConvertFrom-Json -AsHashtable
+$scenarios = $groups[$env:GUARD_SHARD]
+if (!$scenarios) { throw "Unknown performance group: $env:GUARD_SHARD" }
+foreach ($round in 1..$budget.rounds) {
   $order = if ($round % 2) { 'base','head' } else { 'head','base' }
   foreach ($side in $order) {
     $pkg = Join-Path $env:RUNNER_TEMP "package-$($pair.$side.run)/pkg"
-    foreach ($scenario in 'unused','disabled','claudeAgent','codex','storage','ui0','ui8','ui16') {
+    foreach ($scenario in $scenarios) {
       if (Get-ChildItem -LiteralPath $Results -Filter "$side-*-$scenario.json.failed") { continue }
       $file = Join-Path $Results "$side-$round-$scenario.json"
       Write-Host "Measuring $side round $round $scenario"

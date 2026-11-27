@@ -4,6 +4,7 @@ import { mkdtempSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { artifactStore } from "./tools.mjs";
+import { allowed } from "./policy.mjs";
 import { handleRequest } from "../studio-service/mcp.mjs";
 
 test("MCP discovers tools lazily, publishes and reads", async t => {
@@ -28,6 +29,23 @@ test("MCP discovers tools lazily, publishes and reads", async t => {
     assert.ok(!result.isError,result.content[0].text);
     return JSON.parse(result.content[0].text);
   }
+  const guide = await call("artifact_guide",{});
+  const loader = "https://cdn.jsdelivr.net/npm/@ui-sdk/web@0.1.0-beta.17/browser/web.js";
+  assert.ok(guide.quickstart.includes(loader));
+  const example = await call("artifact_example",{});
+  const script = new URL(/<script type="module" src="([^"]+)"/.exec(example.files["index.html"])[1]);
+  assert.equal(script.href,new URL("web/tabs.js",loader).href);
+  assert.equal(allowed(script,"test",false,"script"),true);
+  assert.equal(allowed(new URL(script.href.replace("0.1.0-beta.17","latest")),"test",false,"script"),false);
+  assert.equal(existsSync(path.join(root,"userdata")),false);
+  const {writeFileSync} = await import("node:fs");
+  const source=path.join(root,"local.html");
+  writeFileSync(source,"<title>Локальный файл</title>");
+  const created=await call("artifact_publish",{source,title:"Локальный файл",description:"Пример страницы.",icon:"book",label:"Из файла"});
+  assert.match(created.quickstart,/:root/);
+  assert.equal(created.quickstart,guide.quickstart);
+  assert.ok(created.markdown.includes(created.id));
+  assert.equal((await call("artifact_read",{id:created.id})).files["index.html"],"<title>Локальный файл</title>");
   const {id} = await call("artifact_publish",{source:path.join(root,"index.html"),title:"Test page",
     description:"Test.",icon:"book",label:"First",files:{"index.html":"hello"}});
   const first = await call("artifact_read",{id});
@@ -40,4 +58,33 @@ test("MCP discovers tools lazily, publishes and reads", async t => {
   assert.deepEqual((await call("artifact_read",{id})).files,args.files);
   await call("artifact_restore",{id,version:2,expectedVersion:2});
   assert.deepEqual((await call("artifact_read",{id})).files,args.files);
+});
+
+test("the WSL tool bridge uses the desktop profile and preserves caller scope", async t => {
+  const {artifactTools} = await import("./tools-wsl.mjs");
+  const root = mkdtempSync(path.join(tmpdir(),"chronos-artifact-host-"));
+  const vars = {CHRONOS_ARTIFACT_WINDOWS_NODE:process.execPath,
+    CHRONOS_ARTIFACT_WINDOWS_RUNNER:path.join(import.meta.dirname,"wsl-host.mjs"), CHRONOS_ARTIFACT_WINDOWS_HOME:root};
+  const previous = Object.fromEntries(Object.keys(vars).map(key => [key,process.env[key]]));
+  Object.assign(process.env,vars);
+  t.after(() => {
+    for (const [key,value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+    rmSync(root,{recursive:true,force:true});
+  });
+  const publish = artifactTools.find(tool => tool.name === "artifact_publish");
+  const context = {allowFile:false,environmentId:"local",threadId:"thread-one"};
+  // The host receives the native path after wslpath translation.
+  const args = {source:path.join(root,"source.html"),title:"Host page",description:"Host.",icon:"book",label:"First"};
+  const input = {...args,files:{"index.html":"first"}};
+  // Exercise the actual Windows/Electron host boundary on its target platform.
+  if (process.platform !== "win32") {t.skip("Windows host");return;}
+  await assert.rejects(publish.run(args,context),/index.html/);
+  const created = await publish.run(input,context);
+  assert.equal(created.version,1);
+  const db = (await import("./store.mjs")).openArtifacts(root);
+  try {assert.deepEqual({...db.origin(created.id)},{environmentId:"local",threadId:"thread-one"});}
+  finally {db.close();}
+  await assert.rejects(publish.run({...input,id:created.id,expectedVersion:0},context),/версия — 1/);
 });

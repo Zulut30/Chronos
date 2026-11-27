@@ -39,4 +39,5 @@ jobs:
           node chronos/scripts/upstream-plan.mjs nightly FETCH_HEAD | tee "$RUNNER_TEMP/report"
           echo '~~~~text' >> "$GITHUB_STEP_SUMMARY"
           cat "$RUNNER_TEMP/report" >> "$GITHUB_STEP_SUMMARY"
+          node chronos/scripts/parity/host-seams.mjs --upstream "$pinned" "$sha" | tee -a "$GITHUB_STEP_SUMMARY"
           echo '~~~~' >> "$GITHUB_STEP_SUMMARY"

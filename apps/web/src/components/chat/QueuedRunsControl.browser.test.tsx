@@ -299,6 +299,9 @@ it("shows who sent a queued message and folds automation and agent prompts", asy
   };
   const onOpenThread = vi.fn();
   await using _screen = await renderQueue({ onOpenThread });
+  await expect
+    .element(page.getByText("Queued · will be sent after the current turn"))
+    .toBeVisible();
   // Four rows collapse the queue.
   await page.getByRole("button", { name: "Show all 4 queued" }).click();
 

@@ -8986,6 +8986,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
             id: sqlShell.id,
             status: sqlShell.status,
             lastErrorClass: sqlShell.lastErrorClass,
+            lastErrorCode: sqlShell.lastErrorCode,
             usageLimitResetAt: sqlShell.usageLimitResetAt,
             latestRunId: sqlShell.latestRunId,
             latestRunCompletedAt: sqlShell.latestRunCompletedAt,

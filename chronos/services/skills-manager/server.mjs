@@ -31,9 +31,9 @@ const err = (msg, status = 400) => Object.assign(new Error(msg), { status });
 const checkName = (n) => { if (!NAME_RE.test(String(n || ''))) throw err('Некорректное имя скилла'); return n; };
 
 // ---------- helpers ----------
-function run(cmd, args, { input, timeout = 60000, cwd } = {}) {
+function run(cmd, args, { input, timeout = 60000, cwd, env } = {}) {
   return new Promise((resolve) => {
-    const p = spawn(cmd, args, { cwd, windowsHide: true });
+    const p = spawn(cmd, args, { cwd, env, windowsHide: true });
     const chunks = []; let errs = '';
     const t = setTimeout(() => { p.kill(); errs += '\nTimeout'; }, timeout);
     p.stdout.on('data', (d) => chunks.push(d));
@@ -121,11 +121,18 @@ function sshHosts() {
 // Hosts with an active T3 SSH tunnel — detected in the background (PowerShell is slow), never blocks a request.
 let tunnels = new Set(), tunnelsAt = 0, tunnelsBusy = false;
 function refreshTunnels() {
-  if (process.platform !== 'win32' || tunnelsBusy || Date.now() - tunnelsAt < 120000) return;
+  if (tunnelsBusy || Date.now() - tunnelsAt < 120000) return;
   tunnelsBusy = true;
-  run('powershell.exe', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process -Filter \"Name='ssh.exe'\" | ForEach-Object { $_.CommandLine }"], { timeout: 20000 }).then((r) => {
+  const probe = process.platform === 'win32'
+    ? run('powershell.exe', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process -Filter \"Name='ssh.exe'\" | ForEach-Object { $_.CommandLine }"], { timeout: 20000 })
+    : run('ps', ['-A', '-ww', '-o', 'args='], { timeout: 10000, env: { ...process.env, LC_ALL: 'C' } });
+  probe.then((r) => {
     const set = new Set();
-    for (const line of r.out.toString().split(/\r?\n/)) if (/-L\s*\d+:127\.0\.0\.1:3773/.test(line)) { const m = /--\s+(?:[^@\s]+@)?(\S+)\s*$/.exec(line.trim()); if (m) set.add(m[1]); }
+    for (const line of r.out.toString().split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (process.platform !== 'win32' && !/(?:^|\/)ssh(?:\s|$)/.test(trimmed)) continue;
+      if (/-L\s*\d+:127\.0\.0\.1:3773/.test(trimmed)) { const m = /--\s+(?:[^@\s]+@)?(\S+)\s*$/.exec(trimmed); if (m) set.add(m[1]); }
+    }
     tunnels = set; tunnelsAt = Date.now();
   }).finally(() => { tunnelsBusy = false; });
 }
@@ -685,7 +692,7 @@ const server = http.createServer(async (req, res) => {
       if (u.pathname === '/api/install') return send(res, 200, { results: await install(b.source, b.skillId, await targets(), !!b.overwrite, b.name) });
       if (u.pathname === '/api/create') return send(res, 200, { results: await createSkill(b.name, b.description, b.markdown, await targets()) });
       if (u.pathname === '/api/upstream') return send(res, 200, await upstream(Array.isArray(b.names) ? b.names : []));
-      if (u.pathname === '/api/reveal') { const l = await loc(b.loc); if (l.kind === 'local') { const dir = b.name && NAME_RE.test(b.name) ? localDir(l, b.name, !!b.disabled) : l.path; await fsp.mkdir(l.path, { recursive: true }); spawn(process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open', [dir], { detached: true, windowsHide: false }).unref(); } return send(res, 200, { ok: true }); }
+      if (u.pathname === '/api/reveal') { const l = await loc(b.loc); if (l.kind === 'local') { const dir = b.name && NAME_RE.test(b.name) ? localDir(l, b.name, !!b.disabled) : l.path; await fsp.mkdir(l.path, { recursive: true }); spawn(process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'explorer.exe' : 'xdg-open', [dir], { detached: true, stdio: 'ignore', windowsHide: false }).unref(); } return send(res, 200, { ok: true }); }
     }
     send(res, 404, { error: 'not found' });
   } catch (e) { send(res, e.status || 500, { error: e.message || String(e) }); }

@@ -1,7 +1,31 @@
 const { spawn } = require("node:child_process");
-const { existsSync, mkdirSync, mkdtempSync, writeFileSync } = require("node:fs");
+const { accessSync, constants, existsSync, mkdirSync, mkdtempSync, writeFileSync } = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
+
+function checkAvailability(tools, platform = process.platform) {
+  const required =
+    platform === "win32"
+      ? ["agent-desktop.exe"]
+      : platform === "darwin"
+        ? ["agent-desktop", "agent-desktop-macos-helper"]
+        : ["agent-desktop"];
+  const mode = platform === "win32" ? constants.F_OK : constants.X_OK;
+  for (const name of required) {
+    try {
+      accessSync(path.join(tools, name), mode);
+    } catch {
+      return {
+        available: false,
+        reason:
+          platform === "darwin"
+            ? "Управление ПК недоступно на этом Mac: компонент agent-desktop не найден в сборке."
+            : "Управление ПК недоступно: компонент agent-desktop не найден в сборке.",
+      };
+    }
+  }
+  return { available: true };
+}
 
 function execute(file, args, { env, cwd, signal, stdin = "" }) {
   return new Promise((resolve, reject) => {
@@ -303,4 +327,4 @@ function makeNative(tools, stateDir, runBrowser = execute) {
   };
 }
 
-module.exports = { makeNative, desktopRefs };
+module.exports = { makeNative, desktopRefs, checkAvailability };

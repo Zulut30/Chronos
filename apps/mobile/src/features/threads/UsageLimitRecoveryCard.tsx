@@ -5,6 +5,7 @@ import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/shell
 import { limitRecoveryOwnsSnooze } from "@t3tools/client-runtime/state/thread-execution";
 import type { EnvironmentId } from "@t3tools/contracts";
 import {
+  ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE,
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_USAGE_URL,
   CHATGPT_WORKSPACE_ADMIN_REQUEST,
@@ -157,6 +158,11 @@ export function UsageLimitRecoveryCard({
         </View>
       ) : null}
       <View className="min-w-0 flex-1 gap-1">
+        {code === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE ? (
+          <Text className="text-sm font-t3-medium text-foreground">
+            <T>Antigravity subscription quota reached</T>
+          </Text>
+        ) : null}
         {chatGptLimit ? (
           <Text className="text-sm font-t3-medium text-foreground">
             <T>ChatGPT usage limit reached</T>
@@ -204,7 +210,9 @@ export function UsageLimitRecoveryCard({
                       ? gt("Cancel auto-resume")
                       : resetPassed
                         ? gt("Resume now")
-                        : gt("Resume at reset")
+                        : code === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+                          ? gt("Continue after reset")
+                          : gt("Resume at reset")
                   }
                   disabled={pending}
                   onPress={() => void toggle("resume")}

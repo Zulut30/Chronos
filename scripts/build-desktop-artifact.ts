@@ -32,6 +32,8 @@ import desktopPackageJson from "../apps/desktop/package.json" with { type: "json
 import gnomeCaptureBundle from "../apps/desktop/gnome-extension/bundle.json" with { type: "json" };
 import serverPackageJson from "../apps/server/package.json" with { type: "json" };
 
+import { windowsPayloadExclusions } from "./lib/windows-payload.ts";
+import { chronosUpdateFeed } from "./lib/chronos-update-feed.ts";
 import {
   ReleasePackageManifestError,
   releasePackageFiles,
@@ -43,6 +45,7 @@ import {
   resolveWebAssetBrandForChannel,
   type WebAssetBrand,
 } from "./lib/brand-assets.ts";
+import { chronosResources } from "./lib/chronos-resources.ts";
 import { getDefaultBuildArch } from "./lib/build-target-arch.ts";
 import {
   findInlinedExternalPackages,
@@ -1055,6 +1058,7 @@ export const WINDOWS_SERVER_ASAR_IGNORE_GLOBS = [
   "**/node_modules/@cursor/sdk-*/**",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*",
   "**/node_modules/@anthropic-ai/claude-agent-sdk-*/**",
+  ...windowsPayloadExclusions,
   "**/node_modules/.bin",
   "**/node_modules/.bin/**",
   "**/*.map",
@@ -2853,6 +2857,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
+      ...(platform === "win" ? windowsPayloadExclusions.map((glob) => `!${glob}`) : []),
       ...(platform === "mac"
         ? resolveMacFileExclusions(arch)
         : platform === "linux"
@@ -2868,17 +2873,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       : { asarUnpack: ["**/node_modules/@transcribe-cpp/**/*.{dylib,so,so.*}"] }),
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
-      // chronos: platform-specific, SHA256-verified native automation tools.
-      ...(isChronosVersion(version) ? [{ from: "apps/desktop/prod-resources/chronos-pc", to: "chronos-pc" }] : []),
-      // chronos: stage the runtime allowlist from the checkout outside the app archive.
-      ...(isChronosVersion(version) ? [{
-        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/services"),
-        to: "chronos-services",
-        filter: ["**/*", "!**/*.test.mjs"],
-      }, {
-        from: (yield* Path.Path).join(yield* RepoRoot, "chronos/brand/themes/olympus.json"),
-        to: "chronos-themes/olympus.json",
-      }] : []),
+      ...(isChronosVersion(version) ? chronosResources(yield* RepoRoot, yield* Path.Path) : []),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "mac" ? MAC_APPLE_SPEECH_EXTRA_RESOURCES : []),
@@ -2893,7 +2888,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // chronos: updates come from the newest Chronos GitHub release. The feed is the
     // `releases/latest/download` redirect, so release tags need not be semver.
     buildConfig.publish = [
-      { provider: "generic", url: CHRONOS_UPDATE_FEED_URL, channel: updateChannel },
+      chronosUpdateFeed(CHRONOS_UPDATE_FEED_URL, updateChannel),
     ];
   } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
@@ -2912,6 +2907,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
+    // chronos: unsigned macOS Chronos builds write ElectronAsarIntegrity and ad-hoc sign after packing.
+    if (isChronosVersion(version) && !signed) {
+      buildConfig.afterPack = path.join(repoRoot, "chronos/scripts/macos-after-pack.cjs");
+    }
+    const macBrandName = isChronosVersion(version) ? CHRONOS_PRODUCT_NAME : "T3 Code";
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
@@ -2919,24 +2919,15 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       extendInfo: {
         // macOS 26 offers Messages/Mail codes in every text field unless opted out.
         NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
-        NSLocalNetworkUsageDescription:
-          "T3 Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
-        NSCalendarsUsageDescription:
-          "Commands you run in T3 Code may need access to your calendars.",
-        NSCalendarsFullAccessUsageDescription:
-          "Commands you run in T3 Code may need to read and write your calendar events.",
-        NSCalendarsWriteOnlyAccessUsageDescription:
-          "Commands you run in T3 Code may need to add events to your calendars.",
-        NSScreenCaptureUsageDescription:
-          "T3 Code captures the active window when you use the window capture shortcut.",
-        NSCameraUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the camera.",
-        NSMicrophoneUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the microphone.",
-        NSAppleEventsUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents control other apps.",
-        NSSpeechRecognitionUsageDescription:
-          "T3 Code transcribes your dictation on this Mac when you choose Apple Speech.",
+        NSLocalNetworkUsageDescription: `${macBrandName} connects to devices on your local network for remote environments and commands run by terminals and coding agents.`,
+        NSCalendarsUsageDescription: `Commands you run in ${macBrandName} may need access to your calendars.`,
+        NSCalendarsFullAccessUsageDescription: `Commands you run in ${macBrandName} may need to read and write your calendar events.`,
+        NSCalendarsWriteOnlyAccessUsageDescription: `Commands you run in ${macBrandName} may need to add events to your calendars.`,
+        NSScreenCaptureUsageDescription: `${macBrandName} captures the active window when you use the window capture shortcut.`,
+        NSCameraUsageDescription: `${macBrandName} lets commands run by terminals and coding agents use the camera.`,
+        NSMicrophoneUsageDescription: `${macBrandName} lets commands run by terminals and coding agents use the microphone.`,
+        NSAppleEventsUsageDescription: `${macBrandName} lets commands run by terminals and coding agents control other apps.`,
+        NSSpeechRecognitionUsageDescription: `${macBrandName} transcribes your dictation on this Mac when you choose Apple Speech.`,
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2950,7 +2941,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
-          name: "T3 Code",
+          name: macBrandName,
           // chronos: standalone Chronos registers chronos:// instead of stealing t3code://.
           schemes: isChronosVersion(version) ? [CHRONOS_SCHEME] : ["t3code", "t3code-dev"],
         },
@@ -4008,6 +3999,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
           arch: options.arch,
           fffNodeVersion: serverPackageJson.dependencies["@ff-labs/fff-node"],
         });
+  // Windows runs the browser provider from server.asar, which carries its own complete Playwright.
+  if (options.platform === "win") delete stageDependencies["playwright-core"];
   const stagePatchedDependencies = createStagePatchedDependencies(
     workspacePatchedDependencies,
     stageDependencies,

@@ -1,0 +1,5 @@
+{
+  "idle-ui": ["disabled", "ui8"],
+  "runtime": ["unused", "storage", "claudeAgent", "codex"],
+  "interface": ["ui16", "ui0"]
+}

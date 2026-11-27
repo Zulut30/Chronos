@@ -3,6 +3,7 @@ import * as Effect from "effect/Effect";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { isChronosVersion } from "@t3tools/shared/cliRelease";
 
+import { registerArtifactLibrary } from "../artifacts.ts";
 import type { DesktopEnvironment } from "../../app/DesktopEnvironment.ts";
 import { createServiceHost, probe, services, supervise } from "./Sidecars.ts";
 import { rehearsalOffset } from "./ServiceOrigins.ts";
@@ -12,6 +13,9 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
   environment: DesktopEnvironment["Service"],
 ) {
   if (!environment.isPackaged || !isChronosVersion(environment.appVersion)) return;
+  yield* Effect.acquireRelease(Effect.sync(registerArtifactLibrary), stop => Effect.sync(stop));
+  const env = yield* HostProcess.Environment;
+  if (env.CHRONOS_DISABLE_SERVICES === "1") return; // chronos: isolated package verification on a shared desktop
   const options = {
     baseDir: environment.baseDir,
     platform: environment.platform,
@@ -25,7 +29,7 @@ export const startChronosServices = Effect.fn("ChronosServices.start")(function*
       window.webContents.send("chronos:show-artifact",id,confirmDelete);
       return true;
     },
-    env: yield* HostProcess.Environment,
+    env,
   };
   yield* Effect.acquireRelease(
     Effect.sync(() => {

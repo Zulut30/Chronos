@@ -974,6 +974,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
                   minHeight: `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
                 }
         }
+        data-chronos-model-picker=""
         data-model-picker-content="true"
       >
         {showSidebar && (

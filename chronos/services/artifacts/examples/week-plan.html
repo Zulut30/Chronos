@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>План недели</title>
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@ui-sdk/web@0.1.0-beta.17/browser/web/tabs.js"></script>
+  <style>
+    @layer ui-sdk;
+    :root {
+      color-scheme: light dark;
+      --plan-paper: light-dark(#fbfaf6, #20241f);
+      --plan-ink: light-dark(#232c25, #f0f3eb);
+      --plan-accent: light-dark(#245a39, #ace4b8);
+      --plan-on-accent: light-dark(#fff, #18271d);
+      --plan-edge: light-dark(#647566, #94aa96);
+    }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--plan-paper); color: var(--plan-ink); font: 1rem/1.55 system-ui, sans-serif; }
+    main { max-width: 38rem; margin: auto; padding: clamp(1rem, 6vw, 3rem) 1rem; }
+    h1 { font: 2.5rem/1.15 Georgia, serif; }
+    h2 { font-size: 1.2rem; }
+    ul { padding-inline-start: 1.4rem; }
+    ui-tabs-list:not(:defined) { display: none; }
+    [data-slot="tabs-list"] { display: flex; flex-wrap: wrap; gap: .5rem; }
+    [data-slot="tabs-tab"] {
+      border: 1px solid var(--plan-edge); border-radius: .45rem; padding: .5rem 1rem;
+      background: var(--plan-paper); color: var(--plan-ink); font: inherit; cursor: pointer;
+    }
+    [data-slot="tabs-tab"][data-selected] { background: var(--plan-accent); color: var(--plan-on-accent); }
+    :focus-visible { outline: 3px solid var(--plan-accent); outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>План недели</h1>
+    <ui-tabs default-value="tasks">
+      <ui-tabs-list aria-label="Разделы плана">
+        <ui-tabs-tab value="tasks"><button type="button">Задачи</button></ui-tabs-tab>
+        <ui-tabs-tab value="meetings"><button type="button">Встречи</button></ui-tabs-tab>
+      </ui-tabs-list>
+      <ui-tabs-panel value="tasks">
+        <h2>До пятницы</h2>
+        <ul><li>Собрать замечания к макету.</li><li>Подготовить прототип к показу.</li></ul>
+      </ui-tabs-panel>
+      <ui-tabs-panel value="meetings">
+        <h2>В календаре</h2>
+        <ul><li>Среда, 11:00 — обсуждение макета.</li><li>Пятница, 15:00 — показ прототипа.</li></ul>
+      </ui-tabs-panel>
+    </ui-tabs>
+  </main>
+</body>
+</html>

@@ -84,7 +84,7 @@ export function olympusL10n(): Plugin {
           // need an additional source-literal pass. Shared imports keep a single identity.
           const isMain = chunk.type === "chunk" && chunk.moduleIds.some(id => id.replaceAll("\\", "/") === mainId);
           const ownsRussianCopy = chunk.type === "chunk" && chunk.moduleIds.some(id =>
-            /\/(?:src\/chronos\/|components\/(?:sidebar\/SidebarChrome|settings\/settingsSearch)\.)/u.test(id.replaceAll("\\", "/")));
+            /\/(?:src\/chronos\/|chronos\/l10n\/artifacts\.ru\.json$|components\/(?:sidebar\/SidebarChrome|settings\/settingsSearch)\.)/u.test(id.replaceAll("\\", "/")));
           const sourceEnglish = ownsRussianCopy ? englishLiterals(original, parse, english) : original;
           if (edits.length || isMain || sourceEnglish !== original) {
             imports["/" + chunk.fileName] = englishAsset(this,

@@ -1,11 +1,21 @@
+import { verifyAnchors, verifyPickerContext, globals } from "./verify-seams.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+function resourcesDir(exe) {
+  return process.platform === "darwin"
+    ? join(dirname(exe), "..", "Resources")
+    : join(dirname(exe), "resources");
+}
+
 function seedChat(exe, home) {
   const dir = mkdtempSync(join(process.env.RUNNER_TEMP, "theme-demo-"));
-  const entry = join(dirname(exe), "resources/server.asar/apps/server/dist/bin.mjs");
+  const resDir = resourcesDir(exe);
+  const entry = process.platform === "win32"
+    ? join(resDir, "server.asar/apps/server/dist/bin.mjs")
+    : join(resDir, "app.asar/apps/server/dist/bin.mjs");
   const cli = (...args) => execFileSync(exe, [entry, ...args, "--base-dir", home], {
     cwd: dir, encoding: "utf8", timeout: 60000,
     env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", T3CODE_HOME: home },
@@ -31,9 +41,11 @@ function seedChat(exe, home) {
 export async function verifyOlympusScreens({ client, opts, checks, ready, settle, classify }) {
   // This test provisions a provider and a project. Only enable it on the disposable hosted runner.
   assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
+  const globalState = await client.probe("checkGlobals", { expected: Object.keys(globals) });
+  assert.ok(globalState.ok, globalState.missing.map(name => "Olympus " + globals[name] + " / " + name).join("\n"));
   const home = process.env.CHRONOS_HOME;
   assert.equal(resolve(home), resolve(process.env.RUNNER_TEMP, "chronos-home"));
-  const source = join(dirname(opts.launch), "resources/chronos-themes/olympus.json");
+  const source = join(resourcesDir(opts.launch), "chronos-themes/olympus.json");
   assert.deepEqual(readFileSync(join(home, "userdata/themes/olympus.json")), readFileSync(source));
   const folder = join(opts.outDir, "theme");
   mkdirSync(folder, { recursive: true });
@@ -99,6 +111,7 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
 
   await act({ type: "navigate", to: "/settings/general" });
   await wait({ selector: "[data-oly-ps-nav-button]" });
+  await verifyAnchors(ready, client, "settings");
   await focus("[data-settings-section='/settings/providers']");
   for (const selector of ["[data-oly-ik-nav] button", "[data-oly-mcp-nav] button", "[data-oly-ps-nav-button]"]) {
     await press("ArrowDown", 40);
@@ -161,13 +174,26 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   assert.ok(!preference.exceptionDetails);
   await act({ type: "navigate", to: thread });
   await wait({ selector: "[data-message-role=assistant] .chat-markdown :not(pre) > code" });
+  // The file manager keeps its platform name: Explorer is translated, Finder stays as is.
+  const openInFileManager = process.platform === "darwin" ? "Открыть в Finder" : "Открыть в Проводнике";
   await wait({ assertions: [{
-    selector: "button[data-toolbar-control][aria-label='Открыть в Проводнике']",
-    text: "Открыть в Проводнике",
+    selector: `button[data-toolbar-control][aria-label='${openInFileManager}']`,
+    text: openInFileManager,
   }] });
   for (const dark of [true, false]) {
     await scheme(dark);
     await capture("chat", dark);
   }
+  await verifyAnchors(ready, client, "chat");
+  const card = "[data-thread-details-card]";
+  const wasOpen = (await client.probe("checkReady", { selector: card })).ready;
+  if (!wasOpen) await act({ type: "click", selector: "[data-thread-panel-toggle] button" });
+  await verifyAnchors(ready, client, "details");
+  if (!wasOpen) await act({ type: "click", selector: "[data-thread-panel-toggle] button" });
+
+  await act({ type: "click", selector: "[data-chat-provider-model-picker]" });
+  await verifyAnchors(ready, client, "picker");
+  await verifyPickerContext(client);
+  await press("Escape", 27);
   return results;
 }

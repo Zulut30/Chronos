@@ -8,10 +8,10 @@ let store;
 const db = () => store ??= openArtifacts(process.env.CHRONOS_HOME);
 const prefix = "persist:chronos-artifact-";
 function identify(event) {
-  const id = sessions.get(event.sender.session);
+  const {id, version} = sessions.get(event.sender.session) ?? {};
   if (!id || !event.senderFrame || event.senderFrame !== event.sender.mainFrame || !own(new URL(event.senderFrame.url),id))
     throw Error("Запрос вне артефакта");
-  return id;
+  return {id,version};
 }
 function trustedArtifact(event,id) {
   if (!uuid.test(id) || !event.senderFrame || event.senderFrame !== event.sender.mainFrame ||
@@ -35,7 +35,8 @@ ipcMain.handle("chronos:artifact-install",(event,id,image,theme)=>{
 });
 const fileDialogs = new WeakSet();
 ipcMain.handle("chronos:artifact-api",async (event,method,args = {}) => {
-  const id = identify(event);
+  const {id,version} = identify(event);
+  if (version && !["db.get","db.list","db.query"].includes(method)) throw Error("Историческая версия открыта для чтения");
   const capability = method.startsWith("db.") ? "db" : method;
   if (!db().metadata(id).capabilities.includes(capability)) throw Error("Возможность отключена");
   if (capability === "db") return db().documents(id, method.slice(3),args);
@@ -64,28 +65,29 @@ ipcMain.handle("chronos:artifact-api",async (event,method,args = {}) => {
     return true;
   } finally {fileDialogs.delete(event.sender);}
 });
-function preferences(id) {
+function preferences(id,version) {
   if (!uuid.test(id)) throw Error("Некорректный адрес");
-  const {capabilities} = db().metadata(id);
-  const ses = session.fromPartition(prefix+id);
+  const {capabilities} = db().metadata(id,version);
+  const partition = version ? "chronos-artifact-history-"+id+"-"+version : prefix+id;
+  const ses = session.fromPartition(partition);
   if (!sessions.has(ses)) {
-    sessions.set(ses,id);
-    ses.protocol.handle("chronos-artifact",req => resource(db(),id,req.url));
+    sessions.set(ses,{id,version});
+    ses.protocol.handle("chronos-artifact",req => resource(db(),id,req.url,version));
     ses.webRequest.onBeforeRequest((req,reply) => {
       const url = URL.parse(req.url);
-      reply({cancel:!url || !allowed(url,id,req.resourceType === "mainFrame")});
+      reply({cancel:!url || !allowed(url,id,req.resourceType === "mainFrame",req.resourceType)});
     });
     ses.setPermissionRequestHandler((_wc,_perm,reply) => reply(false));
     ses.setPermissionCheckHandler(() => false);
     ses.on("will-download",event => event.preventDefault());
     ses.setDevicePermissionHandler(() => false);
   }
-  return {partition:prefix+id,sandbox:true,nodeIntegration:false,nodeIntegrationInSubFrames:false,
+  return {partition,sandbox:true,nodeIntegration:false,nodeIntegrationInSubFrames:false,
     contextIsolation:true,webSecurity:true,webviewTag:false,plugins:false,
     preload:path.join(__dirname,"preload.cjs"),additionalArguments:["--artifact-caps="+capabilities.join(",")]};
 }
 function protect(contents) {
-  const id = sessions.get(contents.session);
+  const {id} = sessions.get(contents.session) ?? {};
   if (!id) return false;
   contents.setWindowOpenHandler(()=>({action:"deny"}));
   contents.setWebRTCIPHandlingPolicy("disable_non_proxied_udp");
@@ -96,10 +98,11 @@ function protect(contents) {
   return true;
 }
 function attach(event,prefs,params) {
-  const id = String(params.partition).slice(prefix.length);
+  const historic = /^chronos-artifact-history-([a-f0-9-]{36})-([1-9][0-9]*)$/.exec(params.partition);
+  const id = historic ? historic[1] : String(params.partition).slice(prefix.length);
   try {
     if (!uuid.test(id) || !own(new URL(params.src),id)) throw Error("Неверный адрес");
-    Object.assign(prefs,preferences(id));
+    Object.assign(prefs,preferences(id,historic ? Number(historic[2]) : undefined));
     delete params.allowpopups;
   } catch {event.preventDefault();}
 }

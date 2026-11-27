@@ -2,7 +2,7 @@
 // templates, boards and skill documents are outside the translation surface.
 const attributes = ["aria-label", "placeholder", "title", "alt", "label"];
 const alwaysSkip = [
-  "script", "style", "pre", "code", ".chat-markdown", "[data-user-message-bubble]",
+  "script", "style", "pre", "code", "[data-chronos-markdown]", ".chat-markdown", "[data-chronos-editor]", "[data-user-message-bubble]",
   "[contenteditable=true]", ".composer-tiptap", ".xterm", "[translate=no]:not(html)",
   "[data-oly-ps-name] h3", "[data-oly-ps-name] p", ".oly-tk-card .t", ".oly-tk-card .d",
   ".oly-tk-label", ".oly-tk-md", ".oly-tk-n .x", ".oly-tk-n .w b",

@@ -263,6 +263,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   return (
     <nav
       ref={navRef}
+      data-chronos-settings-nav=""
       {...navArea}
       role="navigation"
       className={cn(
