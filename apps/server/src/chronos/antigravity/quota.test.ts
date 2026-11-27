@@ -1,7 +1,8 @@
+// @effect-diagnostics nodeBuiltinImport:off -- The fixture checks a real Windows directory junction and temporary-home cleanup.
 import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { parseQuota, readNativeQuota } from "./quota.ts";
 
 const group = {
