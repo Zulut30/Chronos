@@ -243,7 +243,8 @@ html.embedded, .embedded body { background: var(--surface, var(--bg)); }
 .embedded ::-webkit-scrollbar, html.embedded::-webkit-scrollbar { width: 6px; height: 6px; }
 html.embedded::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: var(--radius); }
 .embedded[data-olympus-day] .card-head h2 {
-  font: 500 27px/1.1 "Cormorant Garamond", Didot, Georgia, serif;
+  font: 600 1.375rem/1.25 var(--t3-font, "Inter Variable", system-ui, sans-serif);
+  letter-spacing: -0.015em;
 }
 .embedded[data-olympus-day] .list { border-radius: var(--radius); }
 .embedded .card-head .count { font: 400 .75rem/1.5 var(--t3-font, system-ui); }
