@@ -6,6 +6,7 @@ import * as OtelEnvironment from "@t3tools/shared/otelEnvironment";
 import { localTraceRetention } from "../chronos/perf/localTraceRetention.ts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as LogLevel from "effect/LogLevel";
 import * as References from "effect/References";
 import * as Tracer from "effect/Tracer";
 import * as OtlpExporter from "effect/observability/OtlpExporter";
@@ -71,6 +72,9 @@ export const layer = Layer.unwrap(
           maxFiles: config.traceMaxFiles,
           batchWindowMs: config.traceBatchWindowMs,
           sink,
+          sampleRoutineSpans:
+            config.traceTimingEnabled &&
+            LogLevel.isGreaterThanOrEqualTo(config.traceMinLevel, "Info"),
           // chronos: sample only successful, quiet spans sent to the local file.
           keepLocalSpan: yield* localTraceRetention,
           ...(delegate ? { delegate } : {}),
