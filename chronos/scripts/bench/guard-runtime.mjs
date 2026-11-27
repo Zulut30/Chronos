@@ -11,7 +11,7 @@ import { createSandbox } from "./sandbox.mjs";
 const [distribution, scenario, output, claudeExperiment] = process.argv.slice(2);
 assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
 assert.equal(process.platform, "win32");
-assert(["unused", "disabled", "claudeAgent", "codex", "antigravity"].includes(scenario));
+assert(["unused", "disabled", "darkDraft", "claudeAgent", "codex", "antigravity"].includes(scenario));
 const acp = scenario === "antigravity";
 if (claudeExperiment && !acp) {
   assert.equal(scenario, "claudeAgent");
@@ -20,7 +20,8 @@ if (claudeExperiment && !acp) {
 const idleExperiment = claudeExperiment?.startsWith("idle-");
 let experimentResult;
 let experimentThreadId;
-const idle = ["unused", "disabled"].includes(scenario);
+const darkDraft = scenario === "darkDraft";
+const idle = darkDraft || ["unused", "disabled"].includes(scenario);
 const sb = createSandbox(1, 1);
 const exe = resolve(distribution, "Chronos.exe");
 const entry = resolve(distribution, "resources/server.asar/apps/server/dist/bin.mjs");
@@ -28,6 +29,10 @@ const env = sb.env;
 const settingsFile = join(sb.userdata, "settings.json");
 const settings = JSON.parse(readFileSync(settingsFile));
 delete settings.backgroundActivityProfile;
+if (darkDraft) {
+  settings.defaultTheme = "olympus";
+  settings.defaultAppearance = "dark";
+}
 const port = await sb.port();
 const origin = "http://127.0.0.1:" + port;
 let cdp, rpc, mock, binary;
@@ -125,7 +130,8 @@ try {
   const stateFile = join(sb.userdata, "server-runtime.json");
   const state = await sb.wait("private server", () => existsSync(stateFile) && JSON.parse(readFileSync(stateFile)));
   assert.equal(state.origin, origin);
-  let pcControl;
+  let pcControl, readDraft;
+  let draftStart;
   if (idle) {
     const pages = "http://127.0.0.1:" + debug + "/json/list";
     const page = await sb.wait("Chronos window", async () => (await (await fetch(pages)).json()).find(t => t.url.startsWith("t3code://app") && t.type === "page"));
@@ -150,7 +156,17 @@ try {
       pcControl = await evaluate("window.chronosPC.settings({op:'state'}).then(s => s.settings.enabled)");
       assert.equal(pcControl, scenario === "unused", "PC control did not restore the expected idle policy");
     }
-    await sleep(30000);
+    if (darkDraft) {
+      const { prepareIdleDraft, readIdleDraft } = await import("../smoke/idle-draft.mjs");
+      const source = readFileSync(new URL("../smoke/page-probes.js", import.meta.url), "utf8").trim().replace(/;+$/, "");
+      const probe = (action, arg) => evaluate(source + "(" + JSON.stringify(action) + "," + JSON.stringify(arg ?? null) + ")");
+      await prepareIdleDraft(probe, (method, params) => cdp.call(method, params));
+      await sleep(16000);
+      readDraft = () => readIdleDraft(probe, process.env.GUARD_CANDIDATE === "1");
+      draftStart = await readDraft();
+    } else {
+      await sleep(30000);
+    }
   } else {
     assert.equal(state.pid, app.pid);
     const bearer = sb.run(exe, [entry, "auth", "session", "issue", "--token-only", "--label", "guard"], { ...env, ELECTRON_RUN_AS_NODE: "1" }).trim();
@@ -187,9 +203,13 @@ try {
     }
   }
   const args = ["-NoProfile", "-File", join(import.meta.dirname, "guard-process.ps1"), "-RootPid", String(app.pid), "-ServerPid", String(state.pid)];
+  if (darkDraft) args.push("-DarkDraft");
   if (binary) args.push("-AgentExe", binary);
   if (claudeExperiment) args.push("-MemoryMap");
   const sample = idleExperiment ? {} : JSON.parse(execFileSync("pwsh", args, { encoding: "utf8", timeout: 75000 }));
+  if (readDraft) {
+    sample.draft = { start: draftStart, end: await readDraft() };
+  }
   if (claudeExperiment) Object.assign(sample, { claudeExperiment }, experimentResult);
   if (claudeExperiment === "default" && process.env.BENCH_CLAUDE_DIAGNOSTICS === "1") {
     const { heapDiagnostics } = await import("./claude-experiment.mjs");

@@ -85,11 +85,12 @@ export function SettingsScopeSentence() {
   const project = <ProjectScopeMenu {...props} />;
   const environment = <EnvironmentScopeMenu {...props} />;
   const checkout = <CheckoutScopeMenu {...props} />;
+  // chronos: keep the native rich-message IDs when Olympus translates nested menu captions.
   const onEnvironment = scope.search.machine || scope.scope.kind === "checkout";
   return (
     <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 px-3 text-sm text-muted-foreground sm:px-4">
       {onEnvironment && hasCheckouts ? (
-        <T context="settings scope sentence; each variable is a menu">
+        <T _hash="c1b8c351aa90f319" context="settings scope sentence; each variable is a menu">
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="shrink-0">Applying settings for</span>
             <Var>{project}</Var>
@@ -104,7 +105,7 @@ export function SettingsScopeSentence() {
           </span>
         </T>
       ) : onEnvironment ? (
-        <T context="settings scope sentence; each variable is a menu">
+        <T _hash="6de8a5700498d20f" context="settings scope sentence; each variable is a menu">
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="shrink-0">Applying settings for</span>
             <Var>{project}</Var>
@@ -115,7 +116,7 @@ export function SettingsScopeSentence() {
           </span>
         </T>
       ) : hasCheckouts ? (
-        <T context="settings scope sentence; each variable is a menu">
+        <T _hash="fc2262bcc4a2e4f0" context="settings scope sentence; each variable is a menu">
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="shrink-0">Applying settings for</span>
             <Var>{project}</Var>
@@ -130,7 +131,7 @@ export function SettingsScopeSentence() {
           </span>
         </T>
       ) : (
-        <T context="settings scope sentence; each variable is a menu">
+        <T _hash="86d52b318b1a3e7a" context="settings scope sentence; each variable is a menu">
           <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="shrink-0">Applying settings for</span>
             <Var>{project}</Var>

@@ -38,7 +38,7 @@ function seedChat(exe, home) {
     .then(({ environmentId }) => "/" + environmentId + "/" + threadId);
 }
 
-export async function verifyOlympusScreens({ client, opts, checks, ready, settle, classify }) {
+export async function verifyOlympusScreens({ launchedPid, client, opts, checks, ready, settle, classify }) {
   // This test provisions a provider and a project. Only enable it on the disposable hosted runner.
   assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
   const home = process.env.CHRONOS_HOME;
@@ -106,6 +106,14 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
       await client.send("Input.dispatchKeyEvent", { type, key, code: key, windowsVirtualKeyCode, modifiers });
     }
   }
+
+  await act({ type: "navigate", to: "/settings/providers" });
+  await wait({ selector: "p:has(button) > span > .shrink-0" });
+  const scope = await client.send("Runtime.evaluate", {
+    expression: 'Array.from(document.querySelectorAll("p:has(button) > span > span.shrink-0"), el => el.textContent.trim())',
+    returnByValue: true,
+  });
+  assert.ok(scope.result.value.includes("на"), "Russian device preposition: " + JSON.stringify(scope.result.value));
 
   await act({ type: "navigate", to: "/settings/general" });
   await wait({ selector: "[data-oly-ps-nav-button]" });
@@ -177,6 +185,21 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
         await act({ type: "click", selector: "button", text: "Лимиты" });
         await wait({ assertions: [{ selector: "button[aria-pressed=true], button[data-pressed]", text: "Лимиты" }] });
         assert.ok(await client.probe("limitsSelected"), "limits view should be selected");
+      }
+      if (id === "home" && dark && process.platform === "darwin") {
+        // Earlier screenshots froze their document's animations with WAAPI.
+        const { measureMacDraft } = await import("./idle-draft-macos.mjs");
+        const motion = value => client.send("Emulation.setEmulatedMedia", {
+          features: [{ name: "prefers-reduced-motion", value }],
+        });
+        await motion("no-preference");
+        try {
+          const cpu = await measureMacDraft(client, launchedPid);
+          writeFileSync(join(folder, "idle-cpu.json"), JSON.stringify(cpu, null, 2));
+          console.log("Foreground dark draft CPU (% of one core):", JSON.stringify(cpu));
+        } finally {
+          if (checks.reducedMotion !== false) await motion("reduce");
+        }
       }
       await capture(id, dark, screen);
       for (const step of screen.teardown || []) await act(step);

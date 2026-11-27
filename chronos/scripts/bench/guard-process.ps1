@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][int]$RootPid, [int]$ServerPid, [string]$AgentExe, [switch]$ListAgents, [switch]$MemoryMap)
+param([Parameter(Mandatory)][int]$RootPid, [int]$ServerPid, [string]$AgentExe, [switch]$ListAgents, [switch]$MemoryMap, [switch]$DarkDraft)
 $ErrorActionPreference = 'Stop'
 if ($env:RUNNER_ENVIRONMENT -ne 'github-hosted') { throw 'Use a disposable Windows CI runner' }
 function Sample {
@@ -26,9 +26,13 @@ if ($ListAgents) {
 $clock = [Diagnostics.Stopwatch]::StartNew()
 # The desktop server has periodic work. Capture a full interval on both sides
 # instead of letting a single short initialization burst dominate CPU.
-Start-Sleep -Seconds $(if ($AgentExe) { 12 } else { 45 })
+Start-Sleep -Seconds $(if ($AgentExe) { 12 } elseif ($DarkDraft) { 30 } else { 45 })
 $last = @(Sample)
 $seconds = $clock.Elapsed.TotalSeconds
+if ($DarkDraft) {
+  if (!($first | Where-Object role -eq 'gpu') -or !($last | Where-Object role -eq 'gpu')) { throw 'GPU process missing from the dark draft' }
+  if ($first.Count -ne $last.Count) { throw 'Process tree changed during the dark draft sample' }
+}
 $result = @{}
 $required = if ($AgentExe) { @('agent') } else { @('main','server','renderer','olympus','total') }
 $optional = if ($AgentExe) { @() } else { @('gpu','utility','other') }

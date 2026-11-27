@@ -13,6 +13,13 @@ import { AppRoot } from "./AppRoot";
 import { whenLocaleReady } from "./i18n/runtime";
 import { chunkLoadState } from "./lib/chunkReloadGuard";
 
+// chronos: preserve theme animation phases while the window is idle.
+import { trackDecorativeMotion } from "./chronos/perf/decorativeMotion";
+import "./chronos/perf/decorativeMotion.css";
+
+const stopDecorativeMotion = trackDecorativeMotion(window, document);
+import.meta.hot?.dispose(stopDecorativeMotion);
+
 const stopTrackingKeyboardLayout = trackKeyboardLayout();
 import.meta.hot?.dispose(stopTrackingKeyboardLayout);
 

@@ -479,10 +479,10 @@ async function waitForAppHydrated(client, timeoutMs = 45_000) {
   throw new Error(`Chronos page did not hydrate within ${timeoutMs}ms: ${JSON.stringify(last)}`);
 }
 
-async function maybeDismissOnboarding(client, readyProvider) {
+async function maybeDismissOnboarding(client, readyProvider, verifyRussianNotice) {
   const info = await client.probe("appInfo");
   if (info.pathname !== "/welcome") return { dismissed: false };
-  const res = await client.probe("dismissOnboarding", { readyProvider });
+  const res = await client.probe("dismissOnboarding", { readyProvider, verifyRussianNotice });
   if (!res?.clicked) {
     return { dismissed: false, detail: res };
   }
@@ -569,7 +569,7 @@ async function run() {
     }
 
     let appInfo = await waitForAppHydrated(client, opts.launch ? opts.launchTimeoutMs : 20_000);
-    const onboarding = await maybeDismissOnboarding(client, opts.requireProvider);
+    const onboarding = await maybeDismissOnboarding(client, opts.requireProvider, opts.verifyOlympus);
     if (onboarding.dismissed) {
       await settleScreen(client, 800);
       appInfo = await client.probe("appInfo");
@@ -786,7 +786,7 @@ async function run() {
             const deadline = Date.now() + 8000;
             while (!(await client.probe("ensureDraft"))) {
               // On a fresh desktop the initial shell can hydrate before its welcome redirect.
-              const welcome = await maybeDismissOnboarding(client, opts.requireProvider);
+              const welcome = await maybeDismissOnboarding(client, opts.requireProvider, opts.verifyOlympus);
               if (welcome.dismissed) report.options.onboardingDismissed = true;
               if (Date.now() >= deadline && !welcome.dismissed) {
                 const info = await client.probe("appInfo");
@@ -912,7 +912,7 @@ async function run() {
     };
     report.ok = report.summary.failedChecks === 0;
     await runFeatureChecks({
-      client, opts, checks, report, ready: waitUntilReady, settle: settleScreen, classify: classifyEvents,
+      launchedPid: launchedChild?.pid, client, opts, checks, report, ready: waitUntilReady, settle: settleScreen, classify: classifyEvents,
     });
     writeFileSync(join(opts.outDir, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 

@@ -349,7 +349,8 @@ function TelemetryNotice({ environmentId }: { readonly environmentId: Environmen
   return (
     <p className="mt-auto pt-12 text-2xs leading-relaxed text-muted-foreground/70">
       {telemetryOff === undefined ? (
-        <T>
+        // chronos: post-build localization also touches the nested privacy link.
+        <T _hash="71f3822326109c8e">
           T3 Code collects anonymous usage data to improve the app. To opt out, see the{" "}
           <a
             className="underline decoration-current/40 underline-offset-2 hover:text-muted-foreground"

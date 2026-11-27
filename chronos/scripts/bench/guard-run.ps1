@@ -51,6 +51,7 @@ foreach ($round in 1..$budget.rounds) {
     $pkg = Join-Path $env:RUNNER_TEMP "package-$($pair.$side.run)/pkg"
     foreach ($scenario in $scenarios) {
       if (Get-ChildItem -LiteralPath $Results -Filter "$side-*-$scenario.json.failed") { continue }
+      $env:GUARD_CANDIDATE = if ($side -eq 'head') { '1' } else { '0' }
       $file = Join-Path $Results "$side-$round-$scenario.json"
       Write-Host "Measuring $side round $round $scenario"
       if ($scenario -like 'ui*') {

@@ -1,0 +1,8 @@
+/* The theme paints its halo, stars and glint on these three pseudo-elements.
+   Keep the images and keyframes, including the phase of each animation on resume. */
+:root:not(.chronos-motion-active) [data-workspace-area^="conv"] > .h-full.min-h-0::before,
+:root:not(.chronos-motion-active) [data-workspace-area^="conv"] > .h-full.min-h-0::after,
+:root:not(.chronos-motion-active) [data-slot="sidebar-inner"]::after,
+:root:not(.chronos-motion-active) .motion-safe\:animate-skeleton {
+  animation-play-state: paused !important;
+}
