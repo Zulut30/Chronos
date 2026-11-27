@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off -- This regression uses a private loopback HTTP fixture.
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import * as NodeHttp from "node:http";
+import type * as NodeNet from "node:net";
 import { expect, it, vi } from "vite-plus/test";
 import { isolateRehearsalRequests, rehearsalOffset } from "./SwitchRehearsal.ts";
 
@@ -20,7 +20,7 @@ vi.mock("electron", () => ({
 
 it("serves the skills iframe as HTML from its private port and never follows redirects or writes", async () => {
   const requests: string[] = [];
-  const server = createServer((req, res) => {
+  const server = NodeHttp.createServer((req, res) => {
     requests.push(req.method + " " + req.url);
     expect(req.headers.origin).toBe("t3code://app");
     if (req.url === "/redirect") res.writeHead(302, { Location: "/unexpected" });
@@ -29,7 +29,7 @@ it("serves the skills iframe as HTML from its private port and never follows red
   });
   await new Promise<void>((ready) => server.listen(0, "127.0.0.1", ready));
   try {
-    const port = (server.address() as AddressInfo).port - rehearsalOffset;
+    const port = (server.address() as NodeNet.AddressInfo).port - rehearsalOffset;
     fixture.services[0]!.port = port;
     isolateRehearsalRequests("28531");
     const handler = fixture.handle.mock.calls[0]![1];
