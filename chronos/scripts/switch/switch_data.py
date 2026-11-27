@@ -8,8 +8,6 @@ import shutil
 import sqlite3
 import tempfile
 
-import tomlkit
-
 
 class Conflict(Exception):
     pass
@@ -135,6 +133,8 @@ def agent_files(home):
 
 
 def agent_edit(path, t3, resources):
+    import tomlkit
+
     check_path(path)
     raw = path.read_bytes()
     if not raw.strip():

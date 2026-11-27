@@ -56,6 +56,32 @@ export async function check({ client, opts, viewport }) {
     }
   }
 
+  async function verifyUpdateTooltip(locale) {
+    if (process.env.T3CODE_DISABLE_AUTO_UPDATE !== "1") return null;
+    const [title, detail] = locale === "ru"
+      ? ["Обновления недоступны", "Автообновление отключено параметром T3CODE_DISABLE_AUTO_UPDATE."]
+      : ["Updates unavailable", "Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."];
+    let point;
+    await until(locale + " update button", async () => {
+      point = await evaluate(`(() => {
+        const button = document.querySelector('[data-app-sidebar] button[aria-label*="T3CODE_DISABLE_AUTO_UPDATE"]');
+        if (!button?.checkVisibility()) return null;
+        const r = button.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2, label: button.getAttribute("aria-label") };
+      })()`);
+      return point;
+    });
+    assert.ok(point.label.includes(title) && point.label.includes(detail), point.label);
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+    try {
+      await until(locale + " update tooltip", () => evaluate(`Array.from(document.querySelectorAll('[data-slot="tooltip-popup"]'))
+        .some(el => el.checkVisibility() && el.textContent.includes(${JSON.stringify(title)}) && el.textContent.includes(${JSON.stringify(detail)}))`));
+    } finally {
+      await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
+    }
+    return { title, detail };
+  }
+
   async function compactLanguagePicker(locale) {
     const search = "[data-chronos-settings-nav] input[role=combobox]";
     await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, width: 900, mobile: false });
@@ -115,6 +141,16 @@ export async function check({ client, opts, viewport }) {
     }
   }
 
+  async function verifyWorkingSection(locale) {
+    const label = locale === "ru" ? "Раздел «В работе»" : "Working section";
+    const lab = locale === "ru" ? "«Лаборатория»" : "Labs";
+    await until(locale + " working section setting", () => evaluate(`(() => {
+      const row = document.getElementById("working-shelf");
+      return row?.textContent.includes(${JSON.stringify(label)}) && row.textContent.includes(${JSON.stringify(lab)})
+        && row.querySelector('[role="switch"]')?.getAttribute("aria-label") === ${JSON.stringify(label)};
+    })()`));
+  }
+
   const userContent = [
     "script", "style", "[translate=no]:not(html)", "[data-chronos-markdown]", ".chat-markdown", "[data-chronos-editor]", "[data-user-message-bubble]",
     "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
@@ -135,9 +171,11 @@ export async function check({ client, opts, viewport }) {
     const cyrillic = lines.filter(line => /\p{Script=Cyrillic}/u.test(line));
     assert.deepEqual(cyrillic, [], id + " contains Cyrillic: " + JSON.stringify(cyrillic));
   }
+  const updateTooltips = {};
   try {
     await language("en");
     await compactLanguagePicker("en");
+    await verifyWorkingSection("en");
     if (await evaluate("window.desktopBridge.offlineRehearsal === true")) {
       await scan("offline general settings", "Notifications");
       assert.ok(await evaluate("!window.chronosPC && !document.querySelector('#pc-control')"),
@@ -208,6 +246,7 @@ export async function check({ client, opts, viewport }) {
       const welcome = await client.probe("dismissOnboarding", { readyProvider: opts.requireProvider });
       return !welcome.wasWelcome && await client.probe("ensureDraft");
     });
+    updateTooltips.en = await verifyUpdateTooltip("en");
     await click("button[aria-label=Artifacts]");
     await scan("artifact gallery", "Artifacts", "[data-artifact-gallery]");
     await click(".art-head button[aria-label=Close]");
@@ -225,6 +264,9 @@ export async function check({ client, opts, viewport }) {
     await language("ru");
   }
   await compactLanguagePicker("ru");
+  await verifyWorkingSection("ru");
+  await route("/");
+  updateTooltips.ru = await verifyUpdateTooltip("ru");
   assert.equal(await evaluate("performance.getEntriesByType('resource').some(e=>e.name.includes('/chronos-english-'))"), false);
-  return { english: true, russian: true, themes: true };
+  return { english: true, russian: true, themes: true, updateTooltips };
 }

@@ -1,3 +1,4 @@
+import { bundledTabsFile, isBundledTabsPath } from "./bundled-tabs.mjs";
 export const capabilities = ["theme","db","files.open","files.save"];
 export function declared(input) {
   if (!Array.isArray(input) || input.some(cap => !capabilities.includes(cap))) throw Error("Неизвестная возможность страницы");
@@ -36,7 +37,7 @@ export function resource(store,id,raw,version) {
   if (!own(url,id)) return new Response(null,{status:403});
   let name;
   try {name=decodeURIComponent(url.pathname.slice(1)) || "index.html";} catch {return new Response(null,{status:400});}
-  const file = store.file(id,name,version);
+  const file = isBundledTabsPath(url.pathname) ? bundledTabsFile(url.pathname) : store.file(id,name,version);
   if (!file) return new Response(null,{status:404});
   return new Response(file,{headers:{"Content-Type":mime[name.split(".").pop().toLowerCase()] || "application/octet-stream",
     "Content-Security-Policy":csp,"Cache-Control":"no-store","X-Content-Type-Options":"nosniff","Referrer-Policy":"no-referrer"}});

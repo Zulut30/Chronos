@@ -381,8 +381,8 @@ async function benchmark() {
       domCounters = await page("Memory.getDOMCounters");
     } catch {}
     let retainedHeap;
-    if (rows === 1000 && n === 16) {
-      // Sample beyond the timed UI interval; the following barrier still requires 16 live mocks.
+    if (rows === 1000) {
+      // Sample the retained heap outside the timed UI interval for both large-sidebar workloads.
       await page("HeapProfiler.collectGarbage");
       const usage = await page("Runtime.getHeapUsage");
       const dom = await page("Memory.getDOMCounters");
@@ -501,7 +501,7 @@ async function benchmark() {
         }
       : null;
     let tooltipVerified;
-    if (rows === 1000 && n === 16) {
+    if (rows === 1000) {
       const selector = '[data-thread-item$="' + targets[1] + '"] [data-sidebar-row]';
       await page("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
       await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: "center", behavior: "instant" })`);

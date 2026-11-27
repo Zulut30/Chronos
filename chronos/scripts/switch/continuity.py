@@ -7,7 +7,39 @@ import shutil
 import subprocess
 import tempfile
 
-from switch_data import check_path, digest, require
+from switch_data import check_path, digest, files, require
+
+
+# Pin both published byte sequences independently of the installed executable.
+ORIGINAL_OLYMPUS = frozenset({
+    "9497adb6f56f6d954562b37c5b1e556131aff1de49c092fe837e844f8c026c24",
+    "b653fa22e576ae1511ac2a1a580f342c64f61b82aef47b2e384cd10cda127e56",
+})
+
+
+def compare_theme_hashes(before, after, bundled):
+    added = sorted(after.keys() - before.keys())
+    missing = sorted(before.keys() - after.keys())
+    shared = before.keys() & after.keys()
+    changed = sorted(name for name in shared if before[name] != after[name])
+    stock_update = ("olympus.json" in changed and before["olympus.json"] in ORIGINAL_OLYMPUS
+                    and after["olympus.json"] == bundled)
+    unexpected = [name for name in changed if name != "olympus.json" or not stock_update]
+    return {"before": len(before), "after": len(after), "byteIdentical": len(shared) - len(changed),
+            "added": added, "missing": missing, "changed": changed, "stockOlympusUpdated": stock_update,
+            "unexpectedChanges": unexpected, "ok": not (added or missing or unexpected)}
+
+
+def compare_themes(original, candidate, bundled):
+    def manifest(userdata):
+        folder = userdata / "themes"
+        check_path(folder)
+        if not folder.exists():
+            return {}
+        require(folder.is_dir(), "Каталог тем недоступен.")
+        return {path.relative_to(folder).as_posix(): digest(path).hex() for path in files(folder)}
+
+    return compare_theme_hashes(manifest(original), manifest(candidate), digest(bundled).hex())
 
 
 def inventory(userdata):

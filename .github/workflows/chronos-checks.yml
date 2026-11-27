@@ -99,6 +99,7 @@ jobs:
 
       - name: Linux native test dependencies
         run: |
+          bash chronos/ci/setup/ubuntu-archives.sh
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev pkg-config
 

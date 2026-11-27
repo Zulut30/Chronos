@@ -150,6 +150,7 @@ jobs:
       - name: Exercise multi-model launch and resume in Chromium
         working-directory: apps/web
         run: |
+          bash ../../chronos/ci/setup/ubuntu-archives.sh
           pnpm exec playwright install --with-deps chromium
           vp test run --project browser src/components/ChatView.browser.test.tsx -t 'Shift model selection launches|Enter on an empty prompt resumes'
 
