@@ -187,7 +187,7 @@ try {
   const pair = samplePair(bridgeReport.agent, bridgeReport.bridge);
   assert.equal(pair.count, 2, "Expected both mock agent and MCP bridge alive");
   const threadTree = sampleTree(bridgeReport.agent, 0);
-  const serverTree = sampleTree(app.pid, app.pid);
+  const serverTree = sampleTree(app.pid, 0);
 
   const result = {
     scenario: "acp-bridge",
@@ -209,7 +209,7 @@ try {
       threads: threadTree.total.threads,
       processes: threadTree.processes,
     },
-    server: serverTree.server,
+    server: serverTree.main,
   };
   writeFileSync(output, JSON.stringify(result, null, 2));
   console.log(
@@ -233,5 +233,5 @@ try {
   throw error;
 } finally {
   rpc?.close();
-  await sb.cleanup();
+  sb.close();
 }
