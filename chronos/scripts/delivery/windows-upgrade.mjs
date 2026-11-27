@@ -86,6 +86,15 @@ async function evaluate(expression) {
   if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description || reply.exceptionDetails.text);
   return reply.result.value;
 }
+async function updateCommand(method) {
+  await evaluate(`window.__upgradeReceipt = null;
+    void window.desktopBridge[${JSON.stringify(method)}]().then(
+      result => { window.__upgradeReceipt = result; },
+      error => { window.__upgradeReceipt = { error: String(error) }; }); true`);
+  const receipt = await waitFor(method, () => evaluate("window.__upgradeReceipt"), 150000);
+  assert.ok(!receipt.error, receipt.error);
+  return receipt;
+}
 async function withRpc(callback) {
   const { origin } = await runtime();
   const entry = path.join(resources, "server.asar/apps/server/dist/bin.mjs");
@@ -203,11 +212,15 @@ try {
   await step("Check offer and download using installed electron-updater", async () => {
     const cache = path.join(process.env.LOCALAPPDATA, "chronos-updater", "installer.exe");
     summary.cachedInstallerPresent = await exists(cache);
-    await evaluate("void window.desktopBridge.checkForUpdate(); true");
+    const checked = await updateCommand("checkForUpdate");
+    assert.ok(checked.checked);
     const state = () => evaluate("window.desktopBridge.getUpdateState()");
     await waitFor("exact version offered", async () => (await state()).availableVersion === to);
-    await evaluate("void window.desktopBridge.downloadUpdate(); true");
-    await waitFor("verified download", async () => (await state()).downloadedVersion === to, 150000);
+    // The event can report the file before the IPC download command releases its
+    // action lock. The sidebar waits for the command before offering its install toast.
+    const receipt = await updateCommand("downloadUpdate");
+    assert.ok(receipt.accepted && receipt.completed, JSON.stringify(receipt));
+    assert.equal(receipt.state.downloadedVersion, to);
     summary.transfer = mirror.transfer();
     if (summary.transfer.fullBytes > 0) {
       const log = await readFile(path.join(evidence, "desktop.log"), "utf8");
