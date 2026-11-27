@@ -74,7 +74,7 @@ export async function check({ client, opts, viewport }) {
     assert.ok(point.label.includes(title) && point.label.includes(detail), point.label);
     await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
     try {
-      await until(locale + " update tooltip", () => evaluate(`Array.from(document.querySelectorAll('[role="tooltip"]'))
+      await until(locale + " update tooltip", () => evaluate(`Array.from(document.querySelectorAll('[data-slot="tooltip-popup"]'))
         .some(el => el.checkVisibility() && el.textContent.includes(${JSON.stringify(title)}) && el.textContent.includes(${JSON.stringify(detail)}))`));
     } finally {
       await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 1, y: 1 });
@@ -141,6 +141,16 @@ export async function check({ client, opts, viewport }) {
     }
   }
 
+  async function verifyWorkingSection(locale) {
+    const label = locale === "ru" ? "Раздел «В работе»" : "Working section";
+    const lab = locale === "ru" ? "«Лаборатория»" : "Labs";
+    await until(locale + " working section setting", () => evaluate(`(() => {
+      const row = document.getElementById("working-shelf");
+      return row?.textContent.includes(${JSON.stringify(label)}) && row.textContent.includes(${JSON.stringify(lab)})
+        && row.querySelector('[role="switch"]')?.getAttribute("aria-label") === ${JSON.stringify(label)};
+    })()`));
+  }
+
   const userContent = [
     "script", "style", "[translate=no]:not(html)", "[data-chronos-markdown]", ".chat-markdown", "[data-chronos-editor]", "[data-user-message-bubble]",
     "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
@@ -165,6 +175,7 @@ export async function check({ client, opts, viewport }) {
   try {
     await language("en");
     await compactLanguagePicker("en");
+    await verifyWorkingSection("en");
     if (await evaluate("window.desktopBridge.offlineRehearsal === true")) {
       await scan("offline general settings", "Notifications");
       assert.ok(await evaluate("!window.chronosPC && !document.querySelector('#pc-control')"),
@@ -253,6 +264,7 @@ export async function check({ client, opts, viewport }) {
     await language("ru");
   }
   await compactLanguagePicker("ru");
+  await verifyWorkingSection("ru");
   await route("/");
   updateTooltips.ru = await verifyUpdateTooltip("ru");
   assert.equal(await evaluate("performance.getEntriesByType('resource').some(e=>e.name.includes('/chronos-english-'))"), false);
