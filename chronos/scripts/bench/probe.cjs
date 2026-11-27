@@ -13,8 +13,9 @@ if (isMainThread && root && process.argv.includes("serve")) {
       if (!fs.existsSync(marker)) continue;
       fs.unlinkSync(marker);
       const cpu = process.cpuUsage();
+      const mem = process.memoryUsage();
       const sample = { pid: process.pid, time: performance.now(), cpu: cpu.user + cpu.system,
-        rss: process.memoryUsage.rss(), p95: lag.percentile(95) / 1e6 - 10, count: lag.count };
+        rss: mem.rss, memory: mem, p95: lag.percentile(95) / 1e6 - 10, count: lag.count };
       fs.writeFileSync(marker + ".tmp", JSON.stringify(sample));
       fs.renameSync(marker + ".tmp", marker + ".json");
       lag.reset();

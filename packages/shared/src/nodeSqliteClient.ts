@@ -356,6 +356,43 @@ const READER_POOL_SIZE = 4;
 const READER_STARTUP_TIMEOUT = Duration.seconds(10);
 const READER_RETRY_DELAY = Duration.seconds(1);
 const READER_RETRY_MAX_DELAY = Duration.minutes(1);
+// chronos: bound SQLite worker V8 heaps and retire idle reader/checkpoint workers to reclaim RAM.
+const DEFAULT_SQLITE_WORKER_IDLE_MS = 15_000;
+const sqliteWorkerIdleMs = (): number => {
+  const raw = process.env.CHRONOS_SQLITE_WORKER_IDLE_MS;
+  if (raw === undefined) return DEFAULT_SQLITE_WORKER_IDLE_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_SQLITE_WORKER_IDLE_MS;
+};
+const scheduleUnrefTimeout = (fn: () => void, ms: number): ReturnType<typeof setTimeout> => {
+  // @effect-diagnostics-next-line globalTimers:off
+  const timer = setTimeout(fn, ms);
+  timer.unref();
+  return timer;
+};
+const clearUnrefTimeout = (timer: ReturnType<typeof setTimeout> | undefined): void => {
+  if (timer !== undefined) clearTimeout(timer);
+};
+const WRITER_WORKER_RESOURCE_LIMITS: NodeWorkerThreads.ResourceLimits = {
+  maxOldGenerationSizeMb: 128,
+  maxYoungGenerationSizeMb: 4,
+};
+const READER_WORKER_RESOURCE_LIMITS: NodeWorkerThreads.ResourceLimits = {
+  maxOldGenerationSizeMb: 64,
+  maxYoungGenerationSizeMb: 2,
+};
+const CHECKPOINT_WORKER_RESOURCE_LIMITS: NodeWorkerThreads.ResourceLimits = {
+  maxOldGenerationSizeMb: 32,
+  maxYoungGenerationSizeMb: 1,
+};
+
+interface ReaderIdleSlot {
+  readonly isClaimed: () => boolean;
+  setIdleControl: (control: {
+    readonly schedule: () => void;
+    readonly cancel: () => void;
+  }) => void;
+}
 
 // Bind transactions to one worker; fail after its exit instead of resuming outside the transaction on a replacement.
 const makeWorkerConnection = Effect.fnUntraced(function* (options: {
@@ -363,6 +400,7 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
   readonly role: "reader" | "writer";
   readonly readOnly: boolean;
   readonly onReply?: () => void;
+  readonly readerSlot?: ReaderIdleSlot;
 }) {
   const label = options.role === "reader" ? "Database reader" : "Database writer";
   const readOnly = options.readOnly;
@@ -371,8 +409,15 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
         readonly worker: NodeWorkerThreads.Worker;
         readonly connection: Connection;
         readonly started: Promise<WorkerStartup>;
+        readonly canRetire: () => boolean;
+        readonly retireQuietly: () => void;
       }
     | undefined;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const cancelIdle = () => {
+    clearUnrefTimeout(idleTimer);
+    idleTimer = undefined;
+  };
   let nextRequestId = 0;
   // Materialize nested savepoints with the next statement; empty jobs need no worker round trip.
   const pendingSavepoints: string[] = [];
@@ -380,8 +425,11 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
   let writerStopped: string | undefined;
 
   const start = () => {
+    cancelIdle();
     const worker = new NodeWorkerThreads.Worker(workerSource, {
       eval: true,
+      resourceLimits:
+        options.role === "reader" ? READER_WORKER_RESOURCE_LIMITS : WRITER_WORKER_RESOURCE_LIMITS,
       workerData: {
         filename: options.filename,
         readOnly,
@@ -394,6 +442,8 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
     const started = new Promise<WorkerStartup>((resolve) => {
       announce = resolve;
     });
+    let ready = false;
+    let retiring = false;
     let stoppedMessage: string | undefined;
     const pending = new Map<
       number,
@@ -420,6 +470,7 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
     };
     worker.on("message", (reply: WorkerReply | WorkerStartup) => {
       if ("type" in reply) {
+        if (reply.type === "ready") ready = true;
         announce(reply);
         if (pending.size === 0) worker.unref();
         return;
@@ -442,8 +493,12 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
         request.resume(reply);
       }
     });
-    worker.on("error", (cause) => stop(`${label} failed: ${cause.message}`));
-    worker.on("exit", (code) => stop(`${label} exited with code ${code}`));
+    worker.on("error", (cause) => {
+      if (!retiring) stop(`${label} failed: ${cause.message}`);
+    });
+    worker.on("exit", (code) => {
+      if (!retiring) stop(`${label} exited with code ${code}`);
+    });
 
     const request = (input: WorkerRequest) =>
       Effect.withFiber<ReadonlyArray<any>, SqlError>((fiber) => {
@@ -536,12 +591,40 @@ const makeWorkerConnection = Effect.fnUntraced(function* (options: {
         return Stream.die(new UnsupportedNodeSqliteOperationError());
       },
     });
-    current = { worker, connection, started };
+    current = {
+      worker,
+      connection,
+      started,
+      canRetire: () => ready && pending.size === 0,
+      retireQuietly: () => {
+        retiring = true;
+        if (current?.worker === worker) current = undefined;
+        void worker.terminate();
+      },
+    };
     return current;
   };
 
+  if (options.role === "reader" && options.readerSlot !== undefined) {
+    const readerSlot = options.readerSlot;
+    readerSlot.setIdleControl({
+      cancel: cancelIdle,
+      schedule: () => {
+        cancelIdle();
+        const idleMs = sqliteWorkerIdleMs();
+        if (idleMs <= 0 || current === undefined) return;
+        idleTimer = scheduleUnrefTimeout(() => {
+          idleTimer = undefined;
+          if (readerSlot.isClaimed() || current === undefined || !current.canRetire()) return;
+          current.retireQuietly();
+        }, idleMs);
+      },
+    });
+  }
+
   yield* Effect.addFinalizer(() =>
     Effect.promise(async () => {
+      cancelIdle();
       const open = current;
       if (open === undefined) return;
       if (options.role === "writer") {
@@ -614,8 +697,17 @@ const startFailure = (error: SqlError) => {
 
 // A reader that cannot start turns off the whole pool, so routing never picks a dead slot, until
 // one background retry starts it again.
-const makeReader = Effect.fnUntraced(function* (filename: string, pool: { unavailable: boolean }) {
-  const acquire = yield* makeWorkerConnection({ filename, role: "reader", readOnly: true });
+const makeReader = Effect.fnUntraced(function* (
+  filename: string,
+  pool: { unavailable: boolean },
+  readerSlot: ReaderIdleSlot,
+) {
+  const acquire = yield* makeWorkerConnection({
+    filename,
+    role: "reader",
+    readOnly: true,
+    readerSlot,
+  });
   const scope = yield* Effect.scope;
   const context = yield* Effect.context<never>();
 
@@ -698,10 +790,11 @@ const check = (force) => {
   // The WAL restarts only once every frame is checkpointed, so catch up when writes pause.
   // A reader pinning the WAL stops progress; the next write retries instead of a timer loop.
   const progressed = !force || state.checkpointed > before.checkpointed;
-  if (state.log > state.checkpointed && progressed) {
+  const timerArmed = state.log > state.checkpointed && progressed;
+  if (timerArmed) {
     idle = setTimeout(() => run(true), workerData.idleMs);
   }
-  parentPort.postMessage({ type: "checked", log: state.log, checkpointed: state.checkpointed });
+  parentPort.postMessage({ type: "checked", log: state.log, checkpointed: state.checkpointed, timerArmed });
 };
 const run = (force) => {
   clearTimeout(idle);
@@ -724,6 +817,7 @@ const sqliteVersion = () => {
 };
 
 // Returns the writer's per-statement notification, or undefined when the writer checkpoints alone.
+// chronos: start the checkpoint worker lazily on first write and retire it when idle to save RAM.
 const startCheckpointWorker = Effect.fnUntraced(function* (filename: string) {
   const warn = (reason: string) =>
     Effect.logWarning("SQLite checkpoint worker unavailable; the writer checkpoints its own WAL", {
@@ -736,47 +830,101 @@ const startCheckpointWorker = Effect.fnUntraced(function* (filename: string) {
     yield* warn(`SQLite ${version} has no NOOP checkpoint`);
     return undefined;
   }
-  const started = Result.try(
-    () =>
-      new NodeWorkerThreads.Worker(checkpointWorkerSource, {
-        eval: true,
-        workerData: { filename, frames: CHECKPOINT_FRAMES, idleMs: CHECKPOINT_IDLE_MS },
-      }),
-  );
-  if (Result.isFailure(started)) {
-    yield* warn(String(started.failure));
-    return undefined;
-  }
-  const worker = started.success;
-  worker.unref();
   const runFork = Effect.runForkWith(yield* Effect.context<never>());
+  let worker: NodeWorkerThreads.Worker | undefined;
+  let retireCurrent: (() => void) | undefined;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
+  const cancelIdle = () => {
+    clearUnrefTimeout(idleTimer);
+    idleTimer = undefined;
+  };
+  const scheduleIdle = () => {
+    cancelIdle();
+    const idleMs = sqliteWorkerIdleMs();
+    if (idleMs <= 0 || stopped || worker === undefined) return;
+    idleTimer = scheduleUnrefTimeout(() => {
+      idleTimer = undefined;
+      if (!stopped) retireCurrent?.();
+    }, idleMs);
+  };
   const stop = (reason: string) => {
     if (stopped) return;
     stopped = true;
-    void worker.terminate();
+    cancelIdle();
+    const open = worker;
+    worker = undefined;
+    retireCurrent = undefined;
+    if (open !== undefined) void open.terminate();
     runFork(warn(reason));
   };
-  worker.on("message", (message: { readonly type?: unknown; readonly message?: unknown }) => {
-    if (message?.type === "failed") stop(String(message.message));
-  });
-  worker.on("error", (cause) => stop(cause.message));
-  worker.on("exit", (code) => stop(`exited with code ${code}`));
+  const ensureWorker = (): NodeWorkerThreads.Worker | undefined => {
+    if (stopped) return undefined;
+    if (worker !== undefined) return worker;
+    const started = Result.try(
+      () =>
+        new NodeWorkerThreads.Worker(checkpointWorkerSource, {
+          eval: true,
+          resourceLimits: CHECKPOINT_WORKER_RESOURCE_LIMITS,
+          workerData: { filename, frames: CHECKPOINT_FRAMES, idleMs: CHECKPOINT_IDLE_MS },
+        }),
+    );
+    if (Result.isFailure(started)) {
+      stop(String(started.failure));
+      return undefined;
+    }
+    const next = started.success;
+    next.unref();
+    let retiring = false;
+    next.on(
+      "message",
+      (message: { readonly type?: unknown; readonly message?: unknown; readonly timerArmed?: unknown }) => {
+        if (message?.type === "failed") stop(String(message.message));
+        else if (message?.type === "checked") {
+          if (message.timerArmed === true) cancelIdle();
+          else scheduleIdle();
+        }
+      },
+    );
+    next.on("error", (cause) => {
+      if (!retiring) stop(cause.message);
+    });
+    next.on("exit", (code) => {
+      if (!retiring) stop(`exited with code ${code}`);
+    });
+    worker = next;
+    retireCurrent = () => {
+      retiring = true;
+      if (worker === next) {
+        worker = undefined;
+        retireCurrent = undefined;
+      }
+      void next.terminate();
+    };
+    return next;
+  };
   yield* Effect.addFinalizer(() =>
     Effect.promise(() => {
       stopped = true;
-      return worker.terminate();
+      cancelIdle();
+      const open = worker;
+      worker = undefined;
+      retireCurrent = undefined;
+      return open === undefined ? Promise.resolve() : open.terminate().then(() => undefined);
     }),
   );
   let scheduled = false;
   return () => {
     if (stopped || scheduled) return;
     scheduled = true;
+    cancelIdle();
     // One check per event-loop turn is enough, however many statements finished in it.
     setImmediate(() => {
       scheduled = false;
+      if (stopped) return;
+      const active = ensureWorker();
       // oxlint-disable-next-line unicorn/require-post-message-target-origin -- Node workers do not accept a target origin.
-      if (!stopped) worker.postMessage(0);
+      active?.postMessage(0);
     });
   };
 });
@@ -941,28 +1089,39 @@ const make = Effect.fn("makeWithDatabase")(function* (
   const opened = yield* writerConnection;
   // Started after the writer, so it stops first and the writer's close can checkpoint.
   if (writerWorker && options.readonly !== true) {
-    checkpointAfterWrite = yield* startCheckpointWorker(options.filename);
-    if (checkpointAfterWrite !== undefined) {
+    const notifyCheckpoint = yield* startCheckpointWorker(options.filename);
+    if (notifyCheckpoint !== undefined) {
       yield* opened.executeUnprepared(
         `PRAGMA wal_autocheckpoint = ${WRITER_BACKSTOP_FRAMES}`,
         [],
         undefined,
       );
+      checkpointAfterWrite = notifyCheckpoint;
     }
   }
   const readerPool = { unavailable: false };
   const readers =
     options.readerWorker && isFileDatabase
-      ? yield* Effect.forEach(Array.from({ length: READER_POOL_SIZE }), () =>
-          Effect.map(
-            Effect.all([makeReader(options.filename, readerPool), Semaphore.make(1)]),
-            ([acquire, lock]) => ({
-              acquire,
-              lock,
-              claimed: false,
-            }),
-          ),
-        )
+      ? yield* Effect.forEach(Array.from({ length: READER_POOL_SIZE }), () => {
+          const slot: {
+            claimed: boolean;
+            idleControl:
+              | { readonly schedule: () => void; readonly cancel: () => void }
+              | undefined;
+          } = { claimed: false, idleControl: undefined };
+          return Effect.map(
+            Effect.all([
+              makeReader(options.filename, readerPool, {
+                isClaimed: () => slot.claimed,
+                setIdleControl: (control) => {
+                  slot.idleControl = control;
+                },
+              }),
+              Semaphore.make(1),
+            ]),
+            ([acquire, lock]) => ({ acquire, lock, slot }),
+          );
+        })
       : [];
   // One permit per slot, so a queued read waits for any reader, not one it picked while all were busy.
   const readerAdmission = yield* Semaphore.make(readers.length);
@@ -992,11 +1151,13 @@ const make = Effect.fn("makeWithDatabase")(function* (
         restore(readerAdmission.take(1)),
         Effect.suspend(() => {
           // Holding a permit leaves a slot idle; the lowest wins, so idle slots never start a worker.
-          const reader = readers.find((slot) => !slot.claimed)!;
-          reader.claimed = true;
+          const reader = readers.find((entry) => !entry.slot.claimed)!;
+          reader.slot.claimed = true;
+          reader.slot.idleControl?.cancel();
           const release = Effect.andThen(
             Effect.sync(() => {
-              reader.claimed = false;
+              reader.slot.claimed = false;
+              reader.slot.idleControl?.schedule();
             }),
             readerAdmission.release(1),
           );

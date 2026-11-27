@@ -57,6 +57,10 @@ if (
     // Single executables host the launcher here; other builds start process-launcher.mjs directly.
     const { runProcessLauncher } = await import("./process/processLauncherWorker.ts");
     runProcessLauncher();
+  // chronos: keep long-lived per-agent ACP MCP stdio bridges off binMain and Effect.
+  } else if (process.argv[2] === "acp-mcp-bridge") {
+    const { runAcpMcpBridgeFastCli } = await import("./chronos/perf/acpMcpBridgeFast.ts");
+    await runAcpMcpBridgeFastCli();
   } else {
     const { runCliCommand } = await loadCliMain();
     await runCliCommand();

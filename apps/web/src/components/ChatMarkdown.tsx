@@ -119,6 +119,7 @@ import { SharedTooltipProvider, SharedTooltipTrigger } from "./ui/shared-tooltip
 import { Button } from "./ui/button";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { recordVisitForThread } from "../browserHistoryStore";
+import { registerMemoryTrimmer } from "../chronos/perf/memoryTrim";
 import { contextMenuSourceOf, openContextMenuFromKeyboard } from "../contextMenuSource";
 import {
   PreferredEditorEnvironmentRequiredError,
@@ -512,6 +513,11 @@ function blockFileLinkSources(
 const MAX_CACHED_BLOCK_CHARS = 2_000_000;
 const finishedBlockFileLinkSources = new Map<string, BlockFileLinkSources>();
 let cachedBlockChars = 0;
+// chronos: drop finished-block link cache on minimize/hide memory trim.
+registerMemoryTrimmer(() => {
+  finishedBlockFileLinkSources.clear();
+  cachedBlockChars = 0;
+});
 
 function fileLinkSourcesKey(
   text: string,
