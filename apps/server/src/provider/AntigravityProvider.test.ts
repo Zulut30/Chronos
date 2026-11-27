@@ -139,6 +139,7 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     readonly auth?: { readonly type: string; readonly label: string };
     readonly enabled?: boolean;
     readonly safe?: boolean;
+    readonly readQuota?: Effect.Effect<NonNullable<ServerProvider["usageLimits"]>>;
     readonly rememberedRuntimeModes?: ReadonlyArray<RuntimeMode>;
   } = {},
 ) {
@@ -155,6 +156,7 @@ const makeHarness = Effect.fn("makeAntigravityProviderHarness")(function* (
     {
       stampIdentity: (snapshot) => Effect.succeed({ ...snapshot, instanceId, driver }),
       ...(options.auth ? { auth: options.auth } : {}),
+      ...(options.readQuota ? { readQuota: options.readQuota } : {}),
       ...(options.rememberedRuntimeModes
         ? { rememberedRuntimeModes: options.rememberedRuntimeModes }
         : {}),
@@ -362,6 +364,51 @@ describe("Antigravity model catalog", () => {
 });
 
 it.layer(layerTest)("Antigravity provider snapshots", (it) => {
+  it.effect("reads account limits on refresh and clears them when the account signs out", () =>
+    Effect.gen(function* () {
+      const window = {
+        id: "family-5h",
+        kind: "session",
+        label: "Family",
+        usedPercent: 35,
+      } as const;
+      const quota = { checkedAt: "2026-11-01T12:00:00Z", windows: [window] };
+      const reads = yield* Ref.make(0);
+      const harness = yield* makeHarness({
+        readQuota: Ref.update(reads, (count) => count + 1).pipe(Effect.as(quota)),
+      });
+      yield* harness.initialize;
+      expect(yield* Ref.get(reads)).toBe(0);
+      expect((yield* harness.provider.snapshot.refresh).usageLimits).toEqual(quota);
+      expect((yield* harness.provider.snapshot.getSnapshot).usageLimits).toEqual(quota);
+      yield* harness.provider.onSignedOut;
+      expect((yield* harness.provider.snapshot.getSnapshot).usageLimits).toBeUndefined();
+      expect((yield* harness.provider.snapshot.refresh).usageLimits).toBeUndefined();
+      expect(yield* Ref.get(reads)).toBe(1);
+    }),
+  );
+
+  it.effect("discards an in-flight quota report when Google switches accounts", () =>
+    Effect.gen(function* () {
+      const entered = yield* Deferred.make<void>();
+      const finish = yield* Deferred.make<NonNullable<ServerProvider["usageLimits"]>>();
+      const harness = yield* makeHarness({
+        readQuota: Deferred.succeed(entered, undefined).pipe(
+          Effect.andThen(Deferred.await(finish)),
+        ),
+      });
+      yield* harness.initialize;
+      const refresh = yield* harness.provider.snapshot.refresh.pipe(Effect.forkChild);
+      yield* Deferred.await(entered);
+      yield* harness.provider.onAccountChanged;
+      yield* Deferred.succeed(finish, {
+        checkedAt: "2026-11-01T12:00:00Z",
+        windows: [{ id: "previous", kind: "weekly", label: "Previous account", usedPercent: 95 }],
+      });
+      expect((yield* Fiber.join(refresh)).usageLimits).toBeUndefined();
+    }),
+  );
+
   it.effect("does not probe or run helper safety checks while disabled", () =>
     Effect.gen(function* () {
       const harness = yield* makeHarness({ enabled: false });

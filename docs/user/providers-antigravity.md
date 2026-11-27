@@ -52,6 +52,6 @@ Add a separate Antigravity instance in **Settings → Providers** for each Googl
 
 ## Usage and troubleshooting
 
-- T3 Code does not read your Google account's Antigravity allowances; **Usage** shows tokens and cost from Antigravity's local history.
+- In Chronos, open **Usage → Limits** to refresh the five-hour and weekly windows for a Google account. Sign in under **Settings → Providers** in the environment that owns that instance. Chronos asks the instance's CLI for its native [quota report](https://antigravity.google/docs/cli/commands/usage/). Gemini API key instances have separate billing.
 - Use **Refresh provider status** (web/desktop) or **Refresh models** (mobile) to reload models and access.
 - For `SUBSCRIPTION_REQUIRED` or account restriction errors, see [Google's account plans](https://antigravity.google/docs/plans).

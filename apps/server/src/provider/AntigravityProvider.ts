@@ -10,6 +10,7 @@ import {
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
+import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
@@ -197,6 +198,7 @@ export class AntigravityProbeIncompatibility extends Schema.TaggedError<Antigrav
 ) {}
 
 interface AntigravityProviderOptions {
+  readonly readQuota?: Effect.Effect<NonNullable<ServerProvider["usageLimits"]>>;
   readonly environment?: NodeJS.ProcessEnv;
   readonly stampIdentity: (snapshot: ServerProviderDraft) => Effect.Effect<ServerProvider>;
   readonly probe: Effect.Effect<
@@ -227,6 +229,11 @@ function antigravityRuntimeModes(
     ? ["approval-required", "auto-accept-edits", "auto", "full-access"]
     : RUNTIME_MODES_WITHOUT_AUTO;
 }
+
+// chronos: Only explicit refreshes may start the native quota CLI. Periodic health stays passive.
+const ReadQuota = Context.Reference<boolean>("chronos/AntigravityReadQuota", {
+  defaultValue: () => false,
+});
 
 export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(function* (
   settings: AntigravitySettings,
@@ -334,6 +341,13 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
               : `Antigravity did not respond to its local health check within ${timeoutMs / 1_000} seconds.`;
     const supportsTextGeneration =
       initialized !== undefined ? yield* options.supportsTextGeneration : false;
+    const usage =
+      initialized &&
+      before.draft.auth.status !== "unauthenticated" &&
+      options.readQuota &&
+      (yield* ReadQuota)
+        ? yield* options.readQuota
+        : undefined;
     const updatedAt = DateTime.formatIso(yield* DateTime.now);
     const applyCheck = (state: AntigravityProviderState) => {
       if (state.authRevision !== before.authRevision) return state;
@@ -357,6 +371,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
           version: version === "unknown" ? previousVersion : version || previousVersion,
           status: errorMessage ? "error" : authenticated ? "ready" : "warning",
           checkedAt: updatedAt,
+          usageLimits: missingInstallation ? undefined : (usage ?? draft.usageLimits),
           ...(missingInstallation
             ? {
                 models: [],
@@ -553,6 +568,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
           workspaceSnapshots: [],
           supportedRuntimeModes: RUNTIME_MODES_WITHOUT_AUTO,
           supportsTextGeneration: false,
+          usageLimits: undefined,
         },
       } satisfies AntigravityProviderState,
     ]);
@@ -595,7 +611,26 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
   });
 
   return {
-    snapshot: { ...managed, getSnapshot },
+    snapshot: {
+      ...managed,
+      getSnapshot,
+      refresh: managed.refresh.pipe(
+        Effect.provideService(ReadQuota, true),
+        Effect.andThen(getSnapshot),
+      ),
+      // chronos: The managed stream can retain a previous successful probe after sign-out or failure.
+      streamChanges: managed.streamChanges.pipe(
+        Stream.mapEffect((snapshot) =>
+          SubscriptionRef.get(metadata).pipe(
+            Effect.map(({ draft }) => ({ ...snapshot, usageLimits: draft.usageLimits })),
+          ),
+        ),
+      ),
+    },
+    onAccountChanged: SubscriptionRef.update(metadata, (state) => ({
+      authRevision: state.authRevision + 1,
+      draft: { ...state.draft, usageLimits: undefined },
+    })),
     onSessionStarted,
     onConfigOptionsUpdated,
     onAvailableCommands,
