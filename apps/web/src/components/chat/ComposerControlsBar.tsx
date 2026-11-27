@@ -248,22 +248,27 @@ export function ComposerControlsBar(props: {
       onOpenProviderSetup={onOpenProviderSetup}
     />
   );
-  return showProviderUnavailable ? (
-    <ComposerControl
-      type="button"
-      disabled={!providerSetupInstanceId}
-      onClick={() => {
-        if (providerSetupInstanceId) {
-          onOpenProviderSetup(providerSetupInstanceId);
-        }
-      }}
-      data-chat-provider-unavailable="true"
-      className="shrink-0"
-    >
-      <CircleAlertIcon className="size-4" />
-      {providerSetupInstanceId ? gt("Open provider settings") : gt("No provider available")}
-    </ComposerControl>
-  ) : (
+  if (showProviderUnavailable) {
+    const label = providerSetupInstanceId
+      ? gt("Open provider settings")
+      : gt("No provider available");
+    return (
+      <ComposerControl
+        type="button"
+        disabled={!providerSetupInstanceId}
+        onClick={() => {
+          if (providerSetupInstanceId) onOpenProviderSetup(providerSetupInstanceId);
+        }}
+        data-chat-provider-unavailable="true"
+        className="min-w-0 max-w-full shrink"
+        title={label}
+      >
+        <CircleAlertIcon className="size-4" />
+        <span className="min-w-0 truncate">{label}</span>
+      </ComposerControl>
+    );
+  }
+  return (
     <>
       {composerModelPicker}
 

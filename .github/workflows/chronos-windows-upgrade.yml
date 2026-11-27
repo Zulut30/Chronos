@@ -1,0 +1,49 @@
+name: Chronos Windows upgrade rehearsal
+run-name: Windows upgrade ${{ inputs.from_version }} to ${{ inputs.to_version }}
+on:
+  # Register this branch-only workflow with Actions. Installation is always manual.
+  push:
+    branches: [fix/stabilization]
+    paths: [.github/workflows/chronos-windows-upgrade.yml]
+  workflow_dispatch:
+    inputs:
+      from_version:
+        description: Published source version, without the chronos-v prefix
+        required: true
+        type: string
+      to_version:
+        description: Published target version, without the chronos-v prefix
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: |
+            chronos/scripts/delivery
+            chronos/scripts/bench
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Rehearse installed update
+        env:
+          FROM_VERSION: ${{ inputs.from_version }}
+          TO_VERSION: ${{ inputs.to_version }}
+          GH_TOKEN: ${{ github.token }}
+        run: node chronos/scripts/delivery/windows-upgrade.mjs
+      - name: Save transfer and continuity evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: windows-upgrade-${{ github.run_id }}
+          path: ${{ runner.temp }}/chronos-upgrade/evidence/
+          if-no-files-found: warn
+          retention-days: 14

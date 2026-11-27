@@ -24,6 +24,8 @@ import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 const fixture = vi.hoisted(() => ({
   statusByThreadId: new Map<string, "starting" | "running" | "exited">(),
   pendingSurfaces: [] as Array<() => void>,
+  surfaceFocus: () => {},
+  mount: null as HTMLElement | null,
   typeIntoSurface: null as ((data: string) => void) | null,
   pressKey: null as ((event: KeyboardEvent) => boolean) | null,
   writes: [] as Array<{ threadId: string; data: string }>,
@@ -52,6 +54,7 @@ const fixture = vi.hoisted(() => ({
 const fakeSurface: object = new Proxy(
   {
     input: document.createElement("textarea"),
+    focus: () => fixture.surfaceFocus(),
     write: (data: string) => fixture.messages.push(data),
     // The real surface re-reports its measured grid.
     resendSize: () => {
@@ -66,8 +69,9 @@ const fakeSurface: object = new Proxy(
 );
 vi.mock("~/terminal/ghostty/surface", () => ({
   GhosttyTerminalSurface: {
-    create: (_mount: HTMLElement, options: GhosttyTerminalSurfaceOptions) =>
+    create: (mount: HTMLElement, options: GhosttyTerminalSurfaceOptions) =>
       new Promise((resolve) => {
+        fixture.mount = mount;
         fixture.surfaceOptions.push(options);
         fixture.pendingSurfaces.push(() => {
           fixture.typeIntoSurface = options.onData;
@@ -256,6 +260,8 @@ function setup(originalStatus: "starting" | "exited" = "exited") {
     [other.threadId, "running"],
   ]);
   fixture.pendingSurfaces = [];
+  fixture.surfaceFocus = () => {};
+  fixture.mount = null;
   fixture.typeIntoSurface = null;
   fixture.pressKey = null;
   fixture.writes = [];
@@ -269,6 +275,17 @@ function setup(originalStatus: "starting" | "exited" = "exited") {
   useTerminalUiStateStore.setState(useTerminalUiStateStore.getInitialState());
   return { original, other };
 }
+
+it("delivers the synchronous focus report when a running terminal surface mounts", async () => {
+  const { other } = setup();
+  fixture.surfaceFocus = () => fixture.typeIntoSurface?.("\x1b[I");
+  await using _screen = await render(<Drawer threadRef={other} onCloseTerminal={() => {}} />);
+  const mount = fixture.mount;
+  if (!mount) throw new Error("Expected the focusable terminal mount");
+  mount.focus();
+  await act(async () => { fixture.pendingSurfaces.shift()?.(); });
+  expect(fixture.writes).toContainEqual({ threadId: other.threadId, data: "\x1b[I" });
+});
 
 it("drops input until the shell runs instead of failing a write for every key", async () => {
   const { original } = setup("starting");
