@@ -238,7 +238,9 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
                 ...(claudeCheckedAt ? { claudeCheckedAt } : {}),
               });
         const workspaceId =
-          usageLimits === probedSnapshot.usageLimits ? undefined : state.snapshot.auth.workspaceId;
+          !switchedAccount && usageLimits !== probedSnapshot.usageLimits
+            ? previous.workspaceId
+            : undefined;
         const usageAuthLabel =
           !switchedAccount && usageLimits?.checkedAt === state.snapshot.usageLimits?.checkedAt
             ? state.usageAuthLabel

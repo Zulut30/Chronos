@@ -53,16 +53,13 @@ export function applyUsageLimitsUpdate(input: {
   readonly update: ProviderUsageLimitsUpdate;
   readonly checkedAt: string;
 }): ServerProviderUsageLimits | undefined {
-  const { previous, update } = input;
-  if (update.windows.length === 0 || previous?.unavailable?.reason === "unsupported") {
-    return previous;
+  const { update } = input;
+  if (update.windows.length === 0 || input.previous?.unavailable?.reason === "unsupported") {
+    return input.previous;
   }
-  const previousExpired =
-    previous?.unavailable?.validUntil !== undefined &&
-    Date.parse(previous.unavailable.validUntil) <= Date.parse(input.checkedAt);
-  const merged = new Map(
-    (previousExpired ? [] : previous?.windows)?.map((window) => [window.id, window] as const),
-  );
+  // chronos: an event starts a new observation. It cannot renew adjacent windows from a bounded fallback.
+  const previous = input.previous?.unavailable?.validUntil ? undefined : input.previous;
+  const merged = new Map(previous?.windows.map((window) => [window.id, window] as const));
   // Codex repeats unchanged limits on token ticks; avoid allocating snapshots for no-ops.
   let changed = false;
   for (const window of update.windows) {
@@ -82,16 +79,23 @@ export function applyUsageLimitsUpdate(input: {
       changed = true;
     }
   }
+  const credits = previous?.resetCredits;
+  const expiredAtUpdate = (end: string | undefined) =>
+    end !== undefined && Date.parse(end) <= Date.parse(input.checkedAt);
+  const creditsExpired =
+    credits &&
+    (expiredAtUpdate(credits.nextExpiresAt) ||
+      credits.options?.some((option) => expiredAtUpdate(option.expiresAt)));
   if (!changed && previous !== undefined) {
-    return previous;
+    if (!creditsExpired) return previous;
+    const { resetCredits: _expired, ...reading } = previous;
+    return reading;
   }
   const unavailable =
-    previous === undefined || previousExpired
-      ? { reason: "probeFailed" as const }
-      : previous.unavailable;
+    previous === undefined ? { reason: "probeFailed" as const } : previous.unavailable;
   return {
     ...makeUsageLimits({ checkedAt: input.checkedAt, windows: merged.values() }),
-    ...(previous?.resetCredits !== undefined ? { resetCredits: previous.resetCredits } : {}),
+    ...(credits && !creditsExpired ? { resetCredits: credits } : {}),
     ...(previous?.zeroSpendCap ? { zeroSpendCap: true } : {}),
     ...(unavailable !== undefined ? { unavailable } : {}),
   };

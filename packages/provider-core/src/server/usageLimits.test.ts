@@ -1,3 +1,4 @@
+import { limitsForDisplay } from "@t3tools/shared/usageLimits";
 import { describe, expect, it } from "vite-plus/test";
 
 import { applyUsageLimitsUpdate, resolveUsageLimitsAfterProbe } from "./usageLimits.ts";
@@ -21,6 +22,26 @@ const weekly = {
 const published = { checkedAt, windows: [session, weekly] };
 
 describe("applyUsageLimitsUpdate", () => {
+  it("keeps a newly reported window through expiry of the cached reading it replaces", () => {
+    const validUntil = "2026-09-03T13:00:00.000Z";
+    const eventAt = "2026-09-03T12:59:59.000Z";
+    const event = { ...session, usedPercent: 79 };
+    const next = applyUsageLimitsUpdate({
+      previous: {
+        ...published,
+        unavailable: { reason: "probeFailed", validUntil },
+        resetCredits: { availableCount: 1, nextExpiresAt: eventAt },
+      },
+      checkedAt: eventAt,
+      update: { windows: [event] },
+    });
+    expect(next?.checkedAt).toBe(eventAt);
+    expect(next?.windows).toEqual([event]);
+    expect(next?.resetCredits).toBeUndefined();
+    expect(limitsForDisplay(next, Date.parse(validUntil) + 1_000)?.windows).toEqual([event]);
+    expect(limitsForDisplay(next, Date.parse(event.resetsAt))).toBeUndefined();
+  });
+
   it("returns the published object itself when no window moved", () => {
     const next = applyUsageLimitsUpdate({
       previous: published,
@@ -103,6 +124,13 @@ describe("applyUsageLimitsUpdate", () => {
       resetCredits,
       zeroSpendCap: true,
     });
+    expect(
+      applyUsageLimitsUpdate({
+        previous: next,
+        checkedAt: resetCredits.nextExpiresAt,
+        update: { windows: [weekly] },
+      })?.resetCredits,
+    ).toBeUndefined();
   });
 });
 
