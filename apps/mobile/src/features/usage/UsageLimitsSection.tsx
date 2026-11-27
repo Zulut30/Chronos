@@ -13,6 +13,7 @@ import {
 } from "@t3tools/contracts";
 import {
   type ResetCreditChoice,
+  limitsForDisplay,
   paceOf,
   paceRemainingPercent,
   remainingPercent,
@@ -188,7 +189,8 @@ export function AccountLimits(props: {
   const color = normalizeProviderAccentColor(props.accentColor) ?? providerColor;
   const m = useMessages();
   if (!limits) return null;
-  const notice = limitsNotice(limits, m);
+  const notice = limitsNotice(limits, m, props.driver);
+  const reading = limitsForDisplay(limits, now);
   const externalUsage = limits.externalUsage;
   const padding = dense ? "px-4 py-3" : "p-4";
   return (
@@ -214,13 +216,14 @@ export function AccountLimits(props: {
       </View>
       {notice ? (
         <Text className="text-sm text-foreground-muted">{notice}</Text>
-      ) : (
+      ) : null}
+      {reading ? (
         <View className="gap-3">
-          {limits.windows.map((window) => (
+          {reading.windows.map((window) => (
             <WindowRow key={window.id} window={window} color={color} now={now} />
           ))}
         </View>
-      )}
+      ) : null}
       {externalUsage ? (
         <Pressable
           accessibilityRole="link"

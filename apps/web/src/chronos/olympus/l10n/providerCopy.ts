@@ -43,6 +43,7 @@ const notices = new Map([
   ["Codex exited before it could report usage.", "Codex завершил работу до получения данных об использовании."],
   ["Codex did not answer the usage request.", "Codex не ответил на запрос данных об использовании."],
   ["Could not read limits.", "Не удалось получить лимиты."],
+  ["Claude Code could not retrieve subscription limits. Try /usage in this account later.", "Claude Code не получил лимиты подписки. Проверьте /usage в этом аккаунте позже."],
   ["Sign in with Google to see Antigravity limits.", "Войдите через Google, чтобы увидеть лимиты Antigravity."],
   ["Cursor could not read usage limits.", "Не удалось получить лимиты Cursor."],
   ["Grok could not read usage limits.", "Не удалось получить лимиты Grok."],

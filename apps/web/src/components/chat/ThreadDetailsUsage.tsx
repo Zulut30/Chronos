@@ -8,6 +8,7 @@ import type {
 import {
   type LimitPace,
   type LimitPoolWindow,
+  limitsForDisplay,
   paceOf,
   paceRemainingPercent,
   remainingPercent,
@@ -16,6 +17,7 @@ import { formatDuration, limitsNotice } from "@t3tools/shared/usageLimitsCopy";
 import { Link } from "@tanstack/react-router";
 import { msg, useGT, useLocale, useMessages } from "gt-react";
 import type { ReactNode } from "react";
+import { usageNotice } from "~/chronos/olympus/l10n/providerCopy";
 
 import { usePrimarySettings } from "../../hooks/useSettings";
 import { useNowMinute } from "../../hooks/useNowMinute";
@@ -79,7 +81,7 @@ export function ThreadDetailsUsage({
         {resolved?.kind === "pool"
           ? resolved.windows.map((window) => <PoolRow key={window.id} window={window} now={now} />)
           : resolved &&
-            (quotas.length === 0 || limitsNotice(resolved.limits) === null) && (
+            (quotas.length === 0 || limitsForDisplay(resolved.limits, now)) && (
               <InstanceRows limits={resolved.limits} now={now} />
             )}
         {quotas.map(({ key, accountLabel, window }) => (
@@ -99,20 +101,24 @@ function InstanceRows({
 }) {
   const gt = useGT();
   const m = useMessages();
+  const locale = useLocale();
   const notice = limitsNotice(limits, m);
-  if (notice) {
-    return (
-      <UsageRow
-        label={gt("Limits", { $context: "usage limits row label" })}
-        fill={null}
-        tone={null}
-        value={gt("Unavailable")}
-        tooltip={<span className="text-foreground">{notice}</span>}
-        opensUsage
-      />
-    );
-  }
-  return limits.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />);
+  const reading = limitsForDisplay(limits, now);
+  return (
+    <>
+      {reading?.windows.map((window) => <LimitRow key={window.id} window={window} now={now} />)}
+      {notice ? (
+        <UsageRow
+          label={gt("Limits", { $context: "usage limits row label" })}
+          fill={null}
+          tone={null}
+          value={gt("Unavailable")}
+          tooltip={<span className="text-foreground">{usageNotice(notice, locale)}</span>}
+          opensUsage
+        />
+      ) : null}
+    </>
+  );
 }
 
 /** The thread's context window. The bar fills as context is used; the tick marks auto-compaction. */

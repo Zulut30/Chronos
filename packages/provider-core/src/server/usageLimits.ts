@@ -115,8 +115,21 @@ export function resolveUsageLimitsAfterProbe(input: {
   readonly probed: ServerProviderUsageLimits | undefined;
 }): ServerProviderUsageLimits | undefined {
   const { published, probed } = input;
-  if (probed?.unavailable?.reason === "probeFailed" && published && !published.unavailable) {
-    return published;
+  if (probed?.unavailable?.reason === "probeFailed" && published) {
+    const now = Date.parse(probed.checkedAt);
+    if (
+      !published.unavailable &&
+      published.windows.every((window) => !window.resetsAt || Date.parse(window.resetsAt) > now)
+    ) {
+      return published;
+    }
+    // chronos: an empty retry cannot supersede a still-active event from this account.
+    if (published.unavailable?.reason !== "unsupported" && probed.windows.length === 0) {
+      const windows = published.windows.filter(
+        (window) => window.resetsAt !== undefined && Date.parse(window.resetsAt) > now,
+      );
+      if (windows.length > 0) return { ...probed, checkedAt: published.checkedAt, windows };
+    }
   }
   if (
     published &&

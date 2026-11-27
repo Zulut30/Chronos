@@ -237,6 +237,71 @@ describe("pools", () => {
   };
   const laptop = { entry: { target: { label: "Laptop" } } };
 
+  it("shows the active Claude window from a rate-limit event when the full read failed", () => {
+    const partial = provider({
+      driver: claude,
+      instanceId: ProviderInstanceId.make("claude-second"),
+      displayName: "Claude 2",
+      usageLimits: {
+        checkedAt,
+        windows: [
+          { ...weekly, usedPercent: 37 },
+          { ...window, resetsAt: new Date(now).toISOString() },
+          { id: "unknown", kind: "other", label: "Other", usedPercent: 15 },
+        ],
+        unavailable: { reason: "probeFailed" },
+        resetCredits: { availableCount: 2 },
+      },
+    });
+    const input = new Map([
+      [EnvironmentId.make("desktop"), { ...laptop, serverConfig: { providers: [partial] } }],
+    ]);
+    expect(collectLimitAccounts(input, now)[0]?.limits.windows).toEqual([
+      { ...weekly, usedPercent: 37 },
+    ]);
+    expect(collectLimitNotices(input)).toEqual([
+      "Claude 2: Claude Code could not retrieve subscription limits. Try /usage in this account later.",
+    ]);
+    expect(collectLimitAccounts(input, now)[0]?.limits.resetCredits).toBeUndefined();
+    expect(collectLimitAccounts(input, Date.parse(weekly.resetsAt))).toEqual([]);
+  });
+
+  it("selects active readings of the same login consistently in the pool and chat report", () => {
+    const auth = { status: "authenticated", email: "work@example.com" } as const;
+    const full = provider({ auth, usageLimits: { checkedAt, windows: [window] } });
+    const partial = provider({
+      auth,
+      instanceId: ProviderInstanceId.make("secondary"),
+      usageLimits: {
+        checkedAt: new Date(now).toISOString(),
+        unavailable: { reason: "probeFailed" },
+        windows: [{ ...weekly, usedPercent: 37 }],
+      },
+    });
+    const missed = provider({
+      auth,
+      instanceId: ProviderInstanceId.make("missing"),
+      usageLimits: {
+        checkedAt: new Date(now).toISOString(),
+        windows: [],
+        unavailable: { reason: "probeFailed" },
+      },
+    });
+    for (const providers of [[full, partial, missed], [missed, partial, full]]) {
+      const input = new Map([
+        [EnvironmentId.make("desktop"), { ...laptop, serverConfig: { providers } }],
+      ]);
+      for (const [at, id] of [
+        [now, window.id],
+        [Date.parse(window.resetsAt), weekly.id],
+      ] as const) {
+        expect(collectLimitAccounts(input, at)[0]?.limits.windows[0]?.id).toBe(id);
+        const report = collectProviderUsageLimits(full.instanceId, providers, [], at);
+        expect(report?.accounts[0]?.limits.windows[0]?.id).toBe(id);
+      }
+    }
+  });
+
   it("merges one account reported natively on two environments and by a hub into one entry", () => {
     const native = provider({
       driver: claude,

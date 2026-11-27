@@ -328,7 +328,47 @@ export function collectHttpQuotaSources(presentations: Parameters<typeof collect
   );
 }
 
-export function collectLimitAccounts(presentations: LimitPresentations): readonly LimitAccount[] {
+// chronos: a sparse provider event can report a real window before a full quota probe succeeds.
+export function limitsForDisplay(
+  limits: ServerProviderUsageLimits | undefined,
+  now: number,
+): ServerProviderUsageLimits | undefined {
+  if (!limits?.windows.length || limits.unavailable?.reason === "unsupported") return undefined;
+  if (!limits.unavailable) return limits;
+  const windows = limits.windows.filter(
+    (window) => window.resetsAt !== undefined && Date.parse(window.resetsAt) > now,
+  );
+  // A window event verifies only its own allowance. It cannot verify a reset-credit balance.
+  return windows.length > 0
+    ? { checkedAt: limits.checkedAt, windows, unavailable: limits.unavailable }
+    : undefined;
+}
+
+// chronos: prefer a complete reading, then an active event, then a diagnostic alone.
+function usageReadingRank(limits: ServerProviderUsageLimits, now: number): number {
+  if (!limits.unavailable && limits.windows.length > 0) {
+    return limits.windows.some((window) => !window.resetsAt || Date.parse(window.resetsAt) > now)
+      ? 3
+      : 1;
+  }
+  return limitsForDisplay(limits, now) ? 2 : 0;
+}
+
+function preferUsageReading(
+  candidate: ServerProviderUsageLimits,
+  previous: ServerProviderUsageLimits,
+  now: number,
+): boolean {
+  const difference = usageReadingRank(candidate, now) - usageReadingRank(previous, now);
+  return difference !== 0
+    ? difference > 0
+    : Date.parse(candidate.checkedAt) > Date.parse(previous.checkedAt);
+}
+
+export function collectLimitAccounts(
+  presentations: LimitPresentations,
+  now = Date.now(),
+): readonly LimitAccount[] {
   const accounts = new Map<string, LimitAccount>();
   const creditSources = new Map<string, LimitAccount>();
   const hubRedeems = new Map<string, LimitAccount>();
@@ -364,7 +404,6 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
       accounts.set(key, next);
       return;
     }
-    const fresher = Date.parse(next.limits.checkedAt) > Date.parse(previous.limits.checkedAt);
     const environments = [
       ...previous.environments,
       ...next.environments.filter(
@@ -372,7 +411,7 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
           !previous.environments.some((seen) => seen.environmentId === candidate.environmentId),
       ),
     ];
-    const winner = fresher ? next : previous;
+    const winner = preferUsageReading(next.limits, previous.limits, now) ? next : previous;
     const creditSource = creditSources.get(key);
     // A hub e-mail names the account better than the driver's default instance name.
     const hubEmail = [previous, next].some(
@@ -405,7 +444,8 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
   for (const [environmentId, presentation] of presentations) {
     const label = presentation.entry.target.label;
     for (const provider of providersWithLimits(presentation.serverConfig?.providers ?? [])) {
-      if (!provider.usageLimits || limitsNotice(provider.usageLimits) !== null) continue;
+      const limits = limitsForDisplay(provider.usageLimits, now);
+      if (!limits) continue;
       merge(nativeRowKey(resolveKey, environmentId, provider), {
         key: `${environmentId}:${provider.instanceId}`,
         driver: provider.driver,
@@ -416,7 +456,7 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
         environments: [{ environmentId, label }],
         sourceLabel: null,
         redeem: { environmentId, input: { instanceId: provider.instanceId } },
-        limits: provider.usageLimits,
+        limits,
       });
     }
   }
@@ -427,7 +467,8 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
         ? `${presentation.entry.target.label} · ${source.label}`
         : source.label;
       for (const account of source.accounts) {
-        if (limitsNotice(account.usageLimits) !== null) continue;
+        const limits = limitsForDisplay(account.usageLimits, now);
+        if (!limits) continue;
         const resolved = resolveKey(account);
         // A resolved account already has an identity; its public key must stay distinct from others'.
         const hub = resolved ? `${environmentId}:${source.id}` : hubIdentity(environmentId, source);
@@ -441,17 +482,17 @@ export function collectLimitAccounts(presentations: LimitPresentations): readonl
           accentColor: undefined,
           environments: [],
           sourceLabel,
-          redeem: account.usageLimits.resetCredits?.nextCreditId
+          redeem: limits.resetCredits?.nextCreditId
             ? {
                 environmentId,
                 input: {
                   sourceId: source.id,
                   accountId: account.id,
-                  creditId: account.usageLimits.resetCredits.nextCreditId,
+                  creditId: limits.resetCredits.nextCreditId,
                 },
               }
             : null,
-          limits: account.usageLimits,
+          limits,
         });
       }
     }
@@ -983,13 +1024,8 @@ export function collectProviderUsageLimits(
     const snapshot = { provider, limits: provider.usageLimits };
     const key = accountKey ?? `instance:${provider.instanceId}`;
     const previous = nativeByAccount.get(key);
-    const previousUsable = previous ? limitsNotice(previous.usage.limits) === null : false;
-    const usable = limitsNotice(snapshot.limits) === null;
     const providerWins =
-      !previous ||
-      (usable && !previousUsable) ||
-      (usable === previousUsable &&
-        Date.parse(snapshot.limits.checkedAt) > Date.parse(previous.usage.limits.checkedAt));
+      !previous || preferUsageReading(snapshot.limits, previous.usage.limits, now);
     const previousCredit = previous?.credits;
     const credits =
       snapshot.limits.resetCredits &&

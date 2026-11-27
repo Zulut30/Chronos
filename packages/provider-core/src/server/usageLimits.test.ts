@@ -143,4 +143,28 @@ describe("resolveUsageLimitsAfterProbe", () => {
     expect(resolveUsageLimitsAfterProbe({ published, probed: unsupported })).toBe(unsupported);
     expect(resolveUsageLimitsAfterProbe({ published: undefined, probed: failed })).toBe(failed);
   });
+
+  it("keeps a live event through a failed refresh only until its reported reset", () => {
+    const partial = { ...published, unavailable: { reason: "probeFailed" as const } };
+    const failed = {
+      checkedAt: "2026-09-03T13:00:00.000Z",
+      windows: [],
+      unavailable: { reason: "probeFailed" as const, message: "Try again later." },
+    };
+    expect(resolveUsageLimitsAfterProbe({ published: partial, probed: failed })).toEqual({
+      checkedAt,
+      windows: [session],
+      unavailable: failed.unavailable,
+    });
+    const afterReset = { ...failed, checkedAt: session.resetsAt };
+    expect(resolveUsageLimitsAfterProbe({ published: partial, probed: afterReset })).toBe(
+      afterReset,
+    );
+    expect(
+      resolveUsageLimitsAfterProbe({
+        published: { checkedAt, windows: [session] },
+        probed: afterReset,
+      }),
+    ).toBe(afterReset);
+  });
 });

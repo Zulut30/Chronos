@@ -12,6 +12,7 @@ import {
   displayLimitWindows,
   hubRoutes,
   instanceHubs,
+  limitsForDisplay,
   type LimitPoolWindow,
 } from "@t3tools/shared/usageLimits";
 import { limitsNotice } from "@t3tools/shared/usageLimitsCopy";
@@ -86,7 +87,7 @@ function hubPool(
   }));
   const readable = routed
     .flatMap((source) => source.accounts)
-    .filter((account) => limitsNotice(account.usageLimits) === null);
+    .filter((account) => limitsForDisplay(account.usageLimits, now));
   if (readable.length === 0) return null;
   // A signed-in login joins the pool only as a fresher reading of an account the hub routes to.
   const signedIn = providers.filter((provider) =>
@@ -107,7 +108,7 @@ function hubPool(
       },
     ],
   ]);
-  const pools = collectLimitPools(collectLimitAccounts(presentations), now);
+  const pools = collectLimitPools(collectLimitAccounts(presentations, now), now);
   return pools.length > 0 ? { kind: "pool", windows: pools.flatMap(displayLimitWindows) } : null;
 }
 

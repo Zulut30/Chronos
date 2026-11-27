@@ -1,5 +1,6 @@
 import type {
   ProviderConsumeResetCreditInput,
+  ProviderDriverKind,
   ServerProviderResetCredits,
   ServerProviderUsageLimits,
   ServerProviderUsageWindow,
@@ -69,11 +70,21 @@ export function collectExternalUsageLinks(
 export function limitsNotice(
   limits: ServerProviderUsageLimits,
   resolve: MFunctionType = mFallback,
+  driver?: ProviderDriverKind,
 ): string | null {
   if (limits.unavailable?.reason === "unsupported") {
     return limits.unavailable.message ?? resolve(msg("This account has no subscription limits."));
   }
   if (limits.unavailable?.reason === "probeFailed") {
+    // chronos: older connected servers omit the reason for a failed Claude subscription read.
+    if (
+      driver === "claudeAgent" &&
+      (!limits.unavailable.message || limits.unavailable.message === "Could not read limits.")
+    ) {
+      return resolve(
+        msg("Claude Code could not retrieve subscription limits. Try /usage in this account later."),
+      );
+    }
     return limits.unavailable.message ?? resolve(msg("Could not read limits."));
   }
   return limits.windows.length === 0 ? resolve(msg("No limits reported.")) : null;
@@ -100,7 +111,7 @@ export function collectLimitNotices(
       ) {
         continue;
       }
-      const notice = limits ? limitsNotice(limits, resolve) : null;
+      const notice = limits ? limitsNotice(limits, resolve, provider.driver) : null;
       const name = provider.displayName?.trim() || String(provider.driver);
       if (notice) notices.add(`${label(environmentLabel, name)}: ${notice}`);
     }

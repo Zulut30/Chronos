@@ -37,6 +37,10 @@ test("translates a user stop in the timeline and preserves custom interrupt reas
 });
 test("localizes provider notices without changing account names or diagnostics", () => {
   assert.equal(usageNotice("Work: Codex: Could not read limits.", "ru"), "Work: Codex: Не удалось получить лимиты.");
+  const claude = "Claude Code could not retrieve subscription limits. Try /usage in this account later.";
+  assert.equal(usageNotice("Work · Claude 2: " + claude, "ru-RU"),
+    "Work · Claude 2: Claude Code не получил лимиты подписки. Проверьте /usage в этом аккаунте позже.");
+  assert.equal(usageNotice(claude, "en"), claude);
   assert.equal(usageNotice("Codex: Codex could not read usage (JSON-RPC -32603).", "ru"),
     "Codex: Не удалось получить данные об использовании Codex (JSON-RPC -32603).");
   assert.equal(usageNotice("Codex: custom error", "ru"), "Codex: custom error");

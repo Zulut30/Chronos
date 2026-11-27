@@ -1,8 +1,10 @@
 import type { EnvironmentId, UsageLimitsReport } from "@t3tools/contracts";
 import type { TimestampFormat } from "@t3tools/contracts/settings";
+import { limitsForDisplay } from "@t3tools/shared/usageLimits";
 import { limitsNotice } from "@t3tools/shared/usageLimitsCopy";
-import { msg, T, useGT, useMessages } from "gt-react";
+import { msg, T, useGT, useLocale, useMessages } from "gt-react";
 import { GaugeIcon } from "lucide-react";
+import { usageNotice } from "~/chronos/olympus/l10n/providerCopy";
 
 import { m, type MessageResolver } from "../../i18n/messages";
 import { ensureLocalApi } from "../../localApi";
@@ -134,6 +136,7 @@ function UsageLimitsBannerBody({
   readonly environmentId: EnvironmentId;
 }) {
   const messages = useMessages();
+  const locale = useLocale();
   const now = Date.parse(report.createdAt);
   return (
     <ComposerBanner.Scroll>
@@ -142,7 +145,8 @@ function UsageLimitsBannerBody({
           const resetCreditInput =
             account.resetCreditInput ??
             (account.instanceId ? { instanceId: account.instanceId } : undefined);
-          const notice = limitsNotice(account.limits, messages);
+          const notice = limitsNotice(account.limits, messages, account.driver);
+          const reading = limitsForDisplay(account.limits, now);
           const externalUsage = account.limits.externalUsage;
           return (
             <div key={account.id} className="flex min-w-0 flex-col gap-1">
@@ -152,16 +156,17 @@ function UsageLimitsBannerBody({
                 </span>
               ) : null}
               {notice ? (
-                <span className="text-xs text-muted-foreground">{notice}</span>
-              ) : (
+                <span className="text-xs text-muted-foreground">{usageNotice(notice, locale)}</span>
+              ) : null}
+              {reading ? (
                 <LimitWindows
                   compact
                   driver={account.driver}
                   accentColor={account.accentColor}
-                  windows={account.limits.windows}
+                  windows={reading.windows}
                   now={now}
                 />
-              )}
+              ) : null}
               {externalUsage ? (
                 <Button
                   size="sm"
@@ -185,7 +190,7 @@ function UsageLimitsBannerBody({
         })}
         {report.notices.map((notice) => (
           <span key={notice} className="text-xs text-muted-foreground">
-            {notice}
+            {usageNotice(notice, locale)}
           </span>
         ))}
       </ComposerBanner.Body>

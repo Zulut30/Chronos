@@ -103,3 +103,32 @@ describe("UsageLimitsPooled next refill", () => {
     await expect.element(screen.getByText(/^↻ \+\d+%$/)).not.toBeInTheDocument();
   });
 });
+
+it("shows a partially reported Claude allowance until its reset alongside the failed-read notice", async () => {
+  const resetsAt = "2026-10-25T17:00:00.000Z";
+  const claude: ServerProvider = {
+    ...managedChatGpt("claude-work", "Work"),
+    driver: ProviderDriverKind.make("claudeAgent"),
+    usageLimits: {
+      checkedAt,
+      windows: [{ id: "seven_day", label: "Weekly", kind: "weekly", usedPercent: 37, resetsAt }],
+      unavailable: { reason: "probeFailed", message: "Usage read timed out." },
+    },
+  };
+  const presentations = new Map([
+    [
+      EnvironmentId.make("desk"),
+      { entry: { target: { label: "Desk" } }, serverConfig: { providers: [claude] } },
+    ],
+  ]);
+  await using screen = await render(
+    <UsageLimitsPooled presentations={presentations} now={Date.parse(checkedAt)} />,
+  );
+  await expect.element(screen.getByText("63%", { exact: true }).first()).toBeVisible();
+  await expect.element(screen.getByText("Work: Usage read timed out.")).toBeVisible();
+  await screen.rerender(
+    <UsageLimitsPooled presentations={presentations} now={Date.parse(resetsAt)} />,
+  );
+  await expect.element(screen.getByText("63%", { exact: true })).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Work: Usage read timed out.")).toBeVisible();
+});
