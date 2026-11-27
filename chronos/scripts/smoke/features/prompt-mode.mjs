@@ -16,7 +16,7 @@ export async function checkPromptMode(client, opts) {
   const command = "chronos-smoke-mode";
   const row = '[data-oly-ps-name="' + command + '"]';
   const trigger = "chronos-prompt-mode [role=combobox]";
-  const option = "[data-chronos-settings-options] [role=option]";
+  const option = "[data-chronos-settings-options][data-open] [role=option]";
   const fieldValue = "document.querySelector('form.oly-ps-form').elements.namedItem('mode').value";
 
   async function openEditor(create) {
@@ -38,9 +38,20 @@ export async function checkPromptMode(client, opts) {
     await until("mode " + text, () => evaluate(`${fieldValue} === ${JSON.stringify(id)}
       && document.querySelector('${trigger} [data-slot=select-value]')?.textContent === ${JSON.stringify(text)}`));
   }
-  async function expectMenu() {
-    await until("six mode options", () => evaluate(`document.querySelectorAll('${option}').length === 6`));
+  async function expectMenu(keyboard = false) {
+    // Base UI keeps the closed list mounted while its trigger has focus.
+    await until("open mode menu", () => evaluate(`document.querySelector('${trigger}')?.ariaExpanded === "true"
+      && document.querySelectorAll('${option}').length === 6
+      && (!${keyboard} || document.activeElement.matches('${option}'))`));
     assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('${option}'), el => el.textContent)`), labels);
+  }
+  async function selectWithKey(keyName, keyCode, index) {
+    await key("ArrowDown", 40);
+    await expectMenu(true);
+    await key(keyName, keyCode);
+    await until("keyboard focus on " + labels[index], () => evaluate(`document.activeElement.matches('${option}[data-highlighted]')
+      && document.activeElement.textContent === ${JSON.stringify(labels[index])}`));
+    await key("Enter", 13);
   }
   async function save() {
     await click(".oly-ps-form button[type=submit]");
@@ -66,10 +77,7 @@ export async function checkPromptMode(client, opts) {
       await click(option + ":nth-child(3)");
       await expectValue("plan", labels[2]);
       await until("focus after pointer selection", () => evaluate(`document.activeElement.matches('${trigger}')`));
-      await key("ArrowDown", 40);
-      await expectMenu();
-      await key("End", 35);
-      await key("Enter", 13);
+      await selectWithKey("End", 35, 5);
       await expectValue("design-plan", labels[5]);
       await save();
     }
@@ -87,7 +95,7 @@ export async function checkPromptMode(client, opts) {
         await key("Tab", 9);
         assert.ok(await evaluate(`document.activeElement.matches('${trigger}:focus-visible')`));
         await key("ArrowDown", 40);
-        await expectMenu();
+        await expectMenu(true);
         await client.pumpFrames(2, 90);
         const fits = await evaluate(`[...document.querySelectorAll('${option}')].every(el => {
           const rect = el.getBoundingClientRect(), text = document.createRange();
@@ -105,10 +113,7 @@ export async function checkPromptMode(client, opts) {
       }
     }
     if (!writing) {
-      await key("ArrowDown", 40);
-      await expectMenu();
-      await key("Home", 36);
-      await key("Enter", 13);
+      await selectWithKey("Home", 36, 0);
       await expectValue("", labels[0]);
       await save();
       await click(row);
