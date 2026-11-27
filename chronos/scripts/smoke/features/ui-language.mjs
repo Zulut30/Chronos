@@ -68,7 +68,7 @@ export async function check({ client, opts, viewport }) {
           "document.querySelector('#settings-search-result-language')?.getAttribute('aria-selected') === 'true'"));
         await key("Enter", 13);
         await until("language picker from " + query, () => evaluate(
-          "location.pathname.endsWith('/settings/general') && !!document.querySelector('#language [data-ui-language-picker]')"));
+          "window.__TSR_ROUTER__?.state.location.pathname === '/settings/general' && !!document.querySelector('#language [data-ui-language-picker]')"));
       }
       await click("[data-ui-language-picker]");
       await until("long language name", () => evaluate("!!document.querySelector('[data-ui-language=pt-BR]')"));
@@ -85,7 +85,25 @@ export async function check({ client, opts, viewport }) {
       })()`);
       assert.ok(names.length > 2 && names.every(item => item.name === item.expected && item.fits),
         locale + " language names at 900px: " + JSON.stringify(names));
-      await key("Escape", 27);
+      if (locale === "ru") {
+        // Exercise an actual long selected value as well as the open popup.
+        await click("[role=option][data-ui-language=pt-BR]");
+        try {
+          await until("Portuguese (Brazil) saved and visible at 900px", () => evaluate(`(async () => {
+            const value = document.querySelector('[data-ui-language-picker] [data-slot=select-value]');
+            if (!value || (await window.desktopBridge.getClientSettings())?.language !== 'pt-BR') return false;
+            const text = document.createRange(); text.selectNodeContents(value);
+            const label = text.getBoundingClientRect(), box = value.getBoundingClientRect();
+            return value.textContent.trim() === new Intl.DisplayNames(['pt-BR'], {type:'language'}).of('pt-BR')
+              && label.left >= box.left - 1 && label.right <= box.right + 1
+              && label.top >= box.top - 1 && label.bottom <= box.bottom + 1;
+          })()`));
+        } finally {
+          await language("ru");
+        }
+      } else {
+        await key("Escape", 27);
+      }
     } finally {
       await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, mobile: false });
     }

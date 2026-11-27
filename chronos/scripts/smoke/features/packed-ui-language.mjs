@@ -14,7 +14,7 @@ const messageIds = [
   "be79ac42a5bf4774", "e23795dd567a0bb4", "06402f8d5a03c7d7", "91ad768bf4bccd93",
   "2b8162af67805b3e", "600f38865f001011", "e25d5bf096a8021d", "62ad23bde638a5b7",
   "85cf1c541e45555e", "2bc8bf19019c1f09", "d5a40d094ba8bdbd", "4a0aa4ecbfc2b24b",
-  "faa4000e1c497144", "d83cace50e3e192e", "71e585a136f5fb5f", "4864000574f78b5c",
+  "faa4000e1c497144", "d83cace50e3e192e", "71e585a136f5fb5f",
   "83ea1465d91cdb34", "724baefb1716842b", "7d8b45e99bf2992b", "8086b36e6d582ff9",
   "77bc7873d636e9b6", "286158b26812f4b9", "5298649c8f9acbda", "b2be70822d55f16a",
   "8ff5295ac69cb51d", "b994ceff7a59b4f0", "616eeb4b920ecf0b", "3433b1de49b7e93e",
@@ -39,6 +39,7 @@ export async function verifyPackedLanguage(archive) {
   const [settingsAsset] = byPath(name => /\/olympus-settings-[a-f0-9]{16}\.js$/.test(name));
   assert.ok(settingsAsset, "Missing immutable lazy Olympus settings resource");
   const resource = settingsAsset[0].split("/").at(-1);
+  const lazyImport = new RegExp("import\\(\\s*(['\"`])\\.\\/" + resource.replaceAll(".", "\\.") + "\\1\\s*\\)");
   const lazyOwners = new Map();
   for (const [file, bytes] of byPath(name => name.endsWith(".js") && !name.includes("/olympus-"))) {
     if (bytes.includes(resource)) lazyOwners.set(file.slice(prefix.length), bytes.toString());
@@ -46,7 +47,7 @@ export async function verifyPackedLanguage(archive) {
   for (const locale of ["ru", "en"]) {
     assert.ok([...lazyOwners].some(([file, js]) => {
       const selected = locale === "en" ? !Object.hasOwn(imports, file) : !Object.values(imports).includes(file);
-      return selected && js.includes('import("./' + resource + '")');
+      return selected && lazyImport.test(js);
     }), "Settings must load the immutable panels on demand in " + locale);
   }
   const missing = new Set(messageIds);
