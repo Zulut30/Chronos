@@ -4,6 +4,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 const decorations = ["oly-spin", "oly-rise", "oly-twinkle", "oly-glint"];
 
 export async function prepareIdleDraft(probe, send) {
+  // Hosted Windows desktops can request reduced motion. Measure the same normal-motion
+  // workload on both packages without changing the runner's accessibility settings.
+  await send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+  });
   await send("Page.bringToFront");
   let state;
   const until = Date.now() + 60000;

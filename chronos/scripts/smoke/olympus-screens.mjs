@@ -192,7 +192,6 @@ export async function verifyOlympusScreens({ launchedPid, client, opts, checks, 
         const motion = value => client.send("Emulation.setEmulatedMedia", {
           features: [{ name: "prefers-reduced-motion", value }],
         });
-        await motion("no-preference");
         try {
           const cpu = await measureMacDraft(client, launchedPid);
           writeFileSync(join(folder, "idle-cpu.json"), JSON.stringify(cpu, null, 2));
