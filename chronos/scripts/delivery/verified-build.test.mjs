@@ -24,7 +24,15 @@ test("only the same full desktop with passing checks, strict smoke and previous-
   assert.equal(await verifiedBuild("c".repeat(40), head, api), null);
   receipt.expired = true; assert.equal(await verifiedBuild(base, head, api), null); receipt.expired = false;
   smoke.display_title = "Diagnostic desktop 11"; assert.equal(await verifiedBuild(base, head, api), null);
+  smoke.display_title = "Strict desktop 11";
+  const release =await verifiedBuild("c".repeat(40), head, api, { requirePerf: false });
+  assert.equal(release.build, "11"); assert.equal(release.perf, "pending");
+  assert.equal((await verifiedBuild(base, head, api, { requirePerf: false })).perf, 13);
+  assert.equal((await verifiedBuild(undefined, head, api, { requirePerf: false })).build, "11");
+  await assert.rejects(() => verifiedBuild(undefined, head, api));
+  smoke.display_title = "Diagnostic desktop 11"; assert.equal(await verifiedBuild(base, head, api, { requirePerf: false }), null);
   smoke.display_title = "Strict desktop 11"; assets.pop(); assert.equal(await verifiedBuild(base, head, api), null);
+  assert.equal(await verifiedBuild(base, head, api, { requirePerf: false }), null);
   assert.throws(() => checkDesktop({ ...build, display_title: "Perf Windows " + head }, head));
   assert.throws(() => checkDesktop(build, base));
 });
