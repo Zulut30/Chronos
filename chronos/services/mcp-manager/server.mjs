@@ -63,6 +63,13 @@ export function createServer(){return http.createServer(async(req,res)=>{
       if (await serveLanguageAsset(u.pathname, res)) return;
     }
     const staticFiles={'/':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/style.css':['style.css','text/css; charset=utf-8']};
+    if(req.method==='GET' && /^\/fonts\/inter-(latin|cyrillic)-wght-normal\.woff2$/.test(u.pathname)) {
+      const name=path.basename(u.pathname);
+      const font=path.join(HERE,'fonts/files',name);
+      if(!fs.existsSync(font))return send(res,404,{error:'Не найдено'});
+      res.writeHead(200,{'content-type':'font/woff2','cache-control':'private, max-age=86400'});
+      res.end(fs.readFileSync(font));return;
+    }
     if(req.method==='GET'&&staticFiles[u.pathname]){const [name,type]=staticFiles[u.pathname];return send(res,200,fs.readFileSync(path.join(HERE,name),'utf8'),type,origin)}
     if(req.method==='GET'){
       if(u.pathname==='/api/health')return send(res,200,{ok:true,service:'oly-mcp-manager',port:PORT},undefined,origin);

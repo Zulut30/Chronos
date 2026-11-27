@@ -176,6 +176,11 @@ export async function check({ client, opts, viewport }) {
     const cyrillic = lines.filter(line => /\p{Script=Cyrillic}/u.test(line));
     assert.deepEqual(cyrillic, [], id + " contains Cyrillic: " + JSON.stringify(cyrillic));
   }
+  async function verifyMcp(locale) {
+    if (!opts.mcpTestHome) return;
+    const { verifyMcpSettings } = await import("./mcp-settings.mjs");
+    await verifyMcpSettings({ client, opts, viewport, locale, evaluate, until, route, click, key });
+  }
   const updateTooltips = {};
   try {
     await language("en");
@@ -213,6 +218,7 @@ export async function check({ client, opts, viewport }) {
     await route("/settings/appearance");
     await scan("appearance", "T3 Code");
     await verifyThemeLibrary({ client, evaluate, until });
+    await verifyMcp("en");
     for (const [id, selector, text, loadedPanel] of [
       ["API keys", "[data-oly-ik-nav] button", "Scrape.do"],
       ["MCP", "[data-oly-mcp-nav] button", "Settings location", "#path:not([hidden]) code"],
@@ -270,6 +276,7 @@ export async function check({ client, opts, viewport }) {
   }
   await compactLanguagePicker("ru");
   await verifyWorkingSection("ru");
+  await verifyMcp("ru");
   await route("/");
   updateTooltips.ru = await verifyUpdateTooltip("ru");
   assert.equal(await evaluate("performance.getEntriesByType('resource').some(e=>e.name.includes('/chronos-english-'))"), false);

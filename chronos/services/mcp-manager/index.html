@@ -2,7 +2,7 @@
 <header class="page-head"><div><h1>Серверы MCP</h1><p>Инструменты и данные, к которым подключаются агенты</p></div><button id="close" class="btn ghost icon" type="button" aria-label="Закрыть менеджер" title="Закрыть (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></header>
 <main>
 <div class="scope">
- <div class="agent-tabs" role="tablist" aria-label="Агент"><button type="button" role="tab" aria-selected="true" data-agent="codex">Codex</button><button type="button" role="tab" aria-selected="false" data-agent="claude">Claude</button></div>
+ <div class="agent-scope"><span id="agent-label">Агент</span><div class="agent-tabs" role="tablist" aria-labelledby="agent-label"><button type="button" role="tab" aria-selected="true" data-agent="codex">Codex</button><button type="button" role="tab" aria-selected="false" data-agent="claude">Claude</button></div></div>
  <div class="where">
   <label class="field"><span>Устройство</span><select id="machine" class="input"></select></label>
   <label class="field grow"><span>Где хранятся настройки</span><select id="location" class="input"></select></label>

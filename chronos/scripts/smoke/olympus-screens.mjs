@@ -120,6 +120,9 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   await press("ArrowUp", 38);
   await wait({ selector: "[data-oly-mcp-nav] button:focus" });
 
+  await press("Enter", 13);
+  await wait({ allSelectors: [".oly-mcp-pane iframe", ".oly-mcp-crumb"] });
+
   // Select each injected panel through the native search, including consecutive results on the same route.
   const settingsSearch = "nav[data-workspace-area=settings-nav] input[role=combobox]";
   for (const [name, result, pane, navButton] of [

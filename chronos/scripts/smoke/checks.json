@@ -218,7 +218,7 @@
       ],
       "expect": [
         { "selector": ".oly-mcp-pane", "label": "Панель «Серверы MCP»" },
-        { "text": "Серверы MCP", "scope": ".oly-mcp-pane", "label": "Заголовок «Серверы MCP»" },
+        { "text": "Серверы MCP", "scope": ".oly-mcp-crumb", "label": "Заголовок «Серверы MCP»" },
         { "requires": "services", "iframeSrcPrefix": "http://127.0.0.1:4523/", "label": "Iframe менеджера MCP" }
       ],
       "expectOffline": [
@@ -236,7 +236,7 @@
         { "type": "navigate", "to": "/settings/general", "waitFor": { "allSelectors": ["[data-oly-mcp-nav] button", "[data-oly-ik-nav] button"] } },
         { "type": "click", "selector": "[data-oly-mcp-nav] button", "waitFor": { "assertions": [
           { "activeSettingsSection": "[data-oly-mcp-nav] button" },
-          { "text": "Серверы MCP", "scope": ".oly-mcp-pane h2" }
+          { "text": "Серверы MCP", "scope": ".oly-mcp-crumb" }
         ] } },
         { "type": "click", "selector": "[data-oly-ik-nav] button", "waitFor": { "assertions": [
           { "activeSettingsSection": "[data-oly-ik-nav] button" },
@@ -244,7 +244,7 @@
         ] } },
         { "type": "click", "selector": "[data-oly-mcp-nav] button", "waitFor": { "assertions": [
           { "activeSettingsSection": "[data-oly-mcp-nav] button" },
-          { "text": "Серверы MCP", "scope": ".oly-mcp-pane h2" }
+          { "text": "Серверы MCP", "scope": ".oly-mcp-crumb" }
         ] } }
       ],
       "action": { "type": "click", "selector": "[data-settings-section='/settings/general']" },

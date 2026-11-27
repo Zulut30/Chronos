@@ -6,6 +6,11 @@ export function chronosResources(repoRoot: string, path: Path.Path) {
   return [
     { from: "apps/desktop/prod-resources/chronos-pc", to: "chronos-pc" },
     { from: path.join(repoRoot, "chronos/services"), to: "chronos-services", filter: ["**/*", "!**/*.test.mjs"] },
+    {
+      from: path.join(repoRoot, "apps/web/node_modules/@fontsource-variable/inter"),
+      to: "chronos-services/mcp-manager/fonts",
+      filter: ["files/inter-latin-wght-normal.woff2", "files/inter-cyrillic-wght-normal.woff2", "LICENSE"],
+    },
     { from: path.join(repoRoot, "chronos/brand/themes/olympus.json"), to: "chronos-themes/olympus.json" },
   ];
 }

@@ -5,7 +5,7 @@ const store={get(k){try{return localStorage.getItem('oly-mcp-'+k)}catch{return n
 if(store.get('agent')==='claude')S.agent='claude';
 
 /* ---------- Тема: параметры из адреса (#theme=…&olympus=…) и обновления от T3 через postMessage ---------- */
-const TOKENS=['bg','fg','muted','border','panel','accent','primary-fg','hover','radius'],darkQuery=matchMedia('(prefers-color-scheme: dark)');
+const TOKENS=['bg','fg','muted','border','panel','accent','primary-fg','hover','radius','input','popover','danger','ok','font','mono','root-size'],darkQuery=matchMedia('(prefers-color-scheme: dark)');
 let theme=new URLSearchParams(location.hash.slice(1));
 function applyTheme(){
  const t=theme.get('theme'),dark=t?t==='dark':darkQuery.matches;
@@ -244,10 +244,10 @@ $('machine').onchange=loadLocations;$('location').onchange=()=>{notice('');loadS
 $('refresh').onclick=()=>{if(S.pending)return;notice('');loadServers()};$('add').onclick=openEditor;$('search').oninput=renderList;
 $('close').onclick=()=>parent.postMessage({type:'oly-mcp-close'},'*');
 addEventListener('keydown',e=>{
- if(document.querySelector('dialog[open]'))return;
+ if(e.defaultPrevented||document.querySelector('dialog[open],select:open')||e.target instanceof HTMLOptionElement)return;
  const t=e.target,typing=t instanceof HTMLInputElement||t instanceof HTMLTextAreaElement||t instanceof HTMLSelectElement;
  if((e.key==='/'&&!typing)||(e.key.toLowerCase()==='f'&&(e.ctrlKey||e.metaKey))){e.preventDefault();$('search').focus();$('search').select();return}
- if(e.key==='Escape'){if(t===$('search')&&t.value){e.preventDefault();t.value='';renderList();return}if(!typing&&parent!==window)parent.postMessage({type:'oly-mcp-close'},'*')}
+ if(e.key==='Escape'){if(t===$('search')&&t.value){e.preventDefault();t.value='';renderList();return}if(!e.repeat&&parent!==window)parent.postMessage({type:'oly-mcp-close'},'*')}
 });
 loadMachines();
 })();

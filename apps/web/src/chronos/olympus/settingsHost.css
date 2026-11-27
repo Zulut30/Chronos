@@ -4,30 +4,41 @@ html [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel) {
   font-family: var(--font-sans);
 }
 
-html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane,
-html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane > header,
-html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane iframe {
+/* MCP shares the SettingsContentLayout header (including the native modal close). */
+.oly-mcp-settings-active > [data-chronos-settings-content] > :not(header, .oly-mcp-pane),
+.oly-mcp-settings-active > [data-chronos-settings-content] > header nav [aria-current]:not(.oly-mcp-crumb),
+.oly-mcp-settings-active > [data-chronos-settings-content] > header > div > button:not(:last-of-type) {
+  display: none;
+}
+.oly-mcp-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+.oly-mcp-pane iframe {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
   background: var(--background);
 }
-
-html[data-theme-id] [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane) > header {
+.oly-mcp-error {
+  margin: auto;
+  max-width: 28rem;
+  padding: 1.5rem;
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+.oly-mcp-error button {
+  margin-block-start: .5rem;
+  text-decoration: underline;
+}
+html[data-theme-id] [data-chronos-settings] .oly-ps-pane > header {
   height: var(--workspace-topbar-height);
   min-height: var(--workspace-topbar-height);
   border-color: var(--border);
   padding-inline: var(--workspace-gutter-start) var(--workspace-gutter-end);
-}
-
-html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header h2,
-html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button {
-  font: 500 var(--text-sm)/1.4 var(--font-sans);
-  text-transform: none;
-  letter-spacing: normal;
-  color: var(--foreground);
-}
-
-html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button:hover {
-  background: var(--accent);
-  color: var(--accent-foreground);
 }
 
 [data-chronos-settings]
