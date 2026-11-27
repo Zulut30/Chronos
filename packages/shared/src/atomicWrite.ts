@@ -34,41 +34,40 @@ const isUnsupportedSync = (error: PlatformError.PlatformError) => {
 };
 
 /** Replace the prepared file once a transient Windows sharing lock clears. */
-export const renameWithWindowsLockRetry = (
+export const renameWithWindowsLockRetry = Effect.fnUntraced(function* (
   fs: FileSystem.FileSystem,
   tempPath: string,
   targetPath: string,
-) =>
-  Effect.gen(function* () {
-    // Stop retrying if another save changes the target; read-only targets also return permanent EPERM.
-    const targetVersion = fs.stat(targetPath).pipe(
-      Effect.map((info) => ({
-        id: `${Option.getOrUndefined(info.ino)}:${info.size}:${Option.getOrUndefined(info.mtime)?.getTime()}`,
-        readOnly: (info.mode & 0o200) === 0,
-      })),
-      Effect.catchIf(
-        (error) => error.reason._tag === "NotFound",
-        () => Effect.succeed({ id: "missing", readOnly: false }),
-      ),
-      Effect.option,
-    );
-    const before = yield* targetVersion;
-    const firstAttempt = yield* Effect.result(fs.rename(tempPath, targetPath));
-    if (Result.isSuccess(firstAttempt)) return;
-    const lockError = firstAttempt.failure;
-    if (!isWindowsRenameLock(lockError) || Option.isNone(before) || before.value.readOnly) {
-      return yield* lockError;
-    }
-    for (let retry = 0; retry < LOCKED_RENAME_RETRIES; retry += 1) {
-      yield* Effect.sleep(LOCKED_RENAME_RETRY_DELAY);
-      const current = yield* targetVersion;
-      if (Option.isNone(current) || current.value.id !== before.value.id) break;
-      const attempt = yield* Effect.result(fs.rename(tempPath, targetPath));
-      if (Result.isSuccess(attempt)) return;
-      if (!isWindowsRenameLock(attempt.failure)) return yield* attempt.failure;
-    }
+) {
+  // Stop retrying if another save changes the target; read-only targets also return permanent EPERM.
+  const targetVersion = fs.stat(targetPath).pipe(
+    Effect.map((info) => ({
+      id: `${Option.getOrUndefined(info.ino)}:${info.size}:${Option.getOrUndefined(info.mtime)?.getTime()}`,
+      readOnly: (info.mode & 0o200) === 0,
+    })),
+    Effect.catchIf(
+      (error) => error.reason._tag === "NotFound",
+      () => Effect.succeed({ id: "missing", readOnly: false }),
+    ),
+    Effect.option,
+  );
+  const before = yield* targetVersion;
+  const firstAttempt = yield* Effect.result(fs.rename(tempPath, targetPath));
+  if (Result.isSuccess(firstAttempt)) return;
+  const lockError = firstAttempt.failure;
+  if (!isWindowsRenameLock(lockError) || Option.isNone(before) || before.value.readOnly) {
     return yield* lockError;
-  });
+  }
+  for (let retry = 0; retry < LOCKED_RENAME_RETRIES; retry += 1) {
+    yield* Effect.sleep(LOCKED_RENAME_RETRY_DELAY);
+    const current = yield* targetVersion;
+    if (Option.isNone(current) || current.value.id !== before.value.id) break;
+    const attempt = yield* Effect.result(fs.rename(tempPath, targetPath));
+    if (Result.isSuccess(attempt)) return;
+    if (!isWindowsRenameLock(attempt.failure)) return yield* attempt.failure;
+  }
+  return yield* lockError;
+});
 
 /** Resolves symlink targets before renaming so writes preserve the link. Iterable contents stream in bounded batches. */
 export const writeFileStringAtomically = (input: {
