@@ -938,14 +938,14 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
         const fixture = yield* makeClaudeCacheFixture("T3_CLAUDE_USAGE_NULL_UNTIL");
         const fs = yield* FileSystem.FileSystem;
         const fetchedAtMs = now - 59 * 60_000;
-        const writeProfile = (accountUuid: string) =>
+        const writeProfile = (accountUuid: string, organizationUuid?: string) =>
           fs.writeFileString(
             fixture.accountConfig,
             JSON.stringify({
               oauthAccount: {
                 accountUuid,
                 emailAddress: "test@example.com",
-                organizationUuid: "shared-org",
+                organizationUuid,
               },
               cachedUsageUtilization: {
                 fetchedAtMs,
@@ -957,8 +957,10 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
               },
             }),
           );
-        yield* writeProfile("first-login");
-        const reading = (yield* fixture.refresh).usageLimits;
+        yield* writeProfile("first-login", "shared-org");
+        const first = yield* fixture.refresh;
+        expect(first.auth.workspaceId).toBe("shared-org");
+        const reading = first.usageLimits;
         expect(reading).toMatchObject({
           checkedAt: "2026-07-18T09:01:00.000Z",
           windows: [{ id: "seven_day", usedPercent: 24.5 }],
@@ -966,9 +968,14 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
         });
         yield* fixture.refreshUsage;
         expect((yield* fixture.refresh).usageLimits).toEqual(reading);
-        yield* writeProfile("other-login");
+        yield* writeProfile("other-login", "shared-org");
         expect((yield* fixture.refresh).usageLimits?.windows).toEqual([]);
-        yield* writeProfile("first-login");
+        yield* writeProfile("third-login");
+        const withoutOrganization = yield* fixture.refresh;
+        expect(withoutOrganization.auth.profileId).toBe("third-login");
+        expect(withoutOrganization.auth.workspaceId).toBeUndefined();
+        expect(withoutOrganization.usageLimits?.windows).toEqual([]);
+        yield* writeProfile("first-login", "shared-org");
         expect((yield* fixture.refresh).usageLimits).toEqual(reading);
         yield* TestClock.adjust("61 seconds");
         expect((yield* fixture.refresh).usageLimits?.windows).toEqual([]);
