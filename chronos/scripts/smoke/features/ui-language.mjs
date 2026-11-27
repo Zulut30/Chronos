@@ -218,7 +218,6 @@ export async function check({ client, opts, viewport }) {
     await route("/settings/appearance");
     await scan("appearance", "T3 Code");
     await verifyThemeLibrary({ client, evaluate, until });
-    await verifyMcp("en");
     for (const [id, selector, text, loadedPanel] of [
       ["API keys", "[data-oly-ik-nav] button", "Scrape.do"],
       ["MCP", "[data-oly-mcp-nav] button", "Settings location", "#path:not([hidden]) code"],
@@ -258,6 +257,7 @@ export async function check({ client, opts, viewport }) {
       return !welcome.wasWelcome && await client.probe("ensureDraft");
     });
     updateTooltips.en = await verifyUpdateTooltip("en");
+    await verifyMcp("en");
     await click("button[aria-label=Artifacts]");
     await scan("artifact gallery", "Artifacts", "[data-artifact-gallery]");
     await click(".art-head button[aria-label=Close]");

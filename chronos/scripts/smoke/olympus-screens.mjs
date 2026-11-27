@@ -102,9 +102,11 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     assert.ok(!result.exceptionDetails);
   }
   async function press(key, windowsVirtualKeyCode, modifiers = 0) {
-    for (const type of ["rawKeyDown", "keyUp"]) {
-      await client.send("Input.dispatchKeyEvent", { type, key, code: key, windowsVirtualKeyCode, modifiers });
-    }
+    const fields = { key, code: key, windowsVirtualKeyCode, modifiers };
+    // A native button activates on the printable Enter event in Chromium.
+    const down = key === "Enter" ? { type: "keyDown", text: "\r" } : { type: "rawKeyDown" };
+    await client.send("Input.dispatchKeyEvent", { ...fields, ...down });
+    await client.send("Input.dispatchKeyEvent", { ...fields, type: "keyUp" });
   }
 
   await act({ type: "navigate", to: "/settings/general" });
