@@ -623,6 +623,51 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
     }).pipe(Effect.provide(layerTest)),
   );
 
+  it.effect("refreshes Claude subscription limits after get_usage returned null", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const homePath = yield* fs.makeTempDirectoryScoped();
+      const claudeId = ProviderInstanceId.make("claude_usage_recovery");
+      let weekly: number | null = null;
+      const query = vi.spyOn(ClaudeSdk, "query").mockImplementation(
+        () =>
+          ({
+            initializationResult: async () => ({
+              account: { email: "test@example.com", subscriptionType: "max", tokenSource: "oauth" },
+            }),
+            usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: async () => ({
+              rate_limits_available: true,
+              rate_limits:
+                weekly === null ? null : { seven_day: { utilization: weekly, resets_at: null } },
+            }),
+          }) as unknown as ReturnType<typeof ClaudeSdk.query>,
+      );
+      yield* Effect.addFinalizer(() => Effect.sync(() => query.mockRestore()));
+      const { registry } = yield* makeProviderInstanceRegistry<ClaudeDriverEnv>({
+        drivers: [ClaudeDriver],
+        configMap: {
+          [claudeId]: {
+            driver: ProviderDriverKind.make("claudeAgent"),
+            enabled: true,
+            config: makeClaudeConfig({ binaryPath: process.execPath, homePath }),
+          },
+        },
+      });
+      const claude = (yield* registry.getInstance(claudeId))!;
+      const first = yield* claude.snapshot.refresh;
+      expect(first.auth.status).toBe("authenticated");
+      expect(first.usageLimits).toMatchObject({
+        windows: [],
+        unavailable: { reason: "probeFailed" },
+      });
+
+      weekly = 23;
+      const recovered = yield* claude.snapshot.refresh;
+      expect(recovered.usageLimits?.unavailable).toBeUndefined();
+      expect(recovered.usageLimits?.windows).toMatchObject([{ id: "seven_day", usedPercent: 23 }]);
+    }).pipe(Effect.provide(layerTest)),
+  );
+
   it.effect("scopes Claude's one-probe fallback to the logged-in organization", () =>
     Effect.gen(function* () {
       if (yield* HostProcess.isWindows) return;
