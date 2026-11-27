@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { access, appendFile, copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { parseUpdateManifest } from "../../../scripts/lib/update-manifest.ts";
 import { connectCdp } from "../bench/client.mjs";
 import { pinReleaseFeed } from "./release-feed.mjs";
 import { startUpgradeMirror } from "./upgrade-mirror.mjs";
@@ -14,8 +15,7 @@ assert.equal(process.platform, "darwin");
 assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
 const { RUNNER_TEMP: temp, GITHUB_REPOSITORY: repo } = process.env;
 const manifest = await readFile("release/nightly-mac.yml", "utf8");
-const to = /^version: ([0-9.]+-nightly\.[0-9.]+\.chronos\.\d+)$/m.exec(manifest)?.[1];
-assert.ok(to, "expected a versioned Chronos macOS feed");
+const { version: to } = parseUpdateManifest(manifest, "nightly-mac.yml", "mac");
 const from = to.replace(/\d+$/, revision => String(Number(revision) - 1));
 assert.notEqual(from, to);
 const file = version => `Chronos-${version}-arm64.zip`;
@@ -33,6 +33,14 @@ await assert.rejects(access(path.join(dir, "Chronos.app")), { code: "ENOENT" });
 execFileSync("ditto", ["-x", "-k", source, dir]);
 const app = path.join(dir, "Chronos.app");
 const requirement = () => execFileSync("bash", ["chronos/ci/verify-macos-signature.sh", app], { encoding: "utf8" }).trim();
+const codeHash = () => {
+  const display = spawnSync("codesign", ["--display", "--verbose=4", app], { encoding: "utf8" });
+  assert.equal(display.status, 0);
+  const hash = /^CDHash=([a-f0-9]{40})$/mi.exec(display.stderr)?.[1];
+  assert.ok(hash, "expected a Mach-O code directory hash");
+  return hash;
+};
+const oldCodeHash = codeHash();
 const oldRequirement = requirement();
 const config = await readFile(path.join(app, "Contents/Resources/app-update.yml"), "utf8");
 assert.match(config, /^url: http:\/\/localhost:29482\/?\s*$/m);
@@ -82,6 +90,31 @@ const connectWindow = () => until("Chronos window", async () => {
   const page = targets.find(t => t.type === "page" && t.url.startsWith("t3code://app/"));
   return page && connectCdp(page.webSocketDebuggerUrl);
 });
+async function keychainObservation(pid, newHash) {
+  // Never interact with the dialog. Expose only the name of the fixture's window or
+  // the Security framework operation in Chronos, never item data or raw stack samples.
+  const window = execFileSync(appTool, ["keychain-window", app], { encoding: "utf8" }).trim();
+  if (window === "Chronos Safe Storage") return "Chronos Safe Storage dialog";
+  const processes = processList();
+  if (!processes.includes("/SecurityAgent.bundle/Contents/MacOS/SecurityAgent")) return;
+  const sample = path.join(temp, "chronos-upgrade.sample");
+  // Chromium can read cookies in an app-owned network helper instead of Electron's main process.
+  const helpers = processes.split("\n").flatMap(line => {
+    const row = /^\s*(\d+)\s+(\d+)\s+(.+)$/.exec(line);
+    return row && row[2] === pid && row[3].startsWith(app + "/Contents/") ? [row[1]] : [];
+  });
+  for (const target of [pid, ...helpers]) {
+    const sampled = spawnSync("/usr/bin/sample", [target, "1", "-file", sample], { stdio: "ignore", timeout: 4000 });
+    if (sampled.status !== 0) continue;
+    const stack = await readFile(sample, "utf8");
+    const operations = stack.match(/SecItemCopyMatching(?:_osx)?|SecKeychainFindGenericPassword|SecKeychainItemCopyContent|SecKeychainItemCopyAttributesAndData|KeychainPassword::GetPassword/g);
+    if (operations?.length) return `SecurityAgent with Chronos PID ${target} waiting in ${[...new Set(operations)].join(", ")}`;
+  }
+  const trace = spawnSync("/usr/bin/log", ["show", "--last", "3m", "--info", "--style", "compact",
+    "--predicate", `process == "securityd" AND eventMessage CONTAINS[c] "partition" AND eventMessage CONTAINS[c] "${newHash}"`],
+    { encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 });
+  if (trace.status === 0 && /partition mismatch/i.test(trace.stdout)) return "securityd rejected the new cdhash and started SecurityAgent";
+}
 launchWithDevTools();
 try {
   await until("installed source process", async () => (await readFile(started, "utf8")).trim() === from);
@@ -111,36 +144,39 @@ try {
   assert.ok(oldPid, "source app registered in GUI session");
   await evaluate(`void window.desktopBridge.installUpdate(${JSON.stringify(to)}); true`);
   await until("ShipIt replaces installed bundle", () => installedVersion() === to);
-  await until("LaunchServices starts the replacement process", () => {
+  const newPid = await until("LaunchServices starts the replacement process", () => {
     const pid = appPid();
-    return pid && pid !== oldPid;
+    return pid !== oldPid && pid;
   });
-  await until("automatically relaunched N+1", async () => (await readFile(started, "utf8")).trim() === to);
   assert.equal(requirement(), oldRequirement);
   assert.equal(installedVersion(), to);
-  // ShipIt launches the new app without the test's Chromium debugger arguments. After
-  // independently proving that restart, reopen the same installed app to read via normal IPC.
+  const newHash = codeHash();
+  assert.notEqual(newHash, oldCodeHash);
   cdp.close();
-  execFileSync(appTool, ["quit", app], { timeout: 30000 });
-  launchWithDevTools();
-  cdp = await connectWindow();
-  assert.equal((await state()).currentVersion, to);
-  const restored = JSON.parse(await evaluate("window.desktopBridge.getConnectionCatalog()"));
-  assert.ok(restored?.disabledEnvironmentIds?.includes(marker), "N+1 must decrypt N's Keychain-protected catalog");
-  const report = `Squirrel.Mac relaunched **${from} → ${to}**. Identical DR. N+1 decrypted the catalog written with Electron safeStorage on N. ZIP ranges: ${transfer.rangeBytes} / ${size} bytes. Blockmaps: ${transfer.mapBytes} bytes.\n`;
+  let nextObservation = Date.now() + 6000;
+  const keychain = await until("new backend ready or verified Keychain authorization request", async () => {
+    if ((await readFile(started, "utf8")).trim() === to) return "ready";
+    if (Date.now() < nextObservation) return;
+    nextObservation = Date.now() + 12000;
+    return keychainObservation(newPid, newHash);
+  });
+  let result = `Keychain requested authorization again (${keychain}). No consent was supplied.`;
+  if (keychain === "ready") {
+    // ShipIt launched N+1 without the test debugger. Reopen the already verified app
+    // to check real decryption of N's fixture through its normal IPC.
+    execFileSync(appTool, ["quit", app], { timeout: 30000 });
+    launchWithDevTools();
+    cdp = await connectWindow();
+    assert.equal((await state()).currentVersion, to);
+    const restored = JSON.parse(await evaluate("window.desktopBridge.getConnectionCatalog()"));
+    assert.ok(restored?.disabledEnvironmentIds?.includes(marker));
+    result = "N+1 decrypted N's Keychain-protected catalog without a prompt.";
+  }
+  const report = `Squirrel.Mac installed and relaunched **${from} → ${to}** (PID ${oldPid} → ${newPid}). Identical DR; cdhash ${oldCodeHash} → ${newHash}. ZIP ranges: ${transfer.rangeBytes} / ${size} bytes. Blockmaps: ${transfer.mapBytes} bytes. ${result}\n`;
   console.log(report);
   await appendFile(process.env.GITHUB_STEP_SUMMARY, report);
 } catch (error) {
   console.error("Installed bundle:", installedVersion(), "last ready:", await readFile(started, "utf8").catch(() => "unavailable"));
-  // Sample only our own main process on the disposable runner. Report only API names,
-  // never item payloads, sample dumps, environment variables or keychain contents.
-  try {
-    const sample = path.join(temp, "chronos-upgrade.sample");
-    execFileSync("/usr/bin/sample", [appPid(), "1", "-file", sample], { stdio: "ignore", timeout: 10000 });
-    const stack = await readFile(sample, "utf8");
-    const symbols = [...new Set(stack.match(/\b(?:SecItemCopyMatching|SecKeychainFindGenericPassword|SecKeychainItemCopyContent|SecKeychainItemCopyAttributesAndData|SecItemAdd|CCKeyDerivationPBKDF|KeychainPassword::GetPassword)\b/g))];
-    console.error("Blocked Keychain API frames in Chronos:", symbols.join(", ") || "none found");
-  } catch { console.error("Could not sample the relaunched process"); }
   console.error(processList().split("\n").filter(line => /Chronos|ShipIt|SecurityAgent/.test(line)).slice(-25).join("\n"));
   const shipit = path.join(homedir(), "Library/Caches/io.github.zulut30.chronos.ShipIt");
   for (const name of ["ShipIt_stderr.log", "ShipIt_stdout.log"]) {
