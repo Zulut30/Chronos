@@ -89,15 +89,21 @@ export async function check({ client, opts, viewport }) {
         // Exercise an actual long selected value as well as the open popup.
         await click("[role=option][data-ui-language=pt-BR]");
         try {
-          await until("Portuguese (Brazil) saved and visible at 900px", () => evaluate(`(async () => {
+          await until("Portuguese (Brazil) persisted", () => evaluate(
+            "(async () => (await window.desktopBridge.getClientSettings())?.language === 'pt-BR')()"));
+          await until("Portuguese (Brazil) rendered", () => evaluate(
+            "document.querySelector('[data-ui-language-picker] [data-slot=select-value]')?.textContent.trim() === new Intl.DisplayNames(['pt-BR'], {type:'language'}).of('pt-BR')"));
+          const bounds = await evaluate(`(async () => {
+            await document.fonts.ready;
+            await new Promise(requestAnimationFrame);
             const value = document.querySelector('[data-ui-language-picker] [data-slot=select-value]');
-            if (!value || (await window.desktopBridge.getClientSettings())?.language !== 'pt-BR') return false;
             const text = document.createRange(); text.selectNodeContents(value);
-            const label = text.getBoundingClientRect(), box = value.getBoundingClientRect();
-            return value.textContent.trim() === new Intl.DisplayNames(['pt-BR'], {type:'language'}).of('pt-BR')
-              && label.left >= box.left - 1 && label.right <= box.right + 1
-              && label.top >= box.top - 1 && label.bottom <= box.bottom + 1;
-          })()`));
+            return { label: text.getBoundingClientRect().toJSON(), box: value.getBoundingClientRect().toJSON() };
+          })()`);
+          const { label, box } = bounds;
+          assert.ok(label.left >= box.left - 1 && label.right <= box.right + 1
+            && label.top >= box.top - 1 && label.bottom <= box.bottom + 1,
+            "Selected Portuguese (Brazil) label at 900px: " + JSON.stringify(bounds));
         } finally {
           await language("ru");
         }

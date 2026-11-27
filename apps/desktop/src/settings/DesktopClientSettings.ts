@@ -1,4 +1,5 @@
 import { ClientSettingsSchema, type ClientSettings } from "@t3tools/contracts";
+import { renameWithWindowsLockRetry } from "@t3tools/shared/atomicWrite";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
 import { resolveSymlinkTarget } from "@t3tools/shared/symlink";
 import * as Context from "effect/Context";
@@ -125,6 +126,7 @@ const writeClientSettings = Effect.fnUntraced(function* (input: {
   readonly fileSystem: FileSystem.FileSystem;
   readonly path: Path.Path;
   readonly settingsPath: string;
+  readonly platform: NodeJS.Platform;
   readonly settings: ClientSettings;
   readonly suffix: string;
 }): Effect.fn.Return<void, DesktopClientSettingsWriteError> {
@@ -173,7 +175,10 @@ const writeClientSettings = Effect.fnUntraced(function* (input: {
           }),
       ),
     );
-    yield* input.fileSystem.rename(tempPath, targetPath).pipe(
+    const replace = input.platform === "win32"
+      ? renameWithWindowsLockRetry(input.fileSystem, tempPath, targetPath)
+      : input.fileSystem.rename(tempPath, targetPath);
+    yield* replace.pipe(
       Effect.mapError(
         (cause) =>
           new DesktopClientSettingsWriteError({
@@ -204,6 +209,7 @@ export const make = Effect.gen(function* () {
             fileSystem,
             path,
             settingsPath: environment.clientSettingsPath,
+            platform: environment.platform,
             settings,
             suffix,
           }),
