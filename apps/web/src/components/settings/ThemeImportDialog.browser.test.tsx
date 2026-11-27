@@ -194,11 +194,14 @@ it("sizes an oversized theme file just under 1 MB as 1.00 MB", async () => {
     );
 });
 
-it("names an oversized file in a batch import in the UI language", async () => {
+it.each([
+  ["de", "Die Datei ist 1.00 MB groß. Das Größenlimit für den Import von Designs beträgt 512 KB."],
+  ["ru", "Размер файла — 1.00 MB. Ограничение для импорта тем — 512 KB."],
+])("names an oversized file in a batch import in %s", async (locale, expected) => {
   using _themes = isolateThemes();
-  const translations = await getTranslationsSnapshot("de");
+  const translations = await getTranslationsSnapshot(locale);
   // Mirrors the runtime: `m()` reads the active locale once its catalog is loaded.
-  setActiveLocale("de");
+  setActiveLocale(locale);
   using _locale = {
     [Symbol.dispose]() {
       setActiveLocale("en");
@@ -207,7 +210,7 @@ it("names an oversized file in a batch import in the UI language", async () => {
     },
   };
   await using _screen = await render(
-    <GTProvider locale="de" translations={translations}>
+    <GTProvider locale={locale} translations={translations}>
       <ThemeImportDialog
         open
         onOpenChange={() => {}}
@@ -222,11 +225,7 @@ it("names an oversized file in a batch import in the UI language", async () => {
     new File(["x".repeat(1_048_100)], "huge.json", { type: "application/json" }),
   ]);
 
-  await expect
-    .element(page.getByRole("alert"))
-    .toHaveTextContent(
-      "huge.json: Diese Datei ist 1.00 MB groß. Design-Dateien haben nur wenige KB, daher wurde sie nicht gelesen (Limit 256 KB).",
-    );
+  await expect.element(page.getByRole("alert")).toHaveTextContent(`huge.json: ${expected}`);
 });
 
 it.each(["failed read", "batch install"])(
