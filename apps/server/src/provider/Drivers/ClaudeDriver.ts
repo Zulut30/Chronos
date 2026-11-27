@@ -259,13 +259,14 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
         ),
       {
         capacity: 1,
-        timeToLive: (exit) =>
-          // Only fresh usage earns the TTL; failures, fallbacks and usage-less probes retry.
-          Exit.isSuccess(exit) &&
-          exit.value._tag === "fresh" &&
-          exit.value.capabilities.usage !== undefined
+        timeToLive: (exit) => {
+          if (!Exit.isSuccess(exit) || exit.value._tag !== "fresh") return Duration.zero;
+          const { usage } = exit.value.capabilities;
+          // chronos: get_usage resolves with null limits even when a subscription read is throttled.
+          return usage && (!usage.rate_limits_available || usage.rate_limits !== null)
             ? CAPABILITIES_PROBE_TTL
-            : Duration.zero,
+            : Duration.zero;
+        },
       },
     );
     const capabilitiesCacheKey = yield* makeClaudeCapabilitiesCacheKey(

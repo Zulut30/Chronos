@@ -850,9 +850,7 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       }),
   );
 
-  const makeClaudeCacheFixture = Effect.fnUntraced(function* (
-    state: "ready" | "signed-out" | "usage-failed",
-  ) {
+  const makeClaudeCacheFixture = Effect.fnUntraced(function* (recoveryMarker: string) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const fixtures = yield* makeTildeProviderFixtures();
@@ -867,18 +865,7 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
           enabled: true,
           environment: [
             { name: "T3_CLAUDE_PROBE_LOG", value: probeLog, sensitive: false },
-            ...(state === "ready"
-              ? []
-              : [
-                  {
-                    name:
-                      state === "signed-out"
-                        ? "T3_CLAUDE_LOGIN_MARKER"
-                        : "T3_CLAUDE_USAGE_FAILS_UNTIL",
-                    value: recovered,
-                    sensitive: false,
-                  },
-                ]),
+            { name: recoveryMarker, value: recovered, sensitive: false },
           ],
           config: makeClaudeConfig({
             enabled: true,
@@ -897,29 +884,35 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
     };
   });
 
-  for (const state of ["signed-out", "usage-failed"] as const) {
-    it.effect.skipIf(windowsHost)(
-      state === "signed-out"
-        ? "shows Claude usage on the first refresh after signing back in"
-        : "retries Claude usage on the first refresh after a failed usage read",
-      () =>
-        Effect.gen(function* () {
-          const fixture = yield* makeClaudeCacheFixture(state);
-          const before = yield* fixture.refresh;
-          if (state === "signed-out") {
-            expect(before.auth.status).toBe("unauthenticated");
-            expect(before.usageLimits).toBeUndefined();
-          } else {
-            expect(before.auth.status).toBe("authenticated");
-            expect(before.usageLimits?.unavailable?.reason).toBe("probeFailed");
-          }
+  for (const [recoveryMarker, name] of [
+    ["T3_CLAUDE_LOGIN_MARKER", "shows Claude usage on the first refresh after signing back in"],
+    [
+      "T3_CLAUDE_USAGE_FAILS_UNTIL",
+      "retries Claude usage on the first refresh after a failed usage read",
+    ],
+    [
+      "T3_CLAUDE_USAGE_NULL_UNTIL",
+      "refreshes Claude subscription limits after get_usage returned null",
+    ],
+  ] as const) {
+    it.effect.skipIf(windowsHost)(name, () =>
+      Effect.gen(function* () {
+        const fixture = yield* makeClaudeCacheFixture(recoveryMarker);
+        const before = yield* fixture.refresh;
+        if (recoveryMarker === "T3_CLAUDE_LOGIN_MARKER") {
+          expect(before.auth.status).toBe("unauthenticated");
+          expect(before.usageLimits).toBeUndefined();
+        } else {
+          expect(before.auth.status).toBe("authenticated");
+          expect(before.usageLimits?.unavailable?.reason).toBe("probeFailed");
+        }
 
-          yield* fixture.recover;
-          const after = yield* fixture.refresh;
-          expect(after.auth.status).toBe("authenticated");
-          expect(after.usageLimits?.unavailable).toBeUndefined();
-          expect(after.usageLimits?.windows.map((window) => window.id)).toEqual(["five_hour"]);
-        }).pipe(Effect.provide(layerTest)),
+        yield* fixture.recover;
+        const after = yield* fixture.refresh;
+        expect(after.auth.status).toBe("authenticated");
+        expect(after.usageLimits?.unavailable).toBeUndefined();
+        expect(after.usageLimits?.windows.map((window) => window.id)).toEqual(["five_hour"]);
+      }).pipe(Effect.provide(layerTest)),
     );
   }
 

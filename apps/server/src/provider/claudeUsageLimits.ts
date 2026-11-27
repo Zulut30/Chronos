@@ -193,7 +193,14 @@ export function claudeUsageResponseToLimits(input: {
     return {
       limits: makeUnavailableUsageLimits({
         checkedAt,
-        reason: response.rate_limits_available ? "probeFailed" : "unsupported",
+        // chronos: the SDK confirms support but does not expose the upstream failure reason.
+        ...(response.rate_limits_available
+          ? {
+              reason: "probeFailed",
+              message:
+                "Claude Code could not retrieve subscription limits. Try /usage in this account later.",
+            }
+          : { reason: "unsupported" }),
       }),
       names: { overageIncluded: undefined },
     };
