@@ -5,9 +5,6 @@ import "./features/10-plan-mode.js";
 
 import "./features/92-studio-shell.js";
 
-import "./features/90-mcp-manager.js";
-import "./features/91-prompts-settings.js";
-
 import "./features/88-rich-text.js";
 
 import "./features/extras.js";
@@ -33,8 +30,6 @@ import "./features/50-machines.js";
 import "./features/60-studio.js";
 
 import "./features/70-openrouter.js";
-
-import "./features/80-integrations.js";
 
 import "./features/87-ru-fixes.js";
 import "./features/93-chat-panels.js";

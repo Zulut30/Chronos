@@ -1,7 +1,6 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
-import { PcSettings } from "../../chronos/pc-control/Control"; // chronos: local computer control
 import {
   getMacosUpdateCopy,
   getMacosUpdateTooltip,
@@ -12,7 +11,7 @@ import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
 import { msg, T, useGT, useLocale, useMessages } from "gt-react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import {
   type DesktopUpdateChannel,
   IDLE_COMPACTION_MODES,
@@ -363,7 +362,9 @@ function AboutVersionSection() {
       <SettingsRow
         id={setting("app-version").id}
         title={<AboutVersionTitle />}
-        description={description}
+        description={macosCopy && action === "none" && updatesDenial === undefined
+          ? <>{description} {macosCopy.settingsManualHint}</>
+          : description}
         managed={updatesDenial}
         control={
           <Tooltip>
@@ -862,6 +863,9 @@ function AutoSettleDaysInput({
   );
 }
 
+// chronos: only desktop General settings needs the permission editor.
+const PcSettings = lazy(() => import("../../chronos/pc-control/PcSettings"));
+
 export function GeneralSettingsPanel() {
   const gt = useGT();
   const m = useMessages();
@@ -877,7 +881,11 @@ export function GeneralSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      <PcSettings />
+      {window.chronosPC && (
+        <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">{gt("Loading computer control settings…")}</p>}>
+          <PcSettings />
+        </Suspense>
+      )}
       <SettingsSection id="notifications" title={gt("Notifications")}>
         <NotificationSettings />
         <SettingsRow

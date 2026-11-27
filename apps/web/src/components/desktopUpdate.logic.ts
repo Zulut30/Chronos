@@ -270,6 +270,9 @@ export function getDesktopUpdateDisabledReason(
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
+  if (state.message?.trim() === "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.") {
+    return resolve(msg("Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."));
+  }
   return (
     state.message?.trim() || resolve(msg("Automatic updates are not available in this build."))
   );

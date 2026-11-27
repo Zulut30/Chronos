@@ -44,3 +44,12 @@ export function assemblePrologue(imports: string, read: (path: string) => string
     return featureBlock(file, read("./features/" + file));
   }).join("");
 }
+
+export const settingsFeatureFiles = ["90-mcp-manager.js", "91-prompts-settings.js", "80-integrations.js"] as const;
+
+// These release modules install observers and global listeners. Bind those resources to the
+// settings dialog, keeping the original source intact and outside the compiler and translator.
+export function settingsFeatureAsset(read: (path: string) => string) {
+  const body = settingsFeatureFiles.map((name) => read("features/" + name)).join("\n");
+  return `export function mount({ document, window, globalThis, MutationObserver, addEventListener, requestAnimationFrame }) {\n${body}\n}\n`;
+}

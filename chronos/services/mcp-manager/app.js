@@ -10,7 +10,7 @@ let theme=new URLSearchParams(location.hash.slice(1));
 function applyTheme(){
  const t=theme.get('theme'),dark=t?t==='dark':darkQuery.matches;
  root.classList.toggle('dark',dark);root.style.colorScheme=dark?'dark':'light';
- root.classList.toggle('oly',theme.get('olympus')==='1');
+ root.classList.toggle('oly',theme.get('olympus')==='1'&&theme.get('embedded')!=='settings');
  root.classList.toggle('embedded',!!theme.get('embedded'));
  for(const k of TOKENS){const v=theme.get(k);if(v&&v.length<160&&!/url\(|[;{}]/i.test(v))root.style.setProperty('--t3-'+k,v);else root.style.removeProperty('--t3-'+k)}
 }

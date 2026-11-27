@@ -1492,6 +1492,7 @@ export const ServerSettings = Schema.Struct({
   idleCompaction: Schema.optionalKey(IdleCompactionMode),
   // chronos: shared environment setting and patch.
   claudeIdleUnloadMinutes: ClaudeIdleUnloadMinutes,
+  claudeLowMemoryUnloadEnabled: Schema.optionalKey(Schema.Boolean),
   snoozeLimitedThreads: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   autoResumeLimitedThreads: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   snoozePresets: SnoozePresetSettings.pipe(
@@ -1948,6 +1949,7 @@ export const ServerSettingsPatch = Schema.Struct({
   idleCompaction: Schema.optionalKey(IdleCompactionMode),
   // chronos: shared environment setting and patch.
   claudeIdleUnloadMinutes: ClaudeIdleUnloadMinutes,
+  claudeLowMemoryUnloadEnabled: Schema.optionalKey(Schema.Boolean),
   sidebarAutoSettleKeepPullRequests: Schema.optionalKey(Schema.Boolean),
   sidebarAutoSettleOnMerge: Schema.optionalKey(Schema.Boolean),
   autoResumeLimitedThreads: Schema.optionalKey(Schema.Boolean),

@@ -1,13 +1,13 @@
 import * as NodeAssert from "node:assert/strict";
 import { waitFor } from "./artifact-wait.mjs";
 
-export async function verifyStudioGallery(client, id) {
-  const match = url => url.startsWith("http://127.0.0.1:4520/artifacts.html");
-  const target = await waitFor("gallery document", async () => {
+export async function withSmokeFrame(client, prefix, read) {
+  const match = url => url.startsWith(prefix);
+  const target = await waitFor("packaged frame " + prefix, async () => {
     const { frameTree } = await client.send("Page.getFrameTree");
     const frame = frameTree.childFrames?.find(node => match(node.frame.url));
     if (frame) {
-      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"gallery-smoke"});
+      const { executionContextId } = await client.send("Page.createIsolatedWorld",{frameId:frame.frame.id,worldName:"chronos-smoke"});
       return { contextId:executionContextId };
     }
     const { targetInfos } = await client.send("Target.getTargets");
@@ -20,6 +20,14 @@ export async function verifyStudioGallery(client, id) {
     return reply.result.value;
   };
   try {
+    return await read(evaluate);
+  } finally {
+    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
+  }
+}
+
+export async function verifyStudioGallery(client, id) {
+  await withSmokeFrame(client, "http://127.0.0.1:4520/artifacts.html", async evaluate => {
     const card = `document.querySelector('article[data-id="${id}"]')`;
     await waitFor("gallery card",()=>evaluate(card + " !== null"));
     NodeAssert.equal(await evaluate("document.documentElement.style.colorScheme"),"light");
@@ -43,7 +51,5 @@ export async function verifyStudioGallery(client, id) {
     await evaluate('document.querySelector("#status button").click()');
     await waitFor("undo preserves the restored history",()=>evaluate(card+' !== null && '+card+'.querySelector("[data-pin]") === document.activeElement'));
     await search("");
-  } finally {
-    if (target.sessionId) await client.send("Target.detachFromTarget",{sessionId:target.sessionId});
-  }
+  });
 }

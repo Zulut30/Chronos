@@ -7,7 +7,7 @@
 //
 // See chronos/scripts/smoke/README.md for full documentation.
 
-import { runFeatureChecks, checkArtifactsAfterReport } from "./features.mjs";
+import { prepareFeatureChecks, runFeatureChecks, checkArtifactsAfterReport } from "./features.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,6 +36,8 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --macos-settings-screens   Capture the native macOS update section on the installed app
+  --settings-screens         Capture native and Olympus panels at 1280 and 900 in both themes
   --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
@@ -108,6 +110,10 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--macos-settings-screens") {
+      opts.macSettingsScreens = true;
+    } else if (arg === "--settings-screens") {
+      opts.settingsScreens = true;
     } else if (arg === "--verify-olympus") {
       opts.verifyOlympus = true;
     } else if (arg === "--verify-pc-control") {
@@ -558,7 +564,7 @@ async function run() {
       ok: false,
     };
 
-    // 1. Check Olympus globals (28 expected).
+    await prepareFeatureChecks({ client, opts, viewport, ready: waitUntilReady });
     const globalsResult = await client.probe("checkGlobals", { expected: checks.globals || [] });
     report.checks.globals = globalsResult;
 

@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { msg, useGT, useMessages } from "gt-react";
 import {
   DEFAULT_ENVIRONMENT_IDENTIFICATION_MODE,
@@ -35,12 +35,14 @@ import {
 } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
 // chronos: Olympus chat controls share this section and its advanced search targets.
-import { OlympusChatSettings } from "../../chronos/olympus/OlympusChatSettings";
 import { advancedOlympusIds } from "../../chronos/olympus/chatSettingsCatalog";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { PanelAnimationsPreview } from "./PanelAnimationsPreview";
 import { TypographySection } from "./TypographySettings";
 import { ThreadDetailsItemsRow } from "./ThreadDetailsItemsRow";
+
+const OlympusChatSettings = lazy(() => import("../../chronos/olympus/OlympusChatSettings")
+  .then(({ OlympusChatSettings: component }) => ({ default: component })));
 
 const ENVIRONMENT_IDENTIFICATION_LABELS: Record<EnvironmentIdentificationMode, string> = {
   artwork: msg("Artwork"),
@@ -413,7 +415,7 @@ export function AppearanceSettingsPanel() {
             />
           }
         />
-        <OlympusChatSettings />
+        <Suspense fallback={null}><OlympusChatSettings /></Suspense>
         <AdvancedSettings
           targetIds={[
             ...advancedOlympusIds,
@@ -546,7 +548,7 @@ export function AppearanceSettingsPanel() {
               />
             }
           />
-          <OlympusChatSettings advanced />
+          <Suspense fallback={null}><OlympusChatSettings advanced /></Suspense>
         </AdvancedSettings>
       </SettingsSection>
 

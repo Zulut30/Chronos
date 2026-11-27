@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite-plus";
-import { assemblePrologue, standaloneFeature } from "./featureAssets.ts";
+import { assemblePrologue, settingsFeatureAsset, standaloneFeature } from "./featureAssets.ts";
 
 // 93-chat-panels constructs absolute URLs at runtime, including in unbundled dev.
 const panelShims = new Map([
@@ -40,6 +40,7 @@ export function olympusFeatures(): Plugin {
       // the execution order and those separators in the source prologue's import list.
       const sources = [
         ["main", assemblePrologue(read("prologue.ts"), read)],
+        ["settings", settingsFeatureAsset(read)],
         ["pierre", standaloneFeature("15-lang-icons.js", read("features/15-lang-icons.js"))],
         ["markdown", standaloneFeature(richFile, read("features/" + richFile))],
       ] as const;
@@ -59,7 +60,19 @@ export function olympusFeatures(): Plugin {
         });
       }
     },
+    load(id) {
+      if (id === "\0" + rawPrefix + "settings") {
+        return settingsFeatureAsset((path) => {
+          const file = resolve(directory, path);
+          this.addWatchFile(file);
+          return readFileSync(file, "utf8");
+        });
+      }
+    },
     resolveId(source, importer) {
+      if (source === rawPrefix + "settings") {
+        return bundled ? { id: source, external: true } : "\0" + source;
+      }
       const parent = normalize(importer ?? "");
       if (
         source === "./olympusRichMarkdown.ts" &&

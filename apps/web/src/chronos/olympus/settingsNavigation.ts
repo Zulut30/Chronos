@@ -1,5 +1,5 @@
 import { useRouter } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { settingsPanels } from "./settingsPanels";
 
 const [{ selector: apiKeys }, { selector: mcp }, { selector: prompts }] = settingsPanels;
@@ -12,25 +12,32 @@ function visiblePanelButton(nav: HTMLElement) {
   return nav.nextElementSibling?.hasAttribute("data-oly-ik-open") ? apiKeys : null;
 }
 
-function patchMacosIntegrationsCopy(root: ParentNode) {
-  if (window.desktopBridge?.getClientPlatform?.() !== "darwin") return;
-  const intro = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-intro");
-  if (intro?.textContent?.includes("переменных окружения Windows")) {
-    intro.textContent = intro.textContent.replace(
-      "переменных окружения Windows вашего пользователя",
-      "локальном файле профиля Chronos (~/.chronos/integrations-service/keys.env)",
-    );
-  }
-  const down = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-down p");
-  if (down?.textContent?.includes("Windows")) {
-    down.textContent =
-      "Не удалось связаться с локальным сервисом 127.0.0.1:4522 (integrations-service). Он запускается вместе с Chronos — перезапустите приложение и нажмите «Повторить».";
-  }
+function loadPanelModules() {
+  return Promise.all([import("./settingsHost"), import("chronos-olympus:settings")]);
 }
 
-export function useOlympusSettingsNav(activePath: string, hash: string) {
-  const ref = useRef<HTMLElement>(null);
+export function useOlympusSettingsNav(ref: RefObject<HTMLElement | null>, activePath: string, hash: string) {
   const router = useRouter();
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- immutable Olympus modules attach to the mounted settings layout.
+  useEffect(() => {
+    const layout = ref.current?.parentElement;
+    if (!layout) return;
+    let active = true;
+    let stop: (() => void) | undefined;
+    void loadPanelModules()
+      .then(([host, panels]) => {
+        if (active) stop = host.openSettingsHost(layout, panels.mount);
+      })
+      .catch(() => {
+        if (active) setLoadFailed(true);
+      });
+    return () => {
+      active = false;
+      stop?.();
+    };
+  }, [attempt, ref]);
   const pendingPanel = useRef<string | null>(null);
 
   // The modules close on URL changes. Consume the search anchor before opening its panel.
@@ -38,10 +45,17 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
   useEffect(() => {
     const nav = ref.current;
     if (!nav) return;
-    const panel = activePath === "/settings/providers" && settingsPanels.find((p) => p.id === hash.replace(/^#/, ""));
+    const panel =
+      activePath === "/settings/providers" &&
+      settingsPanels.find((p) => p.id === hash.replace(/^#/, ""));
     if (panel) {
       pendingPanel.current = panel.selector;
-      void router.navigate({ hash: "", replace: true, resetScroll: false, hashScrollIntoView: false });
+      void router.navigate({
+        hash: "",
+        replace: true,
+        resetScroll: false,
+        hashScrollIntoView: false,
+      });
       return;
     }
     const selector = pendingPanel.current;
@@ -59,7 +73,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     observer.observe(nav, { subtree: true, childList: true });
     openPanel();
     return () => observer.disconnect();
-  }, [activePath, hash, router]);
+  }, [activePath, hash, router, ref]);
 
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Olympus mounts and marks its buttons outside React.
   useEffect(() => {
@@ -67,7 +81,8 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     if (!nav) return;
 
     function selectSection(event: MouseEvent) {
-      const button = event.target instanceof Element && event.target.closest(settingsSectionButtons);
+      const button =
+        event.target instanceof Element && event.target.closest(settingsSectionButtons);
       if (!button) return;
       if (!button.matches(apiKeys)) globalThis.__olyIntegrations?.close();
       if (!button.matches(mcp)) globalThis.__olyMcpManager?.close();
@@ -86,7 +101,6 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
           button.removeAttribute("aria-current");
         }
       }
-      if (nav.parentElement) patchMacosIntegrationsCopy(nav.parentElement);
     };
 
     // The modules clone nav buttons and can restore an old selection after their panel closes.
@@ -97,15 +111,6 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       attributes: true,
       attributeFilter: ["data-active", "aria-current"],
     });
-    const layoutObserver =
-      window.desktopBridge?.getClientPlatform?.() === "darwin" && nav.parentElement
-        ? new MutationObserver(() => {
-            if (nav.parentElement) patchMacosIntegrationsCopy(nav.parentElement);
-          })
-        : null;
-    if (layoutObserver && nav.parentElement) {
-      layoutObserver.observe(nav.parentElement, { childList: true, subtree: true });
-    }
     nav.addEventListener("click", selectSection, true);
     const unsubscribe = router.subscribe("onBeforeLoad", ({ fromLocation, toLocation }) => {
       if (fromLocation?.href === toLocation.href) return;
@@ -117,9 +122,14 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
       unsubscribe();
       nav.removeEventListener("click", selectSection, true);
       observer.disconnect();
-      layoutObserver?.disconnect();
     };
-  }, [activePath, router]);
+  }, [activePath, router, ref]);
 
-  return ref;
+  return {
+    loadFailed,
+    retry: () => {
+      setLoadFailed(false);
+      setAttempt((value) => value + 1);
+    },
+  };
 }

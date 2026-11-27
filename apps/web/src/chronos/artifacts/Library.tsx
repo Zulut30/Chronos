@@ -1,13 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import "../settingsSelect.css";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { ArrowLeft, ArrowUpRight, Check, Code2, Copy, Download, Ellipsis, ExternalLink, FileCode2, LockKeyhole, Pin, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, Code2, Copy, Download, Ellipsis, ExternalLink, FileCode2, LockKeyhole, Pin, RotateCcw, Trash2, X } from "lucide-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { readThreadShell } from "~/state/entities";
-import words from "../../../../../chronos/l10n/artifacts.ru.json";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { desktopError } from "../desktopError";
 import { ArtifactView, readTheme } from "./ArtifactView";
-import { artifactId, artifactUrl, galleryUrl } from "./gallery";
+import { artifactId, artifactUrl, galleryUrl, getArtifactWords } from "./gallery";
 import "./library.css";
 
 type Card = {id:string;title:string;description:string;icon:string;updated:number;pinned:number;version:number};
@@ -22,13 +25,34 @@ const bridge = () => window as unknown as Bridge;
 function request<T>(action:string,args:Record<string,unknown> = {}) {
   return bridge().chronosArtifactLibrary.request(action,args) as Promise<T>;
 }
-const message = (error:unknown) => desktopError(error,words.actionFailed);
+const message = (error:unknown) => desktopError(error,getArtifactWords().actionFailed);
 
 function IconButton({label,onClick,children,pressed}:{label:string;onClick:()=>void;children:ReactNode;pressed?:boolean}) {
-  return <button type="button" className="art-icon" title={label} aria-label={label} aria-pressed={pressed} onClick={onClick}>{children}</button>;
+  return <Button type="button" variant="ghost" size="icon-sm" title={label} aria-label={label} aria-pressed={pressed} data-pressed={pressed || undefined} onClick={onClick}>{children}</Button>;
+}
+
+function ArtifactSelect({ label, value, options, onChange, container, triggerRef }: {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+  container?: HTMLElement | undefined;
+  triggerRef?: Ref<HTMLButtonElement>;
+}) {
+  return (
+    <Select value={value} items={options} onValueChange={(next) => { if (next !== null) onChange(next); }}>
+      <SelectTrigger ref={triggerRef} size="sm" aria-label={label} className="w-auto max-w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectPopup data-chronos-settings-options="" portalContainer={container} align="end" alignItemWithTrigger={false}>
+        {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+      </SelectPopup>
+    </Select>
+  );
 }
 
 function ConfirmTrash({card,cancel,remove}:{card:Card;cancel:()=>void;remove:()=>void}) {
+  const words = getArtifactWords();
   const dialog=useRef<HTMLDialogElement>(null);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- use the native modal focus trap and restore the invoking control on close.
   useLayoutEffect(()=>{
@@ -46,11 +70,12 @@ function ConfirmTrash({card,cancel,remove}:{card:Card;cancel:()=>void;remove:()=
   </dialog>;
 }
 
-function Gallery({open,onClose,confirmId}:{open:(id:string)=>void;onClose:()=>void;confirmId:string|null}) {
+function Gallery({open,onClose,confirmId,container}:{container?:HTMLElement | undefined;open:(id:string)=>void;onClose:()=>void;confirmId:string|null}) {
+  const words = getArtifactWords();
   const [trash,setTrash] = useState(false);
   const [query,setQuery] = useState("");
   const [oldest,setOldest] = useState(false);
-  const [cards,setCards] = useState<Card[]>([]);
+  const [cards,setCards] = useState<Card[] | null>(null);
   const [revision,refresh] = useState(0);
   const [error,setError] = useState("");
   const [undo,setUndo] = useState<Card|null>(null);
@@ -74,7 +99,7 @@ function Gallery({open,onClose,confirmId}:{open:(id:string)=>void;onClose:()=>vo
     }}, e => {if(current)setError(message(e));});
     return () => {current=false;};
   },[trash,revision,confirmId]);
-  const matches = cards.filter(card => (card.title+" "+card.description).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const matches = (cards ?? []).filter(card => (card.title+" "+card.description).toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
     .sort((a,b)=>b.pinned-a.pinned || (oldest ? a.updated-b.updated : b.updated-a.updated));
   const imageKeys = matches.map(a=>a.id+"."+a.version).join(",");
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- capture visible cards serially and stop requesting images on unmount.
@@ -115,25 +140,29 @@ function Gallery({open,onClose,confirmId}:{open:(id:string)=>void;onClose:()=>vo
       setError("");refresh(n=>n+1);
     } catch(e){setError(message(e));}
   }
-  const selected = cards.find(a=>a.id===confirmation);
+  const selected = cards?.find(a=>a.id===confirmation);
   return <section className="art-shell art-library" data-artifact-gallery="">
     <header className="art-head"><div><h1>{trash ? words.trash : words.library}</h1><small><LockKeyhole/>{words.private}</small></div>
-      <div className="art-tools"><IconButton label={trash ? words.libraryBack : words.trash} pressed={trash} onClick={()=>{setCards([]);setTrash(!trash);}}>{trash ? <ArrowLeft/> : <Trash2/>}</IconButton>
+      <div className="art-tools"><IconButton label={trash ? words.libraryBack : words.trash} pressed={trash} onClick={()=>{setCards(null);setError("");setTrash(!trash);}}>{trash ? <ArrowLeft/> : <Trash2/>}</IconButton>
       <IconButton label={words.close} onClick={onClose}><X/></IconButton></div></header>
-    <div className="art-filter"><label><Search/><input ref={search} aria-label={words.search} placeholder={words.search} value={query} onChange={e=>setQuery(e.target.value)}/></label>
-      <select aria-label={words.sort} value={oldest?"old":"new"} onChange={e=>setOldest(e.target.value==="old")}><option value="new">{words.recent}</option><option value="old">{words.oldest}</option></select></div>
+    <div className="art-filter"><Input type="search" size="sm" className="min-w-40 flex-1" ref={search} aria-label={words.search} placeholder={words.search} value={query} onChange={e=>setQuery(e.target.value)}/>
+      <ArtifactSelect container={container} label={words.sort} value={oldest ? "old" : "new"}
+        options={[{value:"new", label:words.recent}, {value:"old", label:words.oldest}]}
+        onChange={value => setOldest(value === "old")} /></div>
     {selected && <ConfirmTrash card={selected} cancel={()=>confirm(null)}
       remove={()=>{confirm(null);void change("trash",selected);}}/>}
     {undo && <div role="status" className="art-notice">{words.moved} <button onClick={()=>void change("recover",undo)}>{words.undo}</button></div>}
-    {error && <p role="alert">{error}</p>}
-    <div ref={grid} className="art-grid">{matches.map(a=><article key={a.id+"."+a.version} className="art-card" data-id={a.id}>
-      <button className="art-cover" disabled={trash} onClick={()=>open(a.id)} aria-label={a.title}><FileCode2/><img data-id={a.id} data-version={a.version} alt=""/></button>
+    {error && <div role="alert">{error} {cards === null && <Button size="sm" variant="outline"
+      onClick={() => {setError("");refresh(n => n + 1);}}>{words.retry}</Button>}</div>}
+    {cards === null && !error && <p role="status" className="art-empty">{words.loading}</p>}
+    <div ref={grid} className="art-grid">{matches.map(a=><article key={a.id} className="art-card" data-id={a.id}>
+      <button className="art-cover" disabled={trash} onClick={()=>open(a.id)} aria-label={a.title}><FileCode2/><img key={a.version} data-id={a.id} data-version={a.version} alt=""/></button>
       <div className="art-summary"><button className="art-title" disabled={trash} onClick={()=>open(a.id)}>{a.title}</button><p>{a.description}</p>
       <footer><small>HTML · {words.version} {a.version}</small><div className="art-tools">
         {trash ? <IconButton label={words.restore} onClick={()=>void change("recover",a)}><RotateCcw/></IconButton> : <>
         <IconButton label={a.pinned ? words.unpin : words.pin} pressed={!!a.pinned} onClick={()=>void change("pin",a)}><Pin/></IconButton>
         <IconButton label={words.remove} onClick={()=>confirm(a.id)}><Trash2/></IconButton></>}</div></footer></div>
-    </article>)}</div>{matches.length===0 && <p className="art-empty">{query ? words.noResults : trash ? words.emptyTrash : words.empty}</p>}
+    </article>)}</div>{cards !== null && !error && matches.length===0 && <p className="art-empty">{query ? words.noResults : trash ? words.emptyTrash : words.empty}</p>}
   </section>;
 }
 
@@ -148,6 +177,7 @@ async function install(card:Details) {
   await bridge().chronosArtifactInstaller?.install(card.id,canvas.toDataURL(),readTheme());
 }
 function ShortcutActions({card,finish,report}:{card:Details;finish:(status:string)=>void;report:(status:string)=>void}) {
+  const words = getArtifactWords();
   const installer=bridge().chronosArtifactInstaller;
   const [installed,setInstalled]=useState<boolean|null>(null);
   const [busy,setBusy]=useState(false);
@@ -194,7 +224,8 @@ async function download(files:Files,title:string) {
   link.href=url;link.download=title+(single?".html":".zip");link.click();
   window.setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
+function Viewer({id,back,onClose,container}:{container?:HTMLElement | undefined;id:string;back:()=>void;onClose:()=>void}) {
+  const words = getArtifactWords();
   const [details,setDetails]=useState<Details|null>(null);
   const [version,setVersion]=useState(0);
   const [code,setCode]=useState(false);
@@ -204,7 +235,7 @@ function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
   const [revision,refresh]=useState(0);
   const [menu,setMenu]=useState(false);
   const root=useRef<HTMLElement>(null);
-  const versionSelect=useRef<HTMLSelectElement>(null);
+  const versionSelect=useRef<HTMLButtonElement>(null);
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- load the selected artifact metadata and head after restore.
   useEffect(()=>{
     let current=true;
@@ -243,8 +274,9 @@ function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
     {details && <><div className="art-controls"><div className="art-segment">
       <button aria-pressed={!code} onClick={()=>setCode(false)}>{words.preview}</button>
       <button aria-pressed={code} onClick={()=>setCode(true)}><Code2/>{words.code}</button></div>
-      <select ref={versionSelect} aria-label={words.version} value={version} onChange={e=>{setFiles(null);setFile("index.html");setVersion(Number(e.target.value));}}>
-        {details.history.map(v=><option key={v.version} value={v.version}>{words.version} {v.version} · {v.label}</option>)}</select>
+      <ArtifactSelect container={container} triggerRef={versionSelect} label={words.version} value={String(version)}
+        options={details.history.map(v => ({value:String(v.version), label:words.version+" "+v.version+" · "+v.label}))}
+        onChange={value => {setFiles(null);setFile("index.html");setVersion(Number(value));}} />
       {version!==details.version && <button onClick={()=>run(async()=>{await request("restore",{id,version,expectedVersion:details.version});versionSelect.current?.focus();refresh(n=>n+1);})}>{words.restore}</button>}
     </div>
     {menu && <div className="art-menu"><button onClick={()=>run(async()=>{const src=(await selectedFiles())[file];if(typeof src==="string") await navigator.clipboard.writeText(src);else if(src) await navigator.clipboard.writeText(src.data);setStatus(words.copied);})}><Copy/>{words.copy}</button>
@@ -254,24 +286,26 @@ function Viewer({id,back,onClose}:{id:string;back:()=>void;onClose:()=>void}) {
         setMenu(false);setStatus(notice);root.current?.querySelector<HTMLButtonElement>(".art-head [aria-pressed]")?.focus();
       }}/>
     </div>}
-    {code ? <div className="art-code">{files && Object.keys(files).length>1 && <select aria-label={words.source} value={file} onChange={e=>setFile(e.target.value)}>{Object.keys(files).map(name=><option key={name}>{name}</option>)}</select>}
+    {code ? <div className="art-code">{files && Object.keys(files).length>1 && <ArtifactSelect container={container} label={words.source} value={file}
+      options={Object.keys(files).map(name => ({value:name,label:name}))} onChange={setFile} />}
       <pre>{!files ? words.loading : typeof content==="string" ? content : words.binary}</pre></div>
       : <ArtifactView key={version} id={id} historic={version===details.version?null:version}/>}
     <footer className="art-bottom"><small><LockKeyhole/>{words.private}</small><button onClick={()=>run(continueInChat)}>{words.chat}<ArrowUpRight/></button></footer>
     </>}{status && <p role="status" className="art-notice">{status}</p>}</section>;
 }
-export function Library({url,onClose,navigate}:{url:string;onClose:()=>void;navigate:(url:string)=>void}) {
+export function Library({url,onClose,navigate,container}:{container?:HTMLElement | undefined;url:string;onClose:()=>void;navigate:(url:string)=>void}) {
   const id=artifactId(url);
-  return id ? <Viewer key={id} id={id} back={()=>navigate(galleryUrl)} onClose={onClose}/> :
-    <Gallery key={url} open={id=>navigate(artifactUrl(id))} onClose={onClose} confirmId={new URL(url).searchParams.get("delete")}/>;
+  return id ? <Viewer container={container} key={id} id={id} back={()=>navigate(galleryUrl)} onClose={onClose}/> :
+    <Gallery container={container} key={url} open={id=>navigate(artifactUrl(id))} onClose={onClose} confirmId={new URL(url).searchParams.get("delete")}/>;
 }
 let dialog:HTMLDialogElement | null=null, root:Root|null=null;
 export function openLibraryDialog(url=galleryUrl) {
+  const words = getArtifactWords();
   if(!dialog){
     dialog=document.createElement("dialog");dialog.className="art-dialog";dialog.setAttribute("aria-label",words.library);
     document.body.append(dialog);root=createRoot(dialog);
     dialog.addEventListener("close",()=>{root?.unmount();root=null;dialog?.remove();dialog=null;},{once:true});
     dialog.showModal();
   }
-  root?.render(<Library key={url} url={url} navigate={openLibraryDialog} onClose={()=>dialog?.close()}/>);
+  root?.render(<Library container={dialog ?? undefined} key={url} url={url} navigate={openLibraryDialog} onClose={()=>dialog?.close()}/>);
 }

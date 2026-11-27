@@ -41,8 +41,6 @@ function seedChat(exe, home) {
 export async function verifyOlympusScreens({ client, opts, checks, ready, settle, classify }) {
   // This test provisions a provider and a project. Only enable it on the disposable hosted runner.
   assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
-  const globalState = await client.probe("checkGlobals", { expected: Object.keys(globals) });
-  assert.ok(globalState.ok, globalState.missing.map(name => "Olympus " + globals[name] + " / " + name).join("\n"));
   const home = process.env.CHRONOS_HOME;
   assert.equal(resolve(home), resolve(process.env.RUNNER_TEMP, "chronos-home"));
   const source = join(resourcesDir(opts.launch), "chronos-themes/olympus.json");
@@ -112,6 +110,8 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
   await act({ type: "navigate", to: "/settings/general" });
   await wait({ selector: "[data-oly-ps-nav-button]" });
   await verifyAnchors(ready, client, "settings");
+  const globalState = await client.probe("checkGlobals", { expected: Object.keys(globals) });
+  assert.ok(globalState.ok, globalState.missing.map(name => "Olympus " + globals[name] + " / " + name).join("\n"));
   await focus("[data-settings-section='/settings/providers']");
   for (const selector of ["[data-oly-ik-nav] button", "[data-oly-mcp-nav] button", "[data-oly-ps-nav-button]"]) {
     await press("ArrowDown", 40);
@@ -132,9 +132,25 @@ export async function verifyOlympusScreens({ client, opts, checks, ready, settle
     await wait({ selector: `#settings-search-result-${result}[aria-selected=true]` });
     await press("Enter", 13);
     await wait({ allSelectors: [pane, `${navButton}[aria-current=page]`] });
+    if (result === "olympus-mcp") {
+      await wait({ selector: ".oly-mcp-pane iframe" });
+      await focus(settingsSearch);
+      // Reproduce a late subframe load after the user has started another search.
+      const keptFocus = await client.send("Runtime.evaluate", {
+        expression: `document.querySelector(".oly-mcp-pane iframe").dispatchEvent(new Event("load"));
+          document.activeElement === document.querySelector(${JSON.stringify(settingsSearch)})`,
+        returnByValue: true,
+      });
+      assert.equal(keptFocus.result.value, true, "loading the MCP frame must preserve search focus");
+    }
   }
 
   await act({ type: "navigate", to: "/" });
+  const closed = await client.send("Runtime.evaluate", {
+    expression: "![globalThis.__olyIntegrations, globalThis.__olyMcpManager, globalThis.__olyPromptsSettings].some(Boolean)",
+    returnByValue: true,
+  });
+  assert.equal(closed.result.value, true, "closing settings releases the Olympus modules");
   await focus("[data-oly-tasks]");
   await act({ type: "click", selector: "[data-oly-tasks]" });
   await wait({ allSelectors: [".oly-tk-dialog:focus-within", ".oly-tk-dialog [data-sel='all']"] });
