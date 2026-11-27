@@ -6,3 +6,14 @@
 :root:not(.chronos-motion-active) .motion-safe\:animate-skeleton {
   animation-play-state: paused !important;
 }
+
+/* These Olympus indicators are mounted only during work. Honor the system
+   preference independently of the decorative idle deadline. */
+@media (prefers-reduced-motion: reduce) {
+  .oly-speed[data-live="true"] svg,
+  .oly-ftoast.is-indet .oly-ftoast-bar i,
+  .oly-ik-busy,
+  .animate-pulse {
+    animation-play-state: paused !important;
+  }
+}

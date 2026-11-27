@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vite-plus/test";
 
-// This boot-error fixture has no browser DOM for the separately mounted Olympus UI.
+// This boot-error fixture has no browser DOM for the independently tested Chronos UI effects.
+vi.mock("./chronos/perf/decorativeMotion", () => ({ trackDecorativeMotion: () => () => {} }));
 vi.mock("./chronos/olympus/prologue", () => ({}));
 vi.mock("./appInit", () => ({ startAppServices: () => ({ load: async () => {} }) }));
 vi.mock("./AppRoot", () => ({ AppRoot: () => null }));
