@@ -15,14 +15,14 @@ import subprocess
 import sys
 import time
 
-from continuity import inventory, verify_files, verify_profile
+from continuity import compare_themes, inventory, verify_files, verify_profile
 
 from switch_data import (Conflict, agent_edit, agent_files, atomic, check_path, check_unowned,
                          copy_verified, digest, files, migration, relocate_studio_state, require)
 from windows_processes import (SERVICES, check_tunnels, close_desktop, cold_database_files, desktop_processes, launch,
                                legacy_services, listeners, stop_legacy, wait_for_backend, wait_for_services)
 
-WARNING = "Миграции 4774 → 5209 необратимы. Откат восстанавливает резервную копию."
+WARNING = "Миграции базы необратимы. Откат восстанавливает резервную копию."
 HOME = Path.home()
 T3 = HOME / ".t3"
 CONTROL = HOME / ".chronos"
@@ -212,6 +212,11 @@ def switch():
     desktop = launch(CHRONOS, ["--verify-t3-profile"])
     wait_for_services(CHRONOS)
     wait_for_backend(desktop, T3 / "userdata", doc["schema"])
+    themes = compare_themes(b / "original/userdata", T3 / "userdata",
+                            CHRONOS.parent / "resources/chronos-themes/olympus.json")
+    require(themes["ok"], "Состав или содержимое пользовательских тем изменились. Резервная копия сохранена.")
+    if themes["stockOlympusUpdated"]:
+        say("Штатная тема Olympus обновлена до комплектной. Остальные темы сохранены побайтно.")
     doc["phase"] = "switched"
     save(doc)
     say("Chronos открыл базу и запустил семь встроенных сервисов. Резервная копия сохранена.")

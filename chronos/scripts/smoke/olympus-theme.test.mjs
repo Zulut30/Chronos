@@ -56,6 +56,17 @@ test("existing profile with an edited Olympus keeps its copy and gets one unpubl
   assert.equal(fs.existsSync(p.settings), false);
 });
 
+test("a custom palette matching the original export size survives two launches", (t) => {
+  const p = profile(t);
+  // A color edit keeps the byte count of the original export, including its line endings.
+  const edited = Buffer.from('{"variants":{"dark":{"canvas":"#081531"}}}'.padEnd(377698));
+  fs.writeFileSync(p.current, edited);
+  p.install();
+  p.install();
+  assert.deepEqual(fs.readFileSync(p.current), edited);
+  assert.deepEqual(fs.readFileSync(p.offer), fs.readFileSync(source));
+});
+
 test("upgrade of a profile without a theme preserves its implicit appearance", (t) => {
   const p = profile(t);
   fs.writeFileSync(path.join(p.dir, "statev2.sqlite"), "");
