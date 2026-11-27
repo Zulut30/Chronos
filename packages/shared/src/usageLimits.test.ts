@@ -29,7 +29,8 @@ import {
 } from "./usageLimits.ts";
 import { collectLimitNotices } from "./usageLimitsCopy.ts";
 
-const now = Date.parse("2026-09-03T12:00:00.000Z");
+const nowIso = "2026-09-03T12:00:00.000Z";
+const now = Date.parse(nowIso);
 
 const window = {
   id: "five_hour",
@@ -246,7 +247,7 @@ describe("pools", () => {
         checkedAt,
         windows: [
           { ...weekly, usedPercent: 37 },
-          { ...window, resetsAt: new Date(now).toISOString() },
+          { ...window, resetsAt: nowIso },
           { id: "unknown", kind: "other", label: "Other", usedPercent: 15 },
         ],
         unavailable: { reason: "probeFailed" },
@@ -273,7 +274,7 @@ describe("pools", () => {
       auth,
       instanceId: ProviderInstanceId.make("secondary"),
       usageLimits: {
-        checkedAt: new Date(now).toISOString(),
+        checkedAt: nowIso,
         unavailable: { reason: "probeFailed" },
         windows: [{ ...weekly, usedPercent: 37 }],
       },
@@ -282,7 +283,7 @@ describe("pools", () => {
       auth,
       instanceId: ProviderInstanceId.make("missing"),
       usageLimits: {
-        checkedAt: new Date(now).toISOString(),
+        checkedAt: nowIso,
         windows: [],
         unavailable: { reason: "probeFailed" },
       },

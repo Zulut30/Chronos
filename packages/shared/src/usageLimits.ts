@@ -367,7 +367,7 @@ function preferUsageReading(
 
 export function collectLimitAccounts(
   presentations: LimitPresentations,
-  now = Date.now(),
+  now = DateTime.toEpochMillis(DateTime.nowUnsafe()),
 ): readonly LimitAccount[] {
   const accounts = new Map<string, LimitAccount>();
   const creditSources = new Map<string, LimitAccount>();
