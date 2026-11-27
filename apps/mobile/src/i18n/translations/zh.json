@@ -5699,5 +5699,8 @@
   "9cca3054224a1637": "Run one missed occurrence on next startup",
   "66b87c703a8cd62e": "Skipped: the app was closed",
   "02e86b138ee62faf": "Continue after reset",
-  "2ad87b89a63c188b": "Antigravity subscription quota reached"
+  "2ad87b89a63c188b": "Antigravity subscription quota reached",
+  "9b35abf00ef87f79": "If the environment was offline at the scheduled time, run the task once when it starts.",
+  "87846c5910d14aa7": "If the environment was offline at the scheduled time, run the task once when it starts.",
+  "1b694b2d5f43f68b": "Antigravity did not report a reset time. Retry when your subscription quota renews."
 }

@@ -55,12 +55,9 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
   const runner = yield* Effect.serviceOption(ProcessRunner);
   const store = yield* ProjectionStoreV2;
   const entries = Ref.get(sessions);
-  const minutes = Option.isSome(settings)
-    ? settings.value.getSettings.pipe(
-        Effect.map((s) => s.claudeIdleUnloadMinutes ?? 0),
-        Effect.orElseSucceed(() => 0),
-      )
-    : Effect.succeed(0);
+  const policy = Option.isSome(settings)
+    ? settings.value.getSettings.pipe(Effect.orElseSucceed(() => null))
+    : Effect.succeed(null);
 
   const touch = (runtime: ProviderAdapterV2SessionRuntime) =>
     Clock.currentTimeMillis.pipe(
@@ -78,10 +75,10 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
       ),
     );
 
-  const due = (entry: IdleEntry, age: number, timeout: number) =>
+  const due = (entry: IdleEntry, age: number, timeout: number, allowPressure: boolean) =>
     timeout > 0 &&
     (age >= timeout * MINUTE ||
-      (age >= MINUTE &&
+      (allowPressure && age >= MINUTE &&
         Option.isSome(viewers) &&
         entry.attachedThreadIds.size > 0 &&
         !Array.from(entry.attachedThreadIds).some(viewers.value.isViewed) &&
@@ -134,7 +131,9 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
       }
       return;
     }
-    const delay = yield* minutes;
+    const currentPolicy = yield* policy;
+    const delay = currentPolicy?.claudeIdleUnloadMinutes ?? 0;
+    const allowPressure = currentPolicy?.claudeLowMemoryUnloadEnabled !== false;
     if (delay === 0) {
       traceIdleUnload("disabled", { settings: Option.isSome(settings) });
       return;
@@ -147,14 +146,14 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
         viewers: Option.isSome(viewers),
         sessions: [...live.values()].map((entry) => {
           const age = now - (entry.chronosIdleSince ?? now);
-          return { busy: entry.busyTurns.size, age, due: due(entry, age, delay) };
+          return { busy: entry.busyTurns.size, age, due: due(entry, age, delay, allowPressure) };
         }),
       });
     }
     for (const entry of live.values()) {
       const { runtime } = entry;
       const since = entry.chronosIdleSince;
-      if (since === undefined || entry.busyTurns.size > 0 || !due(entry, now - since, delay)) continue;
+      if (since === undefined || entry.busyTurns.size > 0 || !due(entry, now - since, delay, allowPressure)) continue;
       const id = runtime.providerSessionId;
       // Hold the same lock as open through scope close and persistence. A queued opener
       // either refreshed the stamp first, or receives a new runtime after teardown.
@@ -186,13 +185,13 @@ export const makeClaudeIdleUnload = Effect.fnUntraced(function* <Entry extends I
               traceIdleUnload("protected", { by: "background-work" });
               return true;
             }
-            const timeout = yield* minutes;
+            const latestPolicy = yield* policy;
             const latest = (yield* entries).get(String(id));
             const age = (yield* Clock.currentTimeMillis) - since;
             return (
               latest?.runtime !== runtime ||
               latest.idleGeneration !== entry.idleGeneration ||
-              !due(latest, age, timeout)
+              !due(latest, age, latestPolicy?.claudeIdleUnloadMinutes ?? 0, latestPolicy?.claudeLowMemoryUnloadEnabled !== false)
             );
           }).pipe(Effect.catchCause(() => Effect.succeed(true)));
           yield* release({

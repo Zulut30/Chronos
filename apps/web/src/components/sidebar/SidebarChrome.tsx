@@ -15,7 +15,7 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
-import { artifactWords, openArtifactGallery } from "~/chronos/artifacts/gallery"; // chronos: Studio gallery
+import { getArtifactWords, openArtifactGallery } from "~/chronos/artifacts/gallery"; // chronos: Studio gallery
 import { PanelsTopLeftIcon } from "lucide-react";
 import { ChronosSidebarMark } from "~/chronos/brand/ChronosSidebarMark";
 import {
@@ -258,7 +258,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   };
 
   return (
-    <SidebarMenu className="flex-row items-center">
+    <SidebarMenu className="flex-row flex-wrap items-center" data-sidebar-utility-menu="">
       {isOnUtilityPage ? (
         <SidebarMenuItem className="min-w-0 flex-1">
           <SidebarMenuButton onClick={handleBackClick}>
@@ -276,7 +276,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             onClick={handleSettingsClick}
           />
           {/* chronos: open the artifact gallery through the Studio panel. */}
-          <SidebarUtilityItem icon={<PanelsTopLeftIcon />} label={artifactWords.library} onClick={() => void openArtifactGallery()} />
+          <SidebarUtilityItem icon={<PanelsTopLeftIcon />} label={getArtifactWords().library} onClick={() => void openArtifactGallery()} />
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
@@ -306,7 +306,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
 
 export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
   return (
-    <SidebarFooter>
+    <SidebarFooter className="min-w-0">
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
       <SidebarUtilityMenu />

@@ -190,7 +190,9 @@ function TrackerRow({
               </Badge>
             ) : null}
           </div>
-          <p className="text-xs leading-normal text-muted-foreground/80">{summary}</p>
+          <p className={cn("text-xs leading-normal", isTrello ? "text-muted-foreground" : "text-muted-foreground/80")}>
+            {summary}
+          </p>
         </div>
         <Button
           size="icon-xs"

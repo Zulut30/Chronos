@@ -1,0 +1,15 @@
+/* Base UI portals live outside their settings row. Mark only menus owned by Chronos. */
+[data-chronos-settings-options] [data-slot="select-item"][data-selected] {
+  background-color: var(--muted-foreground);
+  color: var(--background);
+  font-weight: 600;
+}
+[data-chronos-settings-options] [data-slot="select-item"][data-highlighted] {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+
+[data-chronos-settings-options] [data-slot="select-item"][data-highlighted]:focus-visible {
+  outline: 2px solid var(--background);
+  outline-offset: -2px;
+}

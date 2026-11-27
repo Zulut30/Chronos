@@ -2,5 +2,9 @@
 export function desktopError(error: unknown, fallback: string) {
   const message = (error instanceof Error ? error.message : String(error))
     .replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "");
-  return /^[А-Яа-яЁё]/u.test(message) ? message : fallback;
+  if (!/^[А-Яа-яЁё]/u.test(message)) return fallback;
+  const translate = globalThis.window?.__chronosEnglishText;
+  if (!translate) return message;
+  const translated = translate(message);
+  return translated === message ? fallback : translated;
 }

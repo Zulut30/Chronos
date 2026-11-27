@@ -270,9 +270,21 @@ export function getDesktopUpdateDisabledReason(
 ): string | null {
   if (managedDenial !== undefined) return managedDenial;
   if (!state || (state.enabled && state.status !== "disabled")) return null;
-  return (
-    state.message?.trim() || resolve(msg("Automatic updates are not available in this build."))
-  );
+  const message = state.message?.trim();
+  switch (message) {
+    case "Updates are turned off on this machine.":
+      return resolve(msg("Updates are turned off on this machine."));
+    case "Automatic updates are not available because no update feed is configured.":
+      return resolve(msg("Automatic updates are not available because no update feed is configured."));
+    case "Automatic updates are only available in packaged production builds.":
+      return resolve(msg("Automatic updates are only available in packaged production builds."));
+    case "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.":
+      return resolve(msg("Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."));
+    case "Automatic updates on Linux require the AppImage or the .deb package.":
+      return resolve(msg("Automatic updates on Linux require the AppImage or the .deb package."));
+    default:
+      return message || resolve(msg("Automatic updates are not available in this build."));
+  }
 }
 
 export function getDesktopUpdateIdleTooltip(

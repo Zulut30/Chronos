@@ -69,6 +69,12 @@ describe("hasCloudPublicConfig", () => {
       expect(hasCloudPublicConfig()).toBe(expected);
     });
 
+    it("keeps the offline desktop usable without starting cloud authentication", () => {
+      vi.stubGlobal("window", { desktopBridge: { offlineRehearsal: true } });
+
+      expect(hasCloudPublicConfig()).toBe(false);
+    });
+
     it("keeps production keys available in the Electron auth shell", () => {
       vi.stubGlobal("window", { location: new URL("file:///app/index.html"), desktopBridge: {} });
 

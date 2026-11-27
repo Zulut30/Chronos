@@ -190,11 +190,13 @@ function verifyHooks() {
       // Two mappings: start of file and "events" at UTF-16 column 34.
       map: { version: 3, sources: ["src.tsx"], names: [], mappings: "AAAA,kCAAC", toString() { return JSON.stringify(this); } },
     },
+    "index.html": { type: "asset", fileName: "index.html", source: '<script type="module" src="/a.js"></script>' },
     "x.map": { type: "asset", fileName: "x.map", source: "" },
     "b.js": { type: "chunk", fileName: "b.js", moduleIds: [], code: "const unrelated = 1;" },
   });
   const warnings = [];
-  const hooks = { parse, info() {}, warn: (s) => warnings.push(s), error: (s) => { throw new Error(s); } };
+  const emitted = new Map();
+  const hooks = { parse, emitFile(asset) { emitted.set(asset.fileName, asset.source); }, info() {}, warn: (s) => warnings.push(s), error: (s) => { throw new Error(s); } };
   const generate = (bundle) => plugin.generateBundle.handler.call(hooks, { sourcemap: true }, bundle);
   const strict = process.env.CHRONOS_L10N_STRICT;
   try {
@@ -205,6 +207,8 @@ function verifyHooks() {
     assert.ok(bundle["a.js"].code.includes("label:`" + rawTables.label["Accent color"] + "`"));
     assert.ok(bundle["a.js"].code.endsWith("//# sourceMappingURL=x.map\n" + runtime));
     assert.equal(bundle["b.js"].code, "const unrelated = 1;");
+    assert.ok([...emitted.entries()].some(([file, source]) => file.includes("/en-a-") && source.includes("Accent color")));
+    assert.match(bundle["index.html"].source, /__chronosInitialLanguage/u);
     const map = new SourceMap(JSON.parse(bundle["x.map"].source));
     const moved = bundle["a.js"].code.indexOf("events.push");
     assert.notEqual(moved, 34);

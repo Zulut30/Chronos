@@ -145,6 +145,15 @@ describe("searchSettings", () => {
     expect(searchSettings("xyzzy")).toEqual([]);
   });
 
+  it("ranks a displayed title above a keyword in an earlier result", () => {
+    const items: SettingsSearchItem[] = [
+      { id: "usage", title: "Usage", to: "/settings/general", searchTerms: ["квота"] },
+      { id: "quota", title: "Subscription quota", to: "/settings/threads" },
+    ];
+    const translate = (label: string) => label === "Subscription quota" ? "Квота подписки" : label;
+    expect(searchSettings("квота", items, translate)[0]?.id).toBe("quota");
+  });
+
   it("matches query words across fields and ranks the strongest result first", () => {
     expect(searchSettings("pairing remote", ITEMS).map((item) => item.id)).toEqual([
       "network-access",

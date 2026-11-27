@@ -435,11 +435,9 @@ export const make = Effect.gen(function* () {
   const applySavedLanguage = Effect.gen(function* () {
     if (Option.isNone(clientSettings)) return;
     const saved = yield* clientSettings.value.get.pipe(Effect.orElseSucceed(() => Option.none()));
-    if (Option.isSome(saved)) {
-      yield* applyLanguage(saved.value.language).pipe(
-        Effect.provideService(ElectronApp.ElectronApp, electronApp),
-      );
-    }
+    yield* applyLanguage(Option.isSome(saved) ? saved.value.language : "ru").pipe(
+      Effect.provideService(ElectronApp.ElectronApp, electronApp),
+    );
   });
 
   let rebuildsOnLocaleChange = false;

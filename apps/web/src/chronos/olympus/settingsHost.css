@@ -1,0 +1,105 @@
+/* The modules append their styles after the application sheet. Scope overrides to the dialog. */
+html [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel) {
+  min-inline-size: 0;
+  font-family: var(--font-sans);
+}
+
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane,
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane > header,
+html[data-theme-id] [data-chronos-settings] section.oly-mcp-pane iframe {
+  background: var(--background);
+}
+
+html[data-theme-id] [data-chronos-settings] :is(.oly-mcp-pane, .oly-ps-pane) > header {
+  height: var(--workspace-topbar-height);
+  min-height: var(--workspace-topbar-height);
+  border-color: var(--border);
+  padding-inline: var(--workspace-gutter-start) var(--workspace-gutter-end);
+}
+
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header h2,
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button {
+  font: 500 var(--text-sm)/1.4 var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--foreground);
+}
+
+html[data-theme-id] [data-chronos-settings] .oly-mcp-pane header button:hover {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+[data-chronos-settings]
+  :is(.oly-mcp-pane, .oly-ps-pane, .oly-ik-panel)
+  :is(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-chronos-settings] .oly-ik-panel .oly-ik-down {
+  flex-wrap: wrap;
+}
+[data-chronos-settings] .oly-ik-panel .oly-ik-down > div {
+  flex: 1 1 16rem;
+}
+[data-chronos-settings] .oly-ps-pane :is(.oly-ps-cmd, .oly-ps-mode) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+html[data-theme-id]
+  [data-chronos-settings]
+  .oly-ik-panel
+  :is(.oly-ik-intro, .oly-ik-meta, .oly-ik-result, .oly-ik-badge) {
+  color: var(--muted-foreground);
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel .oly-ik-link {
+  color: var(--primary);
+  text-decoration-color: currentColor;
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel :is([data-state="ok"], [data-ok="true"]) {
+  color: var(--success);
+}
+html[data-theme-id]
+  [data-chronos-settings]
+  :is(.oly-ps-error, .oly-ik-panel [data-state="err"], .oly-ik-panel [data-ok="false"]) {
+  color: var(--destructive);
+}
+[data-chronos-settings] .oly-ik-panel .oly-ik-field input::placeholder {
+  font-family: var(--font-sans);
+}
+
+/* A fractional Windows hairline blends into glass even with an opaque border token. */
+[data-chronos-settings]
+  :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
+  :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field[data-slot="input-group"]) {
+  border-color: var(--muted-foreground);
+  border-width: 2px;
+}
+[data-chronos-settings] :is(#pc-control, #claude-low-memory-unload, #usage-limits, [id^="olympus-"]) [data-slot="switch"][data-unchecked] {
+  background-color: var(--muted-foreground);
+}
+[data-chronos-settings] :is(#pc-control, #claude-low-memory-unload, #usage-limits, [id^="olympus-"]) [data-slot="switch"][data-unchecked] [data-slot="switch-thumb"] {
+  background-color: var(--background);
+}
+[data-chronos-settings] :is(#pc-control, #claude-idle-unload, #claude-low-memory-unload, #usage-limits, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane, .oly-mcp-pane)
+  :is(button, input, select, textarea, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+html[data-theme-id] [data-chronos-settings] .oly-ik-panel .oly-ik-eye {
+  color: var(--foreground);
+}
+
+[data-chronos-settings] :is(#pc-control, [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
+  :is(input, textarea)::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+/* The scheduled task editor opens in a Base UI portal outside the settings layout. */
+[data-chronos-catch-up][data-unchecked] { background-color: var(--muted-foreground); }
+[data-chronos-catch-up][data-unchecked] [data-slot="switch-thumb"] { background-color: var(--background); }
+[data-chronos-catch-up]:focus-visible { outline: 2px solid var(--foreground); outline-offset: 1px; }

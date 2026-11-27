@@ -135,14 +135,17 @@ it.each(["Update existing", "Keep both"])(
     );
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     await userEvent.upload(input, [
-      themeFile("Dawn"),
+      themeFile("Dawn", "#792bc1"),
+      themeFile("Dusk alias"),
       themeFile("Dusk", "#f97316", DUSK_CSS),
       new File(["{"], "broken.json", { type: "application/json" }),
     ]);
 
     await expect.element(page.getByText("Already installed")).toBeVisible();
     await expect.element(page.getByText(/^broken\.json:/)).toBeVisible();
-    expect(getCustomThemes().map((theme) => theme.label)).toContain("Dawn");
+    const installed = getCustomThemes().map((theme) => theme.label);
+    expect(installed).toContain("Dawn");
+    expect(installed).not.toContain("Dusk alias");
     await page.getByRole("button", { name: choice }).click();
     invalidateCustomThemes();
     const label = choice === "Update existing" ? "Dusk" : "Dusk (1)";
@@ -187,7 +190,7 @@ it("sizes an oversized theme file just under 1 MB as 1.00 MB", async () => {
   await expect
     .element(page.getByText(/^That file is/))
     .toHaveTextContent(
-      "That file is 1.00 MB. Theme files are only a few KB, so this one was not read (limit 256 KB).",
+      "That file is 1.00 MB. The size limit for theme imports is 512 KB.",
     );
 });
 
@@ -258,7 +261,7 @@ it.each(["failed read", "batch install"])(
     await expect.element(page.getByRole("button", { name: "Reading…" })).toBeDisabled();
     await userEvent.upload(
       input,
-      new File([" ".repeat(256 * 1024 + 1)], earlierFile.name, { type: "application/json" }),
+      new File([" ".repeat(512 * 1024 + 1)], earlierFile.name, { type: "application/json" }),
     );
     const warning = page.getByText(/^That file is/);
     await expect.element(warning).toBeVisible();

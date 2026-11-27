@@ -7,7 +7,7 @@
 //
 // See chronos/scripts/smoke/README.md for full documentation.
 
-import { runFeatureChecks, checkArtifactsAfterReport } from "./features.mjs";
+import { prepareFeatureChecks, runBeforeScreens, runFeatureChecks, checkArtifactsAfterReport } from "./features.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -36,6 +36,8 @@ Options:
   --allow-offline-services   Ignore connection-refused errors to local Olympus ports 4517-4524
                              and accept offline fallback UI on service-backed screens
   --profile <full|clean>     Clean skips provider-dependent checks (default: full)
+  --macos-settings-screens   Capture the native macOS update section on the installed app
+  --settings-screens         Capture native and Olympus panels at 1280 and 900 in both themes
   --verify-olympus           Verify the shipped theme and capture both modes on a hosted CI runner
   --verify-chat-settings     Exercise switches across reloads in a disposable profile
   --require-provider         Run provider-dependent assertions on a clean CI profile
@@ -108,6 +110,10 @@ function parseArgs(argv) {
     } else if (arg === "--profile") {
       opts.profile = argv[++i];
       if (!["full", "clean"].includes(opts.profile)) throw new Error("Expected --profile full or clean");
+    } else if (arg === "--macos-settings-screens") {
+      opts.macSettingsScreens = true;
+    } else if (arg === "--settings-screens") {
+      opts.settingsScreens = true;
     } else if (arg === "--verify-olympus") {
       opts.verifyOlympus = true;
     } else if (arg === "--verify-pc-control") {
@@ -277,7 +283,22 @@ class CdpClient {
   }
 
   // Read each visible iframe in its own document, including cross-process service panels.
-  async visibleLines(sessionId, contextId) {
+  async visibleLines(sessionId, contextId, excludeUserContent = "", documentSelector = "") {
+    const deadline = Date.now() + 4000;
+    for (;;) {
+      try {
+        return await this.readVisibleLines(sessionId, contextId, excludeUserContent, documentSelector);
+      } catch (error) {
+        // A service iframe can swap into another renderer between describeNode and
+        // createIsolatedWorld. Restart discovery from the page so its text is still checked.
+        const staleFrame = /No (?:frame|target|node) (?:for|with) given id|(?:session|context) with (?:given|specified) id|Execution context was destroyed|Visible iframe has no document|Visible document is loading/i;
+        if (!staleFrame.test(String(error)) || Date.now() >= deadline) throw error;
+        await sleep(50);
+      }
+    }
+  }
+
+  async readVisibleLines(sessionId, contextId, excludeUserContent, documentSelector) {
     const send = (method, params) => this.send(method, params, 30_000, sessionId);
     const evaluate = async (expression, returnByValue) => {
       const reply = await send("Runtime.evaluate", { expression, returnByValue, contextId });
@@ -285,19 +306,47 @@ class CdpClient {
       return reply.result;
     };
     const { value } = await evaluate(`(() => {
-      const lines = document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
+      const exclude = ${JSON.stringify(excludeUserContent)};
+      if (!document.body) return { loading: true };
+      const lines = exclude ? [] : document.body.innerText.split(/\\n/).map(s => s.trim()).filter(Boolean);
       const visible = el => el.checkVisibility({ visibilityProperty: true, opacityProperty: true })
         && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      if (exclude) {
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let node; (node = walker.nextNode());) {
+          const el = node.parentElement;
+          const text = node.textContent.trim();
+          if (text && el && !el.closest(exclude) && visible(el)) lines.push(text);
+        }
+      }
       for (const el of document.querySelectorAll("input:placeholder-shown,textarea:placeholder-shown")) {
-        if (visible(el) && el.placeholder) lines.push(el.placeholder);
+        if (visible(el) && el.placeholder && (!exclude || !el.closest(exclude))) lines.push(el.placeholder);
+      }
+      if (exclude) {
+        for (const el of document.querySelectorAll("button,input,textarea,select,[role=button]")) {
+          if (!visible(el) || el.closest(exclude)) continue;
+          const row = el.closest("[data-oly-ps-name],[data-thread-item],[data-testid=sidebar-project-folder]");
+          const names = row ? [
+            row.getAttribute("data-oly-ps-name"), row.querySelector("h3,[translate=no],.truncate")?.textContent,
+          ].filter(Boolean) : [];
+          for (const attribute of ["title", "aria-label"]) {
+            let label = el.getAttribute(attribute);
+            if (!label) continue;
+            for (const name of names) label = label.replaceAll(name, "");
+            lines.push(label);
+          }
+        }
       }
       const frames = [...document.querySelectorAll("iframe")].flatMap((el, i) => visible(el) ? [i] : []);
-      return { lines, frames };
+      const selector = ${JSON.stringify(documentSelector)};
+      return { lines: !selector || document.querySelector(selector) ? lines : [], frames };
     })()`, true);
+    if (value.loading) throw new Error("Visible document is loading");
     const lines = new Set(value.lines);
     const frameTree = value.frames.length ? (await send("Page.getFrameTree", {})).frameTree : null;
     for (const index of value.frames) {
       const { objectId } = await evaluate(`document.querySelectorAll("iframe")[${index}]`, false);
+      if (!objectId) throw new Error("Visible iframe has no document");
       const { node } = await send("DOM.describeNode", { objectId });
       await send("Runtime.releaseObject", { objectId });
       if (!node.frameId) throw new Error("Visible iframe has no document");
@@ -315,7 +364,7 @@ class CdpClient {
         }));
       }
       try {
-        for (const line of await this.visibleLines(childSession ?? sessionId, childContext)) lines.add(line);
+        for (const line of await this.readVisibleLines(childSession ?? sessionId, childContext, excludeUserContent, documentSelector)) lines.add(line);
       } finally {
         if (childSession) await send("Target.detachFromTarget", { sessionId: childSession });
       }
@@ -558,7 +607,10 @@ async function run() {
       ok: false,
     };
 
-    // 1. Check Olympus globals (28 expected).
+    const initialChecks = await runBeforeScreens({ client, opts, report, viewport });
+
+    // Mount the lazy settings host before checking its Olympus globals.
+    await prepareFeatureChecks({ client, opts, viewport, ready: waitUntilReady });
     const globalsResult = await client.probe("checkGlobals", { expected: checks.globals || [] });
     report.checks.globals = globalsResult;
 
@@ -826,9 +878,10 @@ async function run() {
 
     const screensPassed = report.screens.filter((s) => s.ok).length;
     const skippedChecks = report.screens.filter((s) => s.skipped).length;
-    const totalChecks = 2 + report.screens.length;
+    const totalChecks = 2 + report.screens.length + initialChecks.length;
     const passedChecks =
-      (report.checks.globals.ok ? 1 : 0) + (report.checks.scheme.ok ? 1 : 0) + screensPassed;
+      (report.checks.globals.ok ? 1 : 0) + (report.checks.scheme.ok ? 1 : 0) + screensPassed +
+      initialChecks.filter(result => result.ok).length;
     const allEnglish = [...new Set(report.screens.flatMap((s) => s.englishPhrases))].sort();
     const allUnexpectedEnglish = [
       ...new Set(report.screens.flatMap((s) => s.unexpectedEnglishPhrases)),

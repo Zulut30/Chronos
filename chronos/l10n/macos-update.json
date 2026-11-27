@@ -9,7 +9,8 @@
     "toastTitle": "Загрузка DMG открыта в браузере",
     "toastDescription": "Откройте скачанный образ и перетащите Chronos в «Программы».",
     "rosettaDownload": "На этом Mac установлен процессор Apple Silicon, но Chronos запущен в сборке для Intel (Rosetta). Скачайте DMG для Apple Silicon.",
-    "rosettaIdle": "На этом Mac установлен процессор Apple Silicon, но Chronos запущен в сборке для Intel (Rosetta). Скачайте сборку для Apple Silicon со страницы релизов."
+    "rosettaIdle": "На этом Mac установлен процессор Apple Silicon, но Chronos запущен в сборке для Intel (Rosetta). Скачайте сборку для Apple Silicon со страницы релизов.",
+    "settingsManualHint": "На этом Mac обновления устанавливаются вручную из DMG."
   },
   "en": {
     "downloadButton": "Download DMG",
@@ -21,6 +22,7 @@
     "toastTitle": "DMG download opened in browser",
     "toastDescription": "Open the downloaded disk image and drag Chronos to Applications.",
     "rosettaDownload": "This Mac has Apple Silicon, but Chronos is running the Intel build under Rosetta. Download the Apple Silicon DMG.",
-    "rosettaIdle": "This Mac has Apple Silicon, but Chronos is running the Intel build under Rosetta. Download the Apple Silicon build from the releases page."
+    "rosettaIdle": "This Mac has Apple Silicon, but Chronos is running the Intel build under Rosetta. Download the Apple Silicon build from the releases page.",
+    "settingsManualHint": "On this Mac, install updates manually from a DMG."
   }
 }

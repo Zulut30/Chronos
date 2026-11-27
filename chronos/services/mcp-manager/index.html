@@ -1,4 +1,4 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Серверы MCP</title><link rel="stylesheet" href="/style.css"><script>(()=>{const p=new URLSearchParams(location.hash.slice(1)),t=p.get('theme'),r=document.documentElement,d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.classList.toggle('dark',d);r.classList.toggle('oly',p.get('olympus')==='1');r.classList.toggle('embedded',!!p.get('embedded'))})()</script></head><body>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Серверы MCP</title><link rel="stylesheet" href="/style.css"><script>(()=>{const p=new URLSearchParams(location.hash.slice(1)),t=p.get('theme'),r=document.documentElement,d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.classList.toggle('dark',d);r.classList.toggle('oly',p.get('olympus')==='1'&&p.get('embedded')!=='settings');r.classList.toggle('embedded',!!p.get('embedded'))})()</script></head><body>
 <header class="page-head"><div><h1>Серверы MCP</h1><p>Инструменты и данные, к которым подключаются агенты</p></div><button id="close" class="btn ghost icon" type="button" aria-label="Закрыть менеджер" title="Закрыть (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></header>
 <main>
 <div class="scope">
@@ -56,4 +56,18 @@
  <p id="remove-error" class="form-error" role="alert"></p>
  <footer><button type="button" id="remove-cancel" class="btn" autofocus>Отмена</button><button type="button" id="remove-confirm" class="btn danger-solid">Удалить</button></footer>
 </form></dialog>
-<script src="/app.js"></script></body></html>
+<script src="/app.js"></script><script>
+if (parent !== window) {
+  const enableEnglish = async event => {
+    if (event.source !== parent || event.data?.type !== "chronos:ui-language" ||
+        event.data.language !== "en" || !["t3code://app", location.origin, "http://localhost:3773", "http://127.0.0.1:3773"].includes(event.origin)) return;
+    removeEventListener("message", enableEnglish);
+    const [runtime, catalog] = await Promise.all([
+      import("/chronos-ui-english.mjs"), fetch("/chronos-ui-english.json").then(r => r.json()),
+    ]);
+    runtime.installEnglish(catalog);
+  };
+  addEventListener("message", enableEnglish);
+}
+</script>
+</body></html>

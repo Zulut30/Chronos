@@ -1,7 +1,6 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
-import { PcSettings } from "../../chronos/pc-control/Control"; // chronos: local computer control
 import {
   getMacosUpdateCopy,
   getMacosUpdateTooltip,
@@ -12,7 +11,7 @@ import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
 import { msg, T, useGT, useLocale, useMessages } from "gt-react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import {
   type DesktopUpdateChannel,
   IDLE_COMPACTION_MODES,
@@ -124,7 +123,7 @@ import {
   SettingsSection,
 } from "./settingsLayout";
 import { useSearchableSetting } from "./settingsSearch";
-import { nativeLanguageName, SYSTEM_LANGUAGE } from "@t3tools/client-runtime/locales";
+import { SYSTEM_LANGUAGE } from "@t3tools/client-runtime/locales";
 import { SUPPORTED_LOCALES } from "../../i18n/locales";
 import { BackgroundActivitySettingsRow } from "./BackgroundActivitySettings";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -363,7 +362,9 @@ function AboutVersionSection() {
       <SettingsRow
         id={setting("app-version").id}
         title={<AboutVersionTitle />}
-        description={description}
+        description={macosCopy && action === "none" && updatesDenial === undefined
+          ? <>{description} {macosCopy.settingsManualHint}</>
+          : description}
         managed={updatesDenial}
         control={
           <Tooltip>
@@ -862,7 +863,12 @@ function AutoSettleDaysInput({
   );
 }
 
+// chronos: only desktop General settings needs the permission editor.
+const PcSettings = lazy(() => import("../../chronos/pc-control/PcSettings"));
+
 export function GeneralSettingsPanel() {
+  const locale = useLocale();
+  const languageNames = useMemo(() => new Intl.DisplayNames([locale], { type: "language" }), [locale]);
   const gt = useGT();
   const m = useMessages();
   const setting = useSearchableSetting();
@@ -877,7 +883,11 @@ export function GeneralSettingsPanel() {
 
   return (
     <SettingsPageContainer>
-      <PcSettings />
+      {window.chronosPC && (
+        <Suspense fallback={<p role="status" className="text-sm text-muted-foreground">{gt("Loading computer control settings…")}</p>}>
+          <PcSettings />
+        </Suspense>
+      )}
       <SettingsSection id="notifications" title={gt("Notifications")}>
         <NotificationSettings />
         <SettingsRow
@@ -1180,11 +1190,11 @@ export function GeneralSettingsPanel() {
                 }
               }}
             >
-              <SelectTrigger size="sm" className="w-full sm:w-40" aria-label={gt("Language")}>
-                <SelectValue>
+              <SelectTrigger size="sm" className="w-full min-w-0 @min-[32rem]/settings-row:w-56" data-ui-language-picker="" aria-label={gt("Language")}>
+                <SelectValue className="whitespace-normal break-words">
                   {languageValue === SYSTEM_LANGUAGE
                     ? m(TIMESTAMP_FORMAT_LABELS.locale)
-                    : nativeLanguageName(languageValue)}
+                    : languageNames.of(languageValue)}
                 </SelectValue>
               </SelectTrigger>
               <SelectPopup align="end" alignItemWithTrigger={false}>
@@ -1192,8 +1202,8 @@ export function GeneralSettingsPanel() {
                   {m(TIMESTAMP_FORMAT_LABELS.locale)}
                 </SelectItem>
                 {SUPPORTED_LOCALES.map((locale) => (
-                  <SelectItem hideIndicator key={locale} value={locale}>
-                    {nativeLanguageName(locale)}
+                  <SelectItem hideIndicator key={locale} value={locale} data-ui-language={locale}>
+                    {languageNames.of(locale)}
                   </SelectItem>
                 ))}
               </SelectPopup>

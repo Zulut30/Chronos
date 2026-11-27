@@ -81,15 +81,17 @@ export function ProviderSetupSection(props: ProviderSetupSectionProps) {
         }
       />
       <SettingsRow
+        id="antigravity-terminal-sandbox"
+        serverScoped
         title={gt("Terminal sandbox")}
         description={gt(
           "Full access uses the host terminal. Windows may ask you to approve administrator access. Auto uses the Antigravity sandbox when available. Other modes use the thread approval rules.",
         )}
         status={
           runningThreads.length ? (
-            <ul>
+            <ul className="min-w-0 space-y-1 break-words" aria-label={gt("Active thread permissions")}>
               {runningThreads.map((thread) => (
-                <li key={thread.id}>
+                <li key={thread.id} className="wrap-anywhere">
                   {thread.title} —{" "}
                   {thread.interactionMode === "plan"
                     ? gt("Plan mode")

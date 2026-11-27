@@ -6,12 +6,15 @@ import {
   DEFAULT_CLIENT_SETTINGS,
   type ClientSettings,
 } from "@t3tools/contracts";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
+import * as TestClock from "effect/testing/TestClock";
 
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -138,6 +141,41 @@ describe("DesktopClientSettings", () => {
           yield* decodeClientSettingsJson(yield* fileSystem.readFileString(linkedSettingsPath)),
           clientSettings,
         );
+      }),
+    ),
+  );
+
+  it.effect("persists the chosen language after a temporary Windows sharing lock", () =>
+    withClientSettings(
+      Effect.gen(function* () {
+        const environment = yield* DesktopEnvironment.DesktopEnvironment;
+        const fs = yield* FileSystem.FileSystem;
+        const settings = yield* DesktopClientSettings.DesktopClientSettings;
+        yield* settings.set({ ...clientSettings, language: "ru" });
+        const locked = yield* Deferred.make<void>();
+        let attempts = 0;
+        const simulated = yield* DesktopClientSettings.make.pipe(
+          Effect.provideService(DesktopEnvironment.DesktopEnvironment, { ...environment, platform: "win32" }),
+          Effect.provideService(FileSystem.FileSystem, FileSystem.FileSystem.of({
+            ...fs,
+            rename: (from, to) => Effect.suspend(() => {
+              if (++attempts !== 1) return fs.rename(from, to);
+              return Deferred.succeed(locked, undefined).pipe(Effect.andThen(Effect.fail(
+                PlatformError.systemError({
+                  _tag: "PermissionDenied", module: "FileSystem", method: "rename", pathOrDescriptor: to,
+                  cause: Object.assign(new Error("file is open"), { code: "EPERM" }),
+                }),
+              )));
+            }),
+          })),
+        );
+        const saved = { ...clientSettings, language: "en" } as const;
+        const writing = yield* simulated.set(saved).pipe(Effect.forkChild);
+        yield* Deferred.await(locked);
+        yield* TestClock.adjust("100 millis");
+        yield* Fiber.join(writing);
+        assert.equal(attempts, 2);
+        assert.deepEqual(yield* settings.get, Option.some(saved));
       }),
     ),
   );

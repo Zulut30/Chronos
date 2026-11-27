@@ -574,6 +574,9 @@ function resolveTextGenerationProvider(
     settings.claudeIdleUnloadMinutes === undefined
       ? { ...settings, claudeIdleUnloadMinutes: DEFAULT_CLAUDE_IDLE_UNLOAD_MINUTES }
       : settings;
+  if (process.platform === "win32" && settings.claudeLowMemoryUnloadEnabled === undefined) {
+    settings = { ...settings, claudeLowMemoryUnloadEnabled: true };
+  }
   const selection = settings.textGenerationModelSelection;
   return isModelSelectionProviderEnabled(settings, selection) &&
     isDriverAllowed(

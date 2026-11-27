@@ -130,6 +130,7 @@ import {
   buildProviderEnvironmentOptions,
   buildProviderInstanceOverridePatch,
   classifyProviderEnvironmentAccess,
+  hasAntigravitySettings,
   isProviderSettingsEnvironmentAvailable,
   type ProviderEnvironmentAccess,
   type ProviderOperateAccess,
@@ -374,7 +375,15 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
       connectionPhase: selectedEnvironment.connection.phase,
       hasServerConfig: selectedEnvironment.serverConfig !== null,
     });
+  const unloadTarget = searchTargetId === "claude-idle-unload";
+  const memoryTarget = searchTargetId === "claude-low-memory-unload";
+  const sandboxTarget = searchTargetId === "antigravity-terminal-sandbox";
+  const supportsTarget = (environment: EnvironmentPresentation) =>
+    (!unloadTarget || environment.serverConfig?.settings.claudeIdleUnloadMinutes !== undefined) &&
+    (!memoryTarget || environment.serverConfig?.settings.claudeLowMemoryUnloadEnabled !== undefined) &&
+    (!sandboxTarget || hasAntigravitySettings(environment.serverConfig));
   const searchableEnvironmentId = options.find((environment) =>
+    supportsTarget(environment) &&
     isProviderSettingsEnvironmentAvailable({
       connectionPhase: environment.connection.phase,
       hasServerConfig: environment.serverConfig !== null,
@@ -384,9 +393,9 @@ function ProviderSettingsPanelContent(target: ProviderSettingsTarget) {
   {
     if (
       !target.scoped &&
-      (searchTargetId === searchableSetting("provider-health-check-interval").id ||
+      (unloadTarget || memoryTarget || sandboxTarget || searchTargetId === searchableSetting("provider-health-check-interval").id ||
         searchTargetId === searchableSetting("usage-providers").id) &&
-      !selectedEnvironmentCanRenderSettings &&
+      (!selectedEnvironmentCanRenderSettings || !selectedEnvironment || !supportsTarget(selectedEnvironment)) &&
       searchableEnvironmentId !== undefined
     ) {
       searchRedirectEnvironmentId = searchableEnvironmentId;
@@ -580,6 +589,7 @@ export function EnvironmentProviderSettings({
 }) {
   const searchableSetting = useSearchableSetting();
   const gt = useGT();
+  const sandboxRequested = useSettingsSearchTargetId() === "antigravity-terminal-sandbox" && targetInstanceId === undefined;
   const settings = useEnvironmentSettings(environmentId);
   const managedPolicy = useManagedPolicy(environmentId);
   // A policy that allows no provider leaves nothing to add.
@@ -780,7 +790,8 @@ export function EnvironmentProviderSettings({
         driver === "claudeAgent" ||
         isDirty ||
         resolveProviderInstanceEnabled(explicitInstance ?? { driver }) ||
-        defaultInstanceId === targetInstanceId)
+        defaultInstanceId === targetInstanceId ||
+        (driver === "antigravity" && (sandboxRequested || selectedInstanceId === defaultInstanceId)))
     ) {
       rows.push({
         instanceId: defaultInstanceId,
@@ -819,6 +830,12 @@ export function EnvironmentProviderSettings({
   const selectedRow =
     rows.find((row) => row.instanceId === selectedInstanceId) ??
     (targetInstanceMissing ? null : (rows[0] ?? null));
+
+  if (sandboxRequested && selectedRow?.driver !== "antigravity") {
+    const sandbox = rows.find((row) => row.driver === "antigravity" && row.explicitInstance)
+      ?? rows.find((row) => row.driver === "antigravity");
+    if (sandbox) setSelectedInstanceId(sandbox.instanceId);
+  }
 
   const persistInstance = async (
     instanceId: ProviderInstanceId,
@@ -1243,6 +1260,8 @@ export function EnvironmentProviderSettings({
         {/* chronos: older servers omit the field and the row. */}
         <ClaudeIdleUnloadRow
           minutes={settings.claudeIdleUnloadMinutes}
+          lowMemoryEnabled={settings.claudeLowMemoryUnloadEnabled}
+          onLowMemoryChange={(enabled) => updateSettings({ claudeLowMemoryUnloadEnabled: enabled })}
           disabled={readOnly || !canWriteSettings}
           onCommit={(minutes, options) =>
             updateSettings({ claudeIdleUnloadMinutes: minutes }, options)
