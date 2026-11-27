@@ -38,7 +38,7 @@ Chronos — независимый форк [pingdotgg/t3code](https://github.co
 <a id="ресурсы-параллельных-сессий"></a>
 - [Ресурсы параллельных сессий](docs/performance.md#ресурсы-параллельных-сессий)
 - [Оркестрация агентов, планировщик и очередь](parity/server.md#оркестрация-агентов)
-- [Фоновые задачи Antigravity и режимы доступа](parity/antigravity-background.md)
+- [Фоновые задачи Antigravity, режимы доступа и квоты Google](parity/antigravity-background.md)
 - [Восстановление лимитов подписки](parity/server.md#восстановление-лимитов-подписки)
 <a id="управление-пк"></a>
 - [Управление ПК](docs/pc-control.md#управление-пк)

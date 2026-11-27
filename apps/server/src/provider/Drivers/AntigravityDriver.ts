@@ -39,7 +39,10 @@ import { makeAntigravityAuth, type AntigravityAuth } from "../AntigravityAuth.ts
 import * as AntigravityInstallation from "../AntigravityInstallation.ts";
 import { brokenRuntimeError } from "../providerCompatibility.ts";
 import * as AntigravityUsage from "./AntigravityUsage.ts";
+// chronos: Read subscription windows with the account's own CLI.
+import { readInstanceQuota } from "../../chronos/antigravity/quota.ts";
 import {
+  ANTIGRAVITY_SIGN_IN_REQUIRED_MESSAGE,
   antigravityAuthConfigIssue,
   antigravityAuthLabel,
   antigravityAuthUsesBrowser,
@@ -420,11 +423,27 @@ export const AntigravityDriver: ProviderDriver<
           ),
         start: () =>
           startCompatible().pipe(
-            Effect.tapError((cause): Effect.Effect<void> =>
-              runtimeInput.onAuthorizationUrl === undefined &&
-              isAntigravitySignInRequiredError(cause)
-                ? provider.onAuthRequired
-                : Effect.void,
+            Effect.catchIf(
+              (cause) =>
+                runtimeInput.onAuthorizationUrl === undefined &&
+                isAntigravitySignInRequiredError(cause),
+              (cause) => {
+                // chronos: The personal profile deliberately uses SSH file storage even on Windows.
+                const error =
+                  auth.authMethod === "oauth-personal"
+                    ? new AcpErrors.AcpTransportError({
+                        detail: ANTIGRAVITY_SIGN_IN_REQUIRED_MESSAGE,
+                        cause: new ProviderSetupError({
+                          instanceId,
+                          operation: "authenticate",
+                          detail:
+                            "Open Settings → Providers in this environment and sign in to this Antigravity instance with Google, then retry.",
+                          cause,
+                        }),
+                      })
+                    : cause;
+                return provider.onAuthRequired.pipe(Effect.andThen(Effect.fail(error)));
+              },
             ),
           ),
       };
@@ -544,6 +563,7 @@ export const AntigravityDriver: ProviderDriver<
               "Antigravity could not finish Google sign-in. Start sign-in again.",
             );
           }
+          yield* provider.onAccountChanged;
         }),
       };
     });
@@ -658,6 +678,16 @@ export const AntigravityDriver: ProviderDriver<
       environment: processEnvironment,
       stampIdentity: classifyModels,
       probe,
+      ...(auth.authMethod === "oauth-personal"
+        ? {
+            readQuota: readInstanceQuota({
+              installation: installation.acquire(settings.binaryPath, processEnvironment),
+              withProcess: authFlow.withProcess,
+              profileDirectory,
+              environment: processEnvironment,
+            }),
+          }
+        : {}),
       auth: { type: auth.authMethod, label: antigravityAuthLabel(auth.authMethod) },
       ...(rememberedRuntimeModes ? { rememberedRuntimeModes } : {}),
       rememberRuntimeModes: (modes) =>
