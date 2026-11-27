@@ -8,7 +8,7 @@ import { test } from "node:test";
 import { gzipSync } from "node:zlib";
 import { parseUpdateManifest } from "../../../scripts/lib/update-manifest.ts";
 import { chronosUpdateFeed } from "../../../scripts/lib/chronos-update-feed.ts";
-import { pinWindowsFeed } from "./windows-feed.mjs";
+import { pinReleaseFeed } from "./release-feed.mjs";
 import { cachedInstaller, rehearseUpdate } from "./rehearse-update.mjs";
 
 const v = n => `0.1.12-nightly.20261124.5209.chronos.${n}`;
@@ -27,7 +27,7 @@ for (const status of [206, 501]) {
     const exe = Buffer.concat(next);
     await writeFile(join(dir, cachedInstaller), Buffer.concat(old));
     const raw = `version: ${v(9)}\nfiles:\n  - url: ${name(9)}\n    sha512: ${digest(exe)}\n    size: ${exe.length}\nreleaseDate: '2026-11-26'\n`;
-    const feed = parseUpdateManifest(pinWindowsFeed(raw, v(9), "example/Chronos"), "fixture", "Windows");
+    const feed = parseUpdateManifest(pinReleaseFeed(raw, v(9), "example/Chronos", "win"), "fixture", "Windows");
     const requests = [];
     const server = createServer((req, res) => {
       requests.push([req.method, req.url, req.headers.range]);
@@ -54,3 +54,15 @@ for (const status of [206, 501]) {
     }
   });
 }
+
+test("macOS keeps each architecture's ZIP and blockmaps on its immutable release", () => {
+  const names = ["arm64.zip", "x64.zip", "arm64.dmg", "x64.dmg"].map(s => `Chronos-${v(9)}-${s}`);
+  const raw = `version: ${v(9)}\nfiles:\n` +
+    names.map(n => `  - url: ${n}\n    sha512: checksum\n    size: 42\n`).join("") +
+    "releaseDate: '2026-11-26'\n";
+  const pinned = pinReleaseFeed(raw, v(9), "example/Chronos", "mac");
+  const files = parseUpdateManifest(pinned, "fixture", "mac").files;
+  assert.deepEqual(files.map(f => f.url), names.map(n =>
+    `https://github.com/example/Chronos/releases/download/chronos-v${v(9)}/${n}`));
+  assert.equal(pinReleaseFeed(pinned, v(9), "example/Chronos", "mac"), pinned);
+});

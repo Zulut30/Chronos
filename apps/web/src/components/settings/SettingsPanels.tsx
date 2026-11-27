@@ -1,11 +1,6 @@
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m as resolveMessage } from "~/i18n/messages";
 import { useAtomValue } from "@effect/atom-react";
-import {
-  getMacosUpdateCopy,
-  getMacosUpdateTooltip,
-  isMacosManualUpdate,
-} from "../../chronos/macosUpdate"; // chronos: unsigned macOS builds update manually via DMG.
 import { NotificationSettings } from "./NotificationSettings";
 import { PRIVACY_POLICY_URL } from "../../legalLinks";
 import { CheckIcon } from "lucide-react";
@@ -177,7 +172,6 @@ const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
 function AboutVersionSection() {
   const setting = useSearchableSetting();
   const gt = useGT();
-  const locale = useLocale();
   const messages = useMessages();
   const updateState = useDesktopUpdateState();
   const [switchChannel, setSwitchChannel] = useState<DesktopUpdateChannel | null>(null);
@@ -206,8 +200,10 @@ function AboutVersionSection() {
   const selectedHostedAppChannel = hasDesktopBridge ? null : HOSTED_APP_CHANNEL;
   // A switch that failed part way leaves this app or a server on the other track.
   // With its updater off, a switch cannot move this app, so it is not counted.
+  // chronos: the shared web bundle carries the upstream version on both desktop platforms.
+  const version = updateState?.currentVersion ?? APP_VERSION;
   const appOffTrack =
-    updateState?.enabled !== false && desktopUpdateChannelOf(APP_VERSION) !== selectedUpdateChannel;
+    updateState?.enabled !== false && desktopUpdateChannelOf(version) !== selectedUpdateChannel;
   const unswitchedMachines =
     (appOffTrack ? 1 : 0) +
     environments.filter(
@@ -324,21 +320,14 @@ function AboutVersionSection() {
   };
 
   const action = updateState ? resolveDesktopUpdateButtonAction(updateState) : "none";
-  // chronos: unsigned macOS builds check feeds and open the matching DMG installer.
-  const macosManualUpdate = isMacosManualUpdate(updateState);
-  const macosCopy = macosManualUpdate ? getMacosUpdateCopy(locale) : null;
-  const buttonTooltip = updateState
-    ? macosManualUpdate && action === "download"
-      ? getMacosUpdateTooltip(updateState, locale)
-      : getDesktopUpdateButtonTooltip(updateState, messages)
-    : null;
+  const buttonTooltip = updateState ? getDesktopUpdateButtonTooltip(updateState, messages) : null;
   const buttonDisabled =
     action === "none"
       ? !canCheckForUpdate(updateState)
       : isDesktopUpdateButtonDisabled(updateState);
 
   const actionLabel: Record<string, string> = {
-    download: macosCopy ? macosCopy.downloadButton : gt("Download"),
+    download: gt("Download"),
     install: gt("Install"),
   };
   const statusLabel: Record<string, string> = {
@@ -351,9 +340,7 @@ function AboutVersionSection() {
     actionLabel[action] ?? statusLabel[updateState?.status ?? ""] ?? gt("Check for Updates");
   const description =
     action === "download" || action === "install"
-      ? macosCopy && action === "download"
-        ? macosCopy.settingsDescription
-        : gt("Update available.")
+      ? gt("Update available.")
       : (getDesktopUpdateDisabledReason(updateState, updatesDenial, messages) ??
         gt("Current version of the application."));
 
@@ -361,10 +348,8 @@ function AboutVersionSection() {
     <>
       <SettingsRow
         id={setting("app-version").id}
-        title={<AboutVersionTitle />}
-        description={macosCopy && action === "none" && updatesDenial === undefined
-          ? <>{description} {macosCopy.settingsManualHint}</>
-          : description}
+        title={<AboutVersionTitle version={version} />}
+        description={description}
         managed={updatesDenial}
         control={
           <Tooltip>

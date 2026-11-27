@@ -6,7 +6,7 @@ import { InlineButton } from "../ui/button";
 import { stackedThreadToast, toastManager } from "../ui/toast";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
-export function AboutVersionTitle() {
+export function AboutVersionTitle({ version = APP_VERSION }: { version?: string }) {
   const gt = useGT();
   const { copyToClipboard } = useCopyToClipboard<void>({
     target: {
@@ -35,10 +35,10 @@ export function AboutVersionTitle() {
           render={
             <InlineButton
               tone="muted"
-              aria-label={gt("Copy version {version}", { version: APP_VERSION })}
-              onClick={() => copyToClipboard(APP_VERSION, undefined)}
+              aria-label={gt("Copy version {version}", { version })}
+              onClick={() => copyToClipboard(version, undefined)}
             >
-              {APP_VERSION}
+              {version}
             </InlineButton>
           }
           label={

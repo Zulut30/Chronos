@@ -6,7 +6,7 @@ import { pipeline } from "node:stream/promises";
 
 // Mirror only the two verified release assets and their blockmaps. Preserve the
 // generic provider's version-to-version URL substitution and single-range requests.
-export async function startUpgradeMirror({ assets, target, manifest, manifestPath = "/nightly.yml", upstreamInstaller }) {
+export async function startUpgradeMirror({ assets, target, manifest, manifestPath = "/nightly.yml", upstreamInstaller, port = 0 }) {
   const requests = [];
   const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, "http://localhost").pathname;
@@ -63,7 +63,7 @@ export async function startUpgradeMirror({ assets, target, manifest, manifestPat
     } finally { record.status = res.statusCode; }
   });
   const origin = () => "http://127.0.0.1:" + server.address().port;
-  await new Promise((resolve, reject) => server.once("error", reject).listen(0, "127.0.0.1", resolve));
+  await new Promise((resolve, reject) => server.once("error", reject).listen(port, "127.0.0.1", resolve));
   return {
     origin: origin(),
     requests,

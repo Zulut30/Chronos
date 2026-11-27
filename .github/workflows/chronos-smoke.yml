@@ -404,7 +404,7 @@ jobs:
           exe="$app/Contents/MacOS/Chronos"
           test -x "$exe"
 
-          echo "Verifying ad-hoc code signature and ElectronAsarIntegrity..."
+          echo "Verifying Chronos code signature and ElectronAsarIntegrity..."
           codesign --verify --deep --strict --verbose=2 "$app"
           /usr/bin/plutil -lint "$app/Contents/Info.plist"
           expected=$(node -e 'console.log(require("./chronos/scripts/macos-after-pack.cjs").computeAsarHeaderHash(process.argv[1]))' "$app/Contents/Resources/app.asar")

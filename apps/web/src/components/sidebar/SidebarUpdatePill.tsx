@@ -2,16 +2,10 @@ import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { managedUpdatesDenial } from "@t3tools/client-runtime/contract-labels";
 import { type DesktopBridge, type DesktopUpdateState } from "@t3tools/contracts";
 import { TriangleAlertIcon } from "lucide-react";
-import { msg, T, useGT, useLocale, useMessages } from "gt-react";
+import { msg, T, useGT, useMessages } from "gt-react";
 import { type ComponentProps, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import {
-  getMacosRosettaWarningDescription,
-  getMacosUpdateCopy,
-  getMacosUpdateTooltip,
-  isMacosManualUpdate,
-} from "../../chronos/macosUpdate"; // chronos: unsigned macOS builds update manually via DMG.
 import { isElectron } from "../../env";
 import { m } from "../../i18n/messages";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -129,15 +123,10 @@ export function SidebarUpdateArchitectureWarning() {
 
 function SidebarUpdateArchitectureWarningContent() {
   const state = useDesktopUpdateState();
-  const locale = useLocale();
   const messages = useMessages();
   const visible = shouldShowArm64IntelBuildWarning(state);
   const description =
-    state && visible
-      ? isMacosManualUpdate(state)
-        ? getMacosRosettaWarningDescription(resolveDesktopUpdateButtonAction(state), locale)
-        : getArm64IntelBuildWarningDescription(state, messages)
-      : null;
+    state && visible ? getArm64IntelBuildWarningDescription(state, messages) : null;
 
   if (!visible || !description) return null;
 
@@ -167,12 +156,6 @@ export async function downloadLocalUpdate(
     const result = await bridge.downloadUpdate();
     if (result.completed && notifyDownloaded) {
       showDesktopUpdateDownloadedToast(bridge, result.state);
-    } else if (result.accepted && !result.completed && isMacosManualUpdate(result.state)) {
-      // chronos: confirm that the matching DMG download opened in the browser on macOS.
-      const copy = getMacosUpdateCopy();
-      toastManager.add(
-        stackedThreadToast({ type: "info", title: copy.toastTitle, description: copy.toastDescription }),
-      );
     }
     const actionError = shouldToastDesktopUpdateActionResult(result)
       ? getDesktopUpdateActionError(result)
@@ -221,7 +204,6 @@ export function SidebarUpdatePill() {
 function SidebarUpdateControl() {
   const state = useDesktopUpdateState();
   const gt = useGT();
-  const locale = useLocale();
   const messages = useMessages();
   // The desktop updates this machine, whose policy the primary environment reports.
   const updatesDenial = managedUpdatesDenial(usePrimaryManagedPolicy(), messages);
@@ -254,12 +236,9 @@ function SidebarUpdateControl() {
   }
 
   const action = state ? resolveDesktopUpdateButtonAction(state) : "none";
-  const macosManualUpdate = isMacosManualUpdate(state); // chronos: unsigned macOS builds update via DMG.
   const isDownloading = state?.status === "downloading";
   const localUpdateVersion =
-    !macosManualUpdate && state && action !== "none"
-      ? getDesktopUpdateDownloadedVersion(state)
-      : null;
+    state && action !== "none" ? getDesktopUpdateDownloadedVersion(state) : null;
   const everything = useUpdateEverything(localUpdateVersion);
   const checkProviderUpdates = useCheckProviderUpdates();
   const runsEverything = everything.hasUpdates && !isDownloading;
@@ -285,9 +264,7 @@ function SidebarUpdateControl() {
     ? everything.summary
     : showUpdateDetails
       ? state
-        ? macosManualUpdate && action === "download"
-          ? getMacosUpdateTooltip(state, locale)
-          : getDesktopUpdateButtonTooltip(state, messages)
+        ? getDesktopUpdateButtonTooltip(state, messages)
         : gt("Update available")
       : showCheckIcon
         ? gt("Checking for updates…")
@@ -400,13 +377,13 @@ function SidebarUpdateControl() {
     setIsActionPending(true);
     const result = await settlePromise(() =>
       everything.run({
-        ...(bridge && !macosManualUpdate && action === "download"
+        ...(bridge && action === "download"
           ? {
               downloadLocal: (reportError) =>
                 downloadLocalUpdate(bridge, { notifyDownloaded: false, reportError }),
             }
           : {}),
-        ...(bridge && !macosManualUpdate && action !== "none"
+        ...(bridge && action !== "none"
           ? { installLocal: (reportError) => installLocalUpdate(bridge, reportError) }
           : {}),
       }),
