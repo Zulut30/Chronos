@@ -22,6 +22,8 @@ const messageIds = [
   "a99e69dce82e3b0f", "92a45cd40283156f", "53284105a7423abf", "a560fd7a855648e6",
   "091ed640e9c9fbb7", "87846c5910d14aa7", "1b694b2d5f43f68b", "c251d5fb6872abff",
   "80ccfa40778a0de0",
+  // Narrow provider setup control (including its tooltip) and terminal input feedback.
+  "2029db2cc30beb6d", "517cfb8f24123f5b", "c6a5e90cf5035f81", "1f80a0526273f00c",
 ];
 const catalogs = new URL("../../../../apps/web/src/i18n/translations/", import.meta.url);
 const source = locale => JSON.parse(readFileSync(new URL(locale + ".json", catalogs), "utf8"));

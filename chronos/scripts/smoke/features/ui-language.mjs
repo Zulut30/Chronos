@@ -132,14 +132,26 @@ export async function check({ client, opts, viewport }) {
   try {
     await language("en");
     await compactLanguagePicker("en");
-    await scan("general", "Computer control");
-    await until("computer control editor or availability", () => evaluate(
-      "!!document.querySelector('#pc-control form, #pc-control [role=alert]') || !!document.querySelector('#pc-control [role=status]')?.textContent.includes('unavailable')"));
-    if (await evaluate("!!document.querySelector('#pc-control-history button')")) {
-      await click("#pc-control-history button");
-      await scan("computer control action log", "No actions yet.");
+    if (await evaluate("window.desktopBridge.offlineRehearsal === true")) {
+      await scan("offline general settings", "Notifications");
+      assert.ok(await evaluate("!window.chronosPC && !document.querySelector('#pc-control')"),
+        "Offline settings must omit the unavailable computer control bridge and editor");
+      await click("[data-chronos-settings-nav] input[role=combobox]");
+      await client.send("Input.insertText", { text: "Computer control" });
+      await until("offline settings search completed", () => evaluate(
+        "!!document.querySelector('#settings-search-results, [data-chronos-settings-nav] [role=status]')"));
+      assert.ok(await evaluate("!document.querySelector('#settings-search-result-pc-control, #settings-search-result-pc-control-history')"));
+      await key("Escape", 27);
     } else {
-      await scan("computer control availability", "Computer control");
+      await scan("general", "Computer control");
+      await until("computer control editor or availability", () => evaluate(
+        "!!document.querySelector('#pc-control form, #pc-control [role=alert]') || !!document.querySelector('#pc-control [role=status]')?.textContent.includes('unavailable')"));
+      if (await evaluate("!!document.querySelector('#pc-control-history button')")) {
+        await click("#pc-control-history button");
+        await scan("computer control action log", "No actions yet.");
+      } else {
+        await scan("computer control availability", "Computer control");
+      }
     }
     await route("/settings/about");
     await scan("desktop updates", "About", "#app-version");

@@ -771,6 +771,39 @@ it("a rejected send leaves the timeline when a new draft was typed meanwhile", a
 });
 
 // chronos: exercise the Shift gesture and both worktree launch requests through the composer.
+it("keeps the unavailable provider control inside its narrow composer slot", async () => {
+  const style = document.createElement("style");
+  style.textContent = stylesheet;
+  document.head.append(style);
+  using _style = { [Symbol.dispose]: () => style.remove() };
+  const thread = threadWithHistory("narrow-provider", 1);
+  using _environment = installFakeEnvironment([thread], { providers: [] });
+  __setClientSettingsForTests({
+    ...DEFAULT_CLIENT_SETTINGS,
+    language: "en",
+    onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
+  });
+  const router = getRouter(
+    createMemoryHistory({ initialEntries: [`/${ENVIRONMENT_ID}/${thread.id}`] }),
+  );
+  await router.load();
+  await using _app = await render(<AppRoot router={router} />, { router: false });
+  const button = await vi.waitFor(() => {
+    const element = document.querySelector<HTMLButtonElement>("[data-chat-provider-unavailable]");
+    if (!element?.getClientRects().length) throw new Error("Waiting for the provider setup control");
+    return element;
+  });
+  const slot = button.parentElement!;
+  slot.style.flex = "0 0 96px";
+  const rect = button.getBoundingClientRect();
+  const bounds = slot.getBoundingClientRect();
+  expect(bounds.width).toBeGreaterThan(0);
+  expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+  expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+  expect(button.title).toBe(button.disabled ? "No provider available" : "Open provider settings");
+  expect(button.textContent?.trim()).toBe(button.title);
+});
+
 it("Shift model selection launches the same task on two models", async () => {
   using _environment = installFakeEnvironment([], { requiredWorktreeBootstrap: true });
   __setClientSettingsForTests({

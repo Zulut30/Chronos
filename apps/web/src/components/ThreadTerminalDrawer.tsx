@@ -727,6 +727,15 @@ function TerminalSessionViewport({
     let setupCleanups: Array<() => void> = [];
 
     const setup = async (): Promise<(() => void) | null> => {
+      const readInputSession = () => appAtomRegistry.get(terminalSessionAtom);
+      const canWriteInput = () => readEnvironmentScope(environmentId, AuthTerminalOperateScope);
+      const writeInputChunk = (data: string, kind?: "binary" | "reply") =>
+        retainedTerminalWrite.current({
+          environmentId,
+          input: kind
+            ? { threadId, terminalId, data, [kind]: true }
+            : { threadId, terminalId, data },
+        });
       const setupFont = terminalFontRef.current;
       const terminalOptions = withLiveVisibility(visibleRef, {
         theme: terminalThemeFromApp(mount),
@@ -952,20 +961,13 @@ function TerminalSessionViewport({
         }
       };
 
-      const readInputSession = () => appAtomRegistry.get(terminalSessionAtom);
-      const canWriteInput = () => readEnvironmentScope(environmentId, AuthTerminalOperateScope);
-      const writeInputChunk = (data: string, kind?: "binary" | "reply") =>
-        retainedTerminalWrite.current({
-          environmentId,
-          input: kind
-            ? { threadId, terminalId, data, [kind]: true }
-            : { threadId, terminalId, data },
-        });
-      const sendTerminalInput = (
+      function sendTerminalInput(
         data: string,
         fallbackError: string,
         kind?: "binary" | "reply",
-      ) => {
+      ) {
+        // Ghostty can report focus or reply synchronously while mounting the surface.
+        if (cancelled || !terminalRef.current) return;
         // The server rejects input until the shell runs, and each rejection would print an error.
         // Input belongs to the shell and surface it was typed into; a restart the client has seen drops what is left.
         const session = readTerminalSession();
@@ -1020,7 +1022,7 @@ function TerminalSessionViewport({
           () =>
             report(m(msg("Terminal paste interrupted. Paste again when the terminal is ready."))),
         );
-      };
+      }
 
       function handleBeforeKey(event: KeyboardEvent): boolean {
         const currentKeybindings = readKeybindings();
