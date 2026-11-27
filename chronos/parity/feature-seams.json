@@ -759,7 +759,7 @@
     ]
   },
   "90-mcp-manager.js": {
-    "sha256": "d246fa631c6b2bbe48cbf631c9fe2a8b0b0143ad1ef4f0df6e51e59e0a82d100",
+    "sha256": "fd66c9589b9dded0d6f812b9644a29e0f9bc858f4489c77654a6fa5894a86118",
     "attributes": [
       "aria-current",
       "class",
@@ -778,6 +778,7 @@
     ],
     "selectors": [
       ":scope > header nav [aria-current=\"page\"]",
+      "[data-app-modal]",
       "[data-oly-mcp-nav]",
       "[data-oly-mcp-nav] button",
       "[data-settings-section=\"/settings/providers\"]",

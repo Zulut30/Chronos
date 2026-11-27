@@ -55,6 +55,7 @@ export async function verifyMcpSettings({ client, opts, viewport, locale, evalua
         await route("/settings/providers");
         await until("Providers loaded", () => evaluate(`!!document.querySelector("${providers}[aria-current=page]") && !!document.querySelector('[data-settings-page-scroll] [role=switch]')`));
         const name = [locale, dark ? "night" : "day", width].join("-");
+        const nativeStyle = await evaluate(`[getComputedStyle(document.querySelector('[data-app-modal]')).backgroundColor, getComputedStyle(document.querySelector('[data-settings-page-scroll] h2')).fontSize]`);
         const headerHeight = await evaluate(`document.querySelector('${header}').offsetHeight`);
         await snapshot(name + "-providers");
         if (width === 1280 && !dark) {
@@ -76,6 +77,7 @@ export async function verifyMcpSettings({ client, opts, viewport, locale, evalua
           await until("fixture servers and localized device", () => read(`document.documentElement.lang === '${locale}' &&
             document.querySelector('#machine')?.selectedOptions[0]?.textContent === '${english ? "This computer" : "Этот компьютер"}' &&
             document.querySelectorAll('#list .row[data-name]').length === 3 && document.querySelector('.row[data-name=calendar]') !== null`));
+          assert.deepEqual(await read("[getComputedStyle(document.body).backgroundColor, getComputedStyle(document.querySelector('#list-title')).fontSize]"), nativeStyle);
           assert.equal(await read("getComputedStyle(document.querySelector('#location')).appearance"), "base-select");
           assert.equal(await read("document.documentElement.scrollWidth <= innerWidth"), true);
           await read("document.fonts.ready.then(() => true)");
@@ -88,7 +90,9 @@ export async function verifyMcpSettings({ client, opts, viewport, locale, evalua
           await snapshot(name + "-mcp");
           if (dark || width !== 900) return;
           await read("document.querySelector('#location').focus()");
-          await key("Enter", 13);
+          // Native customizable selects consume Chromium's printable Space event.
+          await client.send("Input.dispatchKeyEvent", { type: "keyDown", key: " ", code: "Space", text: " ", windowsVirtualKeyCode: 32 });
+          await client.send("Input.dispatchKeyEvent", { type: "keyUp", key: " ", code: "Space", windowsVirtualKeyCode: 32 });
           await until("settings location menu opens", () => read("document.querySelector('#location').matches(':open')"));
           await snapshot(name + "-location-open");
           await key("Escape", 27);

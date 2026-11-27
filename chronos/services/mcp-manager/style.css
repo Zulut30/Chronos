@@ -222,6 +222,7 @@ html:not(.embedded) #agent-label { display: none; }
   unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
 }
 :root.embedded:not(.oly) {
+  --surface: var(--t3-surface, var(--bg));
   --field: var(--bg);
   --control-border: color-mix(in srgb, var(--t3-input, var(--muted)) 60%, var(--muted));
   --option-surface: var(--t3-popover, var(--panel));
@@ -237,7 +238,15 @@ html:not(.embedded) #agent-label { display: none; }
 :root.dark.embedded:not(.oly) {
   --field: color-mix(in srgb, var(--t3-input, var(--muted)) 32%, var(--bg));
 }
+html.embedded, .embedded body { background: var(--surface, var(--bg)); }
 .embedded body { font-size: .875rem; }
+.embedded ::-webkit-scrollbar, html.embedded::-webkit-scrollbar { width: 6px; height: 6px; }
+html.embedded::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: var(--radius); }
+.embedded[data-olympus-day] .card-head h2 {
+  font: 500 27px/1.1 "Cormorant Garamond", Didot, Georgia, serif;
+}
+.embedded[data-olympus-day] .list { border-radius: var(--radius); }
+.embedded .card-head .count { font: 400 .75rem/1.5 var(--t3-font, system-ui); }
 .embedded main {
   width: 100%;
   max-width: 56rem;
@@ -247,11 +256,12 @@ html:not(.embedded) #agent-label { display: none; }
 .embedded .scope { display: grid; gap: .75rem; margin: 0 0 2rem; }
 .embedded .agent-scope, .embedded .where .field {
   display: grid;
-  grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(55%, 18.75rem));
   align-items: center;
   gap: .75rem;
   padding-inline: 1rem;
 }
+.embedded .agent-tabs { justify-self: end; }
 .embedded .where { display: grid; min-width: 0; gap: .75rem; }
 .embedded .where .field { min-width: 0; }
 .embedded .agent-scope > span, .embedded .where .field > span {
@@ -343,7 +353,7 @@ html:not(.embedded) #agent-label { display: none; }
 .embedded .tools { gap: .5rem; }
 .embedded .list {
   border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-  background: color-mix(in srgb, var(--panel) 40%, var(--bg));
+  background: color-mix(in srgb, var(--panel) 40%, var(--surface));
   border-radius: calc(var(--radius) + .25rem);
   padding: 0;
 }
@@ -390,5 +400,6 @@ html:not(.embedded) #agent-label { display: none; }
 }
 @media (max-width: 24rem) {
   .embedded .agent-scope, .embedded .where .field { grid-template-columns: minmax(0,1fr); gap: .25rem; }
+  .embedded .agent-tabs { justify-self: start; }
   .embedded .row { padding: .625rem; }
 }

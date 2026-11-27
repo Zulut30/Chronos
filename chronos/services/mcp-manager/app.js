@@ -5,13 +5,14 @@ const store={get(k){try{return localStorage.getItem('oly-mcp-'+k)}catch{return n
 if(store.get('agent')==='claude')S.agent='claude';
 
 /* ---------- Тема: параметры из адреса (#theme=…&olympus=…) и обновления от T3 через postMessage ---------- */
-const TOKENS=['bg','fg','muted','border','panel','accent','primary-fg','hover','radius','input','popover','danger','ok','font','mono','root-size'],darkQuery=matchMedia('(prefers-color-scheme: dark)');
+const TOKENS=['bg','fg','muted','border','panel','accent','primary-fg','hover','radius','input','popover','danger','ok','font','mono','root-size','surface'],darkQuery=matchMedia('(prefers-color-scheme: dark)');
 let theme=new URLSearchParams(location.hash.slice(1));
 function applyTheme(){
  const t=theme.get('theme'),dark=t?t==='dark':darkQuery.matches;
  root.classList.toggle('dark',dark);root.style.colorScheme=dark?'dark':'light';
  root.classList.toggle('oly',theme.get('olympus')==='1'&&theme.get('embedded')!=='settings');
  root.classList.toggle('embedded',!!theme.get('embedded'));
+ root.toggleAttribute('data-olympus-day',!dark&&theme.get('olympus')==='1');
  for(const k of TOKENS){const v=theme.get(k);if(v&&v.length<160&&!/url\(|[;{}]/i.test(v))root.style.setProperty('--t3-'+k,v);else root.style.removeProperty('--t3-'+k)}
 }
 applyTheme();
