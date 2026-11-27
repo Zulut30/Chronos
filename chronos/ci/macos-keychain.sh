@@ -14,8 +14,9 @@ if [[ "${1:-}" == clean ]]; then
   exit 0
 fi
 
-p12=$(mktemp "$RUNNER_TEMP/chronos-signing.XXXXXX")
-trap 'rm -f "$p12"' EXIT
+work=$(mktemp -d "$RUNNER_TEMP/chronos-signing.XXXXXX")
+p12="$work/identity.p12"
+trap 'rm -f "$p12"; rmdir "$work"' EXIT
 printf '%s' "$IDENTITY_JSON" | jq -er .p12 | base64 -D > "$p12"
 password=$(printf '%s' "$IDENTITY_JSON" | jq -er .password)
 unset IDENTITY_JSON
@@ -23,7 +24,8 @@ keychain_password=$(openssl rand -hex 32)
 security create-keychain -p "$keychain_password" "$chain"
 security set-keychain-settings -lut 3600 "$chain"
 security unlock-keychain -p "$keychain_password" "$chain"
-security import "$p12" -k "$chain" -P "$password" -T /usr/bin/codesign
+P12_PASSWORD="$password" openssl pkcs12 -in "$p12" -passin env:P12_PASSWORD -noout
+security import "$p12" -f pkcs12 -k "$chain" -P "$password" -T /usr/bin/codesign
 unset password
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$chain" >/dev/null
 security find-certificate -p -c 'Chronos Desktop Updates' "$chain" > "$cert"
