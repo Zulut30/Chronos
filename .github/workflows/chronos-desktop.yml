@@ -520,7 +520,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          package-manager-cache: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: mac-update-source
@@ -620,7 +619,7 @@ jobs:
             "| macOS Apple Silicon | [Chronos-mac-arm64.dmg](${base}/Chronos-mac-arm64.dmg) |" \
             "| macOS Intel | [Chronos-mac-x64.dmg](${base}/Chronos-mac-x64.dmg) |" \
             "" \
-            "Windows поставляется без подписи, macOS подписана постоянным сертификатом Chronos без Apple Developer ID: Windows — «Подробнее» → «Выполнить в любом случае»; macOS — перетащите \`Chronos.app\` в «Программы» и перед первым запуском снимите карантин в Терминале: \`xattr -cr /Applications/Chronos.app\`. На macOS перейдите с ad-hoc версии один раз через DMG и выберите «Разрешать всегда» для связки ключей при запросе. Последующие версии устанавливаются кнопкой перезапуска. Контрольные суммы — \`SHA256SUMS\`. Файлы \`.blockmap\`, \`.zip\` и \`*.yml\` нужны проверке и автообновлению, качать их не нужно. Chronos ставится рядом с T3 Code и хранит данные отдельно (\`~/.chronos\`)." \
+            "Windows поставляется без подписи, macOS подписана постоянным сертификатом Chronos без Apple Developer ID: Windows — «Подробнее» → «Выполнить в любом случае»; macOS — перетащите \`Chronos.app\` в «Программы» и при предупреждении Gatekeeper подтвердите открытие этой копии в «Конфиденциальность и безопасность». На macOS перейдите с ad-hoc версии один раз через DMG и выберите «Разрешать всегда» для связки ключей при запросе. Последующие версии устанавливаются кнопкой перезапуска. Контрольные суммы — \`SHA256SUMS\`. Файлы \`.blockmap\`, \`.zip\` и \`*.yml\` нужны проверке и автообновлению, качать их не нужно. Chronos ставится рядом с T3 Code и хранит данные отдельно (\`~/.chronos\`)." \
             "" \
             "---" \
             "" \

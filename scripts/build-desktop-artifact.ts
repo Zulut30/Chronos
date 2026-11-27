@@ -2964,7 +2964,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
       ...(signed && isChronosVersion(version)
-        ? { identity: "Chronos Desktop Updates", timestamp: "none", preAutoEntitlements: false }
+        ? {
+            identity: "Chronos Desktop Updates",
+            timestamp: "none",
+            preAutoEntitlements: false,
+            // Resource data is sealed by the app signature. Signing fonts adds nonportable xattrs.
+            signIgnore: ["\\.(?:woff2?|asar)$"],
+          }
         : {}),
       ...(macPasskeySigning
         ? {
