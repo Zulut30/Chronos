@@ -1,3 +1,4 @@
+const { bundledTabsRedirect } = require("./bundled-tabs.mjs");
 const { BrowserWindow, session, webContents } = require("electron");
 const { resource, allowed, uuid } = require("./policy.mjs");
 const { encodeSnapshot } = require("./assets.mjs");
@@ -38,6 +39,8 @@ async function thumbnail(id, version) {
     const ses = thumbnailSession;
     ses.protocol.handle("chronos-artifact", req => resource(db(),id,req.url,version));
     ses.webRequest.onBeforeRequest((req,reply) => {
+      const redirectURL = bundledTabsRedirect(req,id);
+      if (redirectURL) return reply({redirectURL});
       const url = URL.parse(req.url);
       const permitted = url && req.method === "GET" &&
         allowed(url,id,req.resourceType === "mainFrame",req.resourceType) &&

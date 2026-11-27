@@ -1,3 +1,4 @@
+const { bundledTabsRedirect } = require("./bundled-tabs.mjs");
 const {session, ipcMain, dialog, app} = require("electron");
 const path = require("node:path");
 const fs = require("node:fs/promises");
@@ -74,6 +75,8 @@ function preferences(id,version) {
     sessions.set(ses,{id,version});
     ses.protocol.handle("chronos-artifact",req => resource(db(),id,req.url,version));
     ses.webRequest.onBeforeRequest((req,reply) => {
+      const redirectURL = bundledTabsRedirect(req,id);
+      if (redirectURL) return reply({redirectURL});
       const url = URL.parse(req.url);
       reply({cancel:!url || !allowed(url,id,req.resourceType === "mainFrame",req.resourceType)});
     });
