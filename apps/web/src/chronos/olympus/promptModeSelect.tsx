@@ -19,7 +19,8 @@ export function registerPromptModeSelect() {
       this.append(slot);
       this.root = createRoot(slot);
       this.root.render(
-        <Select items={items} defaultValue={field.value} onValueChange={(value) => {
+        <Select items={items} defaultValue={field.value} onValueChange={(value, event) => {
+          if (field.matches(":disabled")) return event.cancel();
           if (value !== null) field.value = value;
         }}>
           <SelectTrigger id={field.id + "-trigger"} size="sm" aria-describedby={field.getAttribute("aria-describedby") ?? undefined}>

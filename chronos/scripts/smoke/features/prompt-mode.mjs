@@ -66,7 +66,7 @@ export async function checkPromptMode(client, opts) {
       await click(option + ":nth-child(3)");
       await expectValue("plan", labels[2]);
       await until("focus after pointer selection", () => evaluate(`document.activeElement.matches('${trigger}')`));
-      await key("Enter", 13);
+      await key("ArrowDown", 40);
       await expectMenu();
       await key("End", 35);
       await key("Enter", 13);
@@ -86,7 +86,7 @@ export async function checkPromptMode(client, opts) {
         await click("#oly-ps-description");
         await key("Tab", 9);
         assert.ok(await evaluate(`document.activeElement.matches('${trigger}:focus-visible')`));
-        await key("Enter", 13);
+        await key("ArrowDown", 40);
         await expectMenu();
         await client.pumpFrames(2, 90);
         const fits = await evaluate(`[...document.querySelectorAll('${option}')].every(el => {
@@ -105,7 +105,7 @@ export async function checkPromptMode(client, opts) {
       }
     }
     if (!writing) {
-      await key("Enter", 13);
+      await key("ArrowDown", 40);
       await expectMenu();
       await key("Home", 36);
       await key("Enter", 13);
