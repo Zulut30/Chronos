@@ -9,6 +9,8 @@ const expected = [
   // paletteSearch.ts can be shared by either chunk. Consume this source occurrence only once.
   [["projectGrouping", "threadSearch"], "label", "Project", 'field:`project`,label:`Project`,text:'],
   [["utils"], "broad", "File comment", 'new Map([[`File comment`,'],
+  // The EIP-1193 wallet fallback in Clerk's managed sign-in shell is library text, not Chronos UI.
+  ...[1, 2].map(() => [["ElectronManagedAuthShell"], "broad", "Unspecified error message.", "{standard:`EIP-3085`,"]),
 ];
 const log = stripVTControlCharacters(NodeFS.readFileSync(process.argv[2], "utf8"));
 const summary = [...log.matchAll(/Remaining English occurrences: (\d+); replacements:/g)];

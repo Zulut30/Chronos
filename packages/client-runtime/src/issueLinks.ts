@@ -81,10 +81,15 @@ export function isStandaloneIssueLink(url: string): boolean {
   return parseStandaloneIssueLink(url) !== null;
 }
 
+const LINEAR_LINK_HINT_PATTERN = new RegExp(
+  `${LINEAR_HOST.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/`,
+  "i",
+);
+
 /** A cheap pre-check, so text without such a link never asks for the bindings. */
 export function mayContainStandaloneIssueLink(text: string): boolean {
   // chronos: Trello card previews also need connection metadata.
-  return text.includes(`${LINEAR_HOST}/`) || text.toLowerCase().includes(`${TRELLO_HOST}/c/`);
+  return LINEAR_LINK_HINT_PATTERN.test(text) || text.toLowerCase().includes(`${TRELLO_HOST}/c/`);
 }
 
 /**

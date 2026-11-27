@@ -75,11 +75,12 @@ const layerDesktopClerk = (
     copyText: () => Effect.void,
   },
   listeners = new Map<string, (...args: unknown[]) => void>(),
+  stateDir = clerkStateDir,
   // chronos: allow testing standalone Chronos versions alongside stock versions.
   appVersion = "1.0.0",
 ) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
-    stateDir: clerkStateDir,
+    stateDir,
     appVersion,
     isDevelopment,
     appDataDirectory: "/tmp/app-data",
@@ -185,6 +186,7 @@ describe("DesktopClerk", () => {
               DesktopPreReadyFileSystem.layer,
               undefined,
               undefined,
+              undefined,
               appVersion,
             ),
           ),
@@ -206,9 +208,24 @@ describe("DesktopClerk", () => {
         appVersion ? "chronos" : isDevelopment ? "t3code-dev" : "t3code",
       );
       assert.equal(restoreSchemesMock.mock.calls.length, appVersion ? 1 : 0);
-      assert.notStrictEqual(createClerkBridgeMock.mock.calls[0]?.[0]?.storage, storageAdapter);
+      assert.strictEqual(createClerkBridgeMock.mock.calls[0]?.[0]?.storage, storageAdapter);
     },
   );
+
+  it.effect("keeps Clerk tokens under a relative state directory instead of userData", () => {
+    storageMock.mockReturnValue(storageAdapter);
+    createClerkBridgeMock.mockReturnValue({ cleanup: vi.fn(), isPrimaryInstance: true });
+
+    return Effect.sync(() => {
+      assert.deepEqual(storageMock.mock.calls, [
+        [{ path: NodePath.resolve("relative-state", "clerk") }],
+      ]);
+    }).pipe(
+      Effect.provide(
+        layerDesktopClerk(true, [], "darwin", undefined, undefined, undefined, "relative-state"),
+      ),
+    );
+  });
 
   it.effect.each(["before configure", "after configure"] as const)(
     "reveals the running window when a second instance launches %s",

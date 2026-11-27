@@ -6,6 +6,7 @@ import { CHRONOS_SCHEME, isChronosVersion } from "@t3tools/shared/cliRelease";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 
@@ -22,7 +23,6 @@ import * as ElectronProtocol from "../electron/ElectronProtocol.ts";
 import * as ElectronWindow from "../electron/ElectronWindow.ts";
 import * as DesktopUserData from "./DesktopUserData.ts";
 import * as DesktopEnvironment from "./DesktopEnvironment.ts";
-import { openClerkTokenStorage } from "./ClerkTokenStore.ts";
 import { restoreDesktopSchemePrivileges } from "../chronos/ChronosSchemes.ts";
 import * as DesktopWebLinks from "./DesktopWebLinks.ts";
 
@@ -88,13 +88,9 @@ export const desktopClerkFrontendApiHostname = resolveDesktopClerkFrontendApiHos
 );
 
 // chronos: accept the callback scheme explicitly so standalone Chronos uses chronos://.
-function createDesktopClerkBridge(stateDir: string, scheme: string, userDataPath: string) {
+function createDesktopClerkBridge(tokenDirectory: string, scheme: string) {
   return createClerkBridge({
-    storage: openClerkTokenStorage(
-      stateDir,
-      (directory) => storage({ path: directory }),
-      userDataPath,
-    ),
+    storage: storage({ path: tokenDirectory }),
     manageSingleInstanceLock: false,
     passkeys: true,
     renderer: {
@@ -109,6 +105,7 @@ export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const electronApp = yield* ElectronApp.ElectronApp;
   const shell = yield* ElectronShell.ElectronShell;
+  const path = yield* Path.Path;
 
   // Must not yield: the bridge registers a scheme Electron rejects once ready.
   const userDataPath = yield* DesktopUserData.resolveUserDataPath(environment);
@@ -158,12 +155,11 @@ export const make = Effect.gen(function* () {
     Effect.try({
       try: () => {
         const bridge = createDesktopClerkBridge(
-          environment.stateDir,
+          path.resolve(environment.stateDir, "clerk"),
           // chronos: standalone Chronos receives external auth callbacks on chronos://.
           isChronosVersion(environment.appVersion)
             ? CHRONOS_SCHEME
             : ElectronProtocol.getDesktopScheme(environment.isDevelopment),
-          userDataPath,
         );
         // chronos: Clerk's chronos:// registration replaced the t3code:// privileges; restore both.
         if (isChronosVersion(environment.appVersion)) restoreDesktopSchemePrivileges();

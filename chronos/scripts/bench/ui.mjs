@@ -381,7 +381,7 @@ async function benchmark() {
       domCounters = await page("Memory.getDOMCounters");
     } catch {}
     let retainedHeap;
-    if (rows === 1000 && n === 16) {
+    if (rows === 1000) {
       // Sample beyond the timed UI interval; the following barrier still requires 16 live mocks.
       await page("HeapProfiler.collectGarbage");
       const usage = await page("Runtime.getHeapUsage");

@@ -610,6 +610,15 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("beta workflow durable runs automation steps schedule webhook folder")],
   },
   {
+    id: "workflow-skipped-runs",
+    title: msg("Skipped runs kept"),
+    to: "/settings/labs",
+    // Shown only while workflows are on, so search lands on the switch that turns them on.
+    targetId: "workflows-beta",
+    scope: "environment",
+    searchTerms: [msg("workflow history retention delete old skipped runs webhook")],
+  },
+  {
     id: "prompt-suggestions-beta",
     title: msg("Suggest next prompt"),
     to: "/settings/labs",
@@ -1761,6 +1770,13 @@ export function settingsForThisPlatform(
   );
 }
 
+function titleMatchRank(title: string, query: string, queryTokens: ReadonlyArray<string>): number {
+  if (title === query) return 5;
+  if (title.startsWith(query)) return 4;
+  if (title.includes(query)) return 3;
+  return queryTokens.every((token) => title.includes(token)) ? 2 : 0;
+}
+
 export function searchSettings(
   query: string,
   items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS,
@@ -1786,19 +1802,10 @@ export function searchSettings(
       ];
       if (!queryTokens.every((token) => fields.some((field) => field.includes(token)))) return [];
 
-      const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
-      const rank =
-        titles.includes(normalizedQuery)
-          ? 5
-          : titles.some((title) => title.startsWith(normalizedQuery))
-            ? 4
-            : titles.some((title) => title.includes(normalizedQuery))
-              ? 3
-              : titles.some((title) => queryTokens.every((token) => title.includes(token)))
-                ? 2
-                : exactPhraseField >= 0
-                  ? 1
-                  : 0;
+      const rank = Math.max(
+        ...titles.map((title) => titleMatchRank(title, normalizedQuery, queryTokens)),
+        fields.some((field) => field.includes(normalizedQuery)) ? 1 : 0,
+      );
       return [{ item, index, rank }];
     })
     .toSorted(
