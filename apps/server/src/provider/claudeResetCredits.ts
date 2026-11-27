@@ -247,8 +247,11 @@ export const claudeAccountConfigPath = Effect.fn("claudeAccountConfigPath")(func
   // chronos: Claude Code still selects a populated, exactly named legacy config in this profile.
   const stat = yield* fs.stat(legacy).pipe(Effect.option);
   if (Option.isSome(stat) && stat.value.type === "File" && stat.value.size > 0n) {
-    const names = yield* fs.readDirectory(directory).pipe(Effect.orElseSucceed(() => []));
-    if (names.includes(".config.json")) return legacy;
+    const exactName = yield* fs.readDirectory(directory).pipe(
+      Effect.map((names) => names.includes(".config.json")),
+      Effect.orElseSucceed(() => false),
+    );
+    if (exactName) return legacy;
   }
   return canonical;
 });

@@ -191,7 +191,10 @@ export function claudeCachedUsageLimits(raw: unknown, accountId: string, now: nu
     windows.push(makeWindow(id, window.utilization, isoFromString(window.resets_at)));
   }
   return windows.length > 0
-    ? makeUsageLimits({ checkedAt: new Date(cached.fetchedAtMs).toISOString(), windows })
+    ? makeUsageLimits({
+        checkedAt: DateTime.formatIso(DateTime.makeUnsafe(cached.fetchedAtMs)),
+        windows,
+      })
     : undefined;
 }
 

@@ -221,6 +221,7 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
         const switchedAccount =
           (probedSnapshot.driver === "claudeAgent" &&
             (probedSnapshot.auth.profileId !== previous.profileId ||
+              probedSnapshot.auth.workspaceId !== previous.workspaceId ||
               probedSnapshot.auth.email?.toLowerCase() !== previous.email?.toLowerCase() ||
               probedSnapshot.auth.type !== previous.type)) ||
           differs(probedSnapshot.auth.email?.toLowerCase(), previous.email?.toLowerCase()) ||

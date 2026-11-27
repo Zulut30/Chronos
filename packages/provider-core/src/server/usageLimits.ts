@@ -3,6 +3,7 @@ import type {
   ServerProviderUsageLimits,
   ServerProviderUsageWindow,
 } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 
 const WINDOW_KIND_ORDER: Record<ServerProviderUsageWindow["kind"], number> = {
   session: 0,
@@ -150,7 +151,7 @@ export function resolveUsageLimitsAfterProbe(input: {
             reason: "probeFailed",
             message:
               "Fresh Claude subscription limits are unavailable. Showing the last reported values.",
-            validUntil: new Date(expires).toISOString(),
+            validUntil: DateTime.formatIso(DateTime.makeUnsafe(expires)),
           },
         };
     }

@@ -960,7 +960,7 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
         yield* writeProfile("first-login");
         const reading = (yield* fixture.refresh).usageLimits;
         expect(reading).toMatchObject({
-          checkedAt: new Date(fetchedAtMs).toISOString(),
+          checkedAt: "2026-07-18T09:01:00.000Z",
           windows: [{ id: "seven_day", usedPercent: 24.5 }],
           unavailable: { reason: "probeFailed", validUntil: "2026-07-18T10:01:00.000Z" },
         });

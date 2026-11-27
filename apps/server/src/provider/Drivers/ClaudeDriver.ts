@@ -68,6 +68,7 @@ import {
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { makeClaudeMaintenanceResolution } from "./ClaudeMaintenance.ts";
 const decodeClaudeSettings = Schema.decodeSync(ClaudeSettings);
+const encodeAccountKey = Schema.encodeSync(Schema.fromJsonString(Schema.Array(Schema.String)));
 
 const DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
 const CAPABILITIES_PROBE_TTL = Duration.minutes(5);
@@ -281,7 +282,7 @@ export const ClaudeDriver: ProviderDriver<ClaudeSettings, ClaudeDriverEnv, Path.
       const profileId =
         typeof account?.accountUuid === "string" ? account.accountUuid.trim() : undefined;
       const email = account?.emailAddress?.trim().toLowerCase();
-      currentKey = JSON.stringify([workspaceId, profileId, email]);
+      currentKey = encodeAccountKey([workspaceId ?? "", profileId ?? "", email ?? ""]);
       const { capabilities } = yield* Cache.get(capabilitiesProbeCache, currentKey);
       const matchesProfile =
         profileId &&
