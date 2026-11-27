@@ -78,7 +78,8 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
   try {
     for (const dark of [false,true]) {
       await scheme(dark);
-      for (const [name,width] of [["default",256],["minimum",10],["wide",480]]) {
+      const start = results.length;
+      async function checkWidth(name, width) {
         await resize(name === "default" ? null : String(width));
         const m=await measure();
         const outside=m.buttons.filter(b=>b.left<m.left-1 || b.right>m.right+1 ||
@@ -96,10 +97,17 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
           assert.deepEqual(overlap,[],id+" buttons over ornament");
         }
       }
-      const layouts = results.slice(-3);
+      await checkWidth("default", 256);
+      await checkWidth("minimum", 10);
+      await checkWidth("wide", 480);
+      const [defaultWidth, minimum, wide] = results.slice(start).map(m => m.width);
+      assert.ok(minimum <= defaultWidth + 1 && wide > defaultWidth + 1, "Unexpected sidebar width limits");
+      // macOS includes the traffic lights in its measured brand width. The default
+      // and minimum can then coincide. Exercise an actual third layout as well.
+      if (Math.abs(defaultWidth - minimum) < 1) await checkWidth("medium", Math.round((minimum + wide) / 2));
+      const layouts = results.slice(start);
+      assert.ok(new Set(layouts.map(m => Math.round(m.width))).size >= 3, "Expected three distinct sidebar widths");
       if (verify) assert.equal(new Set(layouts.map(m=>m.buttons.length)).size,1,"A footer action disappeared at a narrower width");
-      const [defaultWidth,minimum,wide]=layouts.map(m=>m.width);
-      assert.ok(minimum<defaultWidth && wide>defaultWidth,"Rail did not exercise three distinct widths: "+[minimum,defaultWidth,wide]);
     }
   } finally { await resize(originalWidth); await scheme(initial.dark); }
   return results;

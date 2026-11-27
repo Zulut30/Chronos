@@ -86,6 +86,7 @@ jobs:
           sparse-checkout: |
             chronos/scripts/smoke
             apps/web/src/chronos/olympus
+            apps/web/src/i18n/translations
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4

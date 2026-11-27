@@ -27,6 +27,18 @@ function patchMacosIntegrationsCopy(root: ParentNode) {
   }
 }
 
+// Module 90 focuses its iframe on load. A user may already have typed the next
+// query by then. Restore the search caret after that handler, within the same event.
+export function preserveSettingsSearchFocus(event: Event) {
+  const frame = event.target;
+  const input = document.activeElement;
+  if (!(frame instanceof HTMLIFrameElement) || !frame.matches(".oly-mcp-pane iframe") ||
+      !(input instanceof HTMLInputElement) || !input.matches("[data-chronos-settings-nav] input[role=combobox]")) return;
+  frame.addEventListener("load", () => {
+    if (document.activeElement === frame && input.isConnected) input.focus({ preventScroll: true });
+  }, { once: true });
+}
+
 export function useOlympusSettingsNav(activePath: string, hash: string) {
   const ref = useRef<HTMLElement>(null);
   const router = useRouter();
@@ -105,6 +117,8 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     if (layoutObserver && nav.parentElement) {
       layoutObserver.observe(nav.parentElement, { childList: true, subtree: true });
     }
+    const layout = nav.parentElement;
+    layout?.addEventListener("load", preserveSettingsSearchFocus, true);
     nav.addEventListener("click", selectSection, true);
     const unsubscribe = router.subscribe("onBeforeLoad", ({ fromLocation, toLocation }) => {
       if (fromLocation?.href === toLocation.href) return;
@@ -114,6 +128,7 @@ export function useOlympusSettingsNav(activePath: string, hash: string) {
     syncSelection();
     return () => {
       unsubscribe();
+      layout?.removeEventListener("load", preserveSettingsSearchFocus, true);
       nav.removeEventListener("click", selectSection, true);
       observer.disconnect();
       layoutObserver?.disconnect();
