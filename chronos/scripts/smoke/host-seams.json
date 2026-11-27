@@ -750,6 +750,13 @@
     ]
   },
   {
+    "selector": "chronos-prompt-mode",
+    "owner": "apps/web/src/chronos/olympus/promptModeSelect.tsx",
+    "marker": "customElements.define(\"chronos-prompt-mode\"",
+    "compiled": "chronos-prompt-mode",
+    "modules": ["91"]
+  },
+  {
     "selector": "[data-chronos-model-picker]",
     "owner": "apps/web/src/components/chat/ModelPickerContent.tsx",
     "marker": "data-chronos-model-picker=\"\"",

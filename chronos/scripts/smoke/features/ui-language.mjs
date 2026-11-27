@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { verifyThemeLibrary } from "./theme-library.mjs";
 import { setTimeout as sleep } from "node:timers/promises";
 
-// Runs before the existing strict Russian suite, on its empty, disposable profile.
-export async function check({ client, opts, viewport }) {
+export function settingsDriver(client) {
   async function evaluate(expression) {
     const result = await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     if (result.exceptionDetails) throw Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
@@ -56,6 +55,12 @@ export async function check({ client, opts, viewport }) {
     }
   }
 
+  return { evaluate, until, route, click, language, key };
+}
+
+// Runs before the existing strict Russian suite, on its empty, disposable profile.
+export async function check({ client, opts, viewport }) {
+  const { evaluate, until, route, click, language, key } = settingsDriver(client);
   async function verifyUpdateTooltip(locale) {
     if (process.env.T3CODE_DISABLE_AUTO_UPDATE !== "1") return null;
     const [title, detail] = locale === "ru"

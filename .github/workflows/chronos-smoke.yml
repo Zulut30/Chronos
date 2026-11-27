@@ -308,6 +308,18 @@ jobs:
           }
           exit $exitCode
 
+      - name: Exercise the template mode and reopen it after a full desktop restart
+        if: inputs.require_services && inputs.require_provider
+        shell: pwsh
+        env:
+          CHRONOS_HOME: ${{ runner.temp }}\prompt-mode-profile
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+        run: |
+          foreach ($pass in 'write', 'read') {
+            node chronos/scripts/smoke/smoke.mjs --launch $env:CHRONOS_EXE --port 29673 --extra-arg --disable-gpu --profile clean --require-provider --prompt-mode $pass --out "$env:RUNNER_TEMP/chronos-smoke-report/prompt-mode"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+
       - name: Verify installed desktop control and measure the CLI
         if: ${{ !cancelled() && env.CHRONOS_EXE != '' }}
         shell: pwsh
