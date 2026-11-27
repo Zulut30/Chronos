@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off -- Bridge stdio tests feed PassThrough streams and spawn the native binary directly.
+// @effect-diagnostics nodeBuiltinImport:off processEnvInEffect:off -- Bridge stdio tests feed PassThrough streams and spawn the native binary directly.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeStream from "node:stream";
 
