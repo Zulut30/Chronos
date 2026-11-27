@@ -31,6 +31,7 @@ const serverMessages = new Map([
   ["Stopped by user", "По команде пользователя"],
   ["Sign in with Cursor or add CURSOR_API_KEY in provider settings.", "Войдите в Cursor или добавьте CURSOR_API_KEY в настройках провайдера."],
   ["Antigravity is installed. Google account access is not checked yet.", "Antigravity установлен. Доступ к аккаунту Google ещё не проверен."],
+  ["Open Settings → Providers in this environment and sign in to this Antigravity instance with Google, then retry.", "В этом окружении откройте «Настройки → Провайдеры», выберите нужный профиль Antigravity и войдите через Google. Затем повторите запуск."],
   ["Enter a Gemini API key in the Antigravity provider settings.", "Введите API-ключ Gemini в настройках провайдера Antigravity."],
 ]);
 
@@ -45,6 +46,11 @@ const notices = new Map([
   ["Could not read limits.", "Не удалось получить лимиты."],
   ["Claude Code could not retrieve subscription limits. Try /usage in this account later.", "Claude Code не получил лимиты подписки. Проверьте /usage в этом аккаунте позже."],
   ["Sign in with Google to see Antigravity limits.", "Войдите через Google, чтобы увидеть лимиты Antigravity."],
+  ["Could not verify the Antigravity instance profile.", "Не удалось проверить профиль Antigravity для этого подключения."],
+  ["Update the Antigravity CLI to read account limits.", "Обновите Antigravity CLI, чтобы увидеть лимиты аккаунта."],
+  ["Could not start the Antigravity CLI to read limits.", "Не удалось запустить Antigravity CLI для проверки лимитов."],
+  ["The Antigravity CLI could not read limits for this Google account.", "Antigravity CLI не получил лимиты этого аккаунта Google."],
+  ["Antigravity returned an unreadable quota report.", "Не удалось прочитать отчёт Antigravity о лимитах."],
   ["Cursor could not read usage limits.", "Не удалось получить лимиты Cursor."],
   ["Grok could not read usage limits.", "Не удалось получить лимиты Grok."],
   ["OpenCode Go could not read usage.", "Не удалось получить данные об использовании OpenCode Go."],

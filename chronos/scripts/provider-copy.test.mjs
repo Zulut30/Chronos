@@ -28,6 +28,7 @@ test("localizes only exact, known provider health messages in Russian", () => {
   assert.equal(serverMessage(cursor, "en"), cursor);
   assert.equal(serverMessage("Custom: " + cursor, "ru"), "Custom: " + cursor);
   assert.match(serverMessage("Antigravity is installed. Google account access is not checked yet.", "ru"), /ещё не проверен/);
+  assert.match(serverMessage("Open Settings → Providers in this environment and sign in to this Antigravity instance with Google, then retry.", "ru"), /Настройки → Провайдеры.*войдите через Google/);
   assert.match(serverMessage("Enter a Gemini API key in the Antigravity provider settings.", "ru"), /Введите API-ключ Gemini/);
 });
 test("translates a user stop in the timeline and preserves custom interrupt reasons", () => {
@@ -41,6 +42,8 @@ test("localizes provider notices without changing account names or diagnostics",
   assert.equal(usageNotice("Work · Claude 2: " + claude, "ru-RU"),
     "Work · Claude 2: Claude Code не получил лимиты подписки. Проверьте /usage в этом аккаунте позже.");
   assert.equal(usageNotice(claude, "en"), claude);
+  assert.equal(usageNotice("Office · Antigravity: Update the Antigravity CLI to read account limits.", "ru"),
+    "Office · Antigravity: Обновите Antigravity CLI, чтобы увидеть лимиты аккаунта.");
   assert.equal(usageNotice("Codex: Codex could not read usage (JSON-RPC -32603).", "ru"),
     "Codex: Не удалось получить данные об использовании Codex (JSON-RPC -32603).");
   assert.equal(usageNotice("Codex: custom error", "ru"), "Codex: custom error");
