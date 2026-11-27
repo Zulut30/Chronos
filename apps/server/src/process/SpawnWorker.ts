@@ -1,4 +1,4 @@
-// @effect-diagnostics nodeBuiltinImport:off - worker threads and Node streams implement the platform spawner boundary.
+// @effect-diagnostics nodeBuiltinImport:off globalTimers:off - worker threads, idle timers and Node streams implement the platform spawner boundary.
 import * as NodeEvents from "node:events";
 import type * as NodeChildProcess from "node:child_process";
 import * as NodeStream from "node:stream";
@@ -15,6 +15,18 @@ import { windowsSystem32Path } from "@t3tools/shared/windowsSystem";
 // stalls. Workers own the children, so only the worker waits.
 const MAX_WORKERS = 4;
 const MAX_IDLE_WORKERS = 1;
+// chronos: bound launcher thread V8 heaps and retire the warm idle worker after inactivity.
+const DEFAULT_SPAWN_WORKER_IDLE_MS = 15_000;
+const SPAWN_WORKER_RESOURCE_LIMITS: NodeWorkerThreads.ResourceLimits = {
+  maxOldGenerationSizeMb: 32,
+  maxYoungGenerationSizeMb: 1,
+};
+const spawnWorkerIdleMs = (): number => {
+  const raw = process.env.CHRONOS_SPAWN_WORKER_IDLE_MS;
+  if (raw === undefined) return DEFAULT_SPAWN_WORKER_IDLE_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_SPAWN_WORKER_IDLE_MS;
+};
 
 type ToWorker =
   | {
@@ -315,11 +327,13 @@ class SpawnWorker {
   /** Launches sent but not yet answered; the worker is inside CreateProcess for one of them. */
   launching = 0;
   closed = false;
+  #idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(pool: SpawnWorkerPool) {
     this.pool = pool;
     this.worker = new NodeWorkerThreads.Worker(workerSource, {
       eval: true,
+      resourceLimits: SPAWN_WORKER_RESOURCE_LIMITS,
       workerData: { lock: pool.platform === "win32" ? windowsSpawnLock : undefined },
     });
     this.threadId = this.worker.threadId;
@@ -339,6 +353,7 @@ class SpawnWorker {
     args: ReadonlyArray<string>,
     options: NodeChildProcess.SpawnOptions,
   ): WorkerChild {
+    this.cancelIdleClose();
     const io = options.stdio;
     const stdio =
       typeof io === "string" || io === undefined ? [io ?? "pipe", io ?? "pipe", io ?? "pipe"] : io;
@@ -448,9 +463,29 @@ class SpawnWorker {
     this.children.clear();
   }
 
+  scheduleIdleClose(idleMs: number): void {
+    this.cancelIdleClose();
+    if (this.closed || idleMs <= 0) return;
+    this.#idleTimer = setTimeout(() => {
+      this.#idleTimer = undefined;
+      if (!this.closed && this.children.size === 0 && this.launching === 0) {
+        this.close();
+      }
+    }, idleMs);
+    this.#idleTimer.unref();
+  }
+
+  cancelIdleClose(): void {
+    if (this.#idleTimer !== undefined) {
+      clearTimeout(this.#idleTimer);
+      this.#idleTimer = undefined;
+    }
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.cancelIdleClose();
     this.pool.workers.delete(this);
     void this.worker.terminate().then(() => {
       // The thread may have died holding the lock, or between its unlock and notify, or after
@@ -529,7 +564,11 @@ class SpawnWorkerPool {
     const idle = [...this.workers].filter(
       (candidate) => candidate.children.size === 0 && candidate.launching === 0,
     );
-    if (idle.length > MAX_IDLE_WORKERS) worker.close();
+    if (idle.length > MAX_IDLE_WORKERS) {
+      worker.close();
+      return;
+    }
+    worker.scheduleIdleClose(spawnWorkerIdleMs());
   }
 
   close(): void {

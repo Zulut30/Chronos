@@ -68,11 +68,15 @@ export function createServiceHost(options: Options & { platform: NodeJS.Platform
   const workers = new Map<string, OnExit>();
   let host: NodeChildProcess.ChildProcess | undefined;
   function startHost() {
-    const proc = NodeChildProcess.spawn(options.executable, [NodePath.join(options.resources, "host.mjs")], {
+    const proc = NodeChildProcess.spawn(
+      options.executable,
+      ["--max-old-space-size=192", "--max-semi-space-size=2", NodePath.join(options.resources, "host.mjs")],
+      {
       cwd: options.resources, windowsHide: true, stdio: ["ignore", "ignore", "ignore", "ipc"],
       env: { ...env, ELECTRON_RUN_AS_NODE: "1", CHRONOS_T3_HOME: options.baseDir,
         CHRONOS_SERVICES_DATA: options.baseDir },
-    });
+      },
+    );
     proc.on("message", (message) => {
       if (typeof message === "object" && message && "kind" in message && message.kind === "artifact-open" &&
           "request" in message && typeof message.request === "string" && "id" in message && typeof message.id === "string" &&

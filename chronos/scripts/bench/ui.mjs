@@ -35,10 +35,10 @@ const ids = Array.from({ length: n }, () => crypto.randomUUID());
 const stateFile = join(userdata, "server-runtime.json");
 let rpc, cdp, evaluate;
 async function benchmark() {
-  let server;
+  let server, app;
   const launched = Date.now();
   if (mode === "desktop") {
-    start(
+    app = start(
       exe,
       [
         "--remote-debugging-port=" + debug,
@@ -354,6 +354,32 @@ async function benchmark() {
       ),
     );
     assert(rss > 0);
+    let processMemory;
+    if (mode === "desktop" && app?.pid) {
+      try {
+        processMemory = JSON.parse(
+          execFileSync(
+            "pwsh",
+            [
+              "-NoProfile",
+              "-File",
+              join(import.meta.dirname, "tree-memory.ps1"),
+              "-RootPid",
+              String(app.pid),
+              "-ServerPid",
+              String(state.pid),
+            ],
+            { windowsHide: true, encoding: "utf8", timeout: 30000 },
+          ),
+        );
+      } catch {
+        /* Diagnostic process-tree breakdown must not fail UI verification */
+      }
+    }
+    let domCounters;
+    try {
+      domCounters = await page("Memory.getDOMCounters");
+    } catch {}
     let retainedHeap;
     if (rows === 1000 && n === 16) {
       // Sample beyond the timed UI interval; the following barrier still requires 16 live mocks.
@@ -508,6 +534,8 @@ async function benchmark() {
       tooltipVerified,
       rendererCount: pids.length,
       rendererRssMiB: rss / 1048576,
+      ...(processMemory ? { processMemory } : {}),
+      ...(domCounters ? { domCounters } : {}),
       heapMiB: after.JSHeapUsedSize / 1048576,
       ...(retainedHeap ? { retainedHeap } : {}),
       layoutMs: (after.LayoutDuration - before.LayoutDuration) * 1000,

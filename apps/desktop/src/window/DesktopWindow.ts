@@ -49,6 +49,9 @@ import { copyContextMenuImage } from "./ContextMenuImage.ts";
 import { installMainWindowRemoteRequestHeaderPolicy } from "./RemoteRequestHeaders.ts";
 
 const TITLEBAR_HEIGHT = 40;
+// chronos: trim transient renderer caches after the main window stays minimized or hidden.
+const CHRONOS_MEMORY_TRIM_CHANNEL = "chronos:memory-trim";
+const MEMORY_TRIM_DELAY_MS = 3_000;
 
 class ContextMenuImageCopyError extends Schema.TaggedError<ContextMenuImageCopyError>()(
   "ContextMenuImageCopyError",
@@ -873,6 +876,38 @@ export const make = Effect.gen(function* () {
     window.on("close", () => {
       runFork(flushBoundsPersist);
     });
+    // chronos: notify the renderer to release transient caches shortly after minimize or hide.
+    let memoryTrimFiber: Fiber.Fiber<void, never> | undefined;
+    const clearMemoryTrim = () => {
+      if (memoryTrimFiber === undefined) return;
+      const fiber = memoryTrimFiber;
+      memoryTrimFiber = undefined;
+      runFork(Fiber.interrupt(fiber));
+    };
+    const scheduleMemoryTrim = () => {
+      clearMemoryTrim();
+      if (window.isDestroyed()) return;
+      memoryTrimFiber = runFork(
+        Effect.sleep(MEMORY_TRIM_DELAY_MS).pipe(
+          Effect.andThen(
+            Effect.sync(() => {
+              memoryTrimFiber = undefined;
+              if (
+                !window.isDestroyed() &&
+                !window.webContents.isDestroyed() &&
+                (window.isMinimized() || !window.isVisible())
+              ) {
+                window.webContents.send(CHRONOS_MEMORY_TRIM_CHANNEL);
+              }
+            }),
+          ),
+        ),
+      );
+    };
+    window.on("minimize", scheduleMemoryTrim);
+    window.on("hide", scheduleMemoryTrim);
+    window.on("restore", clearMemoryTrim);
+    window.on("show", clearMemoryTrim);
 
     if (environment.platform === "darwin") {
       // Mouse drivers can deliver Back/Forward as macOS swipe gestures instead of buttons.
@@ -1071,6 +1106,7 @@ export const make = Effect.gen(function* () {
       if (!backendHasStarted) mainClosedDuringStartup = true;
       clearDevelopmentLoadRetry();
       clearBoundsPersist();
+      clearMemoryTrim();
       if (remoteRequestHeaderOwner === window) {
         remoteRequestHeaderOwner = null;
         detachRemoteRequestHeaders();
