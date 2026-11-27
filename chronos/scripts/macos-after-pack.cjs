@@ -181,6 +181,9 @@ async function afterPack(context) {
   // Strip stray Finder/quarantine xattrs before signing so codesign produces a clean seal.
   runTool("xattr", ["-cr", appPath]);
 
+  // Release signing runs after electron-builder flips the fuses and signs nested code inside out.
+  if (context.packager.config.forceCodeSigning) return;
+
   // Ad-hoc sign loose Mach-O executables and native addons in Contents/Resources/ first,
   // because `codesign --deep` only traverses standard bundle code directories.
   const looseBinaries = findMachOFiles(resourcesPath);

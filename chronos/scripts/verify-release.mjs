@@ -26,6 +26,10 @@ for (const [manifestName, required] of [
     if (!allowed.delete(entry.url)) throw new Error(`Unexpected asset ${entry.url}`);
     const file = NodePath.join(dir, entry.url);
     if ((await NodeFSP.stat(file)).size !== entry.size) throw new Error(`Wrong size: ${entry.url}`);
+    if (entry.url.endsWith(".zip")) {
+      const map = await NodeFSP.stat(file + ".blockmap");
+      if (!map.isFile() || !map.size) throw new Error("Missing ZIP blockmap: " + entry.url);
+    }
     const hash = NodeCrypto.createHash("sha512");
     for await (const chunk of NodeFS.createReadStream(file)) hash.update(chunk);
     if (hash.digest("base64") !== entry.sha512) throw new Error(`Wrong SHA512: ${entry.url}`);

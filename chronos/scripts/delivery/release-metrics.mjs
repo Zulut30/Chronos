@@ -9,7 +9,7 @@ import { pipeline } from "node:stream/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { parseUpdateManifest } from "../../../scripts/lib/update-manifest.ts";
 import { chronosUpdateFeed } from "../../../scripts/lib/chronos-update-feed.ts";
-import { pinWindowsFeed } from "./windows-feed.mjs";
+import { pinReleaseFeed } from "./release-feed.mjs";
 import { cachedInstaller, rehearseUpdate } from "./rehearse-update.mjs";
 
 export function candidatePush(history, build) {
@@ -75,7 +75,7 @@ async function main([mode, version, dir, output]) {
   const config = chronosUpdateFeed(`https://github.com/${repo}/releases/latest/download`, "nightly");
   const name = `Chronos-${version}-x64.exe`;
   const manifest = mode === "candidate"
-    ? parseUpdateManifest(pinWindowsFeed(await readFile(join(dir,"nightly.yml"),"utf8"),version,repo), "nightly.yml", "Windows")
+    ? parseUpdateManifest(pinReleaseFeed(await readFile(join(dir,"nightly.yml"),"utf8"),version,repo,"win"), "nightly.yml", "Windows")
     : await getFeed(config.url + "/nightly.yml",version);
   const feedAt = mode === "published" ? new Date().toISOString() : null;
   const build = await api("actions/runs/" + desktopRunId);

@@ -30,7 +30,7 @@ T3). Оставлены только workflow Chronos:
 
 - `.github/workflows/chronos-desktop.yml`:
   - **push в `main`** и **`workflow_dispatch`** — собирают Windows x64 (NSIS) и macOS
-    arm64/x64 (`dmg` + `zip`) без цифровой подписи и загружают установщики в артефакты прогона
+    arm64/x64 (`dmg` + `zip`) с постоянной подписью Chronos и загружают установщики в артефакты прогона
     (`chronos-win-x64`, `chronos-mac-arm64`, `chronos-mac-x64`), без публикации GitHub Release.
   - **тег `chronos-v*`** — проверяет совпадение тега с `chronos/version.json`, находит успешные
     прогоны `chronos-checks.yml` и ручного `chronos-desktop.yml` на `HEAD` ветки `main`, сверяет
@@ -52,7 +52,5 @@ T3). Оставлены только workflow Chronos:
 - Канал: сборка Chronos фиксирована на канале `nightly` (`nightly.yml` / `nightly-mac.yml`) и
   принимает только версии Chronos (`isChronosVersion`).
 - Windows: стандартное обновление через NSIS.
-- macOS: ad-hoc подпись в CI (`chronos/scripts/macos-after-pack.cjs` с `ElectronAsarIntegrity`), поэтому
-  Squirrel.Mac не может ставить обновления на месте — проверка новой версии работает штатно, а кнопка
-  «Скачать DMG» открывает в браузере прямую загрузку `.dmg` под текущую архитектуру (`arm64` / `x64`).
+- macOS использует постоянный самоподписанный сертификат Chronos и MacUpdater. После перехода с ad-hoc через DMG обновления устанавливаются из приложения.
   Подробнее — в [chronos/parity/macos.md](../parity/macos.md).

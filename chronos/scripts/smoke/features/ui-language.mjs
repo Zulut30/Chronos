@@ -209,6 +209,10 @@ export async function check({ client, opts, viewport }) {
     }
     await route("/settings/about");
     await scan("desktop updates", "About", "#app-version");
+    const installed = await evaluate("window.desktopBridge.getUpdateState().then(s => s.currentVersion)");
+    assert.match(installed, /\.chronos\.\d+$/);
+    await until("About shows installed Chronos revision", async () =>
+      await evaluate("document.querySelector('#app-version code')?.textContent.trim()") === installed);
     await route("/settings/threads");
     await scan("quota settings", "Usage limits");
     await route("/settings/source-control");

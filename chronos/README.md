@@ -28,7 +28,7 @@ Chronos — независимый форк [pingdotgg/t3code](https://github.co
 <a id="сборка-и-ci-github-actions"></a>
 - [Сборка и CI (GitHub Actions)](docs/release.md#сборка-и-ci-github-actions)
 <a id="обновления"></a>
-- [Обновления](docs/release.md#обновления)
+- [Обновления](docs/release.md#обновления) · [Переход с ad-hoc на Mac и ротация сертификата](parity/macos.md)
 <a id="настройки-чата-olympus"></a>
 - [Настройки чата Olympus](docs/chat.md#настройки-чата-olympus)
 <a id="точки-встраивания-слоя-упаковки-в-код-апстрима"></a>

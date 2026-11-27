@@ -29,7 +29,6 @@ import * as Stream from "effect/Stream";
 
 import * as DesktopBackendManager from "../backend/DesktopBackendManager.ts";
 import { isChronosVersion } from "@t3tools/shared/cliRelease";
-import * as ChronosUpdates from "../chronos/ChronosUpdates.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -667,24 +666,6 @@ export const make = Effect.gen(function* () {
   const downloadAvailableUpdate = Effect.fn("desktop.updates.downloadAvailableUpdate")(function* (
     refresh: boolean,
   ) {
-    // chronos: unsigned macOS builds open the matching DMG installer in the browser instead of Squirrel.Mac.
-    if (ChronosUpdates.isManualUpdatePlatform(environment)) {
-      const state = yield* Ref.get(updateStateRef);
-      if (!(yield* Ref.get(updaterConfiguredRef)) || state.status !== "available") {
-        return { accepted: false, completed: false };
-      }
-      const opened = yield* ChronosUpdates.openMacosDmgDownload({
-        availableVersion: state.availableVersion,
-        hostArch: environment.runtimeInfo.hostArch,
-        appArch: environment.runtimeInfo.appArch,
-      });
-      if (!opened) {
-        yield* logUpdaterWarning("could not open macOS DMG download URL in browser", {
-          version: state.availableVersion,
-        });
-      }
-      return { accepted: opened, completed: false };
-    }
     const admission = yield* Effect.scoped(
       admitAfterCheck(
         Effect.gen(function* () {
@@ -1039,15 +1020,6 @@ export const make = Effect.gen(function* () {
   const installWithExpectedVersion = Effect.fn("desktop.updates.install")(function* (
     expectedVersion?: string,
   ) {
-    // chronos: unsigned macOS builds cannot apply Squirrel.Mac updates in place.
-    if (ChronosUpdates.isManualUpdatePlatform(environment)) {
-      return {
-        accepted: false,
-        completed: false,
-        failed: false,
-        state: yield* Ref.get(updateStateRef),
-      };
-    }
     if (yield* Ref.get(desktopState.quitting)) {
       return {
         accepted: false,
@@ -1387,11 +1359,7 @@ export const make = Effect.gen(function* () {
       const settings = yield* desktopSettings.get;
       const disabledReason = yield* resolveDisabledReason;
       // A blocked nightly channel still lets the user switch back to stable, so it stays updatable.
-      // chronos: manual-update macOS builds check feeds but cannot self-install via Squirrel.Mac.
-      yield* Ref.set(
-        desktopState.canInstallUpdates,
-        Option.isNone(disabledReason) && !ChronosUpdates.isManualUpdatePlatform(environment),
-      );
+      yield* Ref.set(desktopState.canInstallUpdates, Option.isNone(disabledReason));
       yield* setState(
         yield* baseUpdateState(
           settings.updateChannel,

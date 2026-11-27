@@ -2895,7 +2895,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     // chronos: updates come from the newest Chronos GitHub release. The feed is the
     // `releases/latest/download` redirect, so release tags need not be semver.
     buildConfig.publish = [
-      chronosUpdateFeed(CHRONOS_UPDATE_FEED_URL, updateChannel),
+      chronosUpdateFeed(
+        mockUpdates ? resolveMockUpdateServerUrl(mockUpdateServerPort) : CHRONOS_UPDATE_FEED_URL,
+        updateChannel,
+      ),
     ];
   } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
@@ -2914,9 +2917,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
-    // chronos: unsigned macOS Chronos builds write ElectronAsarIntegrity and ad-hoc sign after packing.
-    if (isChronosVersion(version) && !signed) {
+    // chronos: seal the final ASAR header before signing, including self-signed release builds.
+    if (isChronosVersion(version)) {
       buildConfig.afterPack = path.join(repoRoot, "chronos/scripts/macos-after-pack.cjs");
+      buildConfig.forceCodeSigning = signed;
     }
     const macBrandName = isChronosVersion(version) ? CHRONOS_PRODUCT_NAME : "T3 Code";
     buildConfig.mac = {
@@ -2959,6 +2963,15 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
+      ...(signed && isChronosVersion(version)
+        ? {
+            identity: "Chronos Desktop Updates",
+            timestamp: "none",
+            preAutoEntitlements: false,
+            // Resource data is sealed by the app signature. Signing fonts adds nonportable xattrs.
+            signIgnore: ["\\.(?:woff2?|asar)$"],
+          }
+        : {}),
       ...(macPasskeySigning
         ? {
             entitlements: macPasskeySigning.entitlementsPath,
@@ -3953,7 +3966,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
 
   const configuredMacPasskeySigning =
-    options.platform === "mac" && options.signed
+    options.platform === "mac" && options.signed && !isChronosVersion(appVersion)
       ? yield* Effect.try({
           // chronos: standalone Chronos passkey entitlements use CHRONOS_APP_ID.
           try: () =>

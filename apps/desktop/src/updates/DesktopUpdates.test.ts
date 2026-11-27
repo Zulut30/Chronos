@@ -1546,43 +1546,31 @@ describe("DesktopUpdates under a managed policy", () => {
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
 
-  // chronos: macOS builds are ad-hoc signed, so updates check normally and open the DMG instead of Squirrel.Mac.
-  it.effect("uses manual DMG updates without Squirrel.Mac on macOS Chronos builds", () => {
+  // chronos: exercise the same download and restart actions the packaged Mac exposes over IPC.
+  it.effect("downloads and installs a Chronos update on macOS", () => {
+    const version = "0.1.12-nightly.20261124.5209.chronos.8";
     const harness = makeHarness({
       platform: "darwin",
       appVersion: "0.1.12-nightly.20261124.5209.chronos.7",
       savedChannel: "nightly",
+      checkForUpdates: Effect.sync(() => harness.emit("update-available", { version })),
+      downloadUpdate: Effect.sync(() => harness.emit("update-downloaded", { version })),
     });
-
     return Effect.scoped(
       Effect.gen(function* () {
         const updates = yield* DesktopUpdates.DesktopUpdates;
         const desktopState = yield* DesktopState.DesktopState;
         yield* updates.configure;
-
-        assert.isFalse(yield* Ref.get(desktopState.canInstallUpdates));
+        assert.isTrue(yield* Ref.get(desktopState.canInstallUpdates));
         assert.isTrue((yield* updates.check("menu")).checked);
-        assert.equal(harness.checkCount(), 1);
-
-        harness.emit("update-available", {
-          version: "0.1.12-nightly.20261124.5209.chronos.8",
-        });
         yield* flushCallbacks;
-
-        const available = yield* updates.getState;
-        assert.equal(available.status, "available");
-        assert.equal(available.availableVersion, "0.1.12-nightly.20261124.5209.chronos.8");
-
         const download = yield* updates.download;
-        assert.isFalse(download.completed);
-        assert.equal(download.state.status, "available");
-        assert.isNull(download.state.message);
-        assert.equal(harness.downloadCount(), 0);
-
-        const install = yield* updates.install;
-        assert.isFalse(install.accepted);
-        assert.isFalse(install.completed);
-        assert.equal(harness.quitAndInstalls(), 0);
+        assert.isTrue(download.accepted && download.completed);
+        yield* flushCallbacks;
+        assert.equal((yield* updates.getState).downloadedVersion, version);
+        assert.equal(harness.downloadCount(), 1);
+        assert.isTrue((yield* updates.installPrepared(version)).accepted);
+        assert.equal(harness.quitAndInstalls(), 1);
       }),
     ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
   });
