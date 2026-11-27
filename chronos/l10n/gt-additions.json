@@ -11,6 +11,7 @@
     "Trello credentials": "Данные доступа Trello"
   },
   "messages": {
+    "No usage sources configured.": "Источники расхода не настроены.",
     "Queued · will be sent after the current turn": "В очереди · будет отправлено после текущего хода",
     "Antigravity subscription quota reached": "Квота подписки Antigravity исчерпана",
     "Continue after reset": "Продолжить после сброса",
