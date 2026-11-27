@@ -23,6 +23,7 @@ export function isolateRehearsalRequests(backendPort: string | undefined) {
     // the sidecar returned 200. Only the allowlisted, read-only private service uses Node.
     const headers = new Headers(request.headers);
     headers.set("Origin", "t3code://app");
+    // @effect-diagnostics-next-line globalFetch:off -- Electron protocol handlers require a streaming Fetch Response with the incoming abort signal.
     return fetch(url, { method: request.method, headers, redirect: "manual", signal: request.signal });
   });
   session.webRequest.onBeforeRequest(

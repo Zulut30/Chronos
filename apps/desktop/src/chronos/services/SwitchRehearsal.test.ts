@@ -37,10 +37,13 @@ it("serves the skills iframe as HTML from its private port and never follows red
     const page = await handler(new Request(origin, { headers: { Accept: "text/html" } }));
     expect(page.headers.get("Content-Type")).toBe("text/html");
     expect(await page.text()).toBe("<main>Skills</main>");
+    const head = await handler(new Request(origin, { method: "HEAD" }));
+    expect(head.status).toBe(200);
+    expect(head.body).toBeNull();
     expect((await handler(new Request(origin + "/redirect"))).status).toBe(302);
     expect((await handler(new Request(origin, { method: "POST" }))).type).toBe("error");
     expect((await handler(new Request("https://example.invalid/"))).type).toBe("error");
-    expect(requests).toEqual(["GET /", "GET /redirect"]);
+    expect(requests).toEqual(["GET /", "HEAD /", "GET /redirect"]);
     expect(fixture.fetch).not.toHaveBeenCalled();
   } finally {
     server.closeAllConnections();
