@@ -63,6 +63,8 @@ import {
 } from "lucide-react";
 import {
   memo,
+  useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -489,16 +491,16 @@ const SIDEBAR_SORTABLE_DRAG_ENABLED = { draggable: false } as const;
 // Takes the row's props rather than a render function: a closure from the
 // sidebar body is new on every sidebar render, which rebuilt the bag and
 // re-rendered every memoized row with it.
-export function SortableThreadRow(
-  props: Omit<SidebarThreadRowProps, "sortable"> & {
-    sortableId: string;
-    sortableDisabled: boolean;
-    contextDrag: boolean;
-  },
-) {
-  const { sortableId, sortableDisabled, contextDrag, ...rowProps } = props;
+type SortableRowProps = Omit<SidebarThreadRowProps, "sortable"> & {
+  sortableId: string;
+  sortableDisabled: boolean;
+  contextDrag: boolean;
+};
+
+function useRowBinding(props: SortableRowProps) {
+  const { sortableId, sortableDisabled, contextDrag, thread: arranged } = props;
   const canOperateThread = useEnvironmentScope(
-    rowProps.thread.environmentId,
+    arranged.environmentId,
     AuthOrchestrationOperateScope,
   );
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -511,27 +513,62 @@ export function SortableThreadRow(
   });
   // dnd-kit memoizes each field but not the bag, so the memoized row would
   // rerender on every shell update without this.
-  const bag = {
+  const bag = useMemo(() => ({
     listeners,
     setNodeRef,
     transform: contextDrag ? null : transform,
     transition: contextDrag && isDragging ? "transform 150ms ease-out" : transition,
     isDragging: isDragging && !contextDrag,
-  };
+  }), [listeners, setNodeRef, transform, transition, isDragging, contextDrag]);
   // The sidebar arranges rows from quiet shells, which hold still while a
   // thread streams; reading the live shell here re-renders only this row.
   const liveThread = useThreadShell(
-    scopeThreadRef(rowProps.thread.environmentId, rowProps.thread.id),
+    scopeThreadRef(arranged.environmentId, arranged.id),
   );
   // A runtime on the arranged copy but not the run-less live shell is the list's launch overlay.
-  const thread =
-    liveThread === null
-      ? rowProps.thread
-      : rowProps.thread.runtime !== null
-        ? asLaunchingThread(liveThread)
-        : liveThread;
-  // Keyed by variant so a card/slim switch remounts the row.
-  return <SidebarThreadRow key={rowProps.variant} {...rowProps} thread={thread} sortable={bag} />;
+  return useMemo(() => ({
+    thread: liveThread === null ? arranged : arranged.runtime !== null ? asLaunchingThread(liveThread) : liveThread,
+    sortable: bag,
+  }), [arranged, liveThread, bag]);
+}
+
+function RegisteredThreadRow(props: SortableRowProps) {
+  const binding = useRowBinding(props);
+  return <SidebarThreadRow key={props.variant} {...props} {...binding} />;
+}
+
+type RowBinding = ReturnType<typeof useRowBinding>;
+
+function ViewportRegistration({ row, publish }: {
+  row: SortableRowProps;
+  publish: (binding: RowBinding | null) => void;
+}) {
+  const binding = useRowBinding(row);
+  useLayoutEffect(() => {
+    publish(binding);
+    return () => publish(null);
+  }, [binding, publish]);
+  return null;
+}
+
+function WindowedSortableRow(props: SortableRowProps) {
+  const lease = useSidebarRowSubscriptionLease(props.isActive || props.isRenaming || !!props.forceRegister);
+  // Keep the keyboard and Olympus row anchors mounted. Only the nearby rows register
+  // with dnd-kit, whose useSortable retains a slice of the section IDs for each registration.
+  const [binding, setBinding] = useState<RowBinding | null>(null);
+  return (
+    <>
+      {lease.leaseLiveStatus && <ViewportRegistration row={props} publish={setBinding} />}
+      <SidebarThreadRow {...props} thread={binding?.thread ?? props.thread}
+        sortable={binding?.sortable} registrationLease={lease} />
+    </>
+  );
+}
+
+export function SortableThreadRow(props: SortableRowProps) {
+  return props.windowCard && props.variant === "card"
+    ? <WindowedSortableRow {...props} />
+    : <RegisteredThreadRow {...props} />;
 }
 export type SidebarSweepAction = "settle" | "unsettle" | "unsnooze";
 const dropVerbBadge: Record<SidebarDropVerb, ReactNode> = {
@@ -585,6 +622,8 @@ function TopStatusIcon(props: { icon: keyof typeof TOP_STATUS_ICONS; className: 
 
 type SidebarThreadRowProps = {
   windowCard?: boolean;
+  forceRegister?: boolean;
+  registrationLease?: ReturnType<typeof useSidebarRowSubscriptionLease>;
   thread: SidebarThreadSummary;
   // "folder" is a one-line row inside a boring sidebar project folder;
   // "folder-multiline" adds the card's environment and PR line under it.
@@ -716,7 +755,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const threadKey = scopedThreadKey(threadRef);
   const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
-  const { leaseLiveStatus, rowRef: leaseRowRef } = useSidebarRowSubscriptionLease(props.isActive);
+  const localLease = useSidebarRowSubscriptionLease(props.isActive || !!props.registrationLease);
+  const { leaseLiveStatus, rowRef: leaseRowRef } = props.registrationLease ?? localLease;
   const { revealRef } = props;
   const rowRef = (row: HTMLElement | null) => {
     const stopReveal = row === null ? undefined : revealRef?.(row, threadKey);
@@ -1549,10 +1589,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           }
         >
           <SidebarCardContents
-            renderContents={!props.windowCard || leaseLiveStatus || isRenaming || snoozeMenuOpen}
+            renderContents={!props.windowCard || !!props.forceRegister || leaseLiveStatus || isRenaming || snoozeMenuOpen}
             compact={metaLineEmpty}
             title={thread.title}
           >
+            {() => <>
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
               {props.project ? (
@@ -1720,9 +1761,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {titleLineIcons}
             </div>
             {metaLine}
+            </>}
           </SidebarCardContents>
         </TooltipTrigger>
-        {detailsTooltip}
+        {(!props.windowCard || leaseLiveStatus || props.forceRegister || isRenaming) && detailsTooltip}
       </Tooltip>
     </li>
   );

@@ -3522,10 +3522,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             key={threadKey}
                             // chronos: window heavy card contents in large expanded sections.
                             windowCard={
-                              dragState === null && !isContextDrag &&
-                              ((section === "active" && activeThreads.length >= 100) ||
-                                (section === "working" && visibleWorkingThreads.length >= 100))
+                              (section === "active" && activeThreads.length >= 100) ||
+                              (section === "working" && visibleWorkingThreads.length >= 100)
                             }
+                            forceRegister={dragState !== null || isContextDrag}
                             sortableId={threadKey}
                             contextDrag={isContextDrag}
                             sortableDisabled={

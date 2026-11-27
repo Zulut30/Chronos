@@ -8,7 +8,7 @@ export function SidebarCardContents({
   renderContents: boolean;
   compact: boolean;
   title: string;
-  children: ReactNode;
+  children: () => ReactNode;
 }) {
   const [containsFocus, setContainsFocus] = useState(false);
   const visible = renderContents || containsFocus;
@@ -23,7 +23,7 @@ export function SidebarCardContents({
         if (!event.currentTarget.contains(event.relatedTarget)) setContainsFocus(false);
       }}
     >
-      {visible ? children : <span data-sidebar-card-placeholder="" className="block truncate">{title}</span>}
+      {visible ? children() : <span data-sidebar-card-placeholder="" className="block truncate">{title}</span>}
     </div>
   );
 }
