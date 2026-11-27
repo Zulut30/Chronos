@@ -21,6 +21,7 @@ button, summary { cursor: pointer; }
 button:hover { background: var(--gallery-accent, ButtonFace); }
 :focus-visible { outline: 2px solid var(--gallery-primary, Highlight); outline-offset: 2px; }
 input { max-width: 100%; }
+input, select { border-width: 2px; }
 input::placeholder { color: var(--control-edge); opacity: 1; }
 #cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
 article, dialog {

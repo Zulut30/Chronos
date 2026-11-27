@@ -114,10 +114,11 @@ async function captureSettings(client, out, ready, {executable, updatesOnly = fa
             visible["frame/" + key] = { ...node, x: node.x + offset.x, y: node.y + offset.y };
           }
         }
-        if (id === "prompt-editor" && process.env.CHRONOS_SETTINGS_STAGE === "after") {
-          const fields = Object.values(visible).filter(node => node.slot === "input-group");
+        if (process.env.CHRONOS_SETTINGS_STAGE === "after" && (id === "prompt-editor" || id === "artifacts")) {
+          const slots = id === "prompt-editor" ? ["input-group"] : ["input-control", "select-trigger"];
+          const fields = Object.values(visible).filter(node => slots.includes(node.slot));
           assert.ok(fields.length && fields.every(node => node.borderWidth >= 1.5),
-            "Prompt field boundaries must remain visible at fractional display scaling");
+            id + " field boundaries must remain visible at fractional display scaling");
         }
         measurements.push({name, visible});
         writeFileSync(join(out, "measurements.json"), JSON.stringify(measurements, null, 2));

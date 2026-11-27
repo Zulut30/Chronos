@@ -50,6 +50,6 @@
 .art-menu button:disabled {opacity:.55}
 .art-shell h2,.art-summary p {overflow-wrap:anywhere}
 
-.art-shell :is([data-slot="input-control"], [data-slot="select-trigger"]) {border-color:var(--muted-foreground)}
+.art-shell :is([data-slot="input-control"], [data-slot="select-trigger"]) {border:2px solid var(--muted-foreground)}
 .art-shell [data-pressed="true"],.art-segment button[aria-pressed="true"] {background:var(--primary);color:var(--primary-foreground)}
 .art-shell input::placeholder {color:var(--muted-foreground);opacity:1}
