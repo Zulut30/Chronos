@@ -106,6 +106,11 @@ test('http_api_restricts_mutations_origins_and_ssh_targets',async()=>{
   let ready=false;for(let i=0;i<50;i++){try{ready=(await fetch('http://127.0.0.1:'+port+'/api/health')).ok;if(ready)break}catch{}await new Promise(r=>setTimeout(r,100))}
   assert.ok(ready);
   const base='http://127.0.0.1:'+port;
+  for (const subset of ['latin','cyrillic']) {
+    const response=await fetch(base+'/fonts/inter-'+subset+'-wght-normal.woff2');
+    assert.equal(response.headers.get('content-type'),'font/woff2');
+    assert.equal(Buffer.from(await response.arrayBuffer()).toString('ascii',0,4),'wOF2');
+  }
   assert.equal((await fetch(base+'/api/delete',{method:'POST',body:'{}'})).status,403);
   assert.equal((await fetch(base+'/api/machines',{headers:{Origin:'https://untrusted.invalid'}})).status,403);
   const invalid=await(await fetch(base+'/api/locations?machine=unknown-ssh')).json();assert.match(invalid.error,/Неизвестное SSH/);

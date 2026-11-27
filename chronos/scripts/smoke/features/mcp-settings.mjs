@@ -57,8 +57,14 @@ export async function verifyMcpSettings({ client, opts, viewport, locale, evalua
         const name = [locale, dark ? "night" : "day", width].join("-");
         const headerHeight = await evaluate(`document.querySelector('${header}').offsetHeight`);
         await snapshot(name + "-providers");
-        // A click whose target is the li itself used to do nothing.
-        await evaluate(`document.querySelector('${nav}').click()`);
+        if (width === 1280 && !dark) {
+          await click("[data-chronos-settings-nav] input[role=combobox]");
+          await client.send("Input.insertText", { text: "MCP" });
+          await click("#settings-search-result-olympus-mcp");
+        } else {
+          // A click whose target is the li itself used to do nothing.
+          await evaluate(`document.querySelector('${nav}').click()`);
+        }
         await until("localized active MCP crumb and frame", () => evaluate(
           `document.querySelector('.oly-mcp-crumb')?.textContent === ${JSON.stringify(mcpLabel)} &&
            !!document.querySelector('${nav} button[aria-current=page]') && !!document.querySelector('.oly-mcp-pane iframe')`));
