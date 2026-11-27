@@ -5,18 +5,18 @@
  --sel:color-mix(in srgb,var(--accent) 10%,transparent);--line:color-mix(in srgb,var(--border) 65%,transparent);--field:var(--panel);
  --radius:var(--t3-radius,6px);--pill:999px;--danger:#c93030;--ok:#1d7a46;--shadow:0 1px 2px #0000000f;--blur:none;--backdrop:#0007;
  --head-font:inherit;--head-size:14px;--head-weight:600;--head-case:none;--head-track:0;--head-color:var(--fg);
- --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
- color-scheme:light;background:var(--bg);color:var(--fg);font:13px/1.45 "Inter Variable",Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased
+ --mono:"JetBrains Mono Variable",ui-monospace,"Cascadia Mono",Consolas,monospace;
+ color-scheme:light;background:var(--bg);color:var(--fg);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Inter Variable","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased
 }
 :root.dark{--bg:var(--t3-bg,#111113);--fg:var(--t3-fg,#ececf0);--muted:var(--t3-muted,#a1a1aa);--border:var(--t3-border,#2c2c31);--panel:var(--t3-panel,#18181b);--accent:var(--t3-accent,#ececf0);--on-accent:var(--t3-primary-fg,#111113);--danger:#f07a7a;--ok:#5fcf8e;--shadow:none;--backdrop:#000a;color-scheme:dark}
 /* Olympus · day */
 :root.oly{--bg:#F3EFE6;--panel:#FFFDF8;--field:#FFFDF8;--fg:#0E1116;--muted:#0E111699;--border:#0E111626;--line:#0E111614;--accent:#1952C5;--accent-text:#1952C5;--on-accent:#FFFDF8;
  --hover:#1952C50a;--sel:#1952C512;--radius:2px;--pill:2px;--danger:#B3261E;--ok:#2E7D4F;--shadow:3px 3px 0 #0E11160d,0 12px 32px -12px #0E111640;--backdrop:#0E111647;
- --head-font:"Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;--head-size:16px;--head-weight:600;--head-track:.02em;--head-color:#0E1116}
+ --head-font:inherit;--head-size:15px;--head-weight:600;--head-track:0;--head-color:#0E1116}
 /* Olympus · night */
-:root.oly.dark{--bg:#081530;--panel:#0E1E3Ed9;--field:#08153099;--fg:#E8F0FB;--muted:#E8F0FB8c;--border:#E3BF5C4d;--line:#E3BF5C26;--accent:#E3BF5C;--accent-text:#E9C76A;--on-accent:#081530;
+:root.oly.dark{--bg:#081530;--panel:#0E1E3Ed9;--field:#08153099;--fg:#E8F0FB;--muted:#E8F0FBb3;--border:#E3BF5C4d;--line:#E3BF5C26;--accent:#E3BF5C;--accent-text:#E9C76A;--on-accent:#081530;
  --hover:#E8F0FB0d;--sel:#E3BF5C1a;--danger:#FF8A80;--ok:#7FD6A4;--shadow:0 12px 32px -12px #000c,inset 0 1px 0 #E8F0FB0a;--blur:blur(12px);--backdrop:#000b;
- --head-font:Didot,"Bodoni 72","Cormorant Garamond",Georgia,serif;--head-size:11.5px;--head-weight:500;--head-case:uppercase;--head-track:.14em;--head-color:#E9C76A}
+ --head-font:inherit;--head-size:15px;--head-weight:600;--head-case:none;--head-track:0;--head-color:#E9C76A;-webkit-font-smoothing:auto}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg)}
 [hidden]{display:none!important}
@@ -52,7 +52,7 @@ main{max-width:880px;margin:0 auto;padding:20px 24px 28px}
 textarea.input{height:auto;padding:6px 9px;line-height:1.5;resize:vertical}
 select.input{padding-right:4px;cursor:pointer}
 select.input option,select.input optgroup{background:var(--bg);color:var(--fg)}
-.input::placeholder{color:color-mix(in srgb,var(--muted) 75%,transparent)}
+.input::placeholder{color:var(--muted)}
 .input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .input[aria-invalid=true]{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
 :focus-visible{outline:none}
@@ -79,7 +79,7 @@ select.input option,select.input optgroup{background:var(--bg);color:var(--fg)}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
 .card-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;padding:12px 14px 11px;border-bottom:1px solid var(--line)}
 .card-head h2{font-size:var(--head-size);display:flex;align-items:baseline;gap:10px;white-space:nowrap}
-.count{font:400 11.5px Inter,system-ui,sans-serif;letter-spacing:.02em;text-transform:none;color:var(--muted)}
+.count{font-family:inherit;font-weight:400;font-size:11.5px;letter-spacing:.01em;text-transform:none;color:var(--muted)}
 .tools{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .search{position:relative;display:flex;align-items:center}
 .search svg{position:absolute;left:8px;color:var(--muted);pointer-events:none;width:14px;height:14px}

@@ -1,4 +1,5 @@
 import { themeCssValueFetches, themeCssWithoutDeclarations } from "@t3tools/shared/themeCss";
+import { OLYMPUS_TYPOGRAPHY_CSS } from "./chronos/olympusTypography";
 
 // Theme CSS comes from imported files and from agents, so it must not fetch: a
 // url() on an attribute selector can send what is on screen to another host.
@@ -6,6 +7,7 @@ import { themeCssValueFetches, themeCssWithoutDeclarations } from "@t3tools/shar
 // CSS escapes in a function name cannot dodge them.
 
 let themeSheet: CSSStyleSheet | null = null;
+let olympusTypographySheet: CSSStyleSheet | null = null;
 let appliedCss = "";
 
 type RuleParent = Pick<CSSStyleSheet, "cssRules" | "deleteRule">;
@@ -104,14 +106,18 @@ function stripFetches(parent: RuleParent): void {
 
 export function applyThemeCss(css: string | undefined): void {
   if (typeof document === "undefined" || typeof CSSStyleSheet === "undefined") return;
+  if (!themeSheet) {
+    // Adopted sheets order after the document's own, and they cannot hold @import.
+    // Mount the Chronos Olympus typography sheet right after themeSheet so it overrides
+    // both theme CSS and <style> blocks injected by immutable Olympus modules.
+    themeSheet = new CSSStyleSheet();
+    olympusTypographySheet = new CSSStyleSheet();
+    olympusTypographySheet.replaceSync(OLYMPUS_TYPOGRAPHY_CSS);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, themeSheet, olympusTypographySheet];
+  }
   const next = css ?? "";
   if (next === appliedCss) return;
   appliedCss = next;
-  if (!themeSheet) {
-    // Adopted sheets order after the document's own, and they cannot hold @import.
-    themeSheet = new CSSStyleSheet();
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, themeSheet];
-  }
   themeSheet.replaceSync(withoutFetchingShorthands(next));
   stripFetches(themeSheet);
   // chronos: Olympus 4774 styles the limit rows as divs. In 5209 they also link to /usage.

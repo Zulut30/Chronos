@@ -15,7 +15,7 @@ export const DEFAULT_SANS_FONT_STACK =
 
 // Some engines map `ui-monospace` to a proportional font, so prefer concrete names.
 export const DEFAULT_CODE_FONT_STACK =
-  '"SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+  '"JetBrains Mono Variable", "SF Mono", "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
 
 export const TYPOGRAPHY_ADVANCED_STORAGE_KEY = "t3code:typography-advanced";
 
@@ -284,7 +284,7 @@ export function displayFontFamily(family: string): string {
     .trim()
     .toLowerCase();
   if (label === "sf pro") return appearanceFontStack(family, DEFAULT_SANS_FONT_STACK);
-  if (label === "sf mono") return DEFAULT_CODE_FONT_STACK;
+  if (label === "sf mono") return appearanceFontStack(family, DEFAULT_CODE_FONT_STACK);
   return cssFontFamilies(family) ?? "";
 }
 

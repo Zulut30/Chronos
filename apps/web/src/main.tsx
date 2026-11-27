@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 
 import "@fontsource-variable/inter";
+import "./chronos/fonts/jetbrains-mono.css";
 import "./index.css";
 
 import { trackKeyboardLayout } from "./keyboardLayout";

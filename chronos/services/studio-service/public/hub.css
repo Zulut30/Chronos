@@ -7,28 +7,29 @@
  --soft:color-mix(in srgb,var(--primary) 9%,transparent);--line:color-mix(in srgb,var(--border) 70%,transparent);
  --card-shadow:0 1px 2px #0000000a;--card-hover:0 8px 24px -10px #0003;--pop-shadow:0 18px 50px -14px #0006;--panel-glass:var(--panel);--blur:none;--field:var(--panel);
  --paper-filter:none;
- --font:"Inter Variable",Inter,system-ui,"Segoe UI",sans-serif;
+ --font:-apple-system,BlinkMacSystemFont,"Inter Variable","Segoe UI",system-ui,sans-serif;
  --h-font:var(--font);--h-size:13px;--h-weight:600;--h-ls:0;--h-tt:none;--h-color:var(--fg);
  color-scheme:light}
 :root.dark{
  --bg:var(--t3-bg,#111113);--fg:var(--t3-fg,#ececf0);--muted:var(--t3-muted,#a1a1aa);--border:var(--t3-border,#2c2c31);
  --panel:var(--t3-panel,#18181b);--primary:var(--t3-primary,#ececf0);--primary-fg:var(--t3-primary-fg,#111113);
  --danger:#f87171;--ok:#4ade80;--warn:#fbbf24;--card-shadow:none;--card-hover:0 10px 30px -12px #000a;--pop-shadow:0 20px 60px -12px #000c;color-scheme:dark}
-/* Olympus day: cream, ink, royal blue, hairlines, 2px corners, offset shadow, Cormorant headings */
+/* Olympus day: cream, ink, royal blue, hairlines, 2px corners, offset shadow */
 :root.olympus{
- --bg:#F3EFE6;--panel:#FFFDF8;--field:#FFFDF8;--fg:#0E1116;--muted:#0E111699;--faint:#0E111666;--border:#0E111626;--line:#0E111617;--hover:#1952C50a;--soft:#1952C512;
+ --bg:#F3EFE6;--panel:#FFFDF8;--field:#FFFDF8;--fg:#0E1116;--muted:#0E111699;--faint:#0E111685;--border:#0E111626;--line:#0E111617;--hover:#1952C50a;--soft:#1952C512;
  --primary:#1952C5;--primary-fg:#FFFDF8;--accent-text:#1952C5;--danger:#B42318;--ok:#2E7D4F;--warn:#B7791F;
  --radius:2px;--ctl:2px;--card-shadow:0 1px 0 #0E11160a;--card-hover:3px 3px 0 #0E111612,0 14px 30px -16px #0E111659;--pop-shadow:3px 3px 0 #0E11160d,0 18px 44px -14px #0E111659;--panel-glass:#FFFDF8;
- --h-font:"Cormorant Garamond",Didot,"Bodoni 72",Georgia,serif;--h-size:19px;--h-weight:500;--h-ls:.005em}
-/* Olympus night: navy glass, gold hairlines, uppercase Didot headings */
+ --h-font:var(--font);--h-size:15px;--h-weight:600;--h-ls:-.01em}
+/* Olympus night: navy glass, gold hairlines, unified sans */
 :root.olympus.dark{
- --bg:#081530;--panel:#0E1E3E;--field:#081530;--panel-glass:#0E1E3Ecc;--blur:blur(12px);--fg:#E8F0FB;--muted:#E8F0FB99;--faint:#E8F0FB66;--border:#E3BF5C4d;--line:#E3BF5C26;
+ --bg:#081530;--panel:#0E1E3E;--field:#081530;--panel-glass:#0E1E3Ecc;--blur:blur(12px);--fg:#E8F0FB;--muted:#E8F0FBb3;--faint:#E8F0FBa6;--border:#E3BF5C4d;--line:#E3BF5C26;
  --hover:#E8F0FB0d;--soft:#E3BF5C1a;--primary:#E3BF5C;--primary-fg:#081530;--accent-text:#E9C76A;--danger:#F28B82;--ok:#7DD3A8;--warn:#E9C76A;
  --card-shadow:none;--card-hover:0 18px 40px -16px #000c,0 0 0 1px #E3BF5C59;--pop-shadow:0 22px 56px -14px #000d,inset 0 1px 0 #E8F0FB0a;
- --h-font:Didot,"Bodoni 72","Cormorant Garamond",Georgia,serif;--h-size:11.5px;--h-weight:500;--h-ls:.16em;--h-tt:uppercase;--h-color:#E9C76A}
+ --h-font:var(--font);--h-size:15px;--h-weight:600;--h-ls:-.01em;--h-tt:none;--h-color:#E9C76A}
 
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font:13px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+:root.olympus.dark,:root.olympus.dark body{-webkit-font-smoothing:auto}
 button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
 svg{width:15px;height:15px;flex-shrink:0}
 [hidden]{display:none!important}
@@ -152,8 +153,8 @@ button:focus-visible,.card:focus-visible,.row:focus-visible,summary:focus-visibl
 .empty .tile{width:44px;height:44px;margin-bottom:6px}
 .empty .tile svg{width:20px;height:20px}
 .empty b{font-size:14px;font-weight:600}
-.olympus:not(.dark) .empty b{font:500 20px/1.25 "Cormorant Garamond",Didot,Georgia,serif}
-.olympus.dark .empty b{font:500 12px/1.3 Didot,"Bodoni 72",Georgia,serif;letter-spacing:.16em;text-transform:uppercase;color:#E9C76A}
+.olympus:not(.dark) .empty b{font:600 15px/1.3 var(--font)}
+.olympus.dark .empty b{font:600 15px/1.3 var(--font);letter-spacing:0;text-transform:none;color:#E9C76A}
 .empty p{margin:0;max-width:400px;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
 .empty .btn{margin-top:10px}
 #nohit .empty{margin-top:8px}
