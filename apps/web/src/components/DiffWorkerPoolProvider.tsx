@@ -6,12 +6,13 @@ import { T } from "gt-react";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { getRenderedAppearance, subscribeRenderedAppearance } from "../hooks/useTheme";
 import { resolveDiffThemeName } from "../lib/diffRendering";
+import { READABLE_DARK_THEME_NAME, READABLE_LIGHT_THEME_NAME } from "../lib/readableSyntaxTheme";
 import { PREFERRED_HIGHLIGHTER } from "../lib/syntaxHighlighting";
 import { registerMemoryTrimmer } from "../chronos/perf/memoryTrim";
 
 export class DiffWorkerError extends Schema.TaggedError<DiffWorkerError>()("DiffWorkerError", {
   operation: Schema.Literals(["create-worker", "get-render-options", "set-render-options"]),
-  themeName: Schema.Literals(["pierre-dark", "t3-light"]),
+  themeName: Schema.Literals([READABLE_DARK_THEME_NAME, READABLE_LIGHT_THEME_NAME]),
   cause: Schema.Defect(),
 }) {
   override get message(): string {

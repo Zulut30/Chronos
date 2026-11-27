@@ -33,6 +33,8 @@ test("published Olympus keeps the shared/day stylesheet and uses Graphite cards 
   assert.equal(theme.variants.dark.surface, "#1D2229");
   assert.doesNotMatch(theme.css.slice(start), /--card\s*:/);
   assert.match(theme.css.slice(start), /--oly-ic-bg:\s*#242A33/i);
+  assert.doesNotMatch(theme.css.slice(start), /\b(?:Didot|Bodoni|Cormorant|Georgia|Times)\b/i);
+  assert.doesNotMatch(theme.css.slice(start), /\bInter\s*,/);
 });
 
 test("fresh profile receives one active Olympus, repeated launch keeps settings", (t) => {

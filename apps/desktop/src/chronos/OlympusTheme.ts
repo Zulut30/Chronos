@@ -3,11 +3,14 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
 
-// The original Olympus export, as shipped with CRLF or LF line endings.
+// Shipped Olympus theme exports (pre-Graphite and chronos.17 Graphite), LF or CRLF.
 const originalHashes = new Set([
   "9497adb6f56f6d954562b37c5b1e556131aff1de49c092fe837e844f8c026c24",
   "b653fa22e576ae1511ac2a1a580f342c64f61b82aef47b2e384cd10cda127e56",
+  "153e278abc5949a4b1bb36cda105a04c70eb8407afc4c4348a45053d9d205afd",
+  "82fa80c6e327dee9a646c4bbace32f9d811d866deb7403e1a2fcf574ee7ee1e4",
 ]);
+const originalSizes = new Set([377698, 377563, 379417, 379552]);
 const maxBytes = 2 * 1024 * 1024;
 const maxFiles = 32;
 
@@ -33,7 +36,7 @@ function publishCopy(source: string, destination: string) {
 
 function isOriginal(file: string) {
   const info = NodeFS.lstatSync(file, { throwIfNoEntry: false });
-  if (!info?.isFile() || (info.size !== 377698 && info.size !== 377563)) return false;
+  if (!info?.isFile() || !originalSizes.has(info.size)) return false;
   return originalHashes.has(NodeCrypto.createHash("sha256").update(NodeFS.readFileSync(file)).digest("hex"));
 }
 

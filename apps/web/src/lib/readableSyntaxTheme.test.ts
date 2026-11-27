@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { readableOnLightCode, readableSyntaxColor } from "./readableSyntaxTheme";
+import {
+  readableDarkSyntaxColor,
+  readableOnDarkCode,
+  readableOnLightCode,
+  readableSyntaxColor,
+} from "./readableSyntaxTheme";
 
 function luminance(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((start) => {
@@ -49,5 +54,39 @@ describe("readableOnLightCode", () => {
   it("keeps an alpha suffix and ignores non-hex values", () => {
     expect(readableOnLightCode("#d5a91080")).toMatch(/80$/);
     expect(readableOnLightCode("var(--x)")).toBe("var(--x)");
+  });
+});
+
+// Dark code surfaces: T3, Graphite code/card/inline code, and classic Night Olympus.
+const DARK_CODE_SURFACES = ["#090909", "#0d0f12", "#101216", "#1d2229", "#242a33", "#0e1e3e"];
+
+function darkContrast(foreground: string, background: string): number {
+  return (luminance(foreground) + 0.05) / (luminance(background) + 0.05);
+}
+
+describe("readableOnDarkCode", () => {
+  it("brings pierre-dark's faint comments and punctuation to 4.5:1 on every dark code surface", () => {
+    for (const color of ["#636363", "#737373"]) {
+      const lifted = readableDarkSyntaxColor(color);
+      for (const surface of DARK_CODE_SURFACES) {
+        expect(darkContrast(lifted, surface)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps comments lighter than punctuation above the 4.5:1 floor", () => {
+    expect(luminance(readableDarkSyntaxColor("#737373"))).toBeGreaterThan(
+      luminance(readableDarkSyntaxColor("#636363")) + 0.02,
+    );
+  });
+
+  it("leaves already readable dark syntax colors unchanged", () => {
+    expect(readableOnDarkCode("#e8ecf2")).toBe("#e8ecf2");
+    expect(readableOnDarkCode("#ff678d")).toBe("#ff678d");
+  });
+
+  it("keeps an alpha suffix and ignores non-hex values", () => {
+    expect(readableOnDarkCode("#63636380")).toMatch(/80$/);
+    expect(readableOnDarkCode("var(--x)")).toBe("var(--x)");
   });
 });
