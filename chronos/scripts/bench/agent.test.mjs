@@ -90,3 +90,93 @@ test("native timer wakes after end_turn on the same ACP transport", async () => 
     }
   }
 });
+
+test("acp-bridge fixture verifies T3 MCP tools, errors, and live cancellation end-to-end", async () => {
+  const root = await mkdtemp(join(tmpdir(), "chronos-bench-test-"));
+  const threadId = crypto.randomUUID();
+  const mockBridge = join(root, "mock-bridge.mjs");
+  await writeFile(
+    mockBridge,
+    [
+      "import { createInterface } from 'node:readline';",
+      "const out = (m) => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...m }) + '\\n');",
+      "const pendingWait = new Map();",
+      "for await (const line of createInterface({ input: process.stdin })) {",
+      "  if (!line.trim()) continue;",
+      "  const msg = JSON.parse(line);",
+      "  if (msg.method === 'initialize') out({ id: msg.id, result: { protocolVersion: '2025-06-18' } });",
+      "  else if (msg.method === 'tools/list') out({ id: msg.id, result: { tools: [",
+      "    { name: 't3_thread_list' }, { name: 't3_project_list' }, { name: 't3_environment_read' }, { name: 't3_thread_wait' }",
+      "  ] } });",
+      "  else if (msg.method === 'tools/call') {",
+      "    const name = msg.params?.name;",
+      "    if (name === 't3_project_list') out({ id: msg.id, result: { structuredContent: { projects: [{ title: 'Guard' }] } } });",
+      "    else if (name === 't3_thread_list') out({ id: msg.id, result: { structuredContent: { threads: [{ threadId: " + JSON.stringify(threadId) + " }] } } });",
+      "    else if (name === 't3_environment_read') out({ id: msg.id, result: { structuredContent: { ok: true } } });",
+      "    else if (name === 'chronos_bench_nonexistent_tool') out({ id: msg.id, error: { code: -32602, message: 'Unknown tool' } });",
+      "    else if (name === 't3_thread_read') out({ id: msg.id, result: { isError: true, content: [{ text: 'Thread not found' }] } });",
+      "    else if (name === 't3_thread_wait') pendingWait.set(msg.id, true);",
+      "  } else if (msg.method === 'notifications/cancelled') { pendingWait.delete(msg.params?.requestId); }",
+      "  else if (msg.method === 'ping') out({ id: msg.id, result: {} });",
+      "}",
+    ].join("\n"),
+  );
+  const child = spawn(process.execPath, [join(import.meta.dirname, "agent.mjs"), root, "1", "1", "acp-bridge"], {
+    stdio: ["pipe", "pipe", "inherit"],
+    windowsHide: true,
+    env: {
+      ...process.env,
+      CHRONOS_BENCH_EXE: process.execPath,
+      CHRONOS_BENCH_ENTRY: mockBridge,
+    },
+  });
+  const lines = createInterface({ input: child.stdout });
+  const frames = lines[Symbol.asyncIterator]();
+  const next = async () => JSON.parse((await frames.next()).value);
+  try {
+    child.stdin.write(JSON.stringify({ id: 1, method: "initialize", params: {} }) + "\n");
+    assert.equal((await next()).id, 1);
+    child.stdin.write(
+      JSON.stringify({
+        id: 2,
+        method: "session/new",
+        params: {
+          mcpServers: [
+            {
+              name: "t3-code",
+              command: process.execPath,
+              args: [mockBridge, "acp-mcp-bridge"],
+              env: [],
+            },
+          ],
+        },
+      }) + "\n",
+    );
+    const created = await next();
+    const sessionId = created.result.sessionId;
+    assert.ok(sessionId);
+    child.stdin.write(
+      JSON.stringify({
+        id: 3,
+        method: "session/prompt",
+        params: { sessionId, prompt: [{ type: "text", text: "VERIFY_BRIDGE bench-" + threadId }] },
+      }) + "\n",
+    );
+    const update = await next();
+    assert.equal(update.params.update.content.text, "Bridge verified");
+    const done = await next();
+    assert.equal(done.result.stopReason, "end_turn");
+    const report = JSON.parse(await readFile(join(root, sessionId + ".bridge.json"), "utf8"));
+    assert.equal(report.toolCount, 4);
+    for (const [key, value] of Object.entries(report.verified)) {
+      assert.equal(value, true, "Expected verified." + key);
+    }
+  } finally {
+    child.stdin.end();
+    lines.close();
+    if (child.exitCode === null) child.kill();
+    if (dirname(resolve(root)) === resolve(tmpdir()) && basename(root).startsWith("chronos-bench-test-")) {
+      await rm(root, { recursive: true, force: true, maxRetries: 3 });
+    }
+  }
+});

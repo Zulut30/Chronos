@@ -8,7 +8,7 @@ $tree = [Collections.Generic.List[object]]::new()
 function Visit($p, $inAgent) {
   $cmd = if ($p.CommandLine) { $p.CommandLine } else { '' }
   $img = if ($p.ExecutablePath) { [IO.Path]::GetFileName($p.ExecutablePath) } else { '' }
-  $isAgent = $inAgent -or ($cmd -match '[\\/]agent\.mjs\b|\bacp-mcp-bridge\b') -or ($img -in 'claude.exe','codex.exe','glm.exe')
+  $isAgent = $inAgent -or ($cmd -match '[\\/]agent\.mjs\b|\bacp-mcp-bridge\b|--chronos-acp-mcp-bridge\b') -or ($img -in 'claude.exe','codex.exe','glm.exe','agy.exe')
   $role = if ($isAgent) {'agents'}
     elseif ($p.ProcessId -eq $RootPid) {'main'}
     elseif ($ServerPid -gt 0 -and $p.ProcessId -eq $ServerPid) {'server'}

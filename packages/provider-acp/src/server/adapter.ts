@@ -77,6 +77,7 @@ import { formatReadToolLabel, formatSearchToolLabel } from "@t3tools/shared/tool
 import { isWorkspaceImagePreviewPath } from "@t3tools/shared/mediaPreview";
 import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import { makeAcpMcpOverAcpBridge, type AcpMcpOverAcpBridge } from "./mcpOverAcpBridge.ts";
+import { resolveNativeAcpMcpBridge } from "./nativeAcpMcpBridge.ts"; // chronos: lightweight native ACP MCP stdio bridge.
 import { mcpToolPresentation } from "@t3tools/provider-core/server/mcpToolPresentation";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import * as McpProviderSession from "@t3tools/provider-core/server/mcpSession";
@@ -1109,18 +1110,30 @@ function acpMcpContext(
     return { servers: [], acpServers: [], httpServers: [] };
   }
   // codex-acp 1.2.0 and pi-acp drop injected HTTP servers, so HTTP is opt-in per flavor.
+  // chronos: prefer the tiny native Rust bridge when packaged beside the server, falling back to bin.mjs fast path.
+  const nativeBridge = resolveNativeAcpMcpBridge({ self, endpoint: session.endpoint });
   return {
     servers: [
-      {
-        name: "t3-code",
-        command: self.command,
-        args: [...selfInvocationArgs(self, ["acp-mcp-bridge"])],
-        env: [
-          { name: "ELECTRON_RUN_AS_NODE", value: "1" },
-          { name: "T3_ACP_MCP_ENDPOINT", value: session.endpoint },
-          { name: "T3_ACP_MCP_AUTHORIZATION", value: session.authorizationHeader },
-        ],
-      },
+      nativeBridge !== undefined
+        ? {
+            name: "t3-code",
+            command: nativeBridge.command,
+            args: [...nativeBridge.args],
+            env: [
+              { name: "T3_ACP_MCP_ENDPOINT", value: session.endpoint },
+              { name: "T3_ACP_MCP_AUTHORIZATION", value: session.authorizationHeader },
+            ],
+          }
+        : {
+            name: "t3-code",
+            command: self.command,
+            args: [...selfInvocationArgs(self, ["acp-mcp-bridge"])],
+            env: [
+              { name: "ELECTRON_RUN_AS_NODE", value: "1" },
+              { name: "T3_ACP_MCP_ENDPOINT", value: session.endpoint },
+              { name: "T3_ACP_MCP_AUTHORIZATION", value: session.authorizationHeader },
+            ],
+          },
     ],
     acpServers: [{ type: "acp", name: "t3-code", serverId: "t3-code" }],
     httpServers:

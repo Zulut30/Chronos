@@ -99,6 +99,10 @@ foreach ($pass in 1..3) {
           if ($LASTEXITCODE) { $errors += "Server $build N=$n pass $pass" }
         }
       }
+      'acp-bridge' {
+        node "$PSScriptRoot/acp-bridge-bench.mjs" $pkg "$out/acp-bridge.json"
+        if ($LASTEXITCODE) { throw "ACP bridge $build pass $pass failed" }
+      }
       'ram' {
         node "$PSScriptRoot/ram-audit.mjs" $pkg "$out/ram-audit.json"
         if ($LASTEXITCODE) { $errors += "Ram $build pass $pass" }

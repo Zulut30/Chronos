@@ -1,5 +1,7 @@
-// @effect-diagnostics globalFetch:off -- Zero-Effect fast path relays JSON-RPC over native fetch.
-// chronos: zero-Effect ACP MCP stdio bridge fast path so each long-lived ACP agent bridge stays lightweight.
+// @effect-diagnostics nodeBuiltinImport:off globalFetch:off -- Zero-Effect fast path relays JSON-RPC over native node:http(s) (avoiding undici/fetch) with optional fetch injection for tests.
+// chronos: zero-Effect, zero-undici ACP MCP stdio bridge fast path so each long-lived ACP agent bridge stays lightweight.
+import * as NodeHttp from "node:http";
+import * as NodeHttps from "node:https";
 import { ignoreMacosTypeOfServiceEinval } from "../../outboundHttp.ts";
 
 interface JsonRpcEnvelope {
@@ -44,13 +46,40 @@ function sseEventData(rawEvent: string): string {
     .join("\n");
 }
 
+function firstHeaderValue(value: string | ReadonlyArray<string> | undefined): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && value.length > 0) return value[0] ?? null;
+  return null;
+}
+
 async function discardResponseBody(response: Response): Promise<void> {
   try {
     await response.body?.cancel();
   } catch {}
 }
 
-async function consumeResponsePayloads(
+function createSseFeed(onPayload: (payload: unknown) => void) {
+  const decoder = new TextDecoder();
+  let eventParts: string[] = [];
+  let unscanned = "";
+  return (chunk: Uint8Array): void => {
+    let text = unscanned + decoder.decode(chunk, { stream: true });
+    let separator = SSE_EVENT_SEPARATOR.exec(text);
+    while (separator !== null) {
+      eventParts.push(text.slice(0, separator.index));
+      const data = sseEventData(eventParts.join(""));
+      eventParts = [];
+      text = text.slice(separator.index + separator[0].length);
+      if (data.length > 0) onPayload(JSON.parse(data));
+      separator = SSE_EVENT_SEPARATOR.exec(text);
+    }
+    const scannedLength = Math.max(0, text.length - SEPARATOR_OVERLAP);
+    eventParts.push(text.slice(0, scannedLength));
+    unscanned = text.slice(scannedLength);
+  };
+}
+
+async function consumeFetchResponsePayloads(
   response: Response,
   signal: AbortSignal | undefined,
   onPayload: (payload: unknown) => void,
@@ -74,25 +103,11 @@ async function consumeResponsePayloads(
   try {
     const mediaType = (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim();
     if (mediaType.toLowerCase() === "text/event-stream") {
-      const decoder = new TextDecoder();
-      let eventParts: string[] = [];
-      let unscanned = "";
+      const feed = createSseFeed(onPayload);
       while (true) {
         const { done, value } = await reader.read();
         if (done) return;
-        let text = unscanned + decoder.decode(value, { stream: true });
-        let separator = SSE_EVENT_SEPARATOR.exec(text);
-        while (separator !== null) {
-          eventParts.push(text.slice(0, separator.index));
-          const data = sseEventData(eventParts.join(""));
-          eventParts = [];
-          text = text.slice(separator.index + separator[0].length);
-          if (data.length > 0) onPayload(JSON.parse(data));
-          separator = SSE_EVENT_SEPARATOR.exec(text);
-        }
-        const scannedLength = Math.max(0, text.length - SEPARATOR_OVERLAP);
-        eventParts.push(text.slice(0, scannedLength));
-        unscanned = text.slice(scannedLength);
+        feed(value);
       }
     }
 
@@ -120,10 +135,110 @@ async function consumeResponsePayloads(
   }
 }
 
+function forwardViaNodeHttp(input: {
+  readonly endpointUrl: URL;
+  readonly headers: Record<string, string>;
+  readonly body: string;
+  readonly signal: AbortSignal | undefined;
+  readonly onSessionId: (sessionId: string) => void;
+  readonly onPayload: (payload: unknown) => void;
+}): Promise<{ readonly status: number; readonly ok: boolean }> {
+  return new Promise((resolve, reject) => {
+    const bodyBytes = Buffer.from(input.body, "utf8");
+    const reqOptions: NodeHttp.RequestOptions = {
+      method: "POST",
+      headers: {
+        ...input.headers,
+        "content-length": String(bodyBytes.byteLength),
+      },
+      // Loopback per-request sockets avoid holding idle keep-alive sockets or undici pools.
+      agent: false,
+    };
+    const onResponse = (res: NodeHttp.IncomingMessage) => {
+      const status = res.statusCode ?? 0;
+      const ok = status >= 200 && status < 300;
+      const sessionHeader = firstHeaderValue(res.headers["mcp-session-id"]);
+      if (sessionHeader !== null) input.onSessionId(sessionHeader);
+
+      if (!ok || status === 202 || status === 204) {
+        res.resume();
+        res.once("end", () => resolve({ status, ok }));
+        res.once("close", () => resolve({ status, ok }));
+        res.once("error", reject);
+        return;
+      }
+
+      const contentType = firstHeaderValue(res.headers["content-type"]) ?? "";
+      const mediaType = contentType.split(";", 1)[0]!.trim().toLowerCase();
+      if (mediaType === "text/event-stream") {
+        const feed = createSseFeed(input.onPayload);
+        res.on("data", (chunk: Buffer | string) => {
+          try {
+            feed(typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk);
+          } catch (error) {
+            res.destroy();
+            reject(error);
+          }
+        });
+        res.once("end", () => resolve({ status, ok }));
+        res.once("close", () => resolve({ status, ok }));
+        res.once("error", reject);
+        return;
+      }
+
+      const chunks: Array<Buffer> = [];
+      res.on("data", (chunk: Buffer | string) => {
+        chunks.push(typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk);
+      });
+      res.once("end", () => {
+        try {
+          const text = Buffer.concat(chunks).toString("utf8");
+          if (text.trim().length > 0) {
+            input.onPayload(JSON.parse(text));
+          }
+          resolve({ status, ok });
+        } catch (error) {
+          reject(error);
+        }
+      });
+      res.once("error", reject);
+    };
+    const req =
+      input.endpointUrl.protocol === "https:"
+        ? NodeHttps.request(input.endpointUrl, reqOptions, onResponse)
+        : NodeHttp.request(input.endpointUrl, reqOptions, onResponse);
+
+    const onAbort = () => {
+      req.destroy(new Error("aborted"));
+    };
+    const cleanup = () => {
+      if (input.signal !== undefined) input.signal.removeEventListener("abort", onAbort);
+    };
+
+    if (input.signal !== undefined) {
+      if (input.signal.aborted) {
+        onAbort();
+        reject(new Error("aborted"));
+        return;
+      }
+      input.signal.addEventListener("abort", onAbort, { once: true });
+    }
+
+    req.once("close", cleanup);
+    req.once("error", (error) => {
+      cleanup();
+      reject(error);
+    });
+    req.setNoDelay(true);
+    req.end(bodyBytes);
+  });
+}
+
 export async function runAcpMcpStdioBridgeFast(
   options: AcpMcpStdioBridgeFastOptions,
 ): Promise<void> {
-  const fetchImplementation = options.fetchImplementation ?? fetch;
+  const fetchImplementation = options.fetchImplementation;
+  const endpointUrl = fetchImplementation === undefined ? new URL(options.endpoint) : undefined;
   let sessionId: string | null = null;
   let protocolVersion: string | null = null;
   const running = new Set<Promise<void>>();
@@ -149,30 +264,52 @@ export async function runAcpMcpStdioBridgeFast(
 
   const forward = async (line: string, envelope: JsonRpcEnvelope): Promise<void> => {
     try {
-      const response = await fetchImplementation(options.endpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json, text/event-stream",
-          authorization: options.authorization,
-          ...(sessionId === null ? {} : { "mcp-session-id": sessionId }),
-          ...(protocolVersion === null ? {} : { "mcp-protocol-version": protocolVersion }),
-        },
-        body: line,
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-      });
-      sessionId = response.headers.get("mcp-session-id") ?? sessionId;
-      if (!response.ok) {
-        if (envelope.id !== undefined) {
-          respondWithError(
-            envelope.id,
-            `T3 Code MCP endpoint responded with HTTP ${response.status}.`,
-          );
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream",
+        authorization: options.authorization,
+        ...(sessionId === null ? {} : { "mcp-session-id": sessionId }),
+        ...(protocolVersion === null ? {} : { "mcp-protocol-version": protocolVersion }),
+      };
+      if (fetchImplementation !== undefined) {
+        const response = await fetchImplementation(options.endpoint, {
+          method: "POST",
+          headers,
+          body: line,
+          ...(options.signal === undefined ? {} : { signal: options.signal }),
+        });
+        sessionId = response.headers.get("mcp-session-id") ?? sessionId;
+        if (!response.ok) {
+          if (envelope.id !== undefined) {
+            respondWithError(
+              envelope.id,
+              `T3 Code MCP endpoint responded with HTTP ${response.status}.`,
+            );
+          }
+          await discardResponseBody(response);
+          return;
         }
-        await discardResponseBody(response);
+        await consumeFetchResponsePayloads(response, options.signal, handleServerPayload);
         return;
       }
-      await consumeResponsePayloads(response, options.signal, handleServerPayload);
+
+      if (endpointUrl === undefined) return;
+      const result = await forwardViaNodeHttp({
+        endpointUrl,
+        headers,
+        body: line,
+        signal: options.signal,
+        onSessionId: (nextSessionId) => {
+          sessionId = nextSessionId;
+        },
+        onPayload: handleServerPayload,
+      });
+      if (!result.ok && envelope.id !== undefined) {
+        respondWithError(
+          envelope.id,
+          `T3 Code MCP endpoint responded with HTTP ${result.status}.`,
+        );
+      }
     } catch (error) {
       if (options.signal?.aborted) return;
       if (envelope.id === undefined) return;

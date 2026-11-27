@@ -597,6 +597,10 @@ const resolvePrimaryStartConfig = Effect.fn("desktop.backendConfiguration.resolv
           environment.platform === "win32" && environment.isPackaged && isChronosVersion(environment.appVersion)
             ? Option.getOrUndefined(input.resourceMonitorPath)
             : undefined,
+        // chronos: expose the matching packaged native helper for lightweight per-thread ACP MCP bridges.
+        ...(environment.isPackaged && isChronosVersion(environment.appVersion)
+          ? { CHRONOS_ACP_MCP_BRIDGE: Option.getOrUndefined(input.resourceMonitorPath) }
+          : {}),
         ELECTRON_RUN_AS_NODE: "1",
         T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1",
         T3CODE_CLI_PATH: Option.getOrUndefined(input.cliPath),

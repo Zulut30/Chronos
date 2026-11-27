@@ -16,7 +16,7 @@ on:
         description: "Focused same-VM package comparison (three alternating passes)"
         type: choice
         default: full
-        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, ram, claude-runtime, claude-idle, acp-idle]
+        options: [full, scroll, wheel, startup, renderer, server, idle, ssh, ram, acp-bridge, claude-runtime, claude-idle, acp-idle]
   push:
     branches:
       - main
@@ -206,9 +206,17 @@ jobs:
       - name: Trello REST, issue connections and MCP tools
         working-directory: apps/server
         run: vp test run src/chronos/issue-trello/driver.test.ts src/issue/IssueTrackerConnections.test.ts src/mcp/toolkits/issues/handlers.test.ts
+      - name: Native Rust ACP MCP bridge unit and loopback tests
+        run: |
+          cargo test --locked --manifest-path native/resource-monitor/Cargo.toml
+          cargo build --locked --manifest-path native/resource-monitor/Cargo.toml
       - name: Chronos performance regressions
         working-directory: apps/server
-        run: vp test run src/background/KeepAwake.test.ts src/persistence/DatabaseStorage.test.ts src/chronos/perf src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts src/orchestration-v2/ProviderSessionManager.test.ts src/orchestration-v2/LiveStreamBudget.test.ts src/process/SpawnWorker.test.ts src/mcp/AcpMcpStdioBridge.test.ts src/workspace/WorkspaceSearchIndex.test.ts
+        env:
+          CHRONOS_TEST_NATIVE_BRIDGE: ${{ github.workspace }}/native/resource-monitor/target/debug/t3-resource-monitor
+        run: |
+          (cd ../../packages/provider-acp && vp test run src/server/nativeAcpMcpBridge.test.ts)
+          vp test run src/background/KeepAwake.test.ts src/persistence/DatabaseStorage.test.ts src/chronos/perf src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts src/orchestration-v2/ProviderSessionManager.test.ts src/orchestration-v2/LiveStreamBudget.test.ts src/process/SpawnWorker.test.ts src/mcp/AcpMcpStdioBridge.test.ts src/workspace/WorkspaceSearchIndex.test.ts
       - name: First use of server Markdown processors
         working-directory: apps/server
         run: |

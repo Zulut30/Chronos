@@ -826,12 +826,18 @@ fn write_history(
     Ok(())
 }
 
+mod chronos_acp_mcp_bridge;
 #[cfg(windows)]
 mod chronos_keep_awake;
 #[cfg(windows)]
 mod chronos_process_tree;
 
 fn main() -> io::Result<()> {
+    if std::env::args_os().nth(1).as_deref()
+        == Some(std::ffi::OsStr::new("--chronos-acp-mcp-bridge"))
+    {
+        std::process::exit(chronos_acp_mcp_bridge::run_cli());
+    }
     #[cfg(windows)]
     if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--chronos-process-tree"))
     {
