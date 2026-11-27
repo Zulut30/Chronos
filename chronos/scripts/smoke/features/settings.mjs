@@ -72,7 +72,7 @@ async function captureSettings(client, out, ready, {executable, updatesOnly = fa
       const field = el.matches("input,select,textarea") ? el : el.querySelector("input,select,textarea");
       visible[[el.tagName, el.dataset.slot || "", field?.name || label].join("/")] = {
         label, slot: el.dataset.slot || "", role: el.getAttribute("role"), tag: el.tagName,
-        x:r.x,y:r.y,w:r.width,h:r.height,fg:rgb(s.color),border:rgb(s.borderTopColor),bg:rgb(s.backgroundColor),
+        x:r.x,y:r.y,w:r.width,h:r.height,fg:rgb(s.color),border:rgb(s.borderTopColor),borderWidth:parseFloat(s.borderTopWidth),bg:rgb(s.backgroundColor),
         selected:el.hasAttribute("data-selected"), highlighted:el.hasAttribute("data-highlighted"),
         focus:el.matches(":focus-visible"), disabled:el.matches(":disabled,[aria-disabled=true]")
       };
@@ -113,6 +113,11 @@ async function captureSettings(client, out, ready, {executable, updatesOnly = fa
           for (const [key, node] of Object.entries(inside)) {
             visible["frame/" + key] = { ...node, x: node.x + offset.x, y: node.y + offset.y };
           }
+        }
+        if (id === "prompt-editor" && process.env.CHRONOS_SETTINGS_STAGE === "after") {
+          const fields = Object.values(visible).filter(node => node.slot === "input-group");
+          assert.ok(fields.length && fields.every(node => node.borderWidth >= 1.5),
+            "Prompt field boundaries must remain visible at fractional display scaling");
         }
         measurements.push({name, visible});
         writeFileSync(join(out, "measurements.json"), JSON.stringify(measurements, null, 2));

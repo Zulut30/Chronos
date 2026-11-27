@@ -71,11 +71,12 @@ html[data-theme-id]
   font-family: var(--font-sans);
 }
 
-/* The glass themes soften input borders. Use the native foreground token on editable controls. */
+/* A fractional Windows hairline blends into glass even with an opaque border token. */
 [data-chronos-settings]
   :is(#pc-control, #claude-idle-unload, [id^="olympus-"], [data-chronos-trello], .oly-ik-panel, .oly-ps-pane)
   :is([data-slot="select-trigger"], [data-slot="input-control"], [data-slot="textarea-control"], [data-slot="number-field-group"], .oly-ps-field[data-slot="input-group"]) {
   border-color: var(--muted-foreground);
+  border-width: 2px;
 }
 [data-chronos-settings] :is(#pc-control, #claude-low-memory-unload, #usage-limits, [id^="olympus-"]) [data-slot="switch"][data-unchecked] {
   background-color: var(--muted-foreground);
