@@ -57,6 +57,7 @@ export function parseQuota(output: string): ReadonlyArray<ServerProviderUsageWin
     group.buckets.map((bucket): ServerProviderUsageWindow => {
       const session = bucket.window === "5h";
       const weekly = bucket.window === "weekly";
+      const resetTime = bucket.reset_time ? DateTime.makeUnsafe(bucket.reset_time) : undefined;
       return {
         id: bucket.id,
         kind: session ? "session" : weekly ? "weekly" : "other",
@@ -64,8 +65,9 @@ export function parseQuota(output: string): ReadonlyArray<ServerProviderUsageWin
         // Native /usage names model families but reports no model IDs to route a fallback.
         modelIds: [],
         usedPercent: (1 - bucket.remaining_fraction) * 100,
-        ...(bucket.reset_time
-          ? { resetsAt: DateTime.formatIso(DateTime.makeUnsafe(bucket.reset_time)) }
+        // The CLI reports the Unix epoch when a bucket has no scheduled reset.
+        ...(resetTime && DateTime.toEpochMillis(resetTime) !== 0
+          ? { resetsAt: DateTime.formatIso(resetTime) }
           : {}),
         ...(session || weekly ? { windowDurationMins: session ? 300 : 10080 } : {}),
       };

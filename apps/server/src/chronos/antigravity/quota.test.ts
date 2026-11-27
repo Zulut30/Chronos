@@ -14,7 +14,7 @@ const group = {
       name: "Weekly Limit Remaining",
       window: "weekly",
       remaining_fraction: 0,
-      reset_time: "2026-11-30T10:00:00Z",
+      reset_time: "1969-12-31T23:59:59Z",
     },
   ],
 };
@@ -29,12 +29,19 @@ const report = {
         {
           name: "Claude and GPT models",
           buckets: [
-            { id: "3p-5h", name: "Five Hour Limit Remaining", window: "5h", remaining_fraction: 1 },
+            {
+              id: "3p-5h",
+              name: "Five Hour Limit Remaining",
+              window: "5h",
+              remaining_fraction: 1,
+              reset_time: "1970-01-01T00:00:00Z",
+            },
             {
               id: "3p-weekly",
               name: "Weekly Limit Remaining",
               window: "weekly",
               remaining_fraction: 0.5,
+              reset_time: "1970-01-01T01:00:00+01:00",
             },
           ],
         },
@@ -44,7 +51,7 @@ const report = {
 };
 
 it("maps the CLI's remaining fractions and reset times without inferring missing limits", () => {
-  expect(parseQuota(JSON.stringify(report))).toEqual([
+  expect(parseQuota(JSON.stringify(report))).toStrictEqual([
     {
       id: "gemini-5h",
       kind: "session",
@@ -60,7 +67,7 @@ it("maps the CLI's remaining fractions and reset times without inferring missing
       modelIds: [],
       usedPercent: 100,
       windowDurationMins: 10080,
-      resetsAt: "2026-11-30T10:00:00.000Z",
+      resetsAt: "1969-12-31T23:59:59.000Z",
     },
     {
       id: "3p-5h",
@@ -141,7 +148,7 @@ it("only runs native /usage for a supported CLI in the selected account's file s
     version = "1.5.12";
     expect((await readNativeQuota(input, run)).windows).toHaveLength(4);
     expect(calls.slice(1)).toEqual([["--version"], ["-p", "/usage", "--output-format", "json"]]);
-    output = output.replace("2026-11-30T10:00:00Z", "invalid reset");
+    output = output.replace("1969-12-31T23:59:59Z", "invalid reset");
     expect(await readNativeQuota(input, run)).toMatchObject({
       unavailable: { reason: "probeFailed" },
       windows: [],
