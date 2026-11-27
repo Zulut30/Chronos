@@ -1,9 +1,9 @@
-UI SDK for Web, tabs module
+UI SDK for Web, browser distribution
 Copyright 2026 Vercel, Inc.
 Released under the Apache License, Version 2.0 (see LICENSE).
 
-The JavaScript files in this directory are unmodified files from
-@ui-sdk/web 0.1.0-beta.17, package/browser/web/tabs.js and its module imports.
+The JavaScript and CSS files in this directory are unmodified files from
+@ui-sdk/web 0.1.0-beta.17: package/browser/web.js, web.css and web/.
 The npm archive includes LICENSE and no upstream NOTICE file.
 Source: https://github.com/vercel-labs/ui
 Archive: https://registry.npmjs.org/@ui-sdk/web/-/web-0.1.0-beta.17.tgz

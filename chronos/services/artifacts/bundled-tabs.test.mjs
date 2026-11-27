@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createHash } from "node:crypto";
 import { bundledTabsRedirect } from "./bundled-tabs.mjs";
 import { resource } from "./policy.mjs";
 
@@ -38,4 +39,27 @@ test("all transitive tabs imports resolve offline for the current page and histo
     }
     assert.equal(modules.size, 16);
   }
+});
+
+test("the standard SDK loader can resolve each lazy widget relative to its local URL", async () => {
+  const browser = new URL("../", url).href;
+  const loader = bundledTabsRedirect({ ...request, url: browser + "web.js" }, id);
+  const css = bundledTabsRedirect({ url: browser + "web.css", method: "GET", resourceType: "stylesheet" }, id);
+  assert.equal(bundledTabsRedirect({ ...request, url: browser + "web.css" }, id), undefined);
+  const stylesheet = resource(store, id, css);
+  assert.match(stylesheet.headers.get("Content-Type"), /^text\/css/);
+  assert.equal(createHash("sha256").update(await stylesheet.text()).digest("hex"),
+    "c102dae0741c094c886aadc7e4a56849dfbe37502e48e399ae339db09d533f5b");
+  const source = await resource(store, id, loader).text();
+  const widgets = /`(accordion\.[a-z.-]+)`\.split/.exec(source)?.[1].split(".");
+  assert.ok(widgets?.includes("tabs") && widgets.includes("dialog"));
+  const modules = new Set(widgets.map(widget => new URL("web/" + widget + ".js", loader).href));
+  for (const href of modules) {
+    const response = resource(store, id, href);
+    assert.equal(response.status, 200, href);
+    for (const match of (await response.text()).matchAll(/(?:from\s*|import\s*\(?\s*)["'](\.[^"']+\.js)["']/g))
+      modules.add(new URL(match[1], href).href);
+  }
+  assert.equal(widgets.length, 56);
+  assert.equal(modules.size, 142);
 });
