@@ -18,7 +18,7 @@ test("the comparator receives one complete same-VM series per scenario from the 
       writeFileSync(join(dir, `${side}-${round}-${scenario}.json`), "{}");
   }
   collectShards(root, output, pair);
-  assert.equal(readdirSync(output).length, 49);
+  assert.equal(readdirSync(output).length, 55);
   assert.throws(() => collectShards(root, output, { ...pair, harnessSha: "c" }), /Different pair/);
   const sample = join(root, "samples-test-runtime", "head-3-unused.json");
   writeFileSync(sample + ".failed", "timeout");

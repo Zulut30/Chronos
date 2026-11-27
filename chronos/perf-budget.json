@@ -12,6 +12,16 @@
     "@openai/codex": "0.170.0"
   },
   "rules": {
+    "darkDraft.total.cpuPct": {
+      "unit": "% core",
+      "delta": 2,
+      "max": 6
+    },
+    "darkDraft.gpu.cpuPct": {
+      "unit": "% core",
+      "delta": 1,
+      "max": 2
+    },
     "unused.main.privateMiB": {
       "unit": "MiB",
       "delta": 12,
