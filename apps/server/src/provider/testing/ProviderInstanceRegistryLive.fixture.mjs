@@ -18,14 +18,18 @@ const lines = NodeReadline.createInterface({ input: process.stdin });
 lines.on("line", (line) => {
   const message = JSON.parse(line);
   if (message.type !== "control_request") return;
-  if (message.request?.subtype === "get_usage" && signedOut) {
+  const nullUntil = process.env.T3_CLAUDE_USAGE_NULL_UNTIL;
+  if (
+    message.request?.subtype === "get_usage" &&
+    (signedOut || (nullUntil && !NodeFS.existsSync(nullUntil)))
+  ) {
     process.stdout.write(
       JSON.stringify({
         type: "control_response",
         response: {
           subtype: "success",
           request_id: message.request_id,
-          response: { session: {}, rate_limits_available: false, rate_limits: null },
+          response: { session: {}, rate_limits_available: !signedOut, rate_limits: null },
         },
       }) + "\n",
     );
