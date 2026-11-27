@@ -15,6 +15,7 @@ import {
   cursorUsageWindowDetails,
   collectProviderUsageLimits,
   hasProviderUsageLimits,
+  limitsForDisplay,
   sameUsageLimitCommandCoverage,
   withUsageLimitsCommands,
   collectLimitAccounts,
@@ -265,6 +266,16 @@ describe("pools", () => {
     ]);
     expect(collectLimitAccounts(input, now)[0]?.limits.resetCredits).toBeUndefined();
     expect(collectLimitAccounts(input, Date.parse(weekly.resetsAt))).toEqual([]);
+  });
+
+  it("expires a last-known reading even without another server poll or window reset", () => {
+    const limits = {
+      checkedAt: nowIso,
+      windows: [{ id: "seven_day", kind: "weekly" as const, label: "Weekly", usedPercent: 17 }],
+      unavailable: { reason: "probeFailed" as const, validUntil: "2026-09-03T13:00:00Z" },
+    };
+    expect(limitsForDisplay(limits, now)?.windows).toEqual(limits.windows);
+    expect(limitsForDisplay(limits, Date.parse(limits.unavailable.validUntil))).toBeUndefined();
   });
 
   it("selects active readings of the same login consistently in the pool and chat report", () => {

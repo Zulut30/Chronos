@@ -56,7 +56,12 @@ export function applyUsageLimitsUpdate(input: {
   if (update.windows.length === 0 || previous?.unavailable?.reason === "unsupported") {
     return previous;
   }
-  const merged = new Map(previous?.windows.map((window) => [window.id, window] as const));
+  const previousExpired =
+    previous?.unavailable?.validUntil !== undefined &&
+    Date.parse(previous.unavailable.validUntil) <= Date.parse(input.checkedAt);
+  const merged = new Map(
+    (previousExpired ? [] : previous?.windows)?.map((window) => [window.id, window] as const),
+  );
   // Codex repeats unchanged limits on token ticks; avoid allocating snapshots for no-ops.
   let changed = false;
   for (const window of update.windows) {
@@ -80,7 +85,9 @@ export function applyUsageLimitsUpdate(input: {
     return previous;
   }
   const unavailable =
-    previous === undefined ? { reason: "probeFailed" as const } : previous.unavailable;
+    previous === undefined || previousExpired
+      ? { reason: "probeFailed" as const }
+      : previous.unavailable;
   return {
     ...makeUsageLimits({ checkedAt: input.checkedAt, windows: merged.values() }),
     ...(previous?.resetCredits !== undefined ? { resetCredits: previous.resetCredits } : {}),
@@ -113,8 +120,47 @@ function usageWindowEquals(a: ServerProviderUsageWindow, b: ServerProviderUsageW
 export function resolveUsageLimitsAfterProbe(input: {
   readonly published: ServerProviderUsageLimits | undefined;
   readonly probed: ServerProviderUsageLimits | undefined;
+  readonly claudeCheckedAt?: string;
 }): ServerProviderUsageLimits | undefined {
   const { published, probed } = input;
+  if (input.claudeCheckedAt && probed?.unavailable?.reason === "probeFailed") {
+    const now = Date.parse(input.claudeCheckedAt);
+    // chronos: neither a failed retry nor a cache hit advances the age of an observation.
+    const readings = [probed, published]
+      .filter(
+        (reading): reading is ServerProviderUsageLimits =>
+          !!reading && reading.unavailable?.reason !== "unsupported" && reading.windows.length > 0,
+      )
+      .sort((a, b) => Date.parse(b.checkedAt) - Date.parse(a.checkedAt));
+    for (const reading of readings) {
+      const observed = Date.parse(reading.checkedAt);
+      const expires = Math.min(
+        observed + 3_600_000,
+        reading.unavailable?.validUntil ? Date.parse(reading.unavailable.validUntil) : Infinity,
+      );
+      if (!(observed <= now && now < expires)) continue;
+      const windows = reading.windows.filter(
+        (w) => w.resetsAt === undefined || Date.parse(w.resetsAt) > now,
+      );
+      if (windows.length > 0)
+        return {
+          checkedAt: reading.checkedAt,
+          windows,
+          unavailable: {
+            reason: "probeFailed",
+            message:
+              "Fresh Claude subscription limits are unavailable. Showing the last reported values.",
+            validUntil: new Date(expires).toISOString(),
+          },
+        };
+    }
+    return makeUnavailableUsageLimits({
+      checkedAt: input.claudeCheckedAt,
+      reason: "probeFailed",
+      message:
+        "Claude Code could not retrieve subscription limits. Try /usage in this account later.",
+    });
+  }
   if (probed?.unavailable?.reason === "probeFailed" && published) {
     const now = Date.parse(probed.checkedAt);
     if (

@@ -9,6 +9,7 @@ import {
   type ServerProviderModel,
   type ServerProviderSlashCommand,
   type ServerProviderResetCredits,
+  type ServerProviderUsageLimits,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
@@ -313,6 +314,8 @@ function nonEmptyProbeString(value: string): string | undefined {
 export type ClaudeCapabilitiesProbe = {
   readonly email: string | undefined;
   readonly workspaceId?: string | undefined;
+  readonly profileId?: string;
+  readonly cachedUsageLimits?: ServerProviderUsageLimits;
   readonly subscriptionType: string | undefined;
   readonly tokenSource: string | undefined;
   readonly apiKeySource: string | undefined;
@@ -674,7 +677,10 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
   modelCatalog: ClaudeModelCatalog = BUNDLED_CLAUDE_MODEL_CATALOG,
   /** Shared with the adapter so turn events reuse the scoped-bucket names this probe saw. */
   scopedLimitNames?: Ref.Ref<ClaudeScopedLimitNames>,
-  resolveResetCredits?: (version: string) => Effect.Effect<ServerProviderResetCredits | undefined>,
+  resolveResetCredits?: (
+    version: string,
+    usage: NonNullable<ClaudeCapabilitiesProbe["usage"]>,
+  ) => Effect.Effect<ServerProviderResetCredits | undefined>,
 ): Effect.fn.Return<
   ServerProviderDraft,
   never,
@@ -870,7 +876,7 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
       apiKeySource: capabilities.apiKeySource,
     });
   const usageCheckedAt = capabilities.usageCheckedAt ?? checkedAt;
-  const usageLimits = !capabilities.usage
+  const probedLimits = !capabilities.usage
     ? makeUnavailableUsageLimits({ checkedAt, reason: "probeFailed" })
     : scopedLimitNames
       ? yield* recordClaudeUsageResponse(scopedLimitNames, {
@@ -881,12 +887,25 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
           response: capabilities.usage,
           checkedAt: usageCheckedAt,
         }).limits;
+  const storedSubscription =
+    !customApiEndpoint &&
+    (!capabilities.apiProvider || capabilities.apiProvider === "firstParty") &&
+    !!capabilities.subscriptionType &&
+    authMetadata?.type === capabilities.subscriptionType &&
+    (!capabilities.tokenSource || ["oauth", "claude.ai"].includes(capabilities.tokenSource));
+  const usageLimits =
+    storedSubscription &&
+    capabilities.cachedUsageLimits &&
+    probedLimits.unavailable?.reason === "probeFailed"
+      ? { ...capabilities.cachedUsageLimits, unavailable: probedLimits.unavailable }
+      : probedLimits;
   const resetCredits =
     resolveResetCredits &&
+    capabilities.usage &&
     capabilities.subscriptionType &&
     !usageLimits.unavailable &&
     parsedVersion
-      ? yield* resolveResetCredits(parsedVersion)
+      ? yield* resolveResetCredits(parsedVersion, capabilities.usage)
       : undefined;
   const provider = buildServerProvider({
     presentation: CLAUDE_PRESENTATION,
@@ -903,6 +922,9 @@ export const checkClaudeProviderStatus = Effect.fn("checkClaudeProviderStatus")(
       auth: {
         status: "authenticated",
         ...(capabilities.email ? { email: capabilities.email } : {}),
+        ...(storedSubscription && capabilities.profileId
+          ? { profileId: capabilities.profileId }
+          : {}),
         ...(capabilities.workspaceId ? { workspaceId: capabilities.workspaceId } : {}),
         ...(authMetadata ? authMetadata : {}),
       },

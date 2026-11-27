@@ -26,8 +26,10 @@ const Config = Schema.Struct({
     Schema.Struct({
       organizationUuid: Schema.optional(Schema.String),
       accountUuid: Schema.optional(Schema.Unknown),
+      emailAddress: Schema.optional(Schema.String),
     }),
   ),
+  cachedUsageUtilization: Schema.optional(Schema.Unknown),
 });
 const Grant = Schema.Struct({
   id: Schema.String.check(Schema.isPattern(GRANT_ID)),
@@ -94,7 +96,7 @@ export const isSettledClaudeResetCreditFailure = (error: unknown) =>
   error.reason !== "requestFailed" &&
   error.reason !== "unconfirmed";
 
-const isFutureTimestamp = (value: string, nowMs: number) => {
+export const isFutureClaudeTimestamp = (value: string, nowMs: number) => {
   if (!COMPLETE_TIMESTAMP.test(value)) return false;
   const [year, month, day] = value.slice(0, 10).split("-").map(Number);
   return (
@@ -139,7 +141,7 @@ export function claudeResetCreditsToContract(
       (grant) =>
         !grant.paused &&
         grant.usable_now &&
-        (grant.ends_at == null || isFutureTimestamp(grant.ends_at, nowMs)),
+        (grant.ends_at == null || isFutureClaudeTimestamp(grant.ends_at, nowMs)),
     );
   const next = live.find((grant) => grant.id === parsed.value.next_grant_id);
   const expiresAt = (grant: typeof Grant.Type | undefined) => {
@@ -207,7 +209,7 @@ const withClaudeHeaders = (token: string, version: string) =>
     "user-agent": `claude-cli/${version} (external, cli)`,
   });
 
-export const readClaudeResetCredits = Effect.fn("readClaudeResetCredits")(
+export const readClaudeResetCreditBlock = Effect.fn("readClaudeResetCreditBlock")(
   function* (configDir: string, version: string) {
     const token = yield* readAccessToken(configDir);
     if (!token) return undefined;
@@ -220,33 +222,35 @@ export const readClaudeResetCredits = Effect.fn("readClaudeResetCredits")(
     const body = yield* HttpClientResponse.schemaBodyJson(UsageResponse)(
       yield* HttpClientResponse.filterStatusOk(response),
     );
-    return claudeResetCreditsToContract(
-      body.cedar_ember,
-      DateTime.toEpochMillis(yield* DateTime.now),
-    );
+    return body.cedar_ember;
   },
   Effect.timeout("10 seconds"),
   Effect.orElseSucceed(() => undefined),
 );
 
-export const readClaudeOauthAccount = (accountConfigPath: string) =>
-  readJson(Config, accountConfigPath).pipe(
-    Effect.map((config) => config.oauthAccount),
-    Effect.orElseSucceed(() => undefined),
-  );
+export const readClaudeProfile = (accountConfigPath: string) =>
+  readJson(Config, accountConfigPath).pipe(Effect.orElseSucceed(() => undefined));
 
-export const readClaudeOrganizationId = (accountConfigPath: string) =>
-  readClaudeOauthAccount(accountConfigPath).pipe(
-    Effect.map((account) => account?.organizationUuid?.trim() || undefined),
-  );
+export const readClaudeOauthAccount = (accountConfigPath: string) =>
+  readClaudeProfile(accountConfigPath).pipe(Effect.map((config) => config?.oauthAccount));
 
 export const claudeAccountConfigPath = Effect.fn("claudeAccountConfigPath")(function* (
   configDir: string | undefined,
+  home?: string,
 ) {
   const path = yield* Path.Path;
-  return configDir
-    ? path.join(configDir, ".claude.json")
-    : path.join(yield* HostProcess.HomeDirectory, ".claude.json");
+  const userHome = home ?? (yield* HostProcess.HomeDirectory);
+  const canonical = path.join(configDir ?? userHome, ".claude.json");
+  const directory = configDir ?? path.join(userHome, ".claude");
+  const legacy = path.join(directory, ".config.json");
+  const fs = yield* FileSystem.FileSystem;
+  // chronos: Claude Code still selects a populated, exactly named legacy config in this profile.
+  const stat = yield* fs.stat(legacy).pipe(Effect.option);
+  if (Option.isSome(stat) && stat.value.type === "File" && stat.value.size > 0n) {
+    const names = yield* fs.readDirectory(directory).pipe(Effect.orElseSucceed(() => []));
+    if (names.includes(".config.json")) return legacy;
+  }
+  return canonical;
 });
 
 const CLAIM_OUTCOMES = {

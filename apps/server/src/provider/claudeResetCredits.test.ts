@@ -129,7 +129,26 @@ describe("claudeResetCreditsToContract", () => {
   });
 });
 
-effectIt.layer(NodeServices.layer)("readClaudeResetCredits", (it) => {
+effectIt.layer(NodeServices.layer)("readClaudeResetCreditBlock", (it) => {
+  it.effect(
+    "selects Claude's config in the default or overridden home, including legacy profiles",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const home = yield* fs.makeTempDirectoryScoped();
+        const custom = path.join(home, "second");
+        for (const override of [undefined, custom]) {
+          const directory = override ?? path.join(home, ".claude");
+          yield* fs.makeDirectory(directory);
+          const selected = ClaudeResetCredits.claudeAccountConfigPath(override, home);
+          expect(yield* selected).toBe(path.join(override ?? home, ".claude.json"));
+          const legacy = path.join(directory, ".config.json");
+          yield* fs.writeFileString(legacy, "{}");
+          expect(yield* selected).toBe(legacy);
+        }
+      }),
+  );
   it.effect("reads the grants with the CLI's request", () =>
     Effect.gen(function* () {
       const { configDir } = yield* writeLogin;
@@ -149,22 +168,22 @@ effectIt.layer(NodeServices.layer)("readClaudeResetCredits", (it) => {
           ),
         );
       });
-      const credits = yield* ClaudeResetCredits.readClaudeResetCredits(configDir, "2.1.0").pipe(
+      const block = yield* ClaudeResetCredits.readClaudeResetCreditBlock(configDir, "2.1.0").pipe(
         Effect.provideService(HostProcess.Platform, "linux"),
         Effect.provideService(HttpClient.HttpClient, client),
       );
-      expect(credits).toMatchObject({ availableCount: 1, nextCreditId: "grant_a" });
+      expect(block).toMatchObject({ eligible: true, next_grant_id: "grant_a" });
     }),
   );
 
   it.effect("reads nothing from keychain logins or failed requests", () =>
     Effect.gen(function* () {
       const { configDir } = yield* writeLogin;
-      const darwin = yield* ClaudeResetCredits.readClaudeResetCredits(configDir, "2.1.0").pipe(
+      const darwin = yield* ClaudeResetCredits.readClaudeResetCreditBlock(configDir, "2.1.0").pipe(
         Effect.provideService(HostProcess.Platform, "darwin"),
         Effect.provideService(HttpClient.HttpClient, refuseRequests),
       );
-      const limited = yield* ClaudeResetCredits.readClaudeResetCredits(configDir, "2.1.0").pipe(
+      const limited = yield* ClaudeResetCredits.readClaudeResetCreditBlock(configDir, "2.1.0").pipe(
         Effect.provideService(HostProcess.Platform, "linux"),
         Effect.provideService(HttpClient.HttpClient, respond(429, {})),
       );

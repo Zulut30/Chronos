@@ -772,9 +772,11 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
         path.join(fixtures.claudeHomePath, ".claude.json"),
         '{"oauthAccount":{"organizationUuid":"fake-org"}}',
       );
+      let creditReads = 0;
       const client = HttpClient.make((request) =>
         Effect.gen(function* () {
           if (request.url.endsWith("/api/oauth/usage")) {
+            creditReads++;
             return HttpClientResponse.fromWeb(
               request,
               Response.json({
@@ -819,6 +821,9 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       const before = yield* instance!.snapshot.refresh;
       expect(before.usageLimits?.windows[0]?.usedPercent).toBe(100);
       expect(before.usageLimits?.resetCredits?.nextCreditId).toBe("grant_a");
+      const cached = yield* instance!.snapshot.refresh;
+      expect(cached.usageLimits).toEqual(before.usageLimits);
+      expect(creditReads).toBe(1);
       const outcome = yield* instance!.consumeResetCredit!(undefined).pipe(Effect.result);
       return { outcome, after: yield* instance!.snapshot.getSnapshot };
     }).pipe(
@@ -879,6 +884,9 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
     expect(instance).toBeDefined();
     return {
       refresh: instance!.snapshot.refresh,
+      refreshUsage: instance!.snapshot.refreshUsage!,
+      invalidate: instance!.invalidateCaches!,
+      accountConfig: path.join(fixtures.claudeHomePath, ".claude.json"),
       recover: fs.writeFileString(recovered, ""),
       probeLog: fs.readFileString(probeLog),
     };
@@ -886,10 +894,7 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
 
   for (const [recoveryMarker, name] of [
     ["T3_CLAUDE_LOGIN_MARKER", "shows Claude usage on the first refresh after signing back in"],
-    [
-      "T3_CLAUDE_USAGE_FAILS_UNTIL",
-      "retries Claude usage on the first refresh after a failed usage read",
-    ],
+    ["T3_CLAUDE_USAGE_FAILS_UNTIL", "retries Claude usage after a failed usage read cools down"],
     [
       "T3_CLAUDE_USAGE_NULL_UNTIL",
       "refreshes Claude subscription limits after get_usage returned null",
@@ -908,6 +913,14 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
         }
 
         yield* fixture.recover;
+        if (recoveryMarker !== "T3_CLAUDE_LOGIN_MARKER") {
+          const attempts = yield* fixture.probeLog;
+          yield* fixture.refreshUsage;
+          yield* fixture.invalidate;
+          expect((yield* fixture.refresh).usageLimits?.unavailable?.reason).toBe("probeFailed");
+          expect(yield* fixture.probeLog).toBe(attempts);
+          yield* TestClock.adjust("61 seconds");
+        }
         const after = yield* fixture.refresh;
         expect(after.auth.status).toBe("authenticated");
         expect(after.usageLimits?.unavailable).toBeUndefined();
@@ -915,6 +928,52 @@ describe("ProviderInstanceRegistry — multi-instance codex slice", () => {
       }).pipe(Effect.provide(layerTest)),
     );
   }
+
+  it.effect.skipIf(windowsHost)(
+    "uses only the selected Claude login's recent quota observation",
+    () =>
+      Effect.gen(function* () {
+        const now = Date.parse("2026-07-18T10:00:00Z");
+        yield* TestClock.setTime(now);
+        const fixture = yield* makeClaudeCacheFixture("T3_CLAUDE_USAGE_NULL_UNTIL");
+        const fs = yield* FileSystem.FileSystem;
+        const fetchedAtMs = now - 59 * 60_000;
+        const writeProfile = (accountUuid: string) =>
+          fs.writeFileString(
+            fixture.accountConfig,
+            JSON.stringify({
+              oauthAccount: {
+                accountUuid,
+                emailAddress: "test@example.com",
+                organizationUuid: "shared-org",
+              },
+              cachedUsageUtilization: {
+                fetchedAtMs,
+                accountUuid: "first-login",
+                utilization: {
+                  five_hour: { utilization: 90, resets_at: "2026-07-18T10:00:00Z" },
+                  seven_day: { utilization: 24.5, resets_at: null },
+                },
+              },
+            }),
+          );
+        yield* writeProfile("first-login");
+        const reading = (yield* fixture.refresh).usageLimits;
+        expect(reading).toMatchObject({
+          checkedAt: new Date(fetchedAtMs).toISOString(),
+          windows: [{ id: "seven_day", usedPercent: 24.5 }],
+          unavailable: { reason: "probeFailed", validUntil: "2026-07-18T10:01:00.000Z" },
+        });
+        yield* fixture.refreshUsage;
+        expect((yield* fixture.refresh).usageLimits).toEqual(reading);
+        yield* writeProfile("other-login");
+        expect((yield* fixture.refresh).usageLimits?.windows).toEqual([]);
+        yield* writeProfile("first-login");
+        expect((yield* fixture.refresh).usageLimits).toEqual(reading);
+        yield* TestClock.adjust("61 seconds");
+        expect((yield* fixture.refresh).usageLimits?.windows).toEqual([]);
+      }).pipe(Effect.provide(layerTest)),
+  );
 
   it.effect(
     "shadows instances whose driver is not registered in this build without failing boot",

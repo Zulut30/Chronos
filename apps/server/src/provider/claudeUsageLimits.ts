@@ -9,6 +9,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
+import { isFutureClaudeTimestamp } from "./claudeResetCredits.ts";
 
 import {
   clampPercent,
@@ -161,6 +162,37 @@ function makeWindow(
     usedPercent: clampPercent(usedPercent),
     ...(resetsAt ? { resetsAt } : {}),
   };
+}
+
+// chronos: Claude Code persists the /usage percentages and the time it actually observed them.
+const cachedUtilization = Schema.decodeUnknownOption(
+  Schema.Struct({
+    accountUuid: Schema.NonEmptyString,
+    fetchedAtMs: Schema.Int,
+    utilization: Schema.Record(Schema.String, Schema.Unknown),
+  }),
+);
+const cachedWindow = Schema.decodeUnknownOption(
+  Schema.Struct({
+    utilization: Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 100 })),
+    resets_at: Schema.NullOr(Schema.String),
+  }),
+);
+export function claudeCachedUsageLimits(raw: unknown, accountId: string, now: number) {
+  const cached = Option.getOrUndefined(cachedUtilization(raw));
+  if (!cached || cached.accountUuid !== accountId || cached.fetchedAtMs <= 0) return undefined;
+  const age = now - cached.fetchedAtMs;
+  if (age < 0 || age >= 3_600_000) return undefined;
+  const windows: ServerProviderUsageWindow[] = [];
+  for (const id of Object.keys(WINDOWS)) {
+    const window = Option.getOrUndefined(cachedWindow(cached.utilization[id]));
+    if (!window) continue;
+    if (window.resets_at !== null && !isFutureClaudeTimestamp(window.resets_at, now)) continue;
+    windows.push(makeWindow(id, window.utilization, isoFromString(window.resets_at)));
+  }
+  return windows.length > 0
+    ? makeUsageLimits({ checkedAt: new Date(cached.fetchedAtMs).toISOString(), windows })
+    : undefined;
 }
 
 /** Stream utilization is 0-1. Drop unnamed overage buckets until probed to avoid unreconcilable rows. */

@@ -1,9 +1,37 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { claudeRateLimitEventToUpdate, claudeUsageResponseToLimits } from "./claudeUsageLimits.ts";
+import {
+  claudeCachedUsageLimits,
+  claudeRateLimitEventToUpdate,
+  claudeUsageResponseToLimits,
+} from "./claudeUsageLimits.ts";
 
 const checkedAt = "2026-07-18T10:00:00.000Z";
 const noNames = { overageIncluded: undefined } as const;
+
+it("rejects undated, stale, foreign and malformed Claude quota observations", () => {
+  const now = Date.parse(checkedAt);
+  const entry = {
+    accountUuid: "current",
+    fetchedAtMs: now,
+    utilization: {
+      five_hour: { utilization: 0, resets_at: "2026-07-18T14:00:00Z" },
+    },
+  };
+  expect(claudeCachedUsageLimits(entry, "current", now)?.windows[0]?.usedPercent).toBe(0);
+  for (const invalid of [
+    { accountUuid: "other" },
+    { accountUuid: undefined },
+    { fetchedAtMs: undefined },
+    { fetchedAtMs: now + 1 },
+    { fetchedAtMs: now - 3_600_000 },
+    { utilization: { five_hour: { utilization: null, resets_at: null } } },
+    { utilization: { five_hour: { utilization: 101, resets_at: null } } },
+    { utilization: { five_hour: { utilization: 50, resets_at: "unknown" } } },
+  ]) {
+    expect(claudeCachedUsageLimits({ ...entry, ...invalid }, "current", now)).toBeUndefined();
+  }
+});
 
 describe("claudeUsageResponseToLimits", () => {
   it("maps the session, weekly, and model-scoped weekly windows", () => {

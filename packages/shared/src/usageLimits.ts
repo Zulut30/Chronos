@@ -335,8 +335,10 @@ export function limitsForDisplay(
 ): ServerProviderUsageLimits | undefined {
   if (!limits?.windows.length || limits.unavailable?.reason === "unsupported") return undefined;
   if (!limits.unavailable) return limits;
-  const windows = limits.windows.filter(
-    (window) => window.resetsAt !== undefined && Date.parse(window.resetsAt) > now,
+  const validUntil = limits.unavailable.validUntil;
+  if (validUntil && !(Date.parse(validUntil) > now)) return undefined;
+  const windows = limits.windows.filter((window) =>
+    window.resetsAt ? Date.parse(window.resetsAt) > now : validUntil !== undefined,
   );
   // A window event verifies only its own allowance. It cannot verify a reset-credit balance.
   return windows.length > 0

@@ -5,6 +5,7 @@ import {
 } from "@t3tools/contracts";
 import { resolveServerBackgroundActivitySettings } from "@t3tools/shared/backgroundActivitySettings";
 import * as Context from "effect/Context";
+import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Equal from "effect/Equal";
@@ -202,6 +203,11 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
         return snapshot;
       }
     }
+    const claudeCheckedAt =
+      probedSnapshot.driver === "claudeAgent" &&
+      probedSnapshot.usageLimits?.unavailable?.reason === "probeFailed"
+        ? DateTime.formatIso(yield* DateTime.now)
+        : undefined;
     const { snapshot: nextSnapshot, generation: nextGeneration } = yield* Ref.modify(
       snapshotStateRef,
       (state) => {
@@ -213,17 +219,22 @@ export const makeManagedServerProvider = Effect.fn("makeManagedServerProvider")(
         const differs = (a: string | undefined, b: string | undefined) =>
           a !== undefined && b !== undefined && a !== b;
         const switchedAccount =
+          (probedSnapshot.driver === "claudeAgent" &&
+            (probedSnapshot.auth.profileId !== previous.profileId ||
+              probedSnapshot.auth.email?.toLowerCase() !== previous.email?.toLowerCase() ||
+              probedSnapshot.auth.type !== previous.type)) ||
           differs(probedSnapshot.auth.email?.toLowerCase(), previous.email?.toLowerCase()) ||
           (probedSnapshot.auth.workspaceId !== undefined &&
             probedSnapshot.auth.workspaceId !== previous.workspaceId);
-        const usageLimits = switchedAccount
-          ? probedSnapshot.usageLimits
-          : probedSnapshot.usageLimits === undefined &&
-              state.snapshot.usageLimits !== usageBeforeProbe
+        const usageLimits =
+          !switchedAccount &&
+          probedSnapshot.usageLimits === undefined &&
+          state.snapshot.usageLimits !== usageBeforeProbe
             ? state.snapshot.usageLimits
             : resolveUsageLimitsAfterProbe({
-                published: state.snapshot.usageLimits,
+                published: switchedAccount ? undefined : state.snapshot.usageLimits,
                 probed: probedSnapshot.usageLimits,
+                ...(claudeCheckedAt ? { claudeCheckedAt } : {}),
               });
         const workspaceId =
           usageLimits === probedSnapshot.usageLimits ? undefined : state.snapshot.auth.workspaceId;

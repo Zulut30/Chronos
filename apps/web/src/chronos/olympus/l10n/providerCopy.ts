@@ -45,6 +45,7 @@ const notices = new Map([
   ["Codex did not answer the usage request.", "Codex не ответил на запрос данных об использовании."],
   ["Could not read limits.", "Не удалось получить лимиты."],
   ["Claude Code could not retrieve subscription limits. Try /usage in this account later.", "Claude Code не получил лимиты подписки. Проверьте /usage в этом аккаунте позже."],
+  ["Fresh Claude subscription limits are unavailable. Showing the last reported values.", "Не удалось обновить лимиты подписки Claude. Показаны последние известные значения."],
   ["Sign in with Google to see Antigravity limits.", "Войдите через Google, чтобы увидеть лимиты Antigravity."],
   ["Could not verify the Antigravity instance profile.", "Не удалось проверить профиль Antigravity для этого подключения."],
   ["Update the Antigravity CLI to read account limits.", "Обновите Antigravity CLI, чтобы увидеть лимиты аккаунта."],

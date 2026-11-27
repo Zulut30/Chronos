@@ -61,6 +61,8 @@ export const ServerProviderUsageLimits = Schema.Struct({
     Schema.Struct({
       reason: Schema.Literals(["unsupported", "probeFailed"]),
       message: Schema.optional(TrimmedNonEmptyString),
+      /** Last-known values can expire before the next automatic refresh. */
+      validUntil: Schema.optional(IsoDateTime),
     }),
   ),
 });
