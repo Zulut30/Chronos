@@ -176,6 +176,11 @@ export async function check({ client, opts, viewport }) {
     const cyrillic = lines.filter(line => /\p{Script=Cyrillic}/u.test(line));
     assert.deepEqual(cyrillic, [], id + " contains Cyrillic: " + JSON.stringify(cyrillic));
   }
+  async function verifyMcp(locale) {
+    if (!opts.verifyMcpSettings) return;
+    const { verifyMcpSettings } = await import("./mcp-settings.mjs");
+    await verifyMcpSettings({ client, opts, viewport, locale, evaluate, until, route, click, key });
+  }
   const updateTooltips = {};
   try {
     await language("en");
@@ -252,6 +257,7 @@ export async function check({ client, opts, viewport }) {
       return !welcome.wasWelcome && await client.probe("ensureDraft");
     });
     updateTooltips.en = await verifyUpdateTooltip("en");
+    await verifyMcp("en");
     await click("button[aria-label=Artifacts]");
     await scan("artifact gallery", "Artifacts", "[data-artifact-gallery]");
     await click(".art-head button[aria-label=Close]");
@@ -270,6 +276,7 @@ export async function check({ client, opts, viewport }) {
   }
   await compactLanguagePicker("ru");
   await verifyWorkingSection("ru");
+  await verifyMcp("ru");
   await route("/");
   updateTooltips.ru = await verifyUpdateTooltip("ru");
   assert.equal(await evaluate("performance.getEntriesByType('resource').some(e=>e.name.includes('/chronos-english-'))"), false);

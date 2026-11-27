@@ -203,7 +203,203 @@ footer .hint{margin-right:auto}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-/* Inside settings the host supplies the T3 palette, including for keyboard navigation. */
-.embedded:not(.oly) :is(.input, .filter, .agent-tabs, .switch) { border: 2px solid var(--muted); }
-.embedded:not(.oly) :is(.agent-tabs [aria-selected=true], .filter [aria-checked=true]) { background: var(--accent); color: var(--on-accent); }
-.embedded:not(.oly) :focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+
+html:not(.embedded) #agent-label { display: none; }
+
+/* Inter subsets from @fontsource-variable/inter 5.3.0, also used by the web client. */
+@font-face {
+  font-family: "Inter Variable";
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-cyrillic-wght-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: "Inter Variable";
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+:root.embedded:not(.oly) {
+  --surface: var(--t3-surface, var(--bg));
+  --field: var(--bg);
+  --control-border: color-mix(in srgb, var(--t3-input, var(--muted)) 60%, var(--muted));
+  --option-surface: var(--t3-popover, var(--panel));
+  --danger: var(--t3-danger, #b3261e);
+  --ok: var(--t3-ok, var(--accent));
+  --mono: var(--t3-mono, ui-monospace, monospace);
+  --head-size: 1rem;
+  --head-weight: 600;
+  font-family: var(--t3-font, "Inter Variable", system-ui, sans-serif);
+  font-size: var(--t3-root-size, 16px);
+  scrollbar-gutter: stable both-edges;
+}
+:root.dark.embedded:not(.oly) {
+  --field: color-mix(in srgb, var(--t3-input, var(--muted)) 32%, var(--bg));
+}
+html.embedded, .embedded body { background: var(--surface, var(--bg)); }
+.embedded body { font-size: .875rem; }
+.embedded ::-webkit-scrollbar, html.embedded::-webkit-scrollbar { width: 6px; height: 6px; }
+html.embedded::-webkit-scrollbar-thumb { background: var(--control-border); border-radius: var(--radius); }
+.embedded[data-olympus-day] .card-head h2 {
+  font: 500 27px/1.1 "Cormorant Garamond", Didot, Georgia, serif;
+}
+.embedded[data-olympus-day] .list { border-radius: var(--radius); }
+.embedded .card-head .count { font: 400 .75rem/1.5 var(--t3-font, system-ui); }
+.embedded main {
+  width: 100%;
+  max-width: 56rem;
+  margin-inline: auto;
+  padding: 1.5rem clamp(1rem, 4vw, 1.5rem) 3rem;
+}
+.embedded .scope { display: grid; gap: .75rem; margin: 0 0 2rem; }
+.embedded .agent-scope, .embedded .where .field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(55%, 18.75rem));
+  align-items: center;
+  gap: .75rem;
+  padding-inline: 1rem;
+}
+.embedded .agent-tabs { justify-self: end; }
+.embedded .where { display: grid; min-width: 0; gap: .75rem; }
+.embedded .where .field { min-width: 0; }
+.embedded .agent-scope > span, .embedded .where .field > span {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+.embedded .path { padding-inline: 1rem; margin: 0; }
+.embedded .path, .embedded .path code, .embedded .note, .embedded .count,
+.embedded .hint, .embedded .endpoint { font-size: .75rem; }
+.embedded .count { font-family: inherit; letter-spacing: normal; }
+.embedded .input, .embedded .btn {
+  font-size: .875rem;
+  height: 1.75rem;
+  border-radius: var(--radius);
+}
+.embedded textarea.input { height: auto; }
+.embedded .btn { font-weight: 500; }
+.embedded .input { border-color: var(--control-border); }
+.embedded .input::placeholder { color: var(--muted); }
+.embedded select, .embedded select::picker(select) {
+  appearance: base-select;
+}
+.embedded select.input {
+  width: 100%;
+  padding-inline: .625rem;
+  align-items: center;
+  gap: .5rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.embedded select::picker-icon {
+  content: "";
+  width: .45rem;
+  height: .45rem;
+  border: solid var(--muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-2px) rotate(45deg);
+}
+.embedded select::picker(select) {
+  margin-block: .25rem;
+  padding: .25rem;
+  max-height: min(18rem, 52vh);
+  overflow-y: auto;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background: var(--option-surface);
+  color: var(--fg);
+  box-shadow: 0 1rem 2.5rem -1.125rem rgb(0 0 0 / 55%);
+}
+.embedded select option {
+  background: transparent;
+  color: inherit;
+  min-height: 1.75rem;
+  padding: .25rem .5rem;
+  border-radius: calc(var(--radius) - 2px);
+  overflow-wrap: anywhere;
+}
+.embedded select optgroup { background: transparent; color: var(--muted); }
+.embedded select option:checked { background: var(--muted); color: var(--bg); font-weight: 600; }
+.embedded select option:is(:hover, :focus-visible) { background: var(--fg); color: var(--bg); }
+.embedded .agent-tabs, .embedded .filter {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--control-border);
+  background: var(--field);
+  border-radius: var(--radius);
+  overflow: visible;
+}
+.embedded .agent-tabs button, .embedded .filter button {
+  flex: none;
+  font-size: .8125rem;
+  height: 1.5rem;
+  padding-inline: .625rem;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+}
+.embedded :is(.agent-tabs [aria-selected=true], .filter [aria-checked=true]) {
+  background: var(--hover);
+  color: var(--fg);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+.embedded .card { border: 0; background: transparent; box-shadow: none; }
+.embedded .card-head { border: 0; padding: 0 1rem .75rem; gap: .75rem; }
+.embedded .tools { gap: .5rem; }
+.embedded .list {
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: color-mix(in srgb, var(--panel) 40%, var(--surface));
+  border-radius: calc(var(--radius) + .25rem);
+  padding: 0;
+}
+.embedded .row {
+  margin: 0;
+  gap: .625rem;
+  padding: .75rem 1rem;
+  min-height: 3.5rem;
+  border-radius: 0;
+}
+.embedded .row:first-child { border-start-start-radius: inherit; border-start-end-radius: inherit; }
+.embedded .row:last-child { border-end-start-radius: inherit; border-end-end-radius: inherit; }
+.embedded .row + .row { box-shadow: none; border-top: 1px solid var(--line); }
+.embedded .row:focus-within { background: var(--hover); box-shadow: none; }
+.embedded .row .dot { display: none; }
+.embedded .row .name { font-size: .875rem; }
+.embedded .tag { font-size: .6875rem; }
+.embedded .switch {
+  width: 1.875rem;
+  height: 1.125rem;
+  background: var(--muted);
+  border: 0;
+}
+.embedded .switch::before {
+  width: .875rem;
+  height: .875rem;
+  background: var(--bg);
+  top: .125rem;
+  left: .125rem;
+}
+.embedded .switch[aria-checked=true] { background: var(--accent); }
+.embedded .switch[aria-checked=true]::before { transform: translateX(.75rem); }
+.embedded .note { margin: .75rem 1rem 0; }
+.embedded dialog { background: var(--option-surface); }
+.embedded :focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; }
+.embedded .input:focus-visible { border-color: var(--fg); box-shadow: none; }
+.embedded .input[aria-invalid=true] { border-color: var(--danger); }
+@media (max-width: 35rem) {
+  .embedded .card-head { padding-inline: .75rem; }
+  .embedded .tools .search { flex: 1 1 8rem; min-width: 0; }
+  .embedded .filter { margin: 0; }
+  .embedded .tools { gap: .375rem; }
+  .embedded .agent-scope, .embedded .where .field { padding-inline: .75rem; }
+}
+@media (max-width: 24rem) {
+  .embedded .agent-scope, .embedded .where .field { grid-template-columns: minmax(0,1fr); gap: .25rem; }
+  .embedded .agent-tabs { justify-self: start; }
+  .embedded .row { padding: .625rem; }
+}

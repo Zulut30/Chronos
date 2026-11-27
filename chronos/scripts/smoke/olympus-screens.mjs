@@ -102,9 +102,11 @@ export async function verifyOlympusScreens({ launchedPid, client, opts, checks, 
     assert.ok(!result.exceptionDetails);
   }
   async function press(key, windowsVirtualKeyCode, modifiers = 0) {
-    for (const type of ["rawKeyDown", "keyUp"]) {
-      await client.send("Input.dispatchKeyEvent", { type, key, code: key, windowsVirtualKeyCode, modifiers });
-    }
+    const fields = { key, code: key, windowsVirtualKeyCode, modifiers };
+    // A native button activates on the printable Enter event in Chromium.
+    const down = key === "Enter" ? { type: "keyDown", text: "\r" } : { type: "rawKeyDown" };
+    await client.send("Input.dispatchKeyEvent", { ...fields, ...down });
+    await client.send("Input.dispatchKeyEvent", { ...fields, type: "keyUp" });
   }
 
   await act({ type: "navigate", to: "/settings/providers" });
@@ -127,6 +129,9 @@ export async function verifyOlympusScreens({ launchedPid, client, opts, checks, 
   }
   await press("ArrowUp", 38);
   await wait({ selector: "[data-oly-mcp-nav] button:focus" });
+
+  await press("Enter", 13);
+  await wait({ allSelectors: [".oly-mcp-pane iframe", ".oly-mcp-crumb"] });
 
   // Select each injected panel through the native search, including consecutive results on the same route.
   const settingsSearch = "nav[data-workspace-area=settings-nav] input[role=combobox]";

@@ -275,7 +275,7 @@ class CdpClient {
       "Runtime.evaluate",
       { expression, awaitPromise: true, returnByValue: true },
       timeoutMs,
-    );
+    ).catch(error => { throw new Error(`Page probe "${action}" failed`, { cause: error }); });
     if (res.exceptionDetails) {
       const desc =
         res.exceptionDetails.exception?.description ||
@@ -514,6 +514,7 @@ async function run() {
   mkdirSync(opts.outDir, { recursive: true });
 
   let launchedChild = null;
+  let mcpHost;
   if (opts.launch) {
     let alreadyOpen = false;
     try {
@@ -528,6 +529,11 @@ async function run() {
       );
     }
     const launchArgs = [`--remote-debugging-port=${opts.port}`, ...opts.extraArgs];
+    if (opts.verifyOlympus && process.env.RUNNER_ENVIRONMENT === "github-hosted") {
+      const { startMcpFixture } = await import("./features/mcp-settings.mjs");
+      mcpHost = await startMcpFixture(opts.launch, process.env.RUNNER_TEMP);
+      opts.verifyMcpSettings = true;
+    }
     launchedChild = spawn(opts.launch, launchArgs, {
       stdio: "ignore",
       windowsHide: false,
@@ -968,6 +974,7 @@ async function run() {
     if (launchedChild && !opts.keepOpen) {
       killProcessTree(launchedChild.pid);
     }
+    if (mcpHost?.connected) mcpHost.disconnect();
   }
 }
 

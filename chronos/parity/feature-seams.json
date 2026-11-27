@@ -759,10 +759,9 @@
     ]
   },
   "90-mcp-manager.js": {
-    "sha256": "14e0607abd90cf5dd9a1252d06c63b6d80ae5608f7aa6a7b6be2447383685c07",
+    "sha256": "fd66c9589b9dded0d6f812b9644a29e0f9bc858f4489c77654a6fa5894a86118",
     "attributes": [
       "aria-current",
-      "aria-label",
       "class",
       "data-active",
       "data-theme-id"
@@ -772,20 +771,19 @@
     ],
     "endpoints": [
       "api/health",
-      "http://127.0.0.1:4523",
       "http://127.0.0.1:4523/"
     ],
     "globals": [
       "__olyMcpManager"
     ],
     "selectors": [
+      ":scope > header nav [aria-current=\"page\"]",
       "[data-app-modal]",
       "[data-oly-mcp-nav]",
       "[data-oly-mcp-nav] button",
       "[data-settings-section=\"/settings/providers\"]",
       "[data-settings-section]",
       "[data-settings-section][data-active=\"true\"]",
-      "button",
       "iframe",
       "li",
       "nav[data-workspace-area=settings-nav]",
