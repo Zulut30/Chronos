@@ -3217,7 +3217,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "on the computer that opened this page"]
+      "c": [
+        " ",
+        "on the computer that opened this page"
+      ]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3229,7 +3232,10 @@
     {
       "t": "span",
       "i": 2,
-      "c": [" ", "· whoever runs it gets this access"]
+      "c": [
+        " ",
+        "· whoever runs it gets this access"
+      ]
     }
   ],
   "c54cc9c75db9dc58": "Only approve a sign-in you just started.",
@@ -12884,5 +12890,54 @@
   "8dfffc716ee299a3": "Thread approval rules",
   "6c65fcd2980c7d68": "Antigravity timer",
   "51660ea573583eb0": "Full access uses the host terminal. Windows may ask you to approve administrator access. Auto uses the Antigravity sandbox when available. Other modes use the thread approval rules.",
-  "a9ff74720000da9f": "Approved automatically: full access"
+  "a9ff74720000da9f": "Approved automatically: full access",
+  "a72840dfe8e970d9": "Computer control",
+  "e3f68dbc01ed4523": "Allow agents to control this computer",
+  "8777e39ee8671853": "All apps and websites",
+  "9bcdaccd10e44823": "Allowed apps and websites",
+  "18df706e68f42ea9": "Enter one app name, executable path or website address per line.",
+  "ce19cbab7a347f89": "Approvals",
+  "71095a868b04dec4": "Every action",
+  "2ea30a7383d16882": "Only risky actions",
+  "be79ac42a5bf4774": "Skip approval for routine actions",
+  "e23795dd567a0bb4": "Entering passwords or payment details, deleting, and submitting messages or forms require approval. Chronos also asks when the purpose of a button or field is unclear.",
+  "06402f8d5a03c7d7": "Permission changes",
+  "91ad768bf4bccd93": "Apply",
+  "2b8162af67805b3e": "Emergency stop",
+  "600f38865f001011": "Stop all computer control actions. On Windows this also closes windows opened on the agent’s private desktop.",
+  "e25d5bf096a8021d": "Stop computer control",
+  "62ad23bde638a5b7": "Loading computer control settings…",
+  "85cf1c541e45555e": "Could not complete the computer control action.",
+  "2bc8bf19019c1f09": "Could not load computer control settings.",
+  "d5a40d094ba8bdbd": "Could not load Olympus settings.",
+  "4a0aa4ecbfc2b24b": "Action log",
+  "faa4000e1c497144": "No actions yet.",
+  "d83cace50e3e192e": "Request",
+  "71e585a136f5fb5f": "Not completed",
+  "4864000574f78b5c": "Unload idle Claude threads",
+  "83ea1465d91cdb34": "API keys",
+  "724baefb1716842b": "MCP servers",
+  "7d8b45e99bf2992b": "Prompt templates",
+  "8086b36e6d582ff9": "Value for this field",
+  "77bc7873d636e9b6": "Allow",
+  "286158b26812f4b9": "An agent is controlling the computer",
+  "5298649c8f9acbda": "Approval requests ({count})",
+  "b2be70822d55f16a": "Open",
+  "8ff5295ac69cb51d": "Snapshot",
+  "b994ceff7a59b4f0": "List windows",
+  "616eeb4b920ecf0b": "Save temporary document",
+  "3433b1de49b7e93e": "Expand menu",
+  "0699bc3ac93c5c4e": "Click",
+  "506705376c24c857": "Fill field",
+  "a171b7e4fc651336": "End session",
+  "6857566b35bdfc48": "Computer control is unavailable because this build lacks the agent-desktop component.",
+  "a99e69dce82e3b0f": "Stop all computer control actions. To control apps on this Mac, allow Chronos in System Settings → Privacy & Security → Accessibility.",
+  "92a45cd40283156f": "Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE.",
+  "53284105a7423abf": "Unload idle Claude and ACP threads",
+  "a560fd7a855648e6": "Run one missed occurrence on next startup",
+  "091ed640e9c9fbb7": "Active thread permissions",
+  "87846c5910d14aa7": "If the environment was offline at the scheduled time, run the task once when it starts.",
+  "1b694b2d5f43f68b": "Antigravity did not report a reset time. Retry when your subscription quota renews.",
+  "c251d5fb6872abff": "Unload sooner when Windows is low on memory",
+  "80ccfa40778a0de0": "Antigravity subscription quota"
 }

@@ -3,6 +3,7 @@ import { PlayIcon, WrapTextIcon, CheckIcon, CopyIcon } from "lucide-react";
 import { toHtml } from "hast-util-to-html";
 import React, { use, useEffect, useState, type ReactNode } from "react";
 
+import { registerMemoryTrimmer } from "../../chronos/perf/memoryTrim";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
 import { useClientSettings } from "../../hooks/useSettings";
 import type { DiffThemeName } from "../../lib/diffRendering";
@@ -35,6 +36,10 @@ const highlightedCodeCache = new LRUCache<string>(
   MAX_HIGHLIGHT_CACHE_ENTRIES,
   MAX_HIGHLIGHT_CACHE_MEMORY_BYTES,
 );
+// chronos: release highlighted HTML cache on minimize/hide memory trim.
+registerMemoryTrimmer(() => {
+  highlightedCodeCache.clear();
+});
 
 const THREAD_FIND_IGNORE_PROPS = {
   "data-thread-find-ignore": "",

@@ -55,6 +55,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { environmentThreadDetails } from "../state/threads";
+import { runMemoryTrim } from "../chronos/perf/memoryTrim";
 
 import type { Thread } from "../types";
 import { DraftId, hydrateImagesFromPersisted, useComposerDraftStore } from "../composerDraftStore";
@@ -611,6 +612,23 @@ describe("resolveThreadSwitchTimeline", () => {
         },
       ]),
     ).toBe(false);
+  });
+
+  it("retains up to 16 remembered timelines and clears them on memory trim", () => {
+    for (let index = 1; index <= 18; index += 1) {
+      rememberReadyThreadTimeline({
+        threadKey: `env-1:thread-${index}`,
+        entries: [`entry-${index}`],
+      });
+    }
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-1")).toBeNull();
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-2")).toBeNull();
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-3")).toEqual(["entry-3"]);
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-18")).toEqual(["entry-18"]);
+
+    runMemoryTrim();
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-3")).toBeNull();
+    expect(peekRememberedThreadTimeline<string[]>("env-1:thread-18")).toBeNull();
   });
 });
 

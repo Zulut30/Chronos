@@ -12,6 +12,14 @@ on:
         description: "Run ID of chronos-desktop.yml that produced the desktop artifacts"
         required: true
         type: string
+      settings_baseline_run_id:
+        description: "Also compare settings screenshots from two portable Windows ZIPs (baseline desktop run ID)"
+        required: false
+        type: string
+      settings_macos_baseline_run_id:
+        description: "Compare the macOS update section with a baseline desktop run containing the arm64 DMG"
+        required: false
+        type: string
       require_provider:
         description: "Provision an offline Codex CLI and require all composer checks"
         required: false
@@ -32,6 +40,87 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  settings-screens:
+    if: inputs.settings_baseline_run_id != ''
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - stage: before
+            run: ${{ inputs.settings_baseline_run_id }}
+          - stage: after
+            run: ${{ inputs.desktop_run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/smoke
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          run-id: ${{ matrix.run }}
+          github-token: ${{ github.token }}
+          name: chronos-win-portable
+          path: ${{ runner.temp }}/portable
+      - name: Capture settings from the unpacked Windows ZIP
+        shell: pwsh
+        env:
+          CHRONOS_SETTINGS_STAGE: ${{ matrix.stage }}
+          CHRONOS_HOME: ${{ runner.temp }}/settings-profile
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'settings-package'
+          7z x -bd -bso0 "-o$pkg" "$env:RUNNER_TEMP/portable/chronos-portable.zip"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          node chronos/scripts/smoke/smoke.mjs --launch "$pkg/Chronos.exe" --port 29671 --launch-timeout 120000 --extra-arg --disable-gpu --only settings-general --profile clean --settings-screens --out "$env:RUNNER_TEMP/settings-report"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: chronos-settings-${{ matrix.stage }}-${{ matrix.run }}
+          path: ${{ runner.temp }}/settings-report
+          if-no-files-found: error
+
+  settings-macos-before:
+    if: inputs.settings_macos_baseline_run_id != ''
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          sparse-checkout: chronos/scripts/smoke
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          run-id: ${{ inputs.settings_macos_baseline_run_id }}
+          github-token: ${{ github.token }}
+          name: chronos-mac-arm64
+          path: ${{ runner.temp }}/baseline-dmg
+      - name: Capture the original macOS update section
+        env:
+          CHRONOS_HOME: ${{ runner.temp }}/settings-profile
+          T3CODE_DISABLE_AUTO_UPDATE: "1"
+        run: |
+          set -euo pipefail
+          dmg=$(find "$RUNNER_TEMP/baseline-dmg" -name 'Chronos-*-arm64.dmg' -print -quit)
+          mount_dir="$RUNNER_TEMP/settings-dmg"
+          mkdir -p "$mount_dir" "$CHRONOS_HOME"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg"
+          ditto "$mount_dir/Chronos.app" "$RUNNER_TEMP/Settings.app"
+          hdiutil detach "$mount_dir"
+          node chronos/scripts/smoke/smoke.mjs --launch "$RUNNER_TEMP/Settings.app/Contents/MacOS/Chronos" --port 29672 --launch-timeout 120000 --profile clean --only settings-general --macos-settings-screens --out "$RUNNER_TEMP/mac-settings"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: chronos-mac-settings-before-${{ inputs.settings_macos_baseline_run_id }}
+          path: ${{ runner.temp }}/mac-settings
+          if-no-files-found: error
+
   desktop:
     runs-on: ubuntu-24.04
     steps:
@@ -369,6 +458,7 @@ jobs:
         env:
           T3CODE_DISABLE_AUTO_UPDATE: "1"
           CHRONOS_HOME: ${{ runner.temp }}/chronos-home
+          CAPTURE_SETTINGS: ${{ inputs.settings_macos_baseline_run_id != '' }}
           REQUIRE_PROVIDER: ${{ inputs.require_provider }}
           REQUIRE_SERVICES: ${{ inputs.require_services }}
           CHRONOS_VERIFY_ARTIFACTS: ${{ inputs.require_services && '1' || '0' }}
@@ -387,6 +477,7 @@ jobs:
             --verify-pc-control
             --out "$out_dir"
           )
+          if [[ "$CAPTURE_SETTINGS" == "true" ]]; then smoke_args+=(--macos-settings-screens); fi
           if [[ "$REQUIRE_PROVIDER" == "true" ]]; then smoke_args+=(--require-provider); fi
           if [[ "$REQUIRE_PROVIDER" == "true" && "$REQUIRE_SERVICES" == "true" ]]; then
             smoke_args+=(--verify-olympus)

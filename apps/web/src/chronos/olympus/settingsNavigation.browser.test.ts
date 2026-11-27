@@ -1,25 +1,27 @@
 import { expect, it } from "vite-plus/test";
 
-import { preserveSettingsSearchFocus } from "./settingsNavigation";
+import { openSettingsHost } from "./settingsHost";
 
 it.each([true, false])("keeps an active search when MCP finishes loading (editing=%s)", async (editing) => {
   const layout = document.createElement("div");
-  layout.innerHTML = '<nav data-chronos-settings-nav><input role="combobox"><button>Open MCP</button></nav><section class="oly-mcp-pane"></section>';
+  layout.innerHTML = '<nav data-chronos-settings-nav data-workspace-area="settings-nav"><input role="combobox"><button>Open MCP</button></nav><section class="oly-mcp-pane"></section>';
   document.body.append(layout);
+  let stop: (() => void) | undefined;
   try {
     const input = layout.querySelector("input")!;
-    const frame = document.createElement("iframe");
-    frame.srcdoc = "<p>MCP</p>";
-    layout.addEventListener("load", preserveSettingsSearchFocus, true);
-    const loaded = new Promise<void>(resolve => {
-      frame.onload = () => { frame.focus(); resolve(); };
-    });
     (editing ? input : layout.querySelector("button")!).focus();
-    layout.querySelector("section")!.append(frame);
-    await loaded;
-    await new Promise(requestAnimationFrame);
+    let frame!: HTMLIFrameElement;
+    await new Promise<void>((resolve) => {
+      stop = openSettingsHost(layout, (scope) => {
+        frame = scope.document.createElement("iframe") as HTMLIFrameElement;
+        frame.srcdoc = "<p>MCP</p>";
+        frame.onload = () => { frame.focus(); resolve(); };
+        layout.querySelector("section")!.append(frame);
+      });
+    });
     expect(document.activeElement).toBe(editing ? input : frame);
   } finally {
+    stop?.();
     layout.remove();
   }
 });

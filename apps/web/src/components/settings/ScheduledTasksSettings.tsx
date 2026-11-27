@@ -2314,14 +2314,6 @@ function ScheduledTaskEditorForm({
                     </Toggle>
                   ))}
                 </ToggleGroup>
-                <Label htmlFor="scheduled-task-catch-up">
-                  <T>Run one missed occurrence on next startup</T>
-                </Label>
-                <Switch
-                  id="scheduled-task-catch-up"
-                  checked={draft.catchUp === true}
-                  onCheckedChange={(catchUp) => setDraft((current) => ({ ...current, catchUp }))}
-                />
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -2344,6 +2336,26 @@ function ScheduledTaskEditorForm({
               </div>
             )}
           </div>
+
+          {draft.scheduleMode === "fixed" && (
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="scheduled-task-catch-up">
+                  <T>Run one missed occurrence on next startup</T>
+                </Label>
+                <p id="scheduled-task-catch-up-description" className="text-sm text-muted-foreground">
+                  <T>If the environment was offline at the scheduled time, run the task once when it starts.</T>
+                </p>
+              </div>
+              <Switch
+                id="scheduled-task-catch-up"
+                data-chronos-catch-up=""
+                aria-describedby="scheduled-task-catch-up-description"
+                checked={draft.catchUp === true}
+                onCheckedChange={(catchUp) => setDraft((current) => ({ ...current, catchUp }))}
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0 space-y-1">

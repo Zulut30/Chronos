@@ -4,6 +4,7 @@ import { urlAttributes } from "html-url-attributes";
 import type { ReactElement } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 
+import { registerMemoryTrimmer } from "../../chronos/perf/memoryTrim";
 import { wordsHast, type WordsHastOptions } from "../../markdown/wordsHast";
 
 export type MarkdownUrlTransform = (url: string, key: string, node: Element) => string;
@@ -25,6 +26,11 @@ interface Rendered {
 const rendered = new Map<string, Rendered>();
 let cachedChars = 0;
 let nextRendererId = 0;
+// chronos: release retained markdown parse trees on desktop memory trim.
+registerMemoryTrimmer(() => {
+  rendered.clear();
+  cachedChars = 0;
+});
 
 // A short block still holds a whole element tree.
 const ENTRY_OVERHEAD_CHARS = 200;

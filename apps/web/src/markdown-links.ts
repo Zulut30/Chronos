@@ -8,6 +8,7 @@ import {
 } from "@t3tools/shared/markdownLinks";
 import { parseFileUrlHref, splitFilePathPosition } from "@t3tools/shared/fileLinks";
 
+import { registerMemoryTrimmer } from "./chronos/perf/memoryTrim";
 import { formatWorkspaceRelativePath } from "./filePathDisplay";
 import { isTerminalLinkActivation } from "./terminal-links";
 
@@ -48,6 +49,11 @@ export function isLocalEditorFileHref(href: string): boolean {
 const MAX_MEMOIZED = 4_000;
 const inlineCodeMetas = new Map<string, MarkdownFileLinkMeta | null>();
 const linkMetas = new Map<string, MarkdownFileLinkMeta | null>();
+// chronos: clear link resolution caches on desktop memory trim.
+registerMemoryTrimmer(() => {
+  inlineCodeMetas.clear();
+  linkMetas.clear();
+});
 
 function memoized(
   cache: Map<string, MarkdownFileLinkMeta | null>,

@@ -67,6 +67,9 @@ export interface SettingsSearchItem {
   readonly cloudOnly?: boolean;
   readonly environmentOnly?: boolean;
   readonly providerSettingsOnly?: boolean;
+  readonly claudeIdleUnloadOnly?: boolean;
+  readonly lowMemoryUnloadOnly?: boolean;
+  readonly antigravityOnly?: boolean;
   readonly localBackendManagementOnly?: boolean;
   readonly localEnvironmentOnly?: boolean;
   readonly primaryEnvironmentOnly?: boolean;
@@ -85,6 +88,9 @@ export interface SettingsSearchAvailability {
   readonly hasCloudPublicConfig: boolean;
   readonly hasEnvironment: boolean;
   readonly hasProviderSettingsEnvironment: boolean;
+  readonly hasClaudeIdleUnloadEnvironment?: boolean;
+  readonly hasLowMemoryUnloadEnvironment?: boolean;
+  readonly hasAntigravityEnvironment?: boolean;
   readonly canManageLocalBackend: boolean;
   readonly isWslSettingsRowVisible: boolean;
   readonly hasThreadAutoSettlement: boolean;
@@ -258,9 +264,24 @@ const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
 export const SETTINGS_SEARCH_ITEMS = [
   ...olympusSearchItems,
   ...panelSearchItems,
-  // chronos: find local computer control by its Russian name and safety settings.
-  { id: "pc-control", title: msg("Управление ПК"), to: "/settings/general", desktopOnly: true,
-    searchTerms: [msg("Фоновый ввод, приложения, формы, подтверждения, аварийная остановка")] },
+  {
+    id: "pc-control", title: msg("Computer control"), to: "/settings/general", desktopOnly: true,
+    searchTerms: ["Управление ПК подтверждения приложения сайты аварийная остановка", "permissions approvals apps websites emergency stop"],
+  },
+  {
+    id: "pc-control-history", title: msg("Action log"), to: "/settings/general", desktopOnly: true,
+    searchTerms: ["Управление ПК журнал действий", "computer control history"],
+  },
+  {
+    id: "claude-idle-unload", title: msg("Unload idle Claude and ACP threads"), to: "/settings/providers",
+    scope: "environment-defaults", providerSettingsOnly: true, claudeIdleUnloadOnly: true,
+    searchTerms: ["Выгружать Claude при простое минуты", "idle unload timeout minutes ACP"],
+  },
+  {
+    id: "claude-low-memory-unload", title: msg("Unload sooner when Windows is low on memory"), to: "/settings/providers",
+    scope: "environment-defaults", providerSettingsOnly: true, lowMemoryUnloadOnly: true,
+    searchTerms: ["нехватка памяти ОЗУ Windows выгружать раньше", "low memory RAM pressure Windows Claude ACP"],
+  },
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
@@ -507,6 +528,13 @@ export const SETTINGS_SEARCH_ITEMS = [
     title: msg("Resume after usage limits"),
     to: "/settings/threads",
     searchTerms: [msg("usage quota rate limit reset recover continue")],
+  },
+  {
+    id: "antigravity-subscription-quota",
+    title: msg("Antigravity subscription quota"),
+    to: "/settings/threads",
+    targetId: "auto-resume-limited-threads",
+    searchTerms: ["quota reset continue", "квота Antigravity продолжить после сброса"],
   },
   {
     id: "working-shelf",
@@ -972,7 +1000,7 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "app-version",
     title: msg("Version"),
     to: "/settings/about",
-    searchTerms: [msg("about check for updates download install upgrade release")],
+    searchTerms: [msg("about check for updates download install upgrade release"), "macOS DMG Rosetta", "обновления скачать установить образ для Mac"],
   },
   {
     id: "update-track",
@@ -1128,6 +1156,22 @@ export const SETTINGS_SEARCH_ITEMS = [
     id: "scheduled-tasks",
     title: msg("Scheduled tasks"),
     to: "/settings/scheduled-tasks",
+  },
+  {
+    id: "scheduled-task-catch-up",
+    title: msg("Run one missed occurrence on next startup"),
+    to: "/settings/scheduled-tasks",
+    targetId: "scheduled-tasks",
+    searchTerms: ["catch up missed fixed time schedule", "расписание догоняющий запуск пропущенная задача"],
+  },
+  {
+    id: "antigravity-terminal-sandbox",
+    title: msg("Terminal sandbox"),
+    to: "/settings/providers",
+    scope: "environment-defaults",
+    providerSettingsOnly: true,
+    antigravityOnly: true,
+    searchTerms: ["Antigravity full access host terminal permissions", "Antigravity песочница полный доступ терминал"],
   },
   {
     id: "agent-browser-access",
@@ -1682,6 +1726,9 @@ export function filterAvailableSettingsSearchItems(
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&
+      (!item.lowMemoryUnloadOnly || availability.hasLowMemoryUnloadEnvironment === true) &&
+      (!item.claudeIdleUnloadOnly || availability.hasClaudeIdleUnloadEnvironment === true) &&
+      (!item.antigravityOnly || availability.hasAntigravityEnvironment === true) &&
       (!item.localBackendManagementOnly || availability.canManageLocalBackend) &&
       (!item.localEnvironmentOnly || !availability.localEnvironmentDisabled) &&
       (!item.primaryEnvironmentOnly || availability.hasPrimaryEnvironment === true) &&
@@ -1719,15 +1766,17 @@ export function searchSettings(
   const normalizedQuery = normalizeSearchText(query);
   if (normalizedQuery.length === 0) return [];
   const queryTokens = normalizedQuery.split(" ");
+  // Keep the language picker reachable by either name after changing the shell.
+  const isLanguageTitle = /^(?:language|язык)$/u.test(normalizedQuery);
 
   return settingsForThisPlatform(items)
     .flatMap((item, index) => {
-      const title = normalizeSearchText(decodeMsg(item.title));
+      const titles = [normalizeSearchText(decodeMsg(item.title)), normalizeSearchText(translate(item.title))];
+      if (item.id === "language" && isLanguageTitle) titles.push(normalizedQuery);
       const fields = [
-        title,
+        ...titles,
         normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),
         // The labels as displayed, so search also works in the active language.
-        normalizeSearchText(translate(item.title)),
         normalizeSearchText(translate(SETTINGS_SECTION_LABELS[item.to])),
         ...(item.searchTerms ?? []).map(normalizeSearchText),
         ...(item.searchTerms ?? []).map((term) => normalizeSearchText(translate(term))),
@@ -1736,13 +1785,13 @@ export function searchSettings(
 
       const exactPhraseField = fields.findIndex((field) => field.includes(normalizedQuery));
       const rank =
-        title === normalizedQuery
+        titles.includes(normalizedQuery)
           ? 5
-          : title.startsWith(normalizedQuery)
+          : titles.some((title) => title.startsWith(normalizedQuery))
             ? 4
-            : title.includes(normalizedQuery)
+            : titles.some((title) => title.includes(normalizedQuery))
               ? 3
-              : queryTokens.every((token) => title.includes(token))
+              : titles.some((title) => queryTokens.every((token) => title.includes(token)))
                 ? 2
                 : exactPhraseField >= 0
                   ? 1

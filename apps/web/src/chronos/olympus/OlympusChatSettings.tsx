@@ -1,3 +1,4 @@
+import "../settingsSelect.css";
 import { Link } from "@tanstack/react-router";
 import { useMessages } from "gt-react";
 import { useState, useSyncExternalStore } from "react";
@@ -101,7 +102,7 @@ function PreferenceRow({ entry }: { entry: Preference }) {
         <SelectTrigger size="sm" className="w-full min-w-0 sm:w-48" aria-label={title}>
           <SelectValue>{m(entry.options.find(([value]) => value === selected)![1])}</SelectValue>
         </SelectTrigger>
-        <SelectPopup align="end" alignItemWithTrigger={false}>
+        <SelectPopup data-chronos-settings-options="" align="end" alignItemWithTrigger={false}>
           {entry.options.map(([value, label]) => <SelectItem key={value} value={value}>{m(label)}</SelectItem>)}
         </SelectPopup>
       </Select>

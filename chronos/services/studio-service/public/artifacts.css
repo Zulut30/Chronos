@@ -4,6 +4,7 @@
   color: var(--gallery-fg, CanvasText);
   background: var(--gallery-bg, Canvas);
   --edge: var(--gallery-border, color-mix(in srgb, CanvasText 35%, Canvas));
+  --control-edge: color-mix(in srgb, var(--gallery-fg, CanvasText) 72%, var(--gallery-bg, Canvas));
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -13,13 +14,15 @@ header { justify-content: space-between; }
 h1 { font-size: 24px; margin: .3em 0; }
 h2 { font-size: 17px; margin: .1em 0; }
 button, input {
-  font: inherit; color: inherit; border: 1px solid var(--edge); border-radius: 6px;
+  font: inherit; color: inherit; border: 1px solid var(--control-edge); border-radius: 6px;
   background: var(--gallery-bg, Canvas); padding: 5px 10px;
 }
 button, summary { cursor: pointer; }
 button:hover { background: var(--gallery-accent, ButtonFace); }
 :focus-visible { outline: 2px solid var(--gallery-primary, Highlight); outline-offset: 2px; }
 input { max-width: 100%; }
+input, select { border-width: 2px; }
+input::placeholder { color: var(--control-edge); opacity: 1; }
 #cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
 article, dialog {
   min-width: 0; border: 1px solid var(--edge); border-radius: 10px; padding: 16px;

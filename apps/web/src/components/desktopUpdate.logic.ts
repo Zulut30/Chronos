@@ -279,7 +279,7 @@ export function getDesktopUpdateDisabledReason(
     case "Automatic updates are only available in packaged production builds.":
       return resolve(msg("Automatic updates are only available in packaged production builds."));
     case "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.":
-      return resolve(msg("Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting."));
+      return resolve(msg("Automatic updates are disabled by T3CODE_DISABLE_AUTO_UPDATE."));
     case "Automatic updates on Linux require the AppImage or the .deb package.":
       return resolve(msg("Automatic updates on Linux require the AppImage or the .deb package."));
     default:

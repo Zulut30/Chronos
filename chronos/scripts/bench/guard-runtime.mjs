@@ -195,7 +195,19 @@ try {
     const { heapDiagnostics } = await import("./claude-experiment.mjs");
     sample.heapDiagnostics = await heapDiagnostics(rpc, experimentThreadId, env.USERPROFILE);
   }
-  if (idle) sample.pcControl = pcControl ?? "unavailable";
+  if (idle) {
+    sample.pcControl = pcControl ?? "unavailable";
+    try {
+      const usage = await cdp.call("Runtime.getHeapUsage");
+      const dom = await cdp.call("Memory.getDOMCounters");
+      sample.rendererMemory = {
+        usedMiB: usage.usedSize / 1048576,
+        capacityMiB: usage.totalSize / 1048576,
+        embedderMiB: (usage.embedderHeapUsedSize ?? 0) / 1048576,
+        ...dom,
+      };
+    } catch { /* CDP heap read is diagnostic only */ }
+  }
   if (idle && process.env.BENCH_IDLE_MODULES === "1") {
     // Inspect the existing page only after the OS process sample has finished.
     const heap = await cdp.call("Runtime.getHeapUsage");

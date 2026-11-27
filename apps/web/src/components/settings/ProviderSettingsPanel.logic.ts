@@ -1,4 +1,4 @@
-import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
+import type { EnvironmentConnectionPhase, EnvironmentServerConfig } from "@t3tools/client-runtime/connection";
 import {
   AuthProvidersManageScope,
   type EnvironmentId,
@@ -13,6 +13,13 @@ import {
 export interface ProviderEnvironmentOptionLike {
   readonly environmentId: EnvironmentId;
   readonly label: string;
+}
+
+export function hasAntigravitySettings(config: EnvironmentServerConfig | null) {
+  if (!config) return false;
+  const allowed = config.managedPolicy?.limits?.providers?.allowedDrivers;
+  // Antigravity has a default setup slot even when its runtime is not installed.
+  return allowed === undefined || allowed.some((driver) => driver === "antigravity");
 }
 
 export function isProviderSettingsEnvironmentAvailable(input: {

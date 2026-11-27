@@ -5,6 +5,7 @@ import type { OlympusPanelHost } from "./PanelHost";
 
 declare global {
   var __olyIntegrations: { close(): void } | undefined;
+  var __olyPromptsSettings: { open(): void } | undefined;
   var __olyMcpManager: { close(): void } | undefined;
   var __olyPlanMode: (
     fallback: ProviderInteractionMode,

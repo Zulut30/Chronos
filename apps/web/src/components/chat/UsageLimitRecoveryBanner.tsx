@@ -22,6 +22,7 @@ import { ChatGptUsageButton } from "../settings/ChatGptUsageButton";
 import { Button, InlineButton } from "../ui/button";
 import { formatUpcomingTimestamp } from "../../timestampFormat";
 import { toastManager } from "../ui/toast";
+import { ComposerBanner } from "./ComposerBanner";
 import type { ComposerBannerStackItem } from "./ComposerBannerStack";
 import { copyAdminRequest } from "./ThreadErrorBanner";
 
@@ -111,7 +112,9 @@ export function usageLimitRecoveryBannerItem(
         : resetPassed
           ? resolve(msg("Reset {time}", { time: formattedTime }))
           : resolve(msg("Resets {time}", { time: formattedTime }))
-      : resolve(msg("Reset time unavailable; retry manually"));
+      : errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
+        ? resolve(msg("Antigravity did not report a reset time. Retry when your subscription quota renews."))
+        : resolve(msg("Reset time unavailable; retry manually"));
   if (!chatGptLimit) {
     return {
       id: `usage-limit-recovery:${runId}`,
@@ -122,7 +125,17 @@ export function usageLimitRecoveryBannerItem(
         errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE
           ? resolve(msg("Antigravity subscription quota reached"))
           : resolve(msg("Usage limit reached")),
-      description: resetDescription,
+      ...(errorCode === ANTIGRAVITY_INDIVIDUAL_QUOTA_CODE && formattedTime === null
+        ? {
+            children: (
+              <ComposerBanner.Body className="pe-2 pb-1.5">
+                <p data-chronos-quota-description="" className="wrap-anywhere text-muted-foreground">
+                  {resetDescription}
+                </p>
+              </ComposerBanner.Body>
+            ),
+          }
+        : { description: resetDescription }),
       actions: recoveryActions,
     };
   }
@@ -162,7 +175,7 @@ function RecoveryActions({
   onChange,
 }: RecoveryProps) {
   const gt = useGT();
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"resume" | "snooze" | null>(null);
 
   const scheduled =
     recovery?.runId === runId && recovery.resetAt === resetAt && recovery.autoResume;
@@ -183,7 +196,7 @@ function RecoveryActions({
       deadlineStore(Date.parse(resetAt)).refresh();
       return;
     }
-    setPending(true);
+    setPending(action);
     try {
       await onChange({
         runId,
@@ -200,13 +213,13 @@ function RecoveryActions({
         description: thrownErrorMessage(cause, m) ?? m(msg("An error occurred.")),
       });
     }
-    setPending(false);
+    setPending(null);
   }
   // Inline errors would widen the actions column and crush the title.
   return (
     <span className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
-      <InlineButton touchTarget="padded" disabled={pending} onClick={() => void toggle("resume")}>
-        {pending
+      <InlineButton touchTarget="padded" disabled={pending !== null} aria-busy={pending === "resume"} onClick={() => void toggle("resume")}>
+        {pending === "resume"
           ? gt("Saving...")
           : scheduled
             ? gt("Cancel auto-resume")
@@ -218,10 +231,11 @@ function RecoveryActions({
       </InlineButton>
       <InlineButton
         touchTarget="padded"
-        disabled={pending || (!snoozed && resetPassed)}
+        disabled={pending !== null || (!snoozed && resetPassed)}
+        aria-busy={pending === "snooze"}
         onClick={() => void toggle("snooze")}
       >
-        {pending ? gt("Saving...") : snoozed ? gt("Wake now") : gt("Snooze until reset")}
+        {pending === "snooze" ? gt("Saving...") : snoozed ? gt("Wake now") : gt("Snooze until reset")}
       </InlineButton>
     </span>
   );

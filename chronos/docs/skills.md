@@ -23,3 +23,5 @@ node chronos/scripts/sync-skills.mjs
 Инструменты локальных артефактов зарегистрированы в MCP Студии. [Хранилище и состояние реализации](../parity/artifacts.md).
 
 Карточки ссылок в ChatMarkdown, локальная библиотека и инструмент сессии `artifact_studio` описаны в [отчёте об артефактах](../parity/artifacts.md).
+
+Для настроек Chronos используй [chronos-settings](../skills/chronos-settings/SKILL.md). В нём собраны компоненты T3, правила доступности и проверка панелей в пакете.

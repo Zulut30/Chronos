@@ -5,6 +5,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
 import { formatAttachmentSize } from "@t3tools/client-runtime/state/attachments";
 import { useClientSettings } from "~/hooks/useSettings";
+import { registerMemoryTrimmer } from "../../chronos/perf/memoryTrim";
 import { FileSurfaceFailure, FileSurfaceLoading, FileSurfaceNotice } from "./fileSurfaceChrome";
 import { PREVIEW_PAGE_ROWS, type TextPreviewResult } from "./largeTextProtocol";
 import { previewFailureText } from "./previewFailureMessages";
@@ -52,6 +53,10 @@ function firstScreenState(text: string, delimiter: "," | "\t" | null, complete: 
 
 // Reopening a recent file paints its first screen at once while the worker indexes it again.
 const recentFirstScreens = new Map<string, { text: string; complete: boolean }>();
+// chronos: drop cached file first-screen snippets on desktop memory trim.
+registerMemoryTrimmer(() => {
+  recentFirstScreens.clear();
+});
 
 function rememberFirstScreen(src: string, text: string, complete: boolean) {
   recentFirstScreens.delete(src);

@@ -7,6 +7,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { getRenderedAppearance, subscribeRenderedAppearance } from "../hooks/useTheme";
 import { resolveDiffThemeName } from "../lib/diffRendering";
 import { PREFERRED_HIGHLIGHTER } from "../lib/syntaxHighlighting";
+import { registerMemoryTrimmer } from "../chronos/perf/memoryTrim";
 
 export class DiffWorkerError extends Schema.TaggedError<DiffWorkerError>()("DiffWorkerError", {
   operation: Schema.Literals(["create-worker", "get-render-options", "set-render-options"]),
@@ -18,11 +19,12 @@ export class DiffWorkerError extends Schema.TaggedError<DiffWorkerError>()("Diff
   }
 }
 
-const DIFF_WORKER_IDLE_TTL_MS = 30_000;
+// chronos: cap diff worker pool size, AST cache, and idle TTL to reduce background RAM.
+const DIFF_WORKER_IDLE_TTL_MS = 15_000;
 function resolveDiffWorkerPoolSize() {
   const cores =
     typeof navigator === "undefined" ? 4 : Math.max(1, navigator.hardwareConcurrency || 4);
-  return Math.max(2, Math.min(6, Math.floor(cores / 2)));
+  return Math.max(1, Math.min(3, Math.floor(cores / 2)));
 }
 let sharedWorkerPool:
   | {
@@ -62,7 +64,7 @@ function createDiffWorkerPool(poolSize: number) {
         }
       },
       poolSize,
-      totalASTLRUCacheSize: 240,
+      totalASTLRUCacheSize: 120,
     },
     {
       theme: themeName,
@@ -142,6 +144,18 @@ function subscribeSharedWorkerPool(onStoreChange: () => void) {
     }, DIFF_WORKER_IDLE_TTL_MS);
   };
 }
+
+// chronos: release an idle diff worker pool immediately on desktop memory trim.
+function terminateIdleDiffWorkerPool() {
+  const entry = sharedWorkerPool;
+  if (entry === undefined || entry.consumers > 0) return;
+  clearTimeout(entry.idleTimer);
+  entry.idleTimer = undefined;
+  entry.unsubscribeTheme();
+  entry.pool.terminate();
+  if (sharedWorkerPool === entry) sharedWorkerPool = undefined;
+}
+registerMemoryTrimmer(terminateIdleDiffWorkerPool);
 
 export function useDiffWorkerPool() {
   return useSyncExternalStore(

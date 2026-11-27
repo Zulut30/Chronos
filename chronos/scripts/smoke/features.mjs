@@ -26,6 +26,11 @@ export async function runBeforeScreens(context) {
   return results;
 }
 
+export async function prepareFeatureChecks(context) {
+  const { prepare } = await import("./features/settings.mjs");
+  await prepare(context);
+}
+
 export async function runFeatureChecks(context) {
   for (const check of [chatSettings, olympus, pcControl]) await check(context);
 }

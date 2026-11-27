@@ -101,6 +101,7 @@ import { derivePhase, type TimelineEntry } from "../session-logic";
 import type { PreviewMiniPlayerSource } from "../previewMiniPlayerStore";
 import type { DesktopPreviewOverlay } from "../previewStateStore";
 import type { RightPanelSurface } from "../rightPanelStore";
+import { registerMemoryTrimmer } from "../chronos/perf/memoryTrim";
 import {
   NO_PROVIDER_MODEL_SELECTION,
   resolveSelectableProviderInstanceEntry,
@@ -111,7 +112,8 @@ type ThreadProjection = EnvironmentThread["projection"];
 type ThreadStructureRow = ThreadStructure["visibleTurnItems"][number];
 
 export const LAST_INVOKED_SCRIPT_BY_PROJECT_KEY = "t3code:last-invoked-script-by-project";
-export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 10;
+// chronos: cap hidden mounted Ghostty terminals (10 MiB scrollback each) to 4 threads.
+export const MAX_HIDDEN_MOUNTED_TERMINAL_THREADS = 4;
 
 export const ENVIRONMENT_RECONNECT_WARNING_GRACE_MS = 2_000;
 
@@ -395,6 +397,9 @@ export function resetHeldThreadTimeline(): void {
   rememberedThreadTimelines = new Map();
   rememberedThreadTimelineOrder = [];
 }
+
+// chronos: clear remembered thread timelines on minimize/hide memory trim.
+registerMemoryTrimmer(resetHeldThreadTimeline);
 
 export function resolveThreadSwitchTimeline<T extends readonly unknown[]>(input: {
   loading: boolean;

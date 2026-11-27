@@ -1464,21 +1464,27 @@ function TaskForm({
               onValueChange={(enabled) => setDraft((current) => ({ ...current, enabled }))}
             />
           </View>
+          {draft.schedule.mode === "fixed_time" ? (
+            <View className="min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3">
+              <View className="min-w-0 flex-1 gap-1">
+                <Text textRole="body" className="text-foreground">
+                  <T>Run one missed occurrence on next startup</T>
+                </Text>
+                <Text className="text-sm text-foreground-muted">
+                  <T>If the environment was offline at the scheduled time, run the task once when it starts.</T>
+                </Text>
+              </View>
+              <ThemedSwitch
+                accessibilityLabel={gt("Run one missed occurrence on next startup")}
+                accessibilityHint={gt("If the environment was offline at the scheduled time, run the task once when it starts.")}
+                value={draft.schedule.catchUp === true}
+                onValueChange={(catchUp) =>
+                  setDraft((current) => ({ ...current, schedule: { ...current.schedule, catchUp } }))
+                }
+              />
+            </View>
+          ) : null}
         </SettingsSection>
-        {draft.schedule.mode === "fixed_time" ? (
-          <View className="flex-row items-center justify-between">
-            <Text>
-              <T>Run one missed occurrence on next startup</T>
-            </Text>
-            <ThemedSwitch
-              accessibilityLabel={gt("Run one missed occurrence on next startup")}
-              value={draft.schedule.catchUp === true}
-              onValueChange={(catchUp) =>
-                setDraft((current) => ({ ...current, schedule: { ...current.schedule, catchUp } }))
-              }
-            />
-          </View>
-        ) : null}
         {draft.schedule.mode === "fixed_time" ? (
           <Text className="px-2 text-sm text-foreground-muted">
             <T>Time uses the environment's time zone, which may differ from your phone's.</T>

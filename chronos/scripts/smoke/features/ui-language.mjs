@@ -3,7 +3,7 @@ import { verifyThemeLibrary } from "./theme-library.mjs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 // Runs before the existing strict Russian suite, on its empty, disposable profile.
-export async function check({ client, opts }) {
+export async function check({ client, opts, viewport }) {
   async function evaluate(expression) {
     const result = await client.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
     if (result.exceptionDetails) throw Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
@@ -50,6 +50,47 @@ export async function check({ client, opts }) {
       "(async () => document.readyState !== 'loading' && !!window.__TSR_ROUTER__ && document.documentElement?.lang === " + JSON.stringify(next) +
       " && window.__chronosShellLanguage === " + JSON.stringify(next) + " && (await window.desktopBridge.getClientSettings())?.language === " + JSON.stringify(next) + ")()"));
   }
+  async function key(key, code) {
+    for (const type of ["rawKeyDown", "keyUp"]) {
+      await client.send("Input.dispatchKeyEvent", { type, key, code: key, windowsVirtualKeyCode: code });
+    }
+  }
+
+  async function compactLanguagePicker(locale) {
+    const search = "[data-chronos-settings-nav] input[role=combobox]";
+    await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, width: 900, mobile: false });
+    try {
+      for (const query of ["язык", "language"]) {
+        await route("/settings/about");
+        await click(search);
+        await client.send("Input.insertText", { text: query });
+        await until(query + " selects the language result", () => evaluate(
+          "document.querySelector('#settings-search-result-language')?.getAttribute('aria-selected') === 'true'"));
+        await key("Enter", 13);
+        await until("language picker from " + query, () => evaluate(
+          "location.pathname.endsWith('/settings/general') && !!document.querySelector('#language [data-ui-language-picker]')"));
+      }
+      await click("[data-ui-language-picker]");
+      await until("long language name", () => evaluate("!!document.querySelector('[data-ui-language=pt-BR]')"));
+      const names = await evaluate(`(() => {
+        const options = [...document.querySelectorAll('[data-ui-language]')];
+        const names = new Intl.DisplayNames([${JSON.stringify(locale)}], { type: 'language' });
+        return options.map(option => {
+          const label = option.querySelector('[data-slot=select-item-text]');
+          const range = document.createRange(); range.selectNodeContents(label);
+          const text = range.getBoundingClientRect(), box = option.getBoundingClientRect();
+          return { name: label.textContent.trim(), expected: names.of(option.dataset.uiLanguage),
+            fits: text.left >= box.left - 1 && text.right <= box.right + 1 && box.left >= 0 && box.right <= innerWidth + 1 };
+        });
+      })()`);
+      assert.ok(names.length > 2 && names.every(item => item.name === item.expected && item.fits),
+        locale + " language names at 900px: " + JSON.stringify(names));
+      await key("Escape", 27);
+    } finally {
+      await client.send("Emulation.setDeviceMetricsOverride", { ...viewport, mobile: false });
+    }
+  }
+
   const userContent = [
     "script", "style", "[translate=no]:not(html)", "[data-chronos-markdown]", ".chat-markdown", "[data-chronos-editor]", "[data-user-message-bubble]",
     "[contenteditable=true]", ".xterm", "[data-thread-item] .truncate", "[data-item-path]", "[data-file-path]",
@@ -72,7 +113,24 @@ export async function check({ client, opts }) {
   }
   try {
     await language("en");
-    await scan("general", "Notifications");
+    await compactLanguagePicker("en");
+    await scan("general", "Computer control");
+    await until("computer control editor or availability", () => evaluate(
+      "!!document.querySelector('#pc-control form, #pc-control [role=alert]') || !!document.querySelector('#pc-control [role=status]')?.textContent.includes('unavailable')"));
+    if (await evaluate("!!document.querySelector('#pc-control-history button')")) {
+      await click("#pc-control-history button");
+      await scan("computer control action log", "No actions yet.");
+    } else {
+      await scan("computer control availability", "Computer control");
+    }
+    await route("/settings/about");
+    await scan("desktop updates", "About", "#app-version");
+    await route("/settings/threads");
+    await scan("quota settings", "Usage limits");
+    await route("/settings/source-control");
+    await scan("issue trackers", "Trello");
+    await click("button[aria-label='Toggle Trello details']");
+    await scan("Trello credentials", "Personal token");
     await route("/settings/appearance");
     await scan("appearance", "T3 Code");
     await verifyThemeLibrary({ client, evaluate, until });
@@ -84,10 +142,17 @@ export async function check({ client, opts }) {
       await route("/settings/general");
       await click(selector);
       await scan(id, text, loadedPanel);
+      if (id === "templates") {
+        const create = await client.probe("performAction", { type: "click", selector: ".oly-ps-pane button", text: "New template" });
+        assert.ok(create.ok, create.detail);
+        await scan("template editor", "Template name in the ! menu.");
+      }
       await click("[data-chronos-settings-nav] [data-settings-section='/settings/general']");
     }
     await route("/settings/providers");
     await scan("providers", "Codex");
+    await evaluate("window.__TSR_ROUTER__.navigate({to:'/settings/providers',search:{instanceId:'antigravity'},hash:'claude-idle-unload'})");
+    await scan("advanced provider settings", "Unload idle Claude", "#claude-idle-unload");
     await route("/settings/scheduled-tasks");
     await scan("scheduler", "New task");
     const createTask = "#scheduled-tasks button:not(:disabled)";
@@ -107,6 +172,9 @@ export async function check({ client, opts }) {
       const welcome = await client.probe("dismissOnboarding", { readyProvider: opts.requireProvider });
       return !welcome.wasWelcome && await client.probe("ensureDraft");
     });
+    await click("button[aria-label=Artifacts]");
+    await scan("artifact gallery", "Artifacts", "[data-artifact-gallery]");
+    await click(".art-head button[aria-label=Close]");
     for (const [id, selector, text, loadedPanel] of [
       ["Tasks", "[data-oly-tasks]", "All projects"],
       ["Studio", "button[aria-label=Studio]", "Boards", "#view .cards [data-new]"],
@@ -120,6 +188,7 @@ export async function check({ client, opts }) {
   } finally {
     await language("ru");
   }
+  await compactLanguagePicker("ru");
   assert.equal(await evaluate("performance.getEntriesByType('resource').some(e=>e.name.includes('/chronos-english-'))"), false);
   return { english: true, russian: true, themes: true };
 }

@@ -1,6 +1,7 @@
 // @effect-diagnostics nodeBuiltinImport:off processEnvInEffect:off - fixtures need real paths, the process resource list and the live environment.
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
+import type * as NodeWorkerThreads from "node:worker_threads";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import { vi } from "vite-plus/test";
@@ -15,6 +16,20 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 
 import * as SpawnWorker from "./SpawnWorker.ts";
+
+const startedWorkers = vi.hoisted((): Array<NodeWorkerThreads.Worker> => []);
+const workerExits = vi.hoisted(() => new WeakMap<NodeWorkerThreads.Worker, Promise<void>>());
+vi.mock("node:worker_threads", async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeWorkerThreads>();
+  class RecordedWorker extends actual.Worker {
+    constructor(...args: ConstructorParameters<typeof actual.Worker>) {
+      super(...args);
+      startedWorkers.push(this);
+      workerExits.set(this, new Promise((resolve) => this.once("exit", () => resolve())));
+    }
+  }
+  return { ...actual, Worker: RecordedWorker };
+});
 
 const envChdir = vi.hoisted(() => ({ supported: true }));
 vi.mock("@t3tools/shared/envTrampoline", async (importOriginal) => ({
@@ -229,6 +244,37 @@ describe("SpawnWorker", () => {
         if (survived) process.kill(grandchild);
         expect(survived).toBe(false);
       }
+    }).pipe(Effect.scoped, Effect.provide(layer)),
+  );
+
+  it.live("retires the idle launcher worker after inactivity and respawns transparently", () =>
+    Effect.gen(function* () {
+      const previousIdle = process.env.CHRONOS_SPAWN_WORKER_IDLE_MS;
+      yield* Effect.sync(() => {
+        process.env.CHRONOS_SPAWN_WORKER_IDLE_MS = "150";
+      });
+      return yield* Effect.gen(function* () {
+        const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+        const before = startedWorkers.length;
+        const first = yield* spawner.spawn(node("process.stdout.write('first')"));
+        expect(yield* text(first.stdout)).toBe("first");
+        expect(yield* first.exitCode).toBe(0);
+        const firstWorker = startedWorkers.at(-1)!;
+        expect(startedWorkers.length).toBe(before + 1);
+        yield* Effect.promise(() => workerExits.get(firstWorker)!);
+
+        const second = yield* spawner.spawn(node("process.stdout.write('second')"));
+        expect(yield* text(second.stdout)).toBe("second");
+        expect(yield* second.exitCode).toBe(0);
+        expect(startedWorkers.length).toBe(before + 2);
+      }).pipe(
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (previousIdle === undefined) delete process.env.CHRONOS_SPAWN_WORKER_IDLE_MS;
+            else process.env.CHRONOS_SPAWN_WORKER_IDLE_MS = previousIdle;
+          }),
+        ),
+      );
     }).pipe(Effect.scoped, Effect.provide(layer)),
   );
 });

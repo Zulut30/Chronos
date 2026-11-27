@@ -1,5 +1,10 @@
-import artifactWords from "../../../../../chronos/l10n/artifacts.ru.json";
-export { artifactWords };
+import russianWords from "../../../../../chronos/l10n/artifacts.ru.json";
+import englishWords from "../../../../../chronos/l10n/artifacts.en.json";
+import { getActiveLocale } from "../../i18n/messages";
+
+export function getArtifactWords(locale = getActiveLocale()): typeof russianWords {
+  return locale.startsWith("ru") ? russianWords : englishWords;
+}
 export const galleryUrl = "http://127.0.0.1:4520/artifacts.html";
 const viewer = "http://127.0.0.1:4520/artifact-view.html?id=";
 const uuid = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -27,7 +32,8 @@ export async function openArtifactsUrl(url:string) {
       target.hash = theme.toString();
       url = target.href;
     }
-    const title = artifactId(url) ? artifactWords.viewer : artifactWords.library;
+    const words = getArtifactWords();
+    const title = artifactId(url) ? words.viewer : words.library;
     if (studio.__olyStudioShell) await studio.__olyStudioShell.open(url,title);
     else if (studio.__olyStudio) await studio.__olyStudio.openInPanel(url,{title});
     else window.open(url,"_blank","noopener");
