@@ -51,7 +51,6 @@ jobs:
           "$RUNNER_TEMP/chronos-skills-env/bin/pip" install --quiet PyYAML==6.0.3 Markdown==3.8.2
           "$RUNNER_TEMP/chronos-skills-env/bin/python" chronos/scripts/validate-skills.py
           "$RUNNER_TEMP/chronos-skills-env/bin/python" chronos/scripts/test-validate-skills.py
-          node --test chronos/scripts/sync-skills.test.mjs
 
       - name: Validate Chronos version metadata
         run: node chronos/scripts/chronos-version.mjs
@@ -60,13 +59,7 @@ jobs:
         run: node --test chronos/scripts/bench/agent.test.mjs
 
       - name: Computer control permissions and emergency stop
-        run: node --test chronos/pc-control/controller.test.cjs
-
-      - name: macOS ASAR integrity and Mach-O packaging helper
-        run: node --test chronos/scripts/macos-after-pack.test.mjs
-
-      - name: Preview feature changes and upstream integration in a temporary repository
-        run: node --test chronos/scripts/upstream-plan.test.mjs
+        run: node --test chronos/pc-control/*.test.cjs
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
@@ -76,8 +69,8 @@ jobs:
       - name: Exercise the Windows differential updater
         run: node --test chronos/scripts/delivery/*.test.mjs
 
-      - name: Olympus feature gates and chat preferences
-        run: node --test chronos/scripts/olympus-settings.test.mjs chronos/scripts/provider-copy.test.mjs chronos/scripts/smoke/olympus-theme.test.mjs
+      - name: Chronos scripts, skill synchronization and Olympus theme
+        run: node --test chronos/scripts/*.test.mjs chronos/scripts/smoke/olympus-*.test.mjs
 
       - name: Ensure Electron runtime is installed
         run: vp run --filter @t3tools/desktop ensure:electron
@@ -89,9 +82,8 @@ jobs:
         run: |
           runtime=$(node -p "require('electron')")
           "$runtime" -e "const db=new (require('node:sqlite').DatabaseSync)(':memory:'); console.log(process.versions.electron, process.versions.node, db.prepare('SELECT 1 AS ok').get()); db.close()"
-          "$runtime" --test ../../chronos/scripts/smoke/services.test.mjs ../../chronos/scripts/smoke/service-host.test.mjs
-          "$runtime" --test ../../chronos/services/mcp-manager/worker.test.mjs
-          "$runtime" --test ../../chronos/services/artifacts/*.test.mjs
+          "$runtime" --test ../../chronos/scripts/smoke/service*.test.mjs
+          "$runtime" --test ../../chronos/services/*/*.test.mjs
 
       - name: Chronos desktop module lint
         run: vp lint apps/desktop/src/chronos
@@ -99,18 +91,24 @@ jobs:
       - name: Typecheck
         run: vp run --filter @t3tools/contracts --filter @t3tools/shared --filter @t3tools/web --filter @t3tools/desktop --filter @t3tools/scripts typecheck
 
+      - name: Check Olympus module and translation contracts
+        run: |
+          node chronos/scripts/parity/feature-seams.mjs
+          node chronos/scripts/parity/host-seams.mjs
+          node chronos/scripts/parity/check-catalog.mjs
+
       - name: Linux native test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libsecret-1-dev pkg-config
 
-      - name: Shared release, theme, markdown and tracing regressions
-        working-directory: packages/shared
-        run: vp test run src/cliRelease.test.ts src/themeCss.test.ts src/markdownPipeline.test.ts src/observability.test.ts
-
-      - name: Shell reducer and positional index
-        working-directory: packages/client-runtime
-        run: vp test run src/chronos/threadPositions.test.ts src/state/shellReducer.test.ts src/state/threadShell.test.ts
+      - name: Run shared feature suites
+        run: |
+          for suite in chronos/ci/shared/*.sh; do
+            echo "::group::$suite"
+            bash -eu "$suite"
+            echo "::endgroup::"
+          done
 
       - name: Web unit tests
         working-directory: apps/web
@@ -121,17 +119,19 @@ jobs:
         working-directory: apps/web
         run: |
           pnpm exec playwright install --with-deps chromium
-          vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'
-          vp test run --project browser src/components/chat/QueuedRunsControl.browser.test.tsx
-          vp test run --project browser src/lib/openPullRequestLink.browser.test.tsx
+          for suite in ../../chronos/ci/browser/*.sh; do
+            echo "::group::$suite"
+            bash -eu "$suite"
+            echo "::endgroup::"
+          done
 
-      - name: Trello card link recognition
-        working-directory: packages/client-runtime
-        run: vp test run src/issueLinks.test.ts
-
-      - name: SSH source switching and ownership
-        working-directory: packages/ssh
-        run: vp test run src/tunnel.test.ts -t 'archive launch script|declined desktop confirmation'
+      - name: Run client feature suites
+        run: |
+          for suite in chronos/ci/client/*.sh; do
+            echo "::group::$suite"
+            bash -eu "$suite"
+            echo "::endgroup::"
+          done
 
       - name: Desktop unit tests
         working-directory: apps/desktop
@@ -166,58 +166,13 @@ jobs:
             pnpm exec effect-tsgo tsc --noEmit --pretty false -p "$package/tsconfig.json" || true
             echo "::endgroup::"
           done
-      - name: Auth, migrations, projection index and WSL keep awake
-        working-directory: apps/server
-        run: vp test run src/background/KeepAwake.test.ts src/auth/RpcAuthorization.test.ts src/auth/EnvironmentAuth.test.ts src/orchestration-v2/ProjectionStore.test.ts src/persistence/reconcileV2PreviewMigration.test.ts
-      - name: Scheduled runs, terminal shells and agent orchestration
-        working-directory: apps/server
+      - name: Run server feature suites
         run: |
-          vp test run src/provider/acp/AntigravityTurnOutcome.test.ts src/orchestration-v2/UsageLimitRecoveryWorker.test.ts
-          vp test run src/mcp/OrchestratorMcpToolkit.integration.test.ts -t 'reports distinct child results'
-          vp test run src/scheduledTasks/ScheduledTaskService.schedule.test.ts
-          vp test run src/peer/RemoteDelegation.test.ts -t 'a task naming another driver there'
-          vp test run src/terminal/Manager.test.ts -t 'opens the available Windows shell'
-          vp test run src/mcp/OrchestratorMcpService.test.ts -t 'inherits delegated options|prepares a worktree in the selected project'
-
-      - name: Claude and ACP idle unload and native resume
-        working-directory: apps/server
-        run: |
-          vp test run src/chronos/claudeProcessGuard.test.ts src/orchestration-v2/ProviderSessionManager.test.ts
-          vp test run src/orchestration-v2/Adapters/AcpAdapterV2.test.ts -t 'loads the persisted ACP session during startup'
-          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'resumes the native session on a fresh session instance|resumes an imported native session|resumes the session a /clear selected'
-      - name: Antigravity background work and runtime policy (offline ACP)
-        working-directory: apps/server
-        run: vp test run src/orchestration-v2/Adapters/AntigravityAdapterV2.test.ts src/provider/Drivers/AntigravityDriver.test.ts src/provider/antigravityAuthSupport.test.ts
-      - name: Provider access modes and command approvals (offline)
-        working-directory: apps/server
-        run: |
-          vp test run src/orchestration-v2/ProviderSessionTransitionPolicy.test.ts
-          vp test run src/orchestration-v2/Adapters/CodexAdapterV2.test.ts -t 'derives concrete Codex turn policies|full access asks about|Codex file-change approval paths|handles MCP access approvals'
-          vp test run src/orchestration-v2/Adapters/ClaudeAdapterV2.test.ts -t 'maps default full-access policy|keeps approval-required mode interactive|marks asks that full access|adds nothing to ordinary approvals|asks before restricted Full access'
-          vp test run src/orchestration-v2/Adapters/OpenCode2AdapterV2.test.ts src/orchestration-v2/Adapters/AcpRegistryAdapterV2.test.ts src/orchestration-v2/Adapters/KiroAdapterV2.test.ts src/orchestration-v2/Adapters/GrokAdapterV2.test.ts src/orchestration-v2/Adapters/FxAdapterV2.test.ts -t 'permission|approval|runtime mode|autopilot|[Ff]ull access'
-          (cd ../../packages/provider-acp && vp test run src/server/clientPolicy.test.ts)
-          (cd ../../packages/provider-opencode && vp test run src/server/adapter.test.ts -t 'maps runtime modes|enforces non-interactive|identified local tool')
-          (cd ../../packages/provider-muse && vp test run src/server/adapter.test.ts src/server/sdk.test.ts src/server/protocol.test.ts)
-          (cd ../../packages/provider-pi && vp test run src/server/mcpExtensionSource.test.ts)
-          (cd ../../packages/provider-cursor && vp test run src/server/adapter.test.ts -t 'maps runtime modes to the SDK sandbox')
-      - name: Olympus provider, quota and usage regressions
-        working-directory: apps/server
-        run: vp test run src/provider/acp/AntigravityChildWork.test.ts src/provider/acp/AntigravityProtocol.test.ts src/provider/AntigravityProvider.test.ts src/provider/antigravityUsageLimits.test.ts src/usage/UsageService.test.ts src/usage/usagePricing.test.ts
-      - name: Trello REST, issue connections and MCP tools
-        working-directory: apps/server
-        run: vp test run src/chronos/issue-trello/driver.test.ts src/issue/IssueTrackerConnections.test.ts src/mcp/toolkits/issues/handlers.test.ts
-      - name: Chronos performance regressions
-        working-directory: apps/server
-        run: vp test run src/background/KeepAwake.test.ts src/persistence/DatabaseStorage.test.ts src/chronos/perf src/orchestration-v2/RunExecutionService.test.ts src/orchestration-v2/ProviderCommitBatch.test.ts src/orchestration-v2/ProviderSessionManager.test.ts src/orchestration-v2/LiveStreamBudget.test.ts
-      - name: First use of server Markdown processors
-        working-directory: apps/server
-        run: |
-          vp test run src/guest/guestAttachments.test.ts src/orchestration-v2/ThreadFind.test.ts
-          vp test run src/orchestration-v2/Adapters/CodexAdapterV2.test.ts -t 'projects generated images'
-
-      - name: OpenCode and OpenRouter usage records
-        working-directory: packages/provider-opencode
-        run: vp test run src/server/usage.test.ts
+          for suite in chronos/ci/server/*.sh; do
+            echo "::group::$suite"
+            bash -eu "$suite"
+            echo "::endgroup::"
+          done
 
   ssh-pair:
     if: inputs.bench_suite == 'ssh'

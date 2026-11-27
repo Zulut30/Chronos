@@ -1,0 +1,1 @@
+vp test run --project browser src/components/ComposerPromptEditorTiptap.input.browser.test.tsx src/components/ui/tooltip.browser.test.tsx src/chronos/perf/SidebarCardContents.browser.test.tsx -t 'composer context undo lifetime|closes the shared tooltip when its open trigger is removed|retains focused sidebar controls'

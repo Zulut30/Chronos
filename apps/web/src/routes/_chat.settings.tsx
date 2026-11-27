@@ -153,9 +153,10 @@ function SettingsContentLayout() {
 
   return (
     <AppRouteModal label={gt("Settings")}>
-      <div className="relative flex min-h-0 flex-1">
+      {/* chronos: modules 80/90/91 mount beside nav.nextElementSibling. */}
+      <div data-chronos-settings-layout="" className="relative flex min-h-0 flex-1">
         <SettingsSidebarNav pathname={location.pathname} />
-        <div {...contentArea} className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div {...contentArea} data-chronos-settings-content="" className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex h-12 shrink-0 items-center gap-3 border-b ps-5 pe-2">
             <SettingsBreadcrumb pathname={location.pathname} />
             <div className="ms-auto flex shrink-0 items-center gap-1">

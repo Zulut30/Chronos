@@ -1145,9 +1145,12 @@ function ComposerPromptEditorTiptapInner(
 
   const editorAttributes = {
     class: cn(
-      "composer-tiptap -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word bg-transparent leading-relaxed text-foreground focus:outline-none",
+      // chronos: legacy selector read by the immutable Olympus composer modules.
+      "composer-tiptap" +
+        " -m-1 block max-h-52 min-h-[calc(2lh+--spacing(2))] overflow-y-auto p-1 whitespace-pre-wrap wrap-break-word bg-transparent leading-relaxed text-foreground focus:outline-none",
       className,
     ),
+    "data-chronos-editor": "",
     "data-testid": "composer-editor",
     "data-composer-rich-text": richText ? "true" : "false",
     role: "textbox",

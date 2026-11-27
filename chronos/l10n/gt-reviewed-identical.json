@@ -1,0 +1,77 @@
+{
+  "65ca7867c176afbf": "{first}, {rest}",
+  "468d32c6b30df608": "Tailscale HTTPS",
+  "68b989c06486c4e0": "URL",
+  "48e6b0d45baaf193": "{label} {elapsed}",
+  "8e551e83aa1b35ca": "PR",
+  "391f43ef06ab0614": "↻ {duration}",
+  "de032945adf75356": "{time}, {date}",
+  "3a89b4f7d4aa76ca": "{message}: {detail}",
+  "0b3768657d3d4e30": "{action} (Enter)",
+  "b05ec52a0eda3bc3": "vs",
+  "f48912705512b192": "Linux/WSL",
+  "8ea2c383ec1d8fc6": "vs {ref}",
+  "5f5b08b4f5838831": "(detached HEAD)",
+  "a1190e56375f2032": "{action} ({shortcut})",
+  "e7ba2fded155ecdd": "{title}, {state}",
+  "826cb862b4a11fb3": "{label}:",
+  "3260b22f72f7effb": "{tooltipLead}: {title}",
+  "94ebdc088ba805b3": "{status}: {title}",
+  "18f6f0c65340bd1e": "{summary}, {label}",
+  "d8e83802e474db8a": "{reason}",
+  "02d9667ff2c8e0b8": "Issue {key}: {title}",
+  "e16b0b9b490c8bc7": "{label}: {value}",
+  "186c0283cdaccb71": "Detached HEAD",
+  "7e9a77787fb72952": "{kind}, {label}, {title}",
+  "0fb5b8ddb668d1bd": "{kind}, {label}",
+  "9136f66277655b85": "Live Activities",
+  "ac9e85e35d103d39": [
+    {
+      "i": 1,
+      "k": "_gt_value_1",
+      "v": "v"
+    },
+    ": ",
+    {
+      "i": 2,
+      "k": "_gt_value_2",
+      "v": "v"
+    }
+  ],
+  "e3f71f55334725a4": "Face ID",
+  "bf14b3522e13a2c3": "URL",
+  "15903f7ea6a43f95": "{action}: {agent}",
+  "a7daf7102601242d": [
+    {
+      "t": "span",
+      "i": 1,
+      "c": {
+        "i": 2,
+        "k": "_gt_value_2",
+        "v": "v"
+      }
+    },
+    ": ",
+    {
+      "i": 3,
+      "k": "_gt_value_3",
+      "v": "v"
+    },
+    "."
+  ],
+  "a9fa16cf2cbdeb8f": "{reaction}, {count}",
+  "65964946aced5181": "CPU",
+  "ee028b4f46a2c336": "CPU",
+  "eb630eef24d5c30a": "PID",
+  "69c367f8a75a477d": "Sidecar",
+  "b0b5de2fdc9514b5": "T3 Connect",
+  "b2c5419d306bbc16": "Conventional Commits",
+  "3476687eaa175b32": "Nightly",
+  "1a6679bbe62703b2": "SnapShots",
+  "807d5b4fc4d41cc6": "{language} ({unavailable})",
+  "bdb3f19ad674d592": "{tooltip}: {detail}",
+  "61aa0109862ff7ca": "Nightly",
+  "82583b5a529f0ee4": "{machine}: {failure}",
+  "b93dc3faeb8d9b2e": "{label} ({shortcut})",
+  "f0297ec79e896a13": "{environment}: {error}"
+}
