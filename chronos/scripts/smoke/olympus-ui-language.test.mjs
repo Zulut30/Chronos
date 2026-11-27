@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
+import { waitForFooter } from "./features/sidebar-footer.mjs";
 import { localizeEntryHtml } from "../../../apps/web/src/chronos/olympus/l10n/englishBundle.ts";
 
 test("both saved languages choose their renderer before preloading, and Russian skips the English setup", async () => {
@@ -30,4 +31,17 @@ test("every artifact gallery label has an English translation", () => {
     assert.ok(exact[russian], key + ": " + russian);
     assert.doesNotMatch(exact[russian], /\p{Script=Cyrillic}/u, key);
   }
+});
+
+test("footer measurements survive a renderer swap and still report unrelated errors", async () => {
+  const footer = { width: 281 };
+  const samples = [new Error("CDP Runtime.evaluate error: Inspected target navigated or closed"), null, footer];
+  const result = await waitForFooter(() => {
+    const value = samples.shift();
+    if (value instanceof Error) throw value;
+    return value;
+  }, { interval: 0 });
+  assert.deepEqual(result, footer);
+  assert.deepEqual(samples, []);
+  await assert.rejects(waitForFooter(() => { throw new Error("invalid selector"); }), /invalid selector/);
 });

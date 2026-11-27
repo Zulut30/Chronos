@@ -132,14 +132,17 @@ it.each(["Update existing", "Keep both"])(
     );
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     await userEvent.upload(input, [
-      themeFile("Dawn"),
+      themeFile("Dawn", "#792bc1"),
+      themeFile("Dusk alias"),
       themeFile("Dusk", "#f97316", DUSK_CSS),
       new File(["{"], "broken.json", { type: "application/json" }),
     ]);
 
     await expect.element(page.getByText("Already installed")).toBeVisible();
     await expect.element(page.getByText(/^broken\.json:/)).toBeVisible();
-    expect(getCustomThemes().map((theme) => theme.label)).toContain("Dawn");
+    const installed = getCustomThemes().map((theme) => theme.label);
+    expect(installed).toContain("Dawn");
+    expect(installed).not.toContain("Dusk alias");
     await page.getByRole("button", { name: choice }).click();
     invalidateCustomThemes();
     const label = choice === "Update existing" ? "Dusk" : "Dusk (1)";

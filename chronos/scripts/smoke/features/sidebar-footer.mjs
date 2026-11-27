@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import { setTimeout as sleep } from "node:timers/promises";
 
+// A Page.reload acknowledgement precedes the renderer swap on some Electron
+// builds. Retry only the read of the new document, never a click or the reload.
+export async function waitForFooter(measure, { timeout = 15000, interval = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  do {
+    try {
+      const footer = await measure();
+      if (footer) return footer;
+    } catch (error) {
+      if (!/Inspected target navigated or closed|Execution context was destroyed|Cannot find context with specified id/i.test(String(error))) throw error;
+    }
+    await sleep(interval);
+  } while (Date.now() < deadline);
+  throw Error("Sidebar footer did not mount in the new document");
+}
+
 export function check({ client }) {
   return verifySidebarFooter(client);
 }
@@ -11,7 +27,8 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
     if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description ?? reply.exceptionDetails.text);
     return reply.result.value;
   };
-  const measure = () => read("(" + function () {
+  const measure = (previousDocument = null) => read("(" + function (previousDocument) {
+    if (performance.timeOrigin === previousDocument || document.readyState === "loading") return null;
     const side = document.querySelector("[data-app-sidebar]");
     const inner = side?.querySelector("[data-slot=sidebar-inner]");
     const footer = inner?.querySelector("[data-slot=sidebar-footer]");
@@ -35,14 +52,10 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
       stripeWidth, stripePosition:css.backgroundPositionX.split(",")[layer]?.trim(), buttons,
       rail:{ x:railRect.x+railRect.width/2, y:railRect.top+railRect.height/2 },
       clip:{ x:Math.max(0,panel.left), y:Math.max(0,f.top-4), width:Math.min(innerWidth-panel.left,Math.max(panel.width,...buttons.map(b=>b.right-panel.left))+6), height:Math.min(innerHeight,f.bottom)-f.top+4, scale:1 } };
-  }.toString() + ")()");
+  }.toString() + ")(" + JSON.stringify(previousDocument) + ")");
   const navigate = await client.probe("performAction", { type:"navigate", to:"/" });
   assert.ok(navigate.ok, navigate.detail);
-  let initial;
-  for (let i=0; i<100 && !initial; i++) { initial=await measure(); if (!initial) await sleep(100); }
-  if (!initial) throw Error("Sidebar footer is missing: " + JSON.stringify(await read(
-    "({route:location.href,panels:Array.from(document.querySelectorAll('[data-slot*=sidebar]'),el=>el.dataset.slot).slice(0,45),studio:!!document.querySelector('[data-oly-studio]'),title:document.body.innerText.slice(0,270)})"
-  )));
+  const initial = await waitForFooter(measure);
   const key = "chat_thread_sidebar_width";
   const originalWidth = await read("localStorage.getItem(" + JSON.stringify(key) + ")");
   // Replay real persisted widths in the disposable profile. The normal layout clamps
@@ -54,18 +67,8 @@ export async function verifySidebarFooter(client, { verify = true, capture } = {
       "localStorage.setItem(" + JSON.stringify(key) + "," + JSON.stringify(stored) + ")");
     const oldStart = await read("performance.timeOrigin");
     await client.send("Page.reload");
-    for (let i = 0; i < 150; i++) {
-      try {
-        if (await read("performance.timeOrigin") !== oldStart && await measure()) {
-          await sleep(300);
-          return;
-        }
-      } catch (error) {
-        if (!/context|navigation|document/i.test(String(error))) throw error;
-      }
-      await sleep(100);
-    }
-    throw Error("Sidebar did not mount after loading width " + stored);
+    await waitForFooter(() => measure(oldStart));
+    await sleep(300);
   }
   async function scheme(dark) {
     if ((await measure()).dark === dark) return;
