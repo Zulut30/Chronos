@@ -20,10 +20,11 @@ export async function prepareIdleDraft(probe, send) {
       await probe("performAction", { type: "click", selector: "button[aria-label='День / ночь'], button[aria-label='Day / night']" });
     }
     if (state.draft && state.dark && state.theme === "olympus") {
+      await probe("focusDraftEditor");
       assert.equal(state.reduced, false, "Benchmark requires normal motion preference");
       await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 40, y: 100 });
       state = await probe("draftMotion");
-      if (state.focused && decorations.every(name => state.animations[name] === "running")) return;
+      if (state.focused && state.caret === "auto" && decorations.every(name => state.animations[name] === "running")) return;
     }
     await sleep(250);
   } while (Date.now() < until);
@@ -38,7 +39,11 @@ export async function readIdleDraft(probe, expectPaused) {
     assert.ok(["running", "paused"].includes(state.animations[name]), "Missing decoration: " + name);
     if (expectPaused) assert.equal(state.animations[name], "paused", name);
   }
-  if (expectPaused) assert.deepEqual(state.running, [], "Infinite animation still running on an idle draft");
+  assert.notEqual(state.caret, null, "Draft editor lost focus during the CPU sample");
+  if (expectPaused) {
+    assert.equal(state.caret, "manual", "Idle caret is still blinking");
+    assert.deepEqual(state.running, [], "Infinite animation still running on an idle draft");
+  }
   return state;
 }
 
@@ -49,6 +54,7 @@ export async function verifyResume(probe, send, start, end) {
   await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 45, y: 102 });
   await sleep(200);
   const resumed = await probe("draftMotion");
+  assert.equal(resumed.caret, "auto", "Input must restore normal caret blinking");
   for (const name of decorations) {
     assert.equal(resumed.animations[name], "running");
     assert.ok(resumed.times[name] > end.times[name], name + " did not continue from the paused phase");

@@ -469,6 +469,13 @@
         inlineForeground: code && getComputedStyle(code).color,
       };
     }
+    case "focusDraftEditor": {
+      const editor = document.querySelector('[data-slot="composer-host"] [contenteditable="true"]');
+      if (!isElementVisible(editor)) return false;
+      editor.focus({ preventScroll: true });
+      return document.activeElement === editor;
+    }
+
     case "draftMotion": {
       const conversation = document.querySelector('[data-workspace-area="conversation"] > .h-full.min-h-0');
       const sidebar = document.querySelector('[data-slot="sidebar-inner"]');
@@ -486,6 +493,8 @@
         theme: document.documentElement.dataset.themeId,
         dark: document.documentElement.classList.contains("dark"),
         focused: document.hasFocus() && !document.hidden,
+        caret: document.activeElement?.matches('[data-slot="composer-host"] [contenteditable="true"]')
+          ? getComputedStyle(document.activeElement).caretAnimation : null,
         reduced: matchMedia("(prefers-reduced-motion: reduce)").matches,
         animations,
         times: Object.fromEntries(document.getAnimations().filter(a => a.animationName?.startsWith("oly-"))

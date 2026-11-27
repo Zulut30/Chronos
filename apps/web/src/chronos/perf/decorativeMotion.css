@@ -7,6 +7,12 @@
   animation-play-state: paused !important;
 }
 
+/* A focused draft also wakes the compositor for the native caret blink.
+   Manual keeps the insertion point visible until the next input. */
+:root:not(.chronos-motion-active) [data-slot="composer-host"] [contenteditable="true"]:focus {
+  caret-animation: manual;
+}
+
 /* These Olympus indicators are mounted only during work. Honor the system
    preference independently of the decorative idle deadline. */
 @media (prefers-reduced-motion: reduce) {
