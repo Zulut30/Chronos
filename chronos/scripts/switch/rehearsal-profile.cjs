@@ -30,8 +30,8 @@ app.whenReady().then(async () => {
   const destination = session.fromPath(path.join(root, "clean-storage"));
   const clean = await page(destination);
   // Only known presentation preferences pass. Never import an environment, endpoint, session or auth state.
-  const preferences = await source.webContents.executeJavaScript(
-    "Object.entries(localStorage).filter(([k]) => /^(oly-plan-v2:|oly-machines-aliases$|oly-speed-v[234]$|oly-studio-client(?:-id)?$)/.test(k))");
+  const { rehearsalPreferences } = require("./rehearsal-preferences.cjs");
+  const preferences = await source.webContents.executeJavaScript("("+rehearsalPreferences+")(localStorage)");
   await clean.webContents.executeJavaScript(
     "for (const [key,value] of " + JSON.stringify(preferences) + ") localStorage.setItem(key,value)");
   destination.flushStorageData();
