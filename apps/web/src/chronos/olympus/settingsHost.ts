@@ -10,11 +10,10 @@ function scopedListener(target: EventTarget, signal: AbortSignal) {
 
 function patchMacosIntegrationsCopy(root: ParentNode) {
   const intro = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-intro");
-  if (intro?.textContent?.includes("переменных окружения Windows")) {
-    intro.textContent = intro.textContent.replace(
-      "переменных окружения Windows вашего пользователя",
-      "локальном файле профиля Chronos (~/.chronos/integrations-service/keys.env)",
-    );
+  // The immutable module may have mounted either before or after the English observer.
+  if (intro?.textContent?.includes("Windows")) {
+    const copy = "Ключи веб-сервисов для ИИ-агентов: поиск и парсинг страниц, X (Twitter), Reddit, расшифровки YouTube. Хранятся в локальном файле профиля Chronos (~/.chronos/integrations-service/keys.env) и не показываются после сохранения.";
+    intro.textContent = window.__chronosEnglishText?.(copy) ?? copy;
   }
   const down = root.querySelector<HTMLElement>(".oly-ik-panel .oly-ik-down p");
   if (down?.textContent?.includes("Windows")) {

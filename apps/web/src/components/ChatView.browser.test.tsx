@@ -780,6 +780,7 @@ it("keeps the unavailable provider control inside its narrow composer slot", asy
   using _environment = installFakeEnvironment([thread], { providers: [] });
   __setClientSettingsForTests({
     ...DEFAULT_CLIENT_SETTINGS,
+    language: "en",
     onboardingCompletedAt: "2026-01-01T00:00:00.000Z",
   });
   const router = getRouter(
@@ -799,7 +800,8 @@ it("keeps the unavailable provider control inside its narrow composer slot", asy
   expect(bounds.width).toBeGreaterThan(0);
   expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
   expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
-  expect(button.title).toBe(button.textContent?.trim());
+  expect(button.title).toBe(button.disabled ? "No provider available" : "Open provider settings");
+  expect(button.textContent?.trim()).toBe(button.title);
 });
 
 it("Shift model selection launches the same task on two models", async () => {

@@ -60,6 +60,7 @@ export interface SettingsSearchItem {
   readonly searchTerms?: ReadonlyArray<string>;
   readonly scope?: SettingsSearchScope;
   readonly desktopOnly?: boolean;
+  readonly computerControlOnly?: boolean;
   readonly macOnly?: boolean;
   readonly windowsOnly?: boolean;
   readonly releaseChannelOnly?: boolean;
@@ -265,11 +266,11 @@ export const SETTINGS_SEARCH_ITEMS = [
   ...olympusSearchItems,
   ...panelSearchItems,
   {
-    id: "pc-control", title: msg("Computer control"), to: "/settings/general", desktopOnly: true,
+    id: "pc-control", title: msg("Computer control"), to: "/settings/general", computerControlOnly: true,
     searchTerms: ["Управление ПК подтверждения приложения сайты аварийная остановка", "permissions approvals apps websites emergency stop"],
   },
   {
-    id: "pc-control-history", title: msg("Action log"), to: "/settings/general", desktopOnly: true,
+    id: "pc-control-history", title: msg("Action log"), to: "/settings/general", computerControlOnly: true,
     searchTerms: ["Управление ПК журнал действий", "computer control history"],
   },
   {
@@ -1749,9 +1750,11 @@ export function settingsForThisPlatform(
   items: ReadonlyArray<SettingsSearchItem>,
 ): ReadonlyArray<SettingsSearchItem> {
   const platform = typeof navigator === "undefined" ? "" : navigator.platform;
+  const hasComputerControl = typeof window !== "undefined" && !!window.chronosPC;
   return items.filter(
     (item) =>
       (isElectron || item.desktopOnly !== true) &&
+      (!item.computerControlOnly || hasComputerControl) &&
       (!item.releaseChannelOnly || isElectron || HOSTED_APP_CHANNEL !== null) &&
       (!item.macOnly || isMacPlatform(platform)) &&
       (!item.windowsOnly || isWindowsPlatform(platform)),
@@ -1766,10 +1769,13 @@ export function searchSettings(
   const normalizedQuery = normalizeSearchText(query);
   if (normalizedQuery.length === 0) return [];
   const queryTokens = normalizedQuery.split(" ");
+  // Keep the language picker reachable by either name after changing the shell.
+  const isLanguageTitle = /^(?:language|язык)$/u.test(normalizedQuery);
 
   return settingsForThisPlatform(items)
     .flatMap((item, index) => {
       const titles = [normalizeSearchText(decodeMsg(item.title)), normalizeSearchText(translate(item.title))];
+      if (item.id === "language" && isLanguageTitle) titles.push(normalizedQuery);
       const fields = [
         ...titles,
         normalizeSearchText(SETTINGS_SECTION_LABELS[item.to]),

@@ -1,4 +1,10 @@
 {
+  "a1a6189f9938087b": "That file is {size}. The size limit for theme imports is {limit}.",
+  "71f9bb9239450f63": "Updates are turned off on this machine.",
+  "5af98238a10ec614": "Automatic updates are not available because no update feed is configured.",
+  "b5d734ab87096bc1": "Automatic updates are only available in packaged production builds.",
+  "d7af4537ebcc628e": "Automatic updates are disabled by the T3CODE_DISABLE_AUTO_UPDATE setting.",
+  "2525f4389846daa6": "Automatic updates on Linux require the AppImage or the .deb package.",
   "4bcfa3b976a421cf": "Side chat",
   "23be753133ae6950": "Thread",
   "0001ae5846061bb6": "Thread on {machine}",

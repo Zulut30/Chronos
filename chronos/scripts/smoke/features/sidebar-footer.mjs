@@ -1,0 +1,117 @@
+import assert from "node:assert/strict";
+import { setTimeout as sleep } from "node:timers/promises";
+
+// A Page.reload acknowledgement precedes the renderer swap on some Electron
+// builds. Retry only the read of the new document, never a click or the reload.
+export async function waitForFooter(measure, { timeout = 15000, interval = 100 } = {}) {
+  const deadline = Date.now() + timeout;
+  do {
+    try {
+      const footer = await measure();
+      if (footer) return footer;
+    } catch (error) {
+      if (!/Inspected target navigated or closed|Execution context was destroyed|Cannot find context with specified id/i.test(String(error))) throw error;
+    }
+    await sleep(interval);
+  } while (Date.now() < deadline);
+  throw Error("Sidebar footer did not mount in the new document");
+}
+
+export function check({ client }) {
+  return verifySidebarFooter(client);
+}
+
+export async function verifySidebarFooter(client, { verify = true, capture } = {}) {
+  const read = async expression => {
+    const reply = await client.send("Runtime.evaluate", { expression, returnByValue: true });
+    if (reply.exceptionDetails) throw Error(reply.exceptionDetails.exception?.description ?? reply.exceptionDetails.text);
+    return reply.result.value;
+  };
+  const measure = (previousDocument = null) => read("(" + function (previousDocument) {
+    if (performance.timeOrigin === previousDocument || document.readyState === "loading") return null;
+    const side = document.querySelector("[data-app-sidebar]");
+    const inner = side?.querySelector("[data-slot=sidebar-inner]");
+    const footer = inner?.querySelector("[data-slot=sidebar-footer]");
+    const rail = side?.querySelector("[data-slot=sidebar-rail]");
+    if (!footer || !rail || !document.querySelector("[data-oly-studio]")) return null;
+    const panel = side.getBoundingClientRect(), bounds = inner.getBoundingClientRect();
+    const f = footer.getBoundingClientRect(), railRect = rail.getBoundingClientRect();
+    const css = getComputedStyle(inner);
+    // The meander is the vertically repeated background layer, anchored at the right edge.
+    const layer = css.backgroundRepeat.split(",").findIndex(v => v.trim() === "repeat-y" || v.trim() === "no-repeat repeat");
+    const stripeWidth = parseFloat(css.backgroundSize.split(",")[layer]);
+    const right = bounds.right - parseFloat(css.borderRightWidth);
+    const buttons = [...footer.querySelectorAll("button")].filter(b => b.checkVisibility() && b.getClientRects().length)
+      .map(b => {
+        const r = b.getBoundingClientRect();
+        return { label: b.getAttribute("aria-label") || b.title || b.innerText, left:r.left, right:r.right, top:r.top, bottom:r.bottom };
+      });
+    return { dark:document.documentElement.classList.contains("dark"), theme:document.documentElement.dataset.themeId,
+      width:panel.width, left:panel.left, right:panel.right, top:panel.top, bottom:panel.bottom,
+      footerTop:f.top, footerBottom:f.bottom, stripLeft:right-stripeWidth, stripRight:right,
+      stripeWidth, stripePosition:css.backgroundPositionX.split(",")[layer]?.trim(), buttons,
+      rail:{ x:railRect.x+railRect.width/2, y:railRect.top+railRect.height/2 },
+      clip:{ x:Math.max(0,panel.left), y:Math.max(0,f.top-4), width:Math.min(innerWidth-panel.left,Math.max(panel.width,...buttons.map(b=>b.right-panel.left))+6), height:Math.min(innerHeight,f.bottom)-f.top+4, scale:1 } };
+  }.toString() + ")(" + JSON.stringify(previousDocument) + ")");
+  const navigate = await client.probe("performAction", { type:"navigate", to:"/" });
+  assert.ok(navigate.ok, navigate.detail);
+  const initial = await waitForFooter(measure);
+  const key = "chat_thread_sidebar_width";
+  const originalWidth = await read("localStorage.getItem(" + JSON.stringify(key) + ")");
+  // Replay real persisted widths in the disposable profile. The normal layout clamps
+  // the narrow case against the measured brand width and reserves space for the chat.
+  async function resize(stored) {
+    const previous = await read("localStorage.getItem(" + JSON.stringify(key) + ")");
+    if (previous === stored) return;
+    await read(stored === null ? "localStorage.removeItem(" + JSON.stringify(key) + ")" :
+      "localStorage.setItem(" + JSON.stringify(key) + "," + JSON.stringify(stored) + ")");
+    const oldStart = await read("performance.timeOrigin");
+    await client.send("Page.reload");
+    await waitForFooter(() => measure(oldStart));
+    await sleep(300);
+  }
+  async function scheme(dark) {
+    if ((await measure()).dark === dark) return;
+    const result = await client.probe("performAction", { type:"click",selector:"button[aria-label='День / ночь'],button[aria-label='Day / night']" });
+    assert.ok(result.ok, result.detail);
+    for(let i=0;i<25;i++){if((await measure()).dark===dark)return;await sleep(80);}
+    throw Error("Sidebar appearance did not switch");
+  }
+  const results=[];
+  try {
+    for (const dark of [false,true]) {
+      await scheme(dark);
+      const start = results.length;
+      async function checkWidth(name, width) {
+        await resize(name === "default" ? null : String(width));
+        const m=await measure();
+        const outside=m.buttons.filter(b=>b.left<m.left-1 || b.right>m.right+1 ||
+          b.top<Math.max(m.top,m.footerTop)-1 || b.bottom>Math.min(m.bottom,m.footerBottom)+1);
+        const overlap=m.buttons.filter(b=>b.left<m.stripRight-.5 && b.right>m.stripLeft+.5);
+        const id=(dark?"night-":"day-")+name;
+        results.push({id,...m,outside:outside.map(b=>b.label),overlap:overlap.map(b=>b.label)});
+        if(capture)await capture(id,m.clip);
+        if(verify){
+          assert.equal(m.theme,"olympus",id);
+          assert.ok(m.buttons.length>=8,id+" expected the full set of sidebar footer actions");
+          assert.ok(m.stripeWidth>0 && m.stripeWidth<30 && /100%|right/u.test(m.stripePosition),id+" missing edge ornament");
+          assert.ok(Math.abs(m.stripRight-m.right)<=2,id+" ornament is not at the sidebar edge");
+          assert.deepEqual(outside,[],id+" buttons outside sidebar");
+          assert.deepEqual(overlap,[],id+" buttons over ornament");
+        }
+      }
+      await checkWidth("default", 256);
+      await checkWidth("minimum", 10);
+      await checkWidth("wide", 480);
+      const [defaultWidth, minimum, wide] = results.slice(start).map(m => m.width);
+      assert.ok(minimum <= defaultWidth + 1 && wide > defaultWidth + 1, "Unexpected sidebar width limits");
+      // macOS includes the traffic lights in its measured brand width. The default
+      // and minimum can then coincide. Exercise an actual third layout as well.
+      if (Math.abs(defaultWidth - minimum) < 1) await checkWidth("medium", Math.round((minimum + wide) / 2));
+      const layouts = results.slice(start);
+      assert.ok(new Set(layouts.map(m => Math.round(m.width))).size >= 3, "Expected three distinct sidebar widths");
+      if (verify) assert.equal(new Set(layouts.map(m=>m.buttons.length)).size,1,"A footer action disappeared at a narrower width");
+    }
+  } finally { await resize(originalWidth); await scheme(initial.dark); }
+  return results;
+}

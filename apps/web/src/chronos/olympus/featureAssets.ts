@@ -23,6 +23,19 @@ function guardedBlock(id: FeatureId, source: string) {
 }
 
 export function featureBlock(file: string, source: string) {
+  // Extend the shared skip predicate before the byte-pinned Russian translator starts.
+  if (file === "05-oly-core.js") return source + `\n;(() => {
+    const core = globalThis.__olyCore;
+    if (!core) return;
+    const makeSkip = core.makeSkip;
+    core.makeSkip = selector => makeSkip(selector.includes(".chat-markdown")
+      ? selector + ',[translate="no"]:not(html),[data-item-path],[data-file-path]'
+      : selector);
+  })();\n`;
+  // The immutable 4774 fix rewrites Waiting/Running and file counts into Russian.
+  if (file === "87-ru-fixes.js") return 'if (globalThis.__chronosShellLanguage !== "en") {\n' + source + '\n}\n';
+  if (file === "26-notifications.js") return guardedBlock("26-notifications",
+    "const Notification = globalThis.__chronosOlympusNotification ?? globalThis.Notification;\n" + source);
   const id = featureIds.find((id) => file === id + ".js");
   return id ? guardedBlock(id, source) : source;
 }

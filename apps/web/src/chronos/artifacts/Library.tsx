@@ -260,7 +260,7 @@ function Viewer({id,back,onClose,container}:{container?:HTMLElement | undefined;
     if(thread && !thread.deletedAt && !thread.archivedAt && origin) {
       await router.navigate({to:"/"+encodeURIComponent(origin.environmentId)+"/"+encodeURIComponent(origin.threadId)});
     } else {
-      const prompt="Продолжим работу над артефактом «"+details.title+"». "+artifactUrl(id)+" · "+words.version+" "+version;
+      const prompt=`Продолжим работу над артефактом «${details.title}». ${artifactUrl(id)} · ${words.version} ${version}`;
       await router.navigate({to:"/new",search:{prompt}});
     }
     onClose();

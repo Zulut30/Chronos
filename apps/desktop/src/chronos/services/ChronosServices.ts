@@ -6,7 +6,8 @@ import { isChronosVersion } from "@t3tools/shared/cliRelease";
 import { registerArtifactLibrary } from "../artifacts.ts";
 import type { DesktopEnvironment } from "../../app/DesktopEnvironment.ts";
 import { createServiceHost, probe, services, supervise } from "./Sidecars.ts";
-import { isolateRehearsalRequests, rehearsalOffset } from "./SwitchRehearsal.ts";
+import { rehearsalOffset } from "./ServiceOrigins.ts";
+import { isolateRehearsalRequests } from "./SwitchRehearsal.ts";
 
 export const startChronosServices = Effect.fn("ChronosServices.start")(function* (
   environment: DesktopEnvironment["Service"],

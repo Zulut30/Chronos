@@ -29,7 +29,9 @@ test("only the same full desktop with passing checks, strict smoke and previous-
   assert.throws(() => checkDesktop(build, base));
 });
 test("strict smoke rejects incomplete green summaries", () => {
-  const summary = { passedChecks: 16, totalChecks: 16, skippedChecks: 0, totalErrors: 0, unexpectedEnglishPhrases: [] };
-  verifyStrictReport({ ok: true, summary });
-  assert.throws(() => verifyStrictReport({ ok: true, summary: { ...summary, totalChecks: 14, passedChecks: 14 } }));
+  const summary = { passedChecks: 18, totalChecks: 18, skippedChecks: 0, totalErrors: 0, unexpectedEnglishPhrases: [] };
+  const checks = { uiLanguage: { ok: true }, sidebarFooter: { ok: true } };
+  verifyStrictReport({ ok: true, summary, checks });
+  assert.throws(() => verifyStrictReport({ ok: true, summary }));
+  assert.throws(() => verifyStrictReport({ ok: true, summary: { ...summary, totalChecks: 16, passedChecks: 16 }, checks }));
 });

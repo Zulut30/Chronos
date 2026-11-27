@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { assemblePrologue, settingsFeatureAsset, standaloneFeature } from "../../../apps/web/src/chronos/olympus/featureAssets.ts";
 import { packedEntries } from "./packed-entries.mjs";
+import { verifyPackedLanguage } from "./features/packed-ui-language.mjs";
 
 const prefix = "apps/server/dist/client/assets/";
 const dir = path.resolve(import.meta.dirname, "../../../apps/web/src/chronos/olympus");
@@ -40,6 +41,9 @@ for (const [file, bytes] of packedEntries(process.argv[2], key => key.startsWith
     raw.delete(name);
     continue;
   }
+  // The English bootstrap embeds selectors from its DOM translator. Only the
+  // canonical host bundle proves the existing Russian seams and DICT placement.
+  if (/^(?:chronos-english|en-.+)-[a-f0-9]{16}\.js$/.test(name)) continue;
   shims.delete(name);
   // Raw legacy code and the runtime dictionary can themselves mention a missing host selector.
   const at = bytes.indexOf(runtime);
@@ -55,3 +59,5 @@ for (const { row, token } of pending) console.error("Missing installed host seam
 if (hosts !== 1) console.error("Expected one exact runtime-translator/DICT block. Found", hosts);
 if (raw.size || shims.size || pending.length || hosts !== 1) process.exitCode = 1;
 else console.log("Installed archive verified:", rows.length, "native host markers, 4 immutable assets, 4 panel shims, runtime translator");
+
+await verifyPackedLanguage(process.argv[2]);

@@ -7,6 +7,7 @@ import { formatBytes } from "../../lib/formatBytes";
 import { cn } from "../../lib/utils";
 import {
   getCustomThemes,
+  findImportedTheme,
   installCustomTheme,
   removeCustomTheme,
   renameTheme,
@@ -31,7 +32,7 @@ import { m } from "../../i18n/messages";
  * would otherwise be pulled into memory, highlighted, and rendered, which
  * locks the UI for as long as that takes.
  */
-const MAX_THEME_FILE_BYTES = 256 * 1024;
+const MAX_THEME_FILE_BYTES = 512 * 1024;
 
 /** Highlighting rebuilds markup per keystroke; fall back to plain text for oversized pastes. */
 const MAX_HIGHLIGHTED_JSON_LENGTH = 20_000;
@@ -40,7 +41,7 @@ function describeOversizedThemeFile(bytes: number): string | null {
   if (bytes <= MAX_THEME_FILE_BYTES) return null;
   return m(
     msg(
-      "That file is {size}. Theme files are only a few KB, so this one was not read (limit {limit}).",
+      "That file is {size}. The size limit for theme imports is {limit}.",
       { size: formatBytes(bytes), limit: formatBytes(MAX_THEME_FILE_BYTES) },
     ),
   );
@@ -295,6 +296,11 @@ function ThemeImportBody({
     const installed: ThemeDefinition[] = [];
     const conflicting: ThemeDefinition[] = [];
     for (const theme of pairVsCodeThemes(resolveThemeLabelCollisions(parsed))) {
+      const existing = findImportedTheme(theme);
+      if (existing) {
+        if (!installed.some(item => item.id === existing.id)) installed.push(existing);
+        continue;
+      }
       if (isThemeIdTaken(theme.id)) {
         conflicting.push(theme);
         continue;
@@ -413,6 +419,12 @@ function ThemeImportBody({
     }
     try {
       const theme = parseThemeImport(json);
+      const existing = findImportedTheme(theme);
+      if (existing) {
+        if (onImported(existing)) onClose();
+        else setError(gt("Theme added, but it could not be selected. Try again."));
+        return;
+      }
       if (isThemeIdTaken(theme.id)) {
         setError(null);
         setConflicts([theme]);

@@ -661,6 +661,10 @@ const server = http.createServer(async (req, res) => {
     const u = new URL(req.url, `http://127.0.0.1:${PORT}`);
     if (u.pathname === '/api/prompts' || u.pathname === '/api/prompts/delete') return await promptRoute(req,res,u.pathname);
     const origin = req.method === 'GET' ? req.headers.origin : null;
+    if (req.method === "GET" && u.pathname.startsWith("/chronos-ui-")) {
+      const { serveLanguageAsset } = await import("../ui-language/serve.mjs");
+      if (await serveLanguageAsset(u.pathname, res)) return;
+    }
     if (req.method === 'GET' && STATIC[u.pathname]) { const [f, t] = STATIC[u.pathname]; return send(res, 200, await fsp.readFile(path.join(HERE, f)), t); }
     if (!u.pathname.startsWith('/api/')) return send(res, 404, { error: 'not found' });
     // Mutations only from our own page: the custom header forces a CORS preflight that we never approve.

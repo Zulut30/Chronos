@@ -271,6 +271,9 @@
       let scriptsScanned = 0;
       if (wasmCfg.enabled !== false) {
         const initial = [
+          // The language-aware bootstrap imports the renderer after reading client settings.
+          // Follow its actual entry without fetching the optional English catalog in Russian.
+          ...indexHtml.matchAll(/^\s*await\s+import\(["'](\/assets\/[\w.-]+\.js)["']\)/gm),
           ...indexHtml.matchAll(/(?:src|href)="(\/assets\/[^"]+\.js)"/g),
         ].map((m) => m[1]);
         const visited = new Set();

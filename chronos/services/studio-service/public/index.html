@@ -61,12 +61,12 @@ function toast(m,err){const d=document.createElement('div');if(err)d.className='
 const fmtFull=t=>new Date(t).toLocaleString('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
 function ago(t){const s=(Date.now()-t)/1000;if(!(s>=0))return fmtFull(t);if(s<60)return 'только что';if(s<3600)return Math.floor(s/60)+' мин назад';if(s<86400)return Math.floor(s/3600)+' ч назад';
  const d=new Date(t),y=new Date();y.setHours(0,0,0,0);if(t>=y-864e5)return 'вчера';if(s<7*86400)return Math.ceil(s/86400)+' дн. назад';
- return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',...(d.getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{})})}
+ return d.toLocaleDateString(document.documentElement.lang,{day:'numeric',month:'short',...(d.getFullYear()!==new Date().getFullYear()?{year:'numeric'}:{})})}
 const plural=(n,a,b,c)=>{const m=n%10,h=n%100;return n+' '+(m===1&&h!==11?a:m>=2&&m<=4&&(h<12||h>14)?b:c)};
 let viewSeq=0;let TAB='boards',LOCS=[],LOC=null,FILTER='';
 const PARENT_ORIGIN=new URLSearchParams(location.hash.slice(1)).get('parent-origin')||location.origin;
 function openBoard(p){if(document.documentElement.classList.contains('embedded')&&parent!==window)parent.postMessage({type:'oly-studio-board',path:p},PARENT_ORIGIN);else location.href=boardHref(p)}
-const boardHref=p=>'/board?path='+encodeURIComponent(p)+location.hash;
+const boardHref=p=>'/board?path='+encodeURIComponent(p)+(document.documentElement.lang==='en'?'&ui-language=en':'')+location.hash;
 /* T3 tells an open hub that its theme changed (day/night switch) */
 addEventListener('message',e=>{if(e.origin!==PARENT_ORIGIN||e.source!==parent||e.data?.type!=='oly-studio-theme'||typeof e.data.hash!=='string')return;
  const q=new URLSearchParams(location.hash.slice(1));for(const[k,v]of new URLSearchParams(e.data.hash.replace(/^#/,'')))q.set(k,v);
@@ -155,7 +155,7 @@ function watchThumbs(root){thumbIO?.disconnect();const cards=[...root.querySelec
  setTimeout(()=>{if(cards[0]?.isConnected&&!cards.some(c=>c.querySelector('[data-thumb]')?.dataset.state))cards.slice(0,12).forEach(drawThumb)},1200)}
 
 // ---------- boards ----------
-function boardTools(){const group=(name,list)=>list.length?`<optgroup label="${name}">${list.map(l=>`<option value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(locLabel(l))}</option>`).join('')}</optgroup>`:'';
+function boardTools(){const group=(name,list)=>list.length?`<optgroup label="${name}">${list.map(l=>`<option translate="${l.kind==='server'?'yes':'no'}" value="${esc(l.id)}"${l===LOC?' selected':''}>${esc(locLabel(l))}</option>`).join('')}</optgroup>`:'';
  const cur=LOCS.filter(l=>l.current&&l.kind==='project');
  const opts=group('Текущий проект',cur)+group(cur.length?'Другие проекты':'Проекты',LOCS.filter(l=>l.kind==='project'&&!l.current))+group('Другие папки',LOCS.filter(l=>l.kind!=='project'))+'<optgroup label="Добавить"><option value="__add">Другая папка на диске…</option></optgroup>';
  return `<label class="picker" title="Где хранятся доски: ${esc(LOC.dir)}">${LOC.kind==='project'?IC.project:IC.folder}<span class="sr">Папка с досками</span><select id="loc">${opts}</select>${IC.chev}</label><button class="btn primary" id="newBoard">${IC.plus}<span class="lbl">Новая доска</span></button>`}
@@ -228,5 +228,19 @@ async function act(a,p){
 
 
 load();
+</script>
+<script>
+if (parent !== window) {
+  const enableEnglish = async event => {
+    if (event.source !== parent || event.data?.type !== "chronos:ui-language" ||
+        event.data.language !== "en" || !["t3code://app", location.origin, "http://localhost:3773", "http://127.0.0.1:3773"].includes(event.origin)) return;
+    removeEventListener("message", enableEnglish);
+    const [runtime, catalog] = await Promise.all([
+      import("/chronos-ui-english.mjs"), fetch("/chronos-ui-english.json").then(r => r.json()),
+    ]);
+    runtime.installEnglish(catalog);
+  };
+  addEventListener("message", enableEnglish);
+}
 </script>
 </body></html>

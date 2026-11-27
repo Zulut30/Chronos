@@ -2,7 +2,8 @@
 import * as NodeHttp from "node:http";
 import type * as NodeNet from "node:net";
 import { expect, it, vi } from "vite-plus/test";
-import { isolateRehearsalRequests, rehearsalOffset } from "./SwitchRehearsal.ts";
+import { isolateRehearsalRequests } from "./SwitchRehearsal.ts";
+import { rehearsalOffset } from "./ServiceOrigins.ts";
 
 const fixture = vi.hoisted(() => ({
   services: [{ port: 0 }],

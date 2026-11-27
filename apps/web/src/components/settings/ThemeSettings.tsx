@@ -662,8 +662,8 @@ export function ThemeLibrary({
   };
 
   const baseCardId = getThemeDefinition(theme)?.id ?? null;
-  const lightOwner = themeHalves?.light ?? baseCardId;
-  const darkOwner = themeHalves?.dark ?? baseCardId;
+  const lightOwner = themeHalves?.light === "system" ? null : (themeHalves?.light ?? baseCardId);
+  const darkOwner = themeHalves?.dark === "system" ? null : (themeHalves?.dark ?? baseCardId);
 
   const assignHalf = (appearance: ThemeAppearance, cardId: string | null) => {
     const otherAppearance = appearance === "light" ? "dark" : "light";
@@ -830,12 +830,7 @@ export function ThemeLibrary({
             />
           );
         })}
-        {environmentThemes
-          .filter(
-            // Saved themes win id resolution; show only their card to avoid duplicate keys.
-            (environmentTheme) => !customThemes.some((theme) => theme.id === environmentTheme.id),
-          )
-          .map((environmentTheme) => (
+        {environmentThemes.map((environmentTheme) => (
             <ThemeLibraryCard
               activeModes={pickedModesFor(environmentTheme.id)}
               isActive={false}

@@ -2,6 +2,7 @@ import { getTranslationsSnapshot } from "gt-react";
 
 import {
   getClientSettings,
+  getClientSettingsHydratedSnapshot,
   subscribeClientSettings,
   updateClientSettings,
 } from "../hooks/useSettings";
@@ -66,9 +67,9 @@ function activateLocale(locale: string): void {
 
 function applyLanguageSetting(): void {
   // Not desktopBridge.getSystemLocale(): that is the regional/time locale, not the UI language.
-  const language = getClientSettings().language;
-  // chronos(olympus): keep the Olympus default while preserving regional formatting.
-  requestedLocale = resolveWebLocaleSelection(!language || language === "en" ? "ru" : language, navigator.languages);
+  const language = getClientSettingsHydratedSnapshot() ? getClientSettings().language :
+    (window.__chronosInitialLanguage ?? getClientSettings().language);
+  requestedLocale = resolveWebLocaleSelection(language, navigator.languages);
   void whenLocaleReady();
 }
 
