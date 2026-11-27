@@ -12,7 +12,10 @@ import { startUpgradeMirror } from "./upgrade-mirror.mjs";
 
 assert.equal(process.platform, "darwin");
 assert.equal(process.env.RUNNER_ENVIRONMENT, "github-hosted");
-const { VERSION: to, RUNNER_TEMP: temp, GITHUB_REPOSITORY: repo } = process.env;
+const { RUNNER_TEMP: temp, GITHUB_REPOSITORY: repo } = process.env;
+const manifest = await readFile("release/nightly-mac.yml", "utf8");
+const to = /^version: ([0-9.]+-nightly\.[0-9.]+\.chronos\.\d+)$/m.exec(manifest)?.[1];
+assert.ok(to, "expected a versioned Chronos macOS feed");
 const from = to.replace(/\d+$/, revision => String(Number(revision) - 1));
 assert.notEqual(from, to);
 const file = version => `Chronos-${version}-arm64.zip`;
@@ -23,7 +26,7 @@ for (const [v, zip] of [[from, source], [to, path.resolve("release", file(to))]]
   assets.set(releasePath(v), zip);
   assets.set(releasePath(v) + ".blockmap", zip + ".blockmap");
 }
-const feed = pinReleaseFeed(await readFile("release/nightly-mac.yml", "utf8"), to, repo, "mac");
+const feed = pinReleaseFeed(manifest, to, repo, "mac");
 const dir = path.join(homedir(), "Applications");
 await mkdir(dir, { recursive: true });
 await assert.rejects(access(path.join(dir, "Chronos.app")), { code: "ENOENT" });
@@ -129,6 +132,15 @@ try {
   await appendFile(process.env.GITHUB_STEP_SUMMARY, report);
 } catch (error) {
   console.error("Installed bundle:", installedVersion(), "last ready:", await readFile(started, "utf8").catch(() => "unavailable"));
+  // Sample only our own main process on the disposable runner. Report only API names,
+  // never item payloads, sample dumps, environment variables or keychain contents.
+  try {
+    const sample = path.join(temp, "chronos-upgrade.sample");
+    execFileSync("/usr/bin/sample", [appPid(), "1", "-file", sample], { stdio: "ignore", timeout: 10000 });
+    const stack = await readFile(sample, "utf8");
+    const symbols = [...new Set(stack.match(/\b(?:SecItemCopyMatching|SecKeychainFindGenericPassword|SecKeychainItemCopyContent|SecKeychainItemCopyAttributesAndData|SecItemAdd|CCKeyDerivationPBKDF|KeychainPassword::GetPassword)\b/g))];
+    console.error("Blocked Keychain API frames in Chronos:", symbols.join(", ") || "none found");
+  } catch { console.error("Could not sample the relaunched process"); }
   console.error(processList().split("\n").filter(line => /Chronos|ShipIt|SecurityAgent/.test(line)).slice(-25).join("\n"));
   const shipit = path.join(homedir(), "Library/Caches/io.github.zulut30.chronos.ShipIt");
   for (const name of ["ShipIt_stderr.log", "ShipIt_stdout.log"]) {

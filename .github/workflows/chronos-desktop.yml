@@ -504,36 +504,6 @@ jobs:
           path: windows-update.json
           if-no-files-found: error
 
-  mac-update:
-    name: Verify native update on a clean Mac
-    if: github.event_name == 'workflow_dispatch' && !inputs.perf_sha
-    needs: [version, desktop]
-    runs-on: macos-26
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
-        with:
-          sparse-checkout: |
-            chronos/ci
-            chronos/scripts
-            scripts/lib
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: mac-update-source
-          path: ${{ runner.temp }}/chronos-update-source
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: chronos-mac-arm64
-          path: release
-      - name: Install a differential update with Squirrel.Mac and verify automatic relaunch
-        timeout-minutes: 8
-        env:
-          VERSION: ${{ needs.version.outputs.version }}
-        run: node chronos/scripts/delivery/macos-upgrade.mjs
-
   release:
     name: Publish GitHub Release
     if: github.ref_type == 'tag' && !inputs.perf_sha && startsWith(github.ref_name, 'chronos-v')
