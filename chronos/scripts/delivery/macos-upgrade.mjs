@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { constants, openSync, closeSync } from "node:fs";
-import { appendFile, copyFile, mkdir, readFile, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, appendFile, copyFile, mkdir, readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -24,8 +24,9 @@ for (const [v, zip] of [[from, source], [to, path.resolve("release", file(to))]]
   assets.set(releasePath(v) + ".blockmap", zip + ".blockmap");
 }
 const feed = pinReleaseFeed(await readFile("release/nightly-mac.yml", "utf8"), to, repo, "mac");
-const dir = path.join(temp, "upgrade-apps");
-await mkdir(dir);
+const dir = path.join(homedir(), "Applications");
+await mkdir(dir, { recursive: true });
+await assert.rejects(access(path.join(dir, "Chronos.app")), { code: "ENOENT" });
 execFileSync("ditto", ["-x", "-k", source, dir]);
 const app = path.join(dir, "Chronos.app");
 const requirement = () => execFileSync("bash", ["chronos/ci/verify-macos-signature.sh", app], { encoding: "utf8" }).trim();
@@ -62,21 +63,23 @@ async function evaluate(expression) {
   return result.result.value;
 }
 function launchWithDevTools() {
-  const fd = openSync(log, "a");
-  try {
-    const proc = spawn(path.join(app, "Contents/MacOS/Chronos"), ["--remote-debugging-port=29481"], {
-      stdio: ["ignore", fd, fd],
-    });
-    proc.unref();
-    return proc;
-  } finally { closeSync(fd); }
+  // Use the same LaunchServices registration and GUI session as opening the installed app in Finder.
+  execFileSync("/usr/bin/open", ["-n", "-a", app, "--stdout", log, "--stderr", log,
+    "--args", "--remote-debugging-port=29481"]);
 }
+const installedVersion = () => execFileSync("/usr/libexec/PlistBuddy",
+  ["-c", "Print :CFBundleShortVersionString", path.join(app, "Contents/Info.plist")],
+  { encoding: "utf8" }).trim();
+const processList = () => execFileSync("/bin/ps", ["-axo", "pid=,ppid=,comm="], { encoding: "utf8" });
+const appTool = path.join(temp, "chronos-test-app");
+execFileSync("swiftc", ["chronos/scripts/delivery/macos-test-app.swift", "-o", appTool]);
+const appPid = () => execFileSync(appTool, ["pid", app], { encoding: "utf8" }).trim();
 const connectWindow = () => until("Chronos window", async () => {
   const targets = await (await fetch("http://127.0.0.1:29481/json/list")).json();
   const page = targets.find(t => t.type === "page" && t.url.startsWith("t3code://app/"));
   return page && connectCdp(page.webSocketDebuggerUrl);
 });
-let child = launchWithDevTools();
+launchWithDevTools();
 try {
   await until("installed source process", async () => (await readFile(started, "utf8")).trim() === from);
   cdp = await connectWindow();
@@ -100,27 +103,23 @@ try {
   const size = (await stat(assets.get(releasePath(to)))).size;
   assert.equal(transfer.fullBytes, 0, JSON.stringify(transfer));
   assert.ok(transfer.rangeBytes > 0 && transfer.rangeBytes < size && transfer.mapBytes > 0);
+  console.log(`Differential ZIP: ${transfer.rangeBytes} / ${size} bytes; blockmaps: ${transfer.mapBytes} bytes`);
+  const oldPid = appPid();
+  assert.ok(oldPid, "source app registered in GUI session");
   await evaluate(`void window.desktopBridge.installUpdate(${JSON.stringify(to)}); true`);
+  await until("ShipIt replaces installed bundle", () => installedVersion() === to);
+  await until("LaunchServices starts the replacement process", () => {
+    const pid = appPid();
+    return pid && pid !== oldPid;
+  });
   await until("automatically relaunched N+1", async () => (await readFile(started, "utf8")).trim() === to);
   assert.equal(requirement(), oldRequirement);
-  const plist = path.join(app, "Contents/Info.plist");
-  assert.equal(execFileSync("/usr/libexec/PlistBuddy", ["-c", "Print :CFBundleShortVersionString", plist], { encoding: "utf8" }).trim(), to);
+  assert.equal(installedVersion(), to);
   // ShipIt launches the new app without the test's Chromium debugger arguments. After
   // independently proving that restart, reopen the same installed app to read via normal IPC.
   cdp.close();
-  execFileSync("swift", ["-e", `
-    import AppKit
-    let url = URL(fileURLWithPath: ProcessInfo.processInfo.environment["UPGRADED_APP"]!).resolvingSymlinksInPath()
-    let matches = NSRunningApplication.runningApplications(withBundleIdentifier: "io.github.zulut30.chronos")
-      .filter { $0.bundleURL?.resolvingSymlinksInPath().path == url.path }
-    guard matches.count == 1, matches[0].terminate() else { exit(1) }
-    let deadline = Date().addingTimeInterval(20)
-    while !matches[0].isTerminated && Date() < deadline {
-      RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-    }
-    exit(matches[0].isTerminated ? 0 : 1)
-  `], { env: { ...process.env, UPGRADED_APP: app }, timeout: 60000 });
-  child = launchWithDevTools();
+  execFileSync(appTool, ["quit", app], { timeout: 30000 });
+  launchWithDevTools();
   cdp = await connectWindow();
   assert.equal((await state()).currentVersion, to);
   const restored = JSON.parse(await evaluate("window.desktopBridge.getConnectionCatalog()"));
@@ -129,11 +128,18 @@ try {
   console.log(report);
   await appendFile(process.env.GITHUB_STEP_SUMMARY, report);
 } catch (error) {
+  console.error("Installed bundle:", installedVersion(), "last ready:", await readFile(started, "utf8").catch(() => "unavailable"));
+  console.error(processList().split("\n").filter(line => /Chronos|ShipIt|SecurityAgent/.test(line)).slice(-25).join("\n"));
+  const shipit = path.join(homedir(), "Library/Caches/io.github.zulut30.chronos.ShipIt");
+  for (const name of ["ShipIt_stderr.log", "ShipIt_stdout.log"]) {
+    const lines = await readFile(path.join(shipit, name), "utf8").catch(() => "");
+    if (lines) console.error(name, lines.split("\n").slice(-30).join("\n"));
+  }
   // Only updater diagnostics from this disposable profile; the private keychain has already been deleted.
-  console.error((await readFile(log, "utf8")).split("\n").filter(line => /updat|Squirrel|ShipIt/i.test(line)).slice(-35).join("\n"));
+  console.error((await readFile(log, "utf8").catch(() => "")).split("\n").filter(line => /updat|Squirrel|ShipIt/i.test(line)).slice(-35).join("\n"));
   throw error;
 } finally {
   cdp?.close();
-  if (child.exitCode === null && child.signalCode === null) child.kill();
+  try { execFileSync(appTool, ["quit", app], { timeout: 30000 }); } catch { /* Already quit. */ }
   await mirror.close();
 }
