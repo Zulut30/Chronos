@@ -177,7 +177,7 @@ export async function check({ client, opts, viewport }) {
     assert.deepEqual(cyrillic, [], id + " contains Cyrillic: " + JSON.stringify(cyrillic));
   }
   async function verifyMcp(locale) {
-    if (!opts.mcpTestHome) return;
+    if (!opts.verifyMcpSettings) return;
     const { verifyMcpSettings } = await import("./mcp-settings.mjs");
     await verifyMcpSettings({ client, opts, viewport, locale, evaluate, until, route, click, key });
   }

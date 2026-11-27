@@ -275,7 +275,7 @@ class CdpClient {
       "Runtime.evaluate",
       { expression, awaitPromise: true, returnByValue: true },
       timeoutMs,
-    );
+    ).catch(error => { throw new Error(`Page probe "${action}" failed`, { cause: error }); });
     if (res.exceptionDetails) {
       const desc =
         res.exceptionDetails.exception?.description ||
@@ -514,6 +514,7 @@ async function run() {
   mkdirSync(opts.outDir, { recursive: true });
 
   let launchedChild = null;
+  let mcpHost;
   if (opts.launch) {
     let alreadyOpen = false;
     try {
@@ -528,16 +529,12 @@ async function run() {
       );
     }
     const launchArgs = [`--remote-debugging-port=${opts.port}`, ...opts.extraArgs];
-    let launchEnv = process.env;
     if (opts.verifyOlympus && process.env.RUNNER_ENVIRONMENT === "github-hosted") {
-      const { createMcpFixture } = await import("./features/mcp-settings.mjs");
-      opts.mcpTestHome = createMcpFixture(process.env.RUNNER_TEMP);
-      // The packaged supervisor strips service overrides. Give its worker the same
-      // disposable OS home while retaining the preprovisioned offline CODEX_HOME.
-      launchEnv = { ...process.env, HOME: opts.mcpTestHome, USERPROFILE: opts.mcpTestHome, OLY_MCP_TEST_HOME: opts.mcpTestHome };
+      const { startMcpFixture } = await import("./features/mcp-settings.mjs");
+      mcpHost = await startMcpFixture(opts.launch, process.env.RUNNER_TEMP);
+      opts.verifyMcpSettings = true;
     }
     launchedChild = spawn(opts.launch, launchArgs, {
-      env: launchEnv,
       stdio: "ignore",
       windowsHide: false,
     });
@@ -977,6 +974,7 @@ async function run() {
     if (launchedChild && !opts.keepOpen) {
       killProcessTree(launchedChild.pid);
     }
+    if (mcpHost?.connected) mcpHost.disconnect();
   }
 }
 

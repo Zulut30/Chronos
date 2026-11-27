@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { fork } from "node:child_process";
+import { once } from "node:events";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { withSmokeFrame } from "./artifact-gallery.mjs";
+import { waitFor } from "./artifact-wait.mjs";
 
-export function createMcpFixture(temp) {
+function createMcpFixture(temp) {
   const home = mkdtempSync(join(temp, "mcp-test-"));
   const project = join(home, "Demo");
   mkdirSync(project);
@@ -21,6 +24,33 @@ export function createMcpFixture(temp) {
 }
 
 const frameUrl = "http://127.0.0.1:4523/";
+// Start only the packaged MCP host with the fixture home. The desktop uses its
+// normal service discovery and every other provider and service keeps its own home.
+export async function startMcpFixture(executable, temp) {
+  const home = createMcpFixture(temp);
+  const resources = process.platform === "darwin" ? join(dirname(executable), "..", "Resources") : join(dirname(executable), "resources");
+  mkdirSync(join(home, "logs", "services"), { recursive: true });
+  const host = fork(join(resources, "chronos-services", "host.mjs"), [], {
+    execPath: executable,
+    execArgv: [],
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", HOME: home, USERPROFILE: home, OLY_MCP_TEST_HOME: home, CHRONOS_T3_HOME: home, CHRONOS_SERVICES_DATA: home },
+    stdio: ["ignore", "ignore", "inherit", "ipc"],
+  });
+  try {
+    await once(host, "spawn");
+    await new Promise((resolve, reject) => host.send("mcp-manager", error => error ? reject(error) : resolve()));
+    await waitFor("packaged MCP worker using the test home", async () => {
+      const result = await fetch(frameUrl + "api/locations", { signal: AbortSignal.timeout(1500) });
+      const data = await result.json();
+      return data.locations?.some(location => location.id === "claude:user" && location.path === join(home, ".claude.json"));
+    });
+    return host;
+  } catch (error) {
+    if (host.connected) host.disconnect();
+    throw error;
+  }
+}
+
 const nav = "[data-oly-mcp-nav]";
 const providers = "[data-settings-section='/settings/providers']";
 const header = "[data-chronos-settings-content] > header";
