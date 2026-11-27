@@ -202,7 +202,10 @@ jobs:
           path: apps
       - name: Linux native dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y patchelf libsecret-1-dev
+        run: |
+          bash chronos/ci/setup/ubuntu-archives.sh
+          sudo apt-get update
+          sudo apt-get install -y patchelf libsecret-1-dev
       - name: Build native runner and archive
         shell: bash
         env:
