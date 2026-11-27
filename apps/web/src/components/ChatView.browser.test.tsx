@@ -818,6 +818,8 @@ it("Shift model selection launches the same task on two models", async () => {
   using launch = holdRpc<OrchestrationV2ThreadLaunchInput>(
     ORCHESTRATION_V2_WS_METHODS.launchThread, Effect.interrupt,
   );
+  // Worktree starts read the project's layout commands first; this project declares none.
+  using _layout = answerRpc(WS_METHODS.workspaceLayoutCommands, () => Effect.succeed({ commands: [] }));
   const router = getRouter(createMemoryHistory({ initialEntries: [`/draft/${draftId}`] }));
   await router.load();
   await using _app = await render(<AppRoot router={router} />, { router: false });
